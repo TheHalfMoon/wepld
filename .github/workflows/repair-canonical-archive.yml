@@ -17,7 +17,7 @@ jobs:
         with:
           ref: docs/fresh-reconstitution-v1
 
-      - name: Repair only if recoverable and fully verified
+      - name: Repair only from fully recoverable verified members
         shell: bash
         run: |
           set -euo pipefail
@@ -35,7 +35,7 @@ jobs:
           archive_path = pathlib.Path(
               "docs/canonical/artifacts/WEPLD_CANONICAL_ARTIFACTS_2026-08-14.tar.gz"
           )
-          workflow_path = pathlib.Path(".github/workflows/foundation-integrity.yml")
+          integrity_path = pathlib.Path(".github/workflows/foundation-integrity.yml")
           readme_path = pathlib.Path("docs/canonical/artifacts/README.md")
 
           expected_plan_sha256 = (
@@ -50,119 +50,133 @@ jobs:
           }
 
           original = archive_path.read_bytes()
-
           try:
-              tar_bytes = gzip.decompress(original)
-              print("archive already has a valid gzip stream; no repair required")
-              raise SystemExit(0)
+              gzip.decompress(original)
+              raise SystemExit("archive is already valid; refusing unnecessary repair")
           except (EOFError, gzip.BadGzipFile, zlib.error):
               pass
 
-          decompressor = zlib.decompressobj(16 + zlib.MAX_WBITS)
-          tar_bytes = decompressor.decompress(original)
-          tar_bytes += decompressor.flush()
-          if not tar_bytes:
+          d = zlib.decompressobj(16 + zlib.MAX_WBITS)
+          recovered_tar = d.decompress(original) + d.flush()
+          if not recovered_tar:
               raise SystemExit("corrupt archive yielded no recoverable tar payload")
 
-          with tarfile.open(fileobj=io.BytesIO(tar_bytes), mode="r:") as tf:
-              members = tf.getmembers()
-              names = {member.name for member in members}
-              if names != expected_members:
+          payloads = {}
+          try:
+              with tarfile.open(fileobj=io.BytesIO(recovered_tar), mode="r|") as tf:
+                  for member in tf:
+                      if not member.isfile():
+                          raise SystemExit(f"non-regular recovered member: {member.name}")
+                      extracted = tf.extractfile(member)
+                      if extracted is None:
+                          raise SystemExit(f"unable to read recovered member: {member.name}")
+                      data = extracted.read()
+                      if len(data) != member.size:
+                          raise SystemExit(
+                              f"truncated recovered member {member.name}: {len(data)} != {member.size}"
+                          )
+                      payloads[member.name] = data
+          except tarfile.ReadError as exc:
+              if set(payloads) != expected_members:
                   raise SystemExit(
-                      f"recovered member mismatch: expected={sorted(expected_members)} actual={sorted(names)}"
-                  )
-              if any(not member.isfile() for member in members):
-                  raise SystemExit("recovered tar contains a non-regular member")
-              payloads = {}
-              for name in expected_members:
-                  extracted = tf.extractfile(name)
-                  if extracted is None:
-                      raise SystemExit(f"unable to read recovered member: {name}")
-                  payloads[name] = extracted.read()
+                      f"tar ended before all required members were recovered: {sorted(payloads)}"
+                  ) from exc
+
+          if set(payloads) != expected_members:
+              raise SystemExit(
+                  f"recovered member mismatch: expected={sorted(expected_members)} actual={sorted(payloads)}"
+              )
 
           plan_name = "WEPLD_MASTER_ARCHITECTURE_EXECUTION_PLAN_2026-08-12_V2_2.md"
           actual_plan_sha256 = hashlib.sha256(payloads[plan_name]).hexdigest()
           if actual_plan_sha256 != expected_plan_sha256:
-              raise SystemExit(
-                  f"recovered master plan SHA-256 mismatch: {actual_plan_sha256}"
-              )
+              raise SystemExit(f"master-plan SHA mismatch: {actual_plan_sha256}")
 
           registry_name = "WEPLD_MASTER_SOURCE_REGISTRY_2026-08-14_V1.json"
           registry = json.loads(payloads[registry_name].decode("utf-8"))
           rows = registry.get("registry")
           if not isinstance(rows, list) or len(rows) != 402:
-              raise SystemExit("recovered JSON registry does not contain exactly 402 rows")
-          normalized_names = [
-              row.get("name", "").casefold()
-              for row in rows
-              if isinstance(row.get("name"), str)
-          ]
-          if len(normalized_names) != 402 or len(set(normalized_names)) != 402:
-              raise SystemExit("recovered JSON registry names are malformed or non-unique")
+              raise SystemExit("JSON registry does not contain exactly 402 rows")
+          names = [row.get("name") for row in rows]
+          normalized = [name.casefold() for name in names if isinstance(name, str)]
+          if len(normalized) != 402 or len(set(normalized)) != 402:
+              raise SystemExit("JSON registry names are malformed or non-unique")
           if any(row.get("admission_status") != "NOT_ADMITTED" for row in rows):
-              raise SystemExit("recovered JSON registry contains an admitted source")
-
+              raise SystemExit("JSON registry unexpectedly contains an admitted source")
           counts = registry.get("counts", {})
-          if counts.get("frozen_v1_5_named_entries") != 397:
-              raise SystemExit("recovered frozen V1.5 source count mismatch")
-          if counts.get("post_v1_5_new_top_level_named_entries") != 5:
-              raise SystemExit("recovered post-V1.5 source count mismatch")
-          if counts.get("current_accounted_named_entries") != 402:
-              raise SystemExit("recovered current source count mismatch")
+          if (
+              counts.get("frozen_v1_5_named_entries") != 397
+              or counts.get("post_v1_5_new_top_level_named_entries") != 5
+              or counts.get("current_accounted_named_entries") != 402
+          ):
+              raise SystemExit(f"registry count anchors mismatch: {counts}")
 
           csv_name = "WEPLD_MASTER_SOURCE_REGISTRY_2026-08-14_V1.csv"
           csv_rows = list(csv.DictReader(io.StringIO(payloads[csv_name].decode("utf-8"))))
           if len(csv_rows) != 402:
-              raise SystemExit("recovered CSV registry does not contain exactly 402 rows")
+              raise SystemExit("CSV registry does not contain exactly 402 rows")
           csv_names = [row.get("name", "").casefold() for row in csv_rows]
           if len(set(csv_names)) != 402:
-              raise SystemExit("recovered CSV registry names are non-unique")
+              raise SystemExit("CSV registry names are non-unique")
 
           for name in expected_members - {plan_name, registry_name, csv_name}:
               if not payloads[name].strip():
-                  raise SystemExit(f"recovered canonical artifact is empty: {name}")
+                  raise SystemExit(f"canonical artifact is empty: {name}")
 
-          repaired = gzip.compress(tar_bytes, compresslevel=9, mtime=0)
-          gzip.decompress(repaired)
+          rebuilt_tar = io.BytesIO()
+          with tarfile.open(fileobj=rebuilt_tar, mode="w", format=tarfile.USTAR_FORMAT) as tf:
+              for name in sorted(expected_members):
+                  data = payloads[name]
+                  info = tarfile.TarInfo(name)
+                  info.size = len(data)
+                  info.mtime = 0
+                  info.mode = 0o644
+                  info.uid = 0
+                  info.gid = 0
+                  info.uname = ""
+                  info.gname = ""
+                  tf.addfile(info, io.BytesIO(data))
+
+          repaired = gzip.compress(rebuilt_tar.getvalue(), compresslevel=9, mtime=0)
+          with tarfile.open(fileobj=io.BytesIO(repaired), mode="r:gz") as tf:
+              if {member.name for member in tf.getmembers()} != expected_members:
+                  raise SystemExit("rebuilt archive failed final member verification")
+
           new_sha256 = hashlib.sha256(repaired).hexdigest()
           archive_path.write_bytes(repaired)
 
-          workflow_text = workflow_path.read_text(encoding="utf-8")
-          workflow_text, count = re.subn(
+          integrity = integrity_path.read_text(encoding="utf-8")
+          integrity, count = re.subn(
               r'(?<=expected_archive_sha256 = \(\n              ")[0-9a-f]{64}',
               new_sha256,
-              workflow_text,
+              integrity,
               count=1,
           )
           if count != 1:
               raise SystemExit("could not update integrity workflow archive hash")
-          workflow_path.write_text(workflow_text, encoding="utf-8")
+          integrity_path.write_text(integrity, encoding="utf-8")
 
-          readme_text = readme_path.read_text(encoding="utf-8")
-          readme_text, count = re.subn(
-              r'(?<=SHA256 = )[0-9a-f]{64}',
-              new_sha256,
-              readme_text,
-              count=1,
-          )
+          readme = readme_path.read_text(encoding="utf-8")
+          readme, count = re.subn(r'(?<=SHA256 = )[0-9a-f]{64}', new_sha256, readme, count=1)
           if count != 1:
-              raise SystemExit("could not update canonical artifact README hash")
-          readme_path.write_text(readme_text, encoding="utf-8")
+              raise SystemExit("could not update artifact README hash")
+          readme_path.write_text(readme, encoding="utf-8")
 
-          print("recoverable canonical archive verified and repaired")
+          print("canonical archive recovery verified: PASS")
           print(f"repaired_archive_sha256={new_sha256}")
           PY
 
+          git rm -f -- \
+            .github/workflows/repair-canonical-archive.yml \
+            .github/repair-payload/chunk01.b64
+
           changed="$(git diff --name-only | sort)"
           expected="$(printf '%s\n' \
+            .github/repair-payload/chunk01.b64 \
             .github/workflows/foundation-integrity.yml \
+            .github/workflows/repair-canonical-archive.yml \
             docs/canonical/artifacts/README.md \
             docs/canonical/artifacts/WEPLD_CANONICAL_ARTIFACTS_2026-08-14.tar.gz | sort)"
-
-          if [ -z "$changed" ]; then
-            echo "No repair commit required."
-            exit 0
-          fi
 
           if [ "$changed" != "$expected" ]; then
             echo "Unexpected repair scope:" >&2

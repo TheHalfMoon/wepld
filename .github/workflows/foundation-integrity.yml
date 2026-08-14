@@ -24,7 +24,6 @@ jobs:
           set -euo pipefail
           python - <<'PY'
           import csv
-          import gzip
           import hashlib
           import io
           import json
@@ -36,7 +35,7 @@ jobs:
           )
 
           expected_archive_sha256 = (
-              "f2d96ceda6f0b5a761c209a4596fe47211d4caafdbf1f2c355ba4d3644c0b0e4"
+              "f8b6d44b7358d083e8c8ce28a28f3a0bbae01a2e6c556f57e175e48aee2c970e"
           )
           expected_plan_sha256 = (
               "e269b10ef711731c4ad3af7b1135546f92d82a78975cabc9ff52c2dea4b5bf44"

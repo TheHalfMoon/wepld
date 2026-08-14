@@ -52,11 +52,13 @@ STATUS
 OBSERVED
 -> CORROBORATED
 -> CANDIDATE
--> QUALIFIED / REJECTED
--> INCORPORATED
+   -> QUALIFIED -> INCORPORATED
+   -> REJECTED  -> [terminal]
 ```
 
-Only `QUALIFIED` material may be incorporated into canonical contracts/tests/skills, and incorporation still follows normal founder/architecture/source admission boundaries.
+`REJECTED` is terminal for that candidate identity. A materially new observation after rejection must create a new candidate with explicit lineage to the rejected record; it may not resurrect the rejected candidate in place.
+
+Only `QUALIFIED` material may proceed to `INCORPORATED`, and incorporation still follows normal founder/architecture/source-admission boundaries. `INCORPORATED` does not imply authority: the incorporated artifact must still obey its canonical owner and acceptance policy.
 
 ## Special rule for reviewers
 

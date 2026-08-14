@@ -2,6 +2,19 @@
 
 Original canonical SHA-256: `e269b10ef711731c4ad3af7b1135546f92d82a78975cabc9ff52c2dea4b5bf44`
 
+## Current status and supersession
+
+The 18 shards below are an **immutable exact-text preservation of the V2.2 planning artifact at the time it was issued**. Their original wording and digest are intentionally preserved for provenance.
+
+V2.2 was subsequently founder-ratified. Therefore current operational status is controlled by:
+
+1. [`CURRENT_STATE.md`](CURRENT_STATE.md) for live continuation/repository/gate state; and
+2. [`FOUNDER_RATIFICATION.md`](FOUNDER_RATIFICATION.md) for the ratification decisions.
+
+Any shard wording such as `READY_FOR_FOUNDER_RATIFICATION`, “next founder action,” `B-GOV-001`, the predecessor repository identity, or other time-bound pre-ratification statements is **historical evidence of the V2.2 issuance state**, not the current continuation state. When such historical wording conflicts with the two controlling current-state documents above, the current-state documents control the present status while the original V2.2 bytes remain unchanged.
+
+This supersession rule changes no V2.2 architecture content and does not authorize implementation, source import, dependency installation, or completion.
+
 The complete V2.2 plan is stored below as ordered exact-text shards to make repository ingestion and agent recovery reliable.
 Concatenating `PART-01.md` through the final part in byte order reconstructs the original canonical Markdown.
 
@@ -26,4 +39,4 @@ Concatenating `PART-01.md` through the final part in byte order reconstructs the
 | [`PART-17.md`](master-plan-v2-2/PART-17.md) | 1601-1700 | `35a732fd439ea4f13537ce763c97db20445d6ab01aa65ac49e8d7e6ce5e31c81` |
 | [`PART-18.md`](master-plan-v2-2/PART-18.md) | 1701-1742 | `4b669a595fba426f6b2f38fa86e844b9e52775c22e60cda04358e80a2e75c57d` |
 
-**Authority:** the ordered concatenation is the ratified V2.2 plan; this index is navigation only.
+**Architecture authority:** the ordered concatenation preserves the ratified V2.2 architecture. **Current status authority:** `CURRENT_STATE.md` and `FOUNDER_RATIFICATION.md` control present ratification, repository, blocker, and next-action state.

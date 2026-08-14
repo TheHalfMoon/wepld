@@ -54,6 +54,7 @@ Byan = learns from outcomes without authorizing
 SPEC_KIT_BUILD_METHOD = REQUIRED
 PONYTAIL_MODE = FULL
 SOURCE_ACQUISITION_CHECK = REQUIRED
+INDEPENDENT_REVIEW = REQUIRED
 BUILD_LEARNING_CAPTURE = REQUIRED
 
 CORRECTNESS_REVIEW_PRODUCERS =
@@ -62,7 +63,7 @@ CodeRabbit + Qodo + Augment Code + Graphite + Cubic + Continue
 SECURITY_SPECIALIST_REVIEWER = Codex Security
 ```
 
-Codex Security is additional and non-blocking when unavailable. Applicable source/runtime/security-boundary changes use exact diff-scoped security review when available and policy permits. `NOT_RUN_NON_BLOCKING` is not a security PASS.
+At least one independently qualified correctness/engineering review is required before acceptance of material work. Reviewer-product unavailability is not PASS. Codex Security is additional and non-blocking when unavailable; applicable source/runtime/security-boundary changes use exact diff-scoped security review when available and policy permits. `NOT_RUN_NON_BLOCKING` is not a security PASS.
 
 ## Source universe
 
@@ -89,7 +90,9 @@ DEPENDENCY_INSTALLATION = NOT_AUTHORIZED
 
 ## Next gate
 
-1. review and accept this fresh foundation;
-2. reconcile reviewer findings;
-3. preserve accepted build-learning evidence;
-4. separately authorize the first implementation slice.
+1. review this fresh foundation;
+2. reconcile all material reviewer findings;
+3. re-run deterministic gates and affected reviews;
+4. record founder acceptance;
+5. preserve accepted build-learning evidence;
+6. separately authorize the first implementation slice.

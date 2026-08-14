@@ -1,13 +1,13 @@
 # WePLD Mandatory Build Method
 
 ```text
-Spec Kit
+Spec Kit planning
 -> Ponytail FULL
 -> Source Acquisition Check
 -> Implement minimum sufficient solution
 -> Deterministic gates
--> Correctness / engineering reviewer mesh
--> Security-specialist review when applicable/available
+-> Independent correctness / engineering review
+-> Security-specialist review when applicable
 -> Finding reconciliation
 -> Bounded repair
 -> Re-run gates
@@ -18,13 +18,13 @@ Spec Kit
 
 ## Spec Kit
 
-Required sequence for material work:
+Required planning sequence for material work:
 
 ```text
-constitution -> specify -> clarify -> plan -> checklist -> analyze -> tasks -> implement
+constitution -> specify -> clarify -> plan -> checklist -> analyze -> tasks
 ```
 
-Spec Kit artifacts guide engineering; they do not grant effects or completion.
+Implementation begins only after the top-level mandatory Ponytail FULL and Source Acquisition Check gates have completed for the task. Spec Kit artifacts guide engineering; they do not grant effects, source admission, or completion.
 
 ## Ponytail FULL
 
@@ -38,15 +38,19 @@ Consult the canonical source registry. Pin exact candidate revisions, inspect so
 
 Run all applicable formatting, lint/static/type, unit, integration, contract, negative/adversarial, security, dependency/license/SBOM, platform, secret/diff, and benchmark gates. Missing applicable coverage is incomplete, not PASS.
 
-## Correctness / engineering reviewer mesh
+## Independent correctness / engineering review
 
-Use when available and policy permits:
+`INDEPENDENT_REVIEW = REQUIRED` before acceptance of material work.
+
+Named review producers are used when connected and policy/egress permits:
 - CodeRabbit
 - Qodo
 - Augment Code
 - Graphite
 - Cubic
 - Continue
+
+The minimum gate is evidence from at least one independently qualified reviewer appropriate to the change class, in addition to deterministic gates. If no qualified independent reviewer can run, the work is `REVIEW_BLOCKED`, not PASS, unless an explicitly authorized exception names a qualified substitute and records the residual limitation. A missing named product is never silently treated as approval.
 
 Normalize findings. Do not vote. A valid finding from one reviewer is not erased by clean outputs from others.
 
@@ -65,7 +69,7 @@ Codex Security unavailable = NOT_RUN_NON_BLOCKING
 Codex Security not run != Deterministic Security Coverage Passed
 ```
 
-Codex Security supplements deterministic security gates and the correctness reviewer mesh. It never replaces Ponytail, AMAN/Nawat governance, evidence requirements, or Trusted Completion.
+Codex Security supplements deterministic security gates and the correctness reviewer gate. It never replaces Ponytail, AMAN/Nawat governance, evidence requirements, or Trusted Completion.
 
 ## Reviewer outcomes
 

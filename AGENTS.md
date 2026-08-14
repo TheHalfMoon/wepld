@@ -50,7 +50,7 @@ INDEPENDENT_REVIEW = REQUIRED
 BUILD_LEARNING_CAPTURE = REQUIRED
 ```
 
-Correctness / engineering review producers when available and policy permits:
+Correctness / engineering review producers, when connected and policy/egress permits:
 - CodeRabbit
 - Qodo
 - Augment Code
@@ -58,17 +58,12 @@ Correctness / engineering review producers when available and policy permits:
 - Cubic
 - Continue
 
-Security-specialist review:
-- Codex Security diff scan for material source/runtime/security-boundary changes when available and egress policy permits.
+Security-specific reviewer:
+- Codex Security for security-sensitive changes when available and policy/egress permits.
 
-```text
-Codex Security clean != CompletionDecision
-Codex Security finding != Write Authority
-Codex Security unavailable = NOT_RUN_NON_BLOCKING
-Codex Security not run != Deterministic Security Coverage Passed
-```
+At least one independently qualified correctness/engineering review is required before acceptance of material work. If no qualified independent reviewer can run, record `REVIEW_BLOCKED`; do not convert unavailability into PASS. Any exception requires explicit authorization, a named qualified substitute, and a residual-limitation record.
 
-No reviewer is completion authority.
+No reviewer is completion authority. Codex Security supplements deterministic security gates and never replaces them.
 
 ## Repository authority
 

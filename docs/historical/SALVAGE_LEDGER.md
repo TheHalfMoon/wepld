@@ -15,6 +15,6 @@ High-value former-repo candidates:
 - PR #1 validation/workspace/ledger/provider tests -> `TEST_ORACLE_ONLY` or `CONCEPT_ONLY`;
 - PR #1 Hermes runtime and old architecture -> runtime `REJECT`, tests/failure corpus `TEST_ORACLE_ONLY`;
 - PR #1 golden/adversarial/governance/integrity/lifecycle tests -> `TEST_ORACLE_ONLY`;
-- old dependency set -> `REJECT_BY_DEFAULT`, re-admit only per capability gate.
+- old dependency set -> `REJECT` by default; a dependency may enter the new repository only through its later capability-specific acquisition and admission gate.
 
 Any later code salvage requires exact old path/blob/commit/test paths/rights/security/platform limits/new owner/rewrite delta/negative tests/admission decision.

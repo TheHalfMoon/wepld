@@ -1,0 +1,123 @@
+name: foundation-integrity
+
+on:
+  pull_request:
+  push:
+    branches:
+      - docs/fresh-reconstitution-v1
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Verify canonical artifact archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import csv
+          import gzip
+          import hashlib
+          import io
+          import json
+          import pathlib
+          import tarfile
+
+          archive_path = pathlib.Path(
+              "docs/canonical/artifacts/WEPLD_CANONICAL_ARTIFACTS_2026-08-14.tar.gz"
+          )
+
+          expected_archive_sha256 = (
+              "f2d96ceda6f0b5a761c209a4596fe47211d4caafdbf1f2c355ba4d3644c0b0e4"
+          )
+          expected_plan_sha256 = (
+              "e269b10ef711731c4ad3af7b1135546f92d82a78975cabc9ff52c2dea4b5bf44"
+          )
+          expected_members = {
+              "WEPLD_MASTER_ARCHITECTURE_EXECUTION_PLAN_2026-08-12_V2_2.md",
+              "WEPLD_MASTER_SOURCE_REGISTRY_2026-08-14_V1.json",
+              "WEPLD_MASTER_SOURCE_REGISTRY_2026-08-14_V1.csv",
+              "WEPLD_SOURCE_ARTIFACT_PIN_LEDGER_2026-08-14_V1.md",
+              "WEPLD_SOURCE_CAPABILITY_MINING_PRIORITY_MATRIX_2026-08-14_V1.md",
+          }
+
+          archive_bytes = archive_path.read_bytes()
+          actual_archive_sha256 = hashlib.sha256(archive_bytes).hexdigest()
+          if actual_archive_sha256 != expected_archive_sha256:
+              raise SystemExit(
+                  f"archive SHA-256 mismatch: {actual_archive_sha256}"
+              )
+
+          with tarfile.open(fileobj=io.BytesIO(archive_bytes), mode="r:gz") as tf:
+              members = tf.getmembers()
+              names = {member.name for member in members}
+              if names != expected_members:
+                  raise SystemExit(
+                      f"archive member mismatch: expected={sorted(expected_members)} actual={sorted(names)}"
+                  )
+              if any(not member.isfile() for member in members):
+                  raise SystemExit("archive contains a non-regular member")
+
+              payloads = {}
+              for name in expected_members:
+                  extracted = tf.extractfile(name)
+                  if extracted is None:
+                      raise SystemExit(f"unable to read archive member: {name}")
+                  payloads[name] = extracted.read()
+
+          plan_name = "WEPLD_MASTER_ARCHITECTURE_EXECUTION_PLAN_2026-08-12_V2_2.md"
+          plan_sha256 = hashlib.sha256(payloads[plan_name]).hexdigest()
+          if plan_sha256 != expected_plan_sha256:
+              raise SystemExit(f"master plan SHA-256 mismatch: {plan_sha256}")
+
+          registry_name = "WEPLD_MASTER_SOURCE_REGISTRY_2026-08-14_V1.json"
+          registry = json.loads(payloads[registry_name].decode("utf-8"))
+          rows = registry.get("registry")
+          if not isinstance(rows, list):
+              raise SystemExit("registry payload is not a list")
+          if len(rows) != 402:
+              raise SystemExit(f"expected 402 registry rows, got {len(rows)}")
+
+          names = [row.get("name") for row in rows]
+          normalized_names = [name.casefold() for name in names if isinstance(name, str)]
+          if len(normalized_names) != 402 or len(set(normalized_names)) != 402:
+              raise SystemExit("registry names are missing, malformed, or non-unique")
+
+          if any(row.get("admission_status") != "NOT_ADMITTED" for row in rows):
+              raise SystemExit("registry unexpectedly contains an admitted source")
+
+          counts = registry.get("counts", {})
+          if counts.get("frozen_v1_5_named_entries") != 397:
+              raise SystemExit("frozen V1.5 source count mismatch")
+          if counts.get("post_v1_5_new_top_level_named_entries") != 5:
+              raise SystemExit("post-V1.5 source count mismatch")
+          if counts.get("current_accounted_named_entries") != 402:
+              raise SystemExit("current source count mismatch")
+
+          csv_name = "WEPLD_MASTER_SOURCE_REGISTRY_2026-08-14_V1.csv"
+          csv_rows = list(
+              csv.DictReader(io.StringIO(payloads[csv_name].decode("utf-8")))
+          )
+          if len(csv_rows) != 402:
+              raise SystemExit(f"expected 402 CSV rows, got {len(csv_rows)}")
+          csv_names = [row.get("name", "").casefold() for row in csv_rows]
+          if len(set(csv_names)) != 402:
+              raise SystemExit("CSV registry names are non-unique")
+
+          for name in expected_members - {plan_name, registry_name, csv_name}:
+              if not payloads[name].strip():
+                  raise SystemExit(f"canonical artifact is empty: {name}")
+
+          print("foundation canonical artifact verification: PASS")
+          print(f"archive_sha256={actual_archive_sha256}")
+          print(f"master_plan_sha256={plan_sha256}")
+          print("source_registry_entries=402")
+          PY

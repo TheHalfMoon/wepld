@@ -55,8 +55,14 @@ SPEC_KIT_BUILD_METHOD = REQUIRED
 PONYTAIL_MODE = FULL
 SOURCE_ACQUISITION_CHECK = REQUIRED
 BUILD_LEARNING_CAPTURE = REQUIRED
-REVIEW_PRODUCERS = CodeRabbit + Qodo + Augment Code + Graphite + Cubic + Continue
+
+CORRECTNESS_REVIEW_PRODUCERS =
+CodeRabbit + Qodo + Augment Code + Graphite + Cubic + Continue
+
+SECURITY_SPECIALIST_REVIEWER = Codex Security
 ```
+
+Codex Security is additional and non-blocking when unavailable. Applicable source/runtime/security-boundary changes use exact diff-scoped security review when available and policy permits. `NOT_RUN_NON_BLOCKING` is not a security PASS.
 
 ## Source universe
 

@@ -21,16 +21,22 @@ The public VS Code repository establishes only an edge/integration surface. It d
 
 ## Current official behavior evidence
 
-Official Greptile documentation currently describes:
+The exact public-documentation provenance used for the behavior claims below is frozen as bounded normalized evidence capsules in:
 
-- a codebase graph containing files, functions/classes, imports, dependencies, calls, usages, and related patterns;
-- review-time retrieval of affected callers, dependencies, related code, and similar implementations rather than diff-only analysis;
-- `.greptile/` directory-scoped configuration with cascading root-to-leaf inheritance;
-- `config.json` structured rules, severity, scope, disable-by-ID, review settings, and cross-repository context;
-- `rules.md` as plain-language reviewer context scoped to the containing directory tree;
-- `files.json` for architecture documents, schemas, API contracts, and other explicit context files;
-- cross-repository context through explicitly configured repositories;
-- high-signal review, inline findings, suggested fixes, conversational follow-up, and learning from team feedback.
+`docs/acquisition/evidence/GREPTILE_OFFICIAL_BEHAVIOR_EVIDENCE_2026-08-15.md`
+
+Each evidence ID records an exact official URL, retrieval timestamp, normalized claim snapshot, and independently re-hashable SHA-256 capsule digest. The snapshot is deliberately bounded; it does not claim a hash of Greptile's mutable hosted implementation.
+
+Official Greptile documentation currently supports the following bounded claims:
+
+- `GREP-E1`: graph-based codebase context covering code elements and relationships and review beyond isolated diff text;
+- `GREP-E2`: directory-scoped `.greptile/` configuration with cascading inheritance, structured config, prose rules, and explicit context files;
+- `GREP-E3`: cross-repository review context through explicitly configured related repositories accessible with the same credentials;
+- `GREP-E4`: learning from team comments, replies, reactions, commit analysis, and repeated patterns;
+- `GREP-E5`: full-codebase-context review, high-signal findings, conversational follow-up, and agent-assisted fixes;
+- `GREP-E6`: repository-level `greptile.json` settings read from the pull-request source branch.
+
+The earlier uncertainty around cross-repository context is therefore resolved only at the behavior-documentation level: `GREP-E3` provides an exact official provenance anchor. This does **not** grant cross-repository read authority in WePLD.
 
 Hosted behavior is mutable service behavior. Reuse of old Greptile evaluation evidence therefore requires a use-time provider/product compatibility check; no immutable hosted-core revision is claimed here.
 
@@ -70,25 +76,25 @@ Fehrest should own the canonical context and provenance. Assurance consumes a bo
 
 ### 1. Graph-aware change impact
 
-Review should reason over callers, dependencies, relationships, and similar local patterns instead of treating every changed file as an isolated text document.
+Review should reason over callers, dependencies, relationships, and similar local patterns instead of treating every changed file as an isolated text document. Provenance: `GREP-E1`.
 
 ### 2. Cascading repository rules
 
-A directory can inherit repository-wide review rules while adding or disabling scoped rules for a component. This is useful for monorepos and subsystem-specific assurance policy.
+A directory can inherit repository-wide review rules while adding or disabling scoped rules for a component. This is useful for monorepos and subsystem-specific assurance policy. Provenance: `GREP-E2`.
 
 WePLD should adapt the hierarchy while preserving canonical authority: a lower-level file may narrow or specialize applicable review guidance only where the governing policy permits it. A repository branch cannot silently redefine Nawat authority or Trusted Completion.
 
 ### 3. Explicit context-file references
 
-Schemas, architecture records, API contracts, and other known files can be named as reviewer context instead of hoping retrieval finds them. This maps well to Fehrest context manifests and architecture contracts.
+Schemas, architecture records, API contracts, and other known files can be named as reviewer context instead of hoping retrieval finds them. This maps well to Fehrest context manifests and architecture contracts. Provenance: `GREP-E2`.
 
 ### 4. Cross-repository context
 
-Related repositories can be declared as context for review. WePLD should preserve this as a useful capability but separate **relevance** from **authorization to read**.
+Related repositories can be declared as context for review. WePLD should preserve this as a useful capability but separate **relevance** from **authorization to read**. Provenance: `GREP-E3`.
 
 ### 5. Feedback-driven review quality
 
-Greptile can learn from comments, replies, reactions, commits, and repeated patterns. This is a useful Byan/Assurance behavior oracle for candidate learning and reviewer calibration.
+Greptile documents learning from review feedback and repeated team patterns. This is a useful Byan/Assurance behavior oracle for candidate learning and reviewer calibration. Provenance: `GREP-E4` and `GREP-E5`.
 
 ## Negative authority / safety oracles
 
@@ -105,7 +111,7 @@ HOSTED_SERVICE_AVAILABLE != EGRESS_AUTHORIZED
 
 ### Source-branch configuration is untrusted review input
 
-Greptile documents that repository configuration can be read from the source branch of a pull request. In WePLD, any reviewer configuration coming from a proposed change must be treated as untrusted data and cannot weaken canonical review/security/authority requirements for the change that contains it.
+Greptile documents that repository-level configuration can be read from the source branch of a pull request (`GREP-E6`). In WePLD, any reviewer configuration coming from a proposed change must be treated as untrusted data and cannot weaken canonical review/security/authority requirements for the change that contains it.
 
 Candidate rule:
 

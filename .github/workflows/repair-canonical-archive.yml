@@ -46,7 +46,19 @@ jobs:
           expected_plan_sha256 = (
               'e269b10ef711731c4ad3af7b1135546f92d82a78975cabc9ff52c2dea4b5bf44'
           )
-          expected_chunk_names = [f'chunk{i:02d}.b64' for i in range(1, 10)]
+          part_names = [
+              'chunk01.b64',
+              'chunk02.b64',
+              'chunk03.b64',
+              'chunk04.b64',
+              'chunk05.b64',
+              'chunk06a.b64',
+              'chunk06b.b64',
+              'chunk07a.b64',
+              'chunk07b.b64',
+              'chunk08.b64',
+              'chunk09.b64',
+          ]
           expected_members = {
               'WEPLD_MASTER_ARCHITECTURE_EXECUTION_PLAN_2026-08-12_V2_2.md',
               'WEPLD_MASTER_SOURCE_REGISTRY_2026-08-14_V1.json',
@@ -55,15 +67,15 @@ jobs:
               'WEPLD_SOURCE_CAPABILITY_MINING_PRIORITY_MATRIX_2026-08-14_V1.md',
           }
 
-          actual_chunk_names = sorted(p.name for p in payload_dir.glob('chunk*.b64'))
-          if actual_chunk_names != expected_chunk_names:
+          actual_part_names = sorted(p.name for p in payload_dir.glob('chunk*.b64'))
+          if actual_part_names != sorted(part_names):
               raise SystemExit(
-                  f'incomplete staged payload: expected={expected_chunk_names} actual={actual_chunk_names}'
+                  f'incomplete staged payload: expected={sorted(part_names)} actual={actual_part_names}'
               )
 
           encoded = ''.join(
-              (payload_dir / name).read_text(encoding='ascii')
-              for name in expected_chunk_names
+              (payload_dir / name).read_text(encoding='ascii').strip()
+              for name in part_names
           )
           try:
               archive = base64.b64decode(encoded, validate=True)
@@ -165,14 +177,43 @@ jobs:
             .github/repair-payload/chunk03.b64 \
             .github/repair-payload/chunk04.b64 \
             .github/repair-payload/chunk05.b64 \
-            .github/repair-payload/chunk06.b64 \
-            .github/repair-payload/chunk07.b64 \
+            .github/repair-payload/chunk06a.b64 \
+            .github/repair-payload/chunk06b.b64 \
+            .github/repair-payload/chunk07a.b64 \
+            .github/repair-payload/chunk07b.b64 \
             .github/repair-payload/chunk08.b64 \
             .github/repair-payload/chunk09.b64
 
+          changed="$(git diff --name-only | sort)"
+          expected="$(printf '%s\n' \
+            .github/repair-payload/READY \
+            .github/repair-payload/chunk01.b64 \
+            .github/repair-payload/chunk02.b64 \
+            .github/repair-payload/chunk03.b64 \
+            .github/repair-payload/chunk04.b64 \
+            .github/repair-payload/chunk05.b64 \
+            .github/repair-payload/chunk06a.b64 \
+            .github/repair-payload/chunk06b.b64 \
+            .github/repair-payload/chunk07a.b64 \
+            .github/repair-payload/chunk07b.b64 \
+            .github/repair-payload/chunk08.b64 \
+            .github/repair-payload/chunk09.b64 \
+            .github/workflows/foundation-integrity.yml \
+            .github/workflows/repair-canonical-archive.yml \
+            docs/canonical/artifacts/README.md \
+            docs/canonical/artifacts/WEPLD_CANONICAL_ARTIFACTS_2026-08-14.tar.gz | sort)"
+
+          if [ "$changed" != "$expected" ]; then
+            echo 'Unexpected repair scope:' >&2
+            printf '%s\n' "$changed" >&2
+            exit 1
+          fi
+
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- \
+          git add -A -- \
+            .github/repair-payload \
+            .github/workflows/repair-canonical-archive.yml \
             .github/workflows/foundation-integrity.yml \
             docs/canonical/artifacts/README.md \
             docs/canonical/artifacts/WEPLD_CANONICAL_ARTIFACTS_2026-08-14.tar.gz

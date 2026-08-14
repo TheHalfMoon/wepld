@@ -1,0 +1,134 @@
+name: finalize-canonical-archive
+
+on:
+  push:
+    branches: [docs/fresh-reconstitution-v1]
+    paths: [.github/repair-payload/FINALIZE]
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full branch history
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: docs/fresh-reconstitution-v1
+          fetch-depth: 0
+
+      - name: Verify or recover exact canonical archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64, csv, hashlib, io, json, pathlib, re, subprocess, tarfile
+
+          root = pathlib.Path('.')
+          p = root / '.github/repair-payload'
+          archive_path = root / 'docs/canonical/artifacts/WEPLD_CANONICAL_ARTIFACTS_2026-08-14.tar.gz'
+          integrity_path = root / '.github/workflows/foundation-integrity.yml'
+          readme_path = root / 'docs/canonical/artifacts/README.md'
+          expected_archive = '35dee10e7526d1958c5b3b88a1a9b569b0d1a464f5eec4e20e16c19c99f1c6b0'
+          expected_plan = 'e269b10ef711731c4ad3af7b1135546f92d82a78975cabc9ff52c2dea4b5bf44'
+          expected_members = {
+              'WEPLD_MASTER_ARCHITECTURE_EXECUTION_PLAN_2026-08-12_V2_2.md',
+              'WEPLD_MASTER_SOURCE_REGISTRY_2026-08-14_V1.json',
+              'WEPLD_MASTER_SOURCE_REGISTRY_2026-08-14_V1.csv',
+              'WEPLD_SOURCE_ARTIFACT_PIN_LEDGER_2026-08-14_V1.md',
+              'WEPLD_SOURCE_CAPABILITY_MINING_PRIORITY_MATRIX_2026-08-14_V1.md',
+          }
+
+          def digest(data): return hashlib.sha256(data).hexdigest()
+          current = archive_path.read_bytes()
+          selected = current if digest(current) == expected_archive else None
+
+          def read(name):
+              path = p / name
+              if not path.is_file(): return None
+              return path.read_text(encoding='ascii').strip()
+
+          if selected is None:
+              required = ['chunk01.b64','chunk02.b64','chunk03.b64','chunk04.b64','chunk05.b64',
+                          'chunk06b.b64','chunk07a.b64','chunk07b.b64','chunk08.b64','chunk09.b64']
+              values = {name: read(name) for name in required}
+              if any(v is None for v in values.values()):
+                  raise SystemExit('current archive is wrong and required staged recovery parts are missing')
+              prefix = ''.join(values[x] for x in required[:5])
+              suffix = ''.join(values[x] for x in required[5:])
+              candidates = []
+              micro_names = ['chunk06a01.b64','chunk06a02.b64','chunk06a03.b64','chunk06a04.b64']
+              micro_values = [read(x) for x in micro_names]
+              if all(v is not None for v in micro_values):
+                  micro = ''.join(micro_values)
+                  if len(micro) >= 7500: candidates.append(('micro', micro[:7500]))
+              try:
+                  hist = subprocess.check_output([
+                      'git','show','c8ffd032cdef6c2f92dff402a4c0edc582917698:.github/repair-payload/chunk06.b64'
+                  ], text=True).strip()
+                  if len(hist) >= 7500: candidates.append(('historical', hist[:7500]))
+              except subprocess.CalledProcessError:
+                  pass
+              for label, middle in candidates:
+                  try: candidate = base64.b64decode(prefix + middle + suffix, validate=True)
+                  except Exception: continue
+                  print(f'candidate={label} sha256={digest(candidate)}')
+                  if digest(candidate) == expected_archive:
+                      selected = candidate
+                      break
+              if selected is None:
+                  raise SystemExit('no exact-SHA recovery candidate matched canonical archive')
+
+          payloads = {}
+          with tarfile.open(fileobj=io.BytesIO(selected), mode='r:gz') as tf:
+              members = tf.getmembers()
+              names = {m.name for m in members}
+              if names != expected_members or any(not m.isfile() for m in members):
+                  raise SystemExit(f'archive member contract mismatch: {sorted(names)}')
+              for m in members:
+                  f = tf.extractfile(m)
+                  if f is None: raise SystemExit(f'unreadable member: {m.name}')
+                  data = f.read()
+                  if len(data) != m.size: raise SystemExit(f'truncated member: {m.name}')
+                  payloads[m.name] = data
+          plan = 'WEPLD_MASTER_ARCHITECTURE_EXECUTION_PLAN_2026-08-12_V2_2.md'
+          if digest(payloads[plan]) != expected_plan: raise SystemExit('master-plan SHA mismatch')
+          reg = json.loads(payloads['WEPLD_MASTER_SOURCE_REGISTRY_2026-08-14_V1.json'].decode())
+          rows = reg.get('registry')
+          names = [r.get('name','').casefold() for r in rows] if isinstance(rows, list) else []
+          if len(rows or []) != 402 or len(set(names)) != 402: raise SystemExit('JSON registry count/uniqueness mismatch')
+          if any(r.get('admission_status') != 'NOT_ADMITTED' for r in rows): raise SystemExit('unexpected admitted source')
+          c = reg.get('counts', {})
+          if (c.get('frozen_v1_5_named_entries'), c.get('post_v1_5_new_top_level_named_entries'), c.get('current_accounted_named_entries')) != (397,5,402): raise SystemExit('registry anchors mismatch')
+          csv_rows = list(csv.DictReader(io.StringIO(payloads['WEPLD_MASTER_SOURCE_REGISTRY_2026-08-14_V1.csv'].decode())))
+          if len(csv_rows) != 402 or len({r.get('name','').casefold() for r in csv_rows}) != 402: raise SystemExit('CSV registry mismatch')
+          archive_path.write_bytes(selected)
+
+          integrity = integrity_path.read_text()
+          integrity, n = re.subn(r'(?<=expected_archive_sha256 = \(\n              ")[0-9a-f]{64}', expected_archive, integrity, count=1)
+          if n != 1: raise SystemExit('could not update integrity hash')
+          integrity_path.write_text(integrity)
+          readme = readme_path.read_text()
+          readme, n = re.subn(r'(?<=SHA256 = )[0-9a-f]{64}', expected_archive, readme, count=1)
+          if n != 1: raise SystemExit('could not update README hash')
+          readme_path.write_text(readme)
+          print('canonical archive final verification: PASS')
+          PY
+
+          if [ -d .github/repair-payload ]; then git rm -rf -- .github/repair-payload; fi
+          for wf in .github/workflows/repair-canonical-archive.yml \
+                    .github/workflows/repair-canonical-archive-v2.yml \
+                    .github/workflows/repair-canonical-archive-v3.yml \
+                    .github/workflows/finalize-canonical-archive.yml; do
+            if [ -e "$wf" ]; then git rm -f -- "$wf"; fi
+          done
+
+          unexpected="$(git diff --name-only | grep -Ev '^(.github/repair-payload/|.github/workflows/(repair-canonical-archive(-v2|-v3)?|finalize-canonical-archive)\.yml$|.github/workflows/foundation-integrity\.yml$|docs/canonical/artifacts/README\.md$|docs/canonical/artifacts/WEPLD_CANONICAL_ARTIFACTS_2026-08-14\.tar\.gz$)' || true)"
+          if [ -n "$unexpected" ]; then echo "$unexpected" >&2; exit 1; fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix: finalize canonical artifact archive'
+          git push origin HEAD:docs/fresh-reconstitution-v1

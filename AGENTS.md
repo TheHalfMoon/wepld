@@ -12,6 +12,8 @@ Before planning, reviewing, implementing, or mutating WePLD:
 6. `docs/acquisition/SOURCE_REGISTRY_INDEX.md`
 7. the active Spec Kit feature directory under `specs/`
 
+On every new chat or agent session, treat this repository read order as the durable bootstrap. Repository canonical memory outranks chat memory. Verify live PR/check/review state before any mutation.
+
 ## Product thesis
 
 ```text
@@ -52,6 +54,7 @@ BUILD_LEARNING_CAPTURE = REQUIRED
 
 Correctness / engineering review producers, when connected and policy/egress permits:
 - CodeRabbit
+- Greptile
 - Qodo
 - Augment Code
 - Graphite
@@ -64,6 +67,8 @@ Security-specific reviewer:
 At least one independently qualified correctness/engineering review is required before acceptance of material work. If no qualified independent reviewer can run, record `REVIEW_BLOCKED`; do not convert unavailability into PASS. Any exception requires explicit authorization, a named qualified substitute, and a residual-limitation record.
 
 No reviewer is completion authority. Codex Security supplements deterministic security gates and never replaces them.
+
+While building, learn from the reviewers/builders/tools: record evidence-backed mechanics, tests, failure modes, context strategies, permission patterns, routing, recovery, and negative oracles through the canonical Build Learning protocol. Learned behavior is a candidate, never authority.
 
 ## Repository authority
 
@@ -82,4 +87,11 @@ FORMER_TREE = HISTORICAL_QUARRY
 FORMER_CODE = REJECT_UNLESS_EXPLICITLY_SALVAGED
 FORMER_DOCS = NON_CANONICAL_UNLESS_EXPLICITLY_SALVAGED
 LEGACY_DIRECTORY_COPY = NO
+```
+
+## Communication
+
+```text
+DISCUSSION_LANGUAGE = Arabic
+READY_TO_USE_TECHNICAL_PROMPTS = English
 ```

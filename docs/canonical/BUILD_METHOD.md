@@ -6,7 +6,8 @@ Spec Kit
 -> Source Acquisition Check
 -> Implement minimum sufficient solution
 -> Deterministic gates
--> Independent reviewer mesh
+-> Correctness / engineering reviewer mesh
+-> Security-specialist review when applicable/available
 -> Finding reconciliation
 -> Bounded repair
 -> Re-run gates
@@ -37,7 +38,7 @@ Consult the canonical source registry. Pin exact candidate revisions, inspect so
 
 Run all applicable formatting, lint/static/type, unit, integration, contract, negative/adversarial, security, dependency/license/SBOM, platform, secret/diff, and benchmark gates. Missing applicable coverage is incomplete, not PASS.
 
-## Independent reviewer mesh
+## Correctness / engineering reviewer mesh
 
 Use when available and policy permits:
 - CodeRabbit
@@ -49,6 +50,25 @@ Use when available and policy permits:
 
 Normalize findings. Do not vote. A valid finding from one reviewer is not erased by clean outputs from others.
 
+## Security-specialist review — Codex Security
+
+For material changes to source code, runtime behavior, authority/security boundaries, parsers, filesystem/process/network effects, dependency execution, sandboxing, credentials/secrets handling, CI trust, or external-input handling, run a Codex Security diff scan when available and egress policy permits.
+
+The scan must be anchored to the exact reviewed base/head or local patch. Review every changed source file and follow changed behavior only as far as needed to validate candidate vulnerabilities. Use a threat model, validate candidates, and perform attack-path analysis for reportable/deferred candidates. Preserve coverage gaps explicitly.
+
+For documentation-only changes with no executable/security-boundary effect, Codex Security may be recorded as `NOT_APPLICABLE`; workflow/config changes remain security-relevant and require deterministic/security review appropriate to their effects.
+
+```text
+Codex Security clean != CompletionDecision
+Codex Security finding != Write Authority
+Codex Security unavailable = NOT_RUN_NON_BLOCKING
+Codex Security not run != Deterministic Security Coverage Passed
+```
+
+Codex Security supplements deterministic security gates and the correctness reviewer mesh. It never replaces Ponytail, AMAN/Nawat governance, evidence requirements, or Trusted Completion.
+
+## Reviewer outcomes
+
 ```text
 CodeRabbit clean != CompletionDecision
 Qodo clean != CompletionDecision
@@ -56,6 +76,7 @@ Augment clean != CompletionDecision
 Graphite clean != CompletionDecision
 Cubic clean != CompletionDecision
 Continue green != CompletionDecision
+Codex Security clean != CompletionDecision
 Green CI != CompletionDecision
 ```
 

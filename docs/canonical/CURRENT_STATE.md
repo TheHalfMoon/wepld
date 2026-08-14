@@ -3,6 +3,16 @@
 **Checkpoint date:** 2026-08-14  
 **Repository:** `TheHalfMoon/wepld`
 
+## Current-state precedence
+
+This file controls the **live continuation state**. [`FOUNDER_RATIFICATION.md`](FOUNDER_RATIFICATION.md) controls current founder-ratification decisions. The sharded V2.2 plan preserves the exact pre-ratification planning artifact and may contain historical wording about pending ratification, the predecessor repository, or blockers that have since changed.
+
+```text
+CURRENT_STATE.md = LIVE CONTINUATION / REPOSITORY / GATE STATE
+FOUNDER_RATIFICATION.md = CURRENT RATIFICATION STATE
+V2.2 SHARDS = IMMUTABLE ARCHITECTURE + HISTORICAL ISSUANCE EVIDENCE
+```
+
 ## Current decision
 
 ```text
@@ -69,13 +79,13 @@ ALL_SOURCES_ADMITTED = NO
 ALL_SOURCES_PATH_MINED = NO
 ```
 
-## Live governance preflight — 2026-08-14
+## Live repository state — 2026-08-14
 
 ```text
 REPOSITORY_ID = 1334408699
 OWNER = TheHalfMoon
 DEFAULT_BRANCH = main
-LAST_VERIFIED_MAIN = 7813dea9c53863378a5ae2fefcaf66f6b5d43103
+MAIN = 7813dea9c53863378a5ae2fefcaf66f6b5d43103
 VISIBILITY = public
 
 CONNECTED_ACTOR = TheHalfMoon
@@ -84,6 +94,10 @@ SESSION_PUSH = true
 SESSION_MAINTAIN = true
 SESSION_ADMIN = true
 ADMIN_PERMISSION = VERIFIED
+
+FOUNDATION_PR = 1
+FOUNDATION_PR_STATE = OPEN_DRAFT_UNMERGED
+FOUNDATION_BRANCH = agent/fresh-reconstitution-foundation
 
 LEGACY_B_GOV_001 = CLOSED_BY_NEW_OWNER_ADMIN_REPOSITORY
 B-WIN-001 = OPEN
@@ -105,20 +119,21 @@ OLD_PR_11_HEAD = 68cab399748c5c103b8f96380da69fdffca4d3fe
 ## Current gate
 
 ```text
-FRESH_RECONSTITUTION = ACTIVE
-REPOSITORY_OWNER_ADMIN = VERIFIED
-NEXT_ACTION = review and accept the fresh documentation foundation
+FRESH_RECONSTITUTION = PUBLISHED_TO_DRAFT_PR
+FOUNDATION_INTEGRITY_CORRECTIONS = APPLIED
+FOUNDATION_REVIEW = IN_PROGRESS
+FOUNDER_ACCEPTANCE = NOT_YET_RECORDED
+
 IMPLEMENTATION_AUTHORIZATION = NONE
 SOURCE_IMPORT_AUTHORIZATION = NONE
 DEPENDENCY_INSTALL_AUTHORIZATION = NONE
 ```
 
-## Next execution
+## Current next execution
 
-1. publish the complete documentation-only fresh foundation on `agent/fresh-reconstitution-foundation`;
-2. open a Draft PR against `main`;
-3. run deterministic documentation/integrity checks;
-4. run the independent reviewer mesh: CodeRabbit, Qodo, Augment Code, Graphite, Cubic, Continue when available;
-5. reconcile findings and re-review material corrections;
-6. founder accepts the fresh foundation;
-7. only then authorize the first implementation slice separately.
+1. re-run deterministic/integrity review after the shard-byte and supersession corrections;
+2. collect actual evidence from the independent reviewer mesh, recording unavailable/not-connected routes as `NOT_RUN_*`, never PASS;
+3. reconcile every valid finding and re-review material corrections;
+4. keep PR #1 Draft until founder acceptance;
+5. founder accepts or returns the fresh foundation;
+6. only after acceptance may a separately authorized P0/S1 execution task begin.

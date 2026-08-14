@@ -60,4 +60,4 @@ NOT_RUN != SECURITY_COVERAGE_PASS
 
 ## Related canonical policy
 
-See `docs/canonical/CODEX_SECURITY_REVIEW_POLICY.md`.
+See `docs/canonical/SECURITY_REVIEW_POLICY.md`.

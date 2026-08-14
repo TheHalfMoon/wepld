@@ -69,9 +69,10 @@ No reviewer is completion authority. Codex Security supplements deterministic se
 
 ```text
 CANONICAL_REPOSITORY = TheHalfMoon/wepld
+AUTHORITY_EVIDENCE = docs/governance/REPOSITORY_AUTHORITY_EVIDENCE_2026-08-14.md
 ```
 
-The connected account is the repository owner/admin. Never mutate repository or GitHub state outside current founder authorization.
+Treat repository/session authority as point-in-time evidence. Reverify live permissions before privileged mutation. Never mutate repository or GitHub state outside current founder authorization.
 
 ## Fresh reconstitution
 

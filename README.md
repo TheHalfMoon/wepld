@@ -4,6 +4,8 @@ WePLD is being reconstituted from a clean foundation.
 
 This repository is the canonical home of the new WePLD foundation. Architecture, source acquisition, build method, governance invariants, and implementation slices enter through reviewable pull requests.
 
+Review or merge of a pull request does **not** by itself grant founder acceptance, S1 authorization, source admission, dependency admission, effect authority, or completion.
+
 Start with:
 
 1. `AGENTS.md`

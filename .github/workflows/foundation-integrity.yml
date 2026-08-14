@@ -47,8 +47,16 @@ jobs:
               "WEPLD_SOURCE_ARTIFACT_PIN_LEDGER_2026-08-14_V1.md",
               "WEPLD_SOURCE_CAPABILITY_MINING_PRIORITY_MATRIX_2026-08-14_V1.md",
           }
+          max_archive_bytes = 1_000_000
+          max_member_bytes = 1_000_000
+          max_total_uncompressed_bytes = 2_000_000
 
           archive_bytes = archive_path.read_bytes()
+          if len(archive_bytes) > max_archive_bytes:
+              raise SystemExit(
+                  f"archive exceeds bounded compressed size: {len(archive_bytes)}"
+              )
+
           actual_archive_sha256 = hashlib.sha256(archive_bytes).hexdigest()
           if actual_archive_sha256 != expected_archive_sha256:
               raise SystemExit(
@@ -57,21 +65,33 @@ jobs:
 
           with tarfile.open(fileobj=io.BytesIO(archive_bytes), mode="r:gz") as tf:
               members = tf.getmembers()
-              names = {member.name for member in members}
-              if names != expected_members:
+              names = [member.name for member in members]
+              unique_names = set(names)
+
+              if len(members) != len(expected_members) or len(unique_names) != len(members):
+                  raise SystemExit("archive contains duplicate or unexpected member count")
+              if unique_names != expected_members:
                   raise SystemExit(
-                      f"archive member mismatch: expected={sorted(expected_members)} actual={sorted(names)}"
+                      f"archive member mismatch: expected={sorted(expected_members)} actual={sorted(unique_names)}"
                   )
               if any(not member.isfile() for member in members):
                   raise SystemExit("archive contains a non-regular member")
+              if any(member.size > max_member_bytes for member in members):
+                  raise SystemExit("archive member exceeds bounded uncompressed size")
+              total_uncompressed = sum(member.size for member in members)
+              if total_uncompressed > max_total_uncompressed_bytes:
+                  raise SystemExit(
+                      f"archive exceeds bounded total uncompressed size: {total_uncompressed}"
+                  )
 
+              members_by_name = {member.name: member for member in members}
               payloads = {}
               for name in expected_members:
-                  extracted = tf.extractfile(name)
+                  extracted = tf.extractfile(members_by_name[name])
                   if extracted is None:
                       raise SystemExit(f"unable to read archive member: {name}")
                   payload = extracted.read()
-                  if len(payload) != next(m.size for m in members if m.name == name):
+                  if len(payload) != members_by_name[name].size:
                       raise SystemExit(f"truncated archive member: {name}")
                   payloads[name] = payload
 
@@ -123,6 +143,7 @@ jobs:
           print(f"master_plan_sha256={plan_sha256}")
           print("source_registry_entries=402")
           print("source_admission=0")
+          print(f"archive_uncompressed_bytes={total_uncompressed}")
           PY
 
       - name: Verify fresh-foundation boundaries
@@ -147,12 +168,48 @@ jobs:
             test -f "$path" || { echo "missing required foundation path: $path" >&2; exit 1; }
           done
 
+          test -d src || { echo 'src must be a real directory' >&2; exit 1; }
+          test ! -L src || { echo 'src must not be a symbolic link' >&2; exit 1; }
+          test -f src/.gitkeep || { echo 'src/.gitkeep missing' >&2; exit 1; }
+
           unexpected_src="$(find src -type f ! -name '.gitkeep' -print)"
           if [ -n "$unexpected_src" ]; then
             echo "unexpected implementation source in fresh foundation:" >&2
             printf '%s\n' "$unexpected_src" >&2
             exit 1
           fi
+
+          unexpected_symlinks="$(find . -path './.git' -prune -o -type l -print)"
+          if [ -n "$unexpected_symlinks" ]; then
+            echo "symbolic links are not permitted in the fresh foundation:" >&2
+            printf '%s\n' "$unexpected_symlinks" >&2
+            exit 1
+          fi
+
+          unexpected_impl="$(find . -path './.git' -prune -o -type f \( \
+            -name '*.rs' -o -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' \
+            -o -name '*.py' -o -name '*.go' -o -name '*.java' -o -name '*.kt' \
+            -o -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \
+            -o -name '*.swift' \
+          \) -print)"
+          if [ -n "$unexpected_impl" ]; then
+            echo "unexpected implementation-language file in fresh foundation:" >&2
+            printf '%s\n' "$unexpected_impl" >&2
+            exit 1
+          fi
+
+          dependency_manifests=(
+            Cargo.toml Cargo.lock
+            package.json package-lock.json pnpm-lock.yaml yarn.lock
+            pyproject.toml requirements.txt Pipfile poetry.lock uv.lock
+            go.mod go.sum
+          )
+          for manifest in "${dependency_manifests[@]}"; do
+            if [ -e "$manifest" ]; then
+              echo "unexpected implementation dependency manifest: $manifest" >&2
+              exit 1
+            fi
+          done
 
           test ! -d .github/repair-payload || { echo 'repair payload leaked into active tree' >&2; exit 1; }
           test ! -e docs/canonical/CODEX_SECURITY_REVIEW_POLICY.md || { echo 'duplicate Codex Security canonical policy detected' >&2; exit 1; }

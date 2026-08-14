@@ -54,13 +54,15 @@ The minimum gate is evidence from at least one independently qualified reviewer 
 
 Normalize findings. Do not vote. A valid finding from one reviewer is not erased by clean outputs from others.
 
+External reviewer egress follows `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md`.
+
 ## Security-specialist review — Codex Security
 
-For material changes to source code, runtime behavior, authority/security boundaries, parsers, filesystem/process/network effects, dependency execution, sandboxing, credentials/secrets handling, CI trust, or external-input handling, run a Codex Security diff scan when available and egress policy permits.
+For material changes with security effect—including source/runtime behavior, authority/security boundaries, parsers, filesystem/process/network effects, dependency execution, sandboxing, credentials/secrets handling, CI/workflow logic, configuration, infrastructure, or external-input handling—run a Codex Security diff scan when available and egress policy permits.
 
-The scan must be anchored to the exact reviewed base/head or local patch. Review every changed source file and follow changed behavior only as far as needed to validate candidate vulnerabilities. Use a threat model, validate candidates, and perform attack-path analysis for reportable/deferred candidates. Preserve coverage gaps explicitly.
+The scan must be anchored to the exact reviewed base/head or local patch. Review every changed file with an applicable security effect, including workflow/configuration/infrastructure changes and deleted baseline files when the deletion affects security behavior. Follow changed behavior only as far as needed to validate candidate vulnerabilities. Use a threat model, validate candidates, perform attack-path analysis for reportable/deferred candidates, and preserve coverage gaps explicitly.
 
-For documentation-only changes with no executable/security-boundary effect, Codex Security may be recorded as `NOT_APPLICABLE`; workflow/config changes remain security-relevant and require deterministic/security review appropriate to their effects.
+For documentation-only changes with no executable/security-boundary effect, Codex Security may be recorded as `NOT_APPLICABLE`; workflow/configuration/infrastructure changes remain security-relevant when they alter trust or effects.
 
 ```text
 Codex Security clean != CompletionDecision

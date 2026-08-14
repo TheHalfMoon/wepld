@@ -4,6 +4,8 @@
 
 Codex Security is an additional security-specialist review producer for WePLD. It is not completion authority and does not replace deterministic security gates, correctness review, Ponytail, AMAN/Nawat governance, or Trusted Completion.
 
+External processing is additionally governed by `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md`.
+
 ## Applicability
 
 Run a Codex Security diff scan when available and egress policy permits for material changes involving any of:
@@ -18,10 +20,11 @@ Run a Codex Security diff scan when available and egress policy permits for mate
 - credentials, secrets, tokens, signing, provenance, or identity;
 - dependency execution or supply-chain surfaces;
 - CI/workflow trust boundaries;
+- configuration or infrastructure with security effect;
 - serialization/deserialization or protocol boundaries;
 - security-sensitive recovery or rollback.
 
-Documentation-only changes with no executable/security-boundary effect may be `NOT_APPLICABLE`. Workflow/configuration changes are not automatically documentation-only; evaluate their actual effects.
+Documentation-only changes with no executable/security-boundary effect may be `NOT_APPLICABLE`. Workflow/configuration/infrastructure changes are not automatically documentation-only; evaluate their actual effects.
 
 ## Exact scan identity
 
@@ -40,14 +43,18 @@ Do not silently continue a security conclusion after the reviewed head changes. 
 When Codex Security is used:
 
 1. resolve and freeze the exact diff;
-2. apply repository security guidance;
+2. apply repository security and egress guidance;
 3. produce/adopt one threat model;
-4. review every changed source file, including deleted files at baseline;
-5. perform candidate finding discovery;
-6. validate candidates;
-7. perform attack-path analysis for reportable/deferred candidates;
-8. record findings and coverage gaps;
-9. preserve the report/SARIF or equivalent durable evidence when the host supports it.
+4. review every changed file with an applicable security effect, including source, workflow, configuration, infrastructure, and policy files;
+5. inspect deleted files at the baseline revision whenever deletion changes or removes a security control or is otherwise needed to validate the effect;
+6. follow changed behavior into supporting code/configuration only as far as needed to validate candidate vulnerabilities;
+7. perform candidate finding discovery;
+8. validate candidates;
+9. perform attack-path analysis for reportable/deferred candidates;
+10. record findings and coverage gaps, including any changed file that could not be reviewed;
+11. preserve the report/SARIF or equivalent durable evidence when the host supports it.
+
+A workflow-only or configuration-only trust change can therefore require security review even when no conventional source-code file changed.
 
 ## Status vocabulary
 

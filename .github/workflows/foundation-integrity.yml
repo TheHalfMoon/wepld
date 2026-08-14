@@ -18,28 +18,71 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Verify canonical artifact archive
+      - name: Verify canonical artifact archive against immutable baseline
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
           python - <<'PY'
+          import base64
           import csv
           import hashlib
           import io
           import json
+          import os
           import pathlib
           import tarfile
+          import urllib.request
 
           archive_path = pathlib.Path(
               "docs/canonical/artifacts/WEPLD_CANONICAL_ARTIFACTS_2026-08-14.tar.gz"
           )
 
-          expected_archive_sha256 = (
-              "35dee10e7526d1958c5b3b88a1a9b569b0d1a464f5eec4e20e16c19c99f1c6b0"
+          baseline_commit_sha = "421c769b47fd8ad4f5bcba67ff8b00ba0adfc6c3"
+          baseline_path = ".wepld/foundation-integrity-baseline-v1.json"
+          baseline_url = (
+              "https://api.github.com/repos/TheHalfMoon/wepld/contents/"
+              f"{baseline_path}?ref={baseline_commit_sha}"
           )
-          expected_plan_sha256 = (
-              "e269b10ef711731c4ad3af7b1135546f92d82a78975cabc9ff52c2dea4b5bf44"
+          request = urllib.request.Request(
+              baseline_url,
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
+                  "X-GitHub-Api-Version": "2022-11-28",
+              },
           )
+          with urllib.request.urlopen(request, timeout=30) as response:
+              baseline_response = json.load(response)
+          baseline = json.loads(
+              base64.b64decode(baseline_response["content"]).decode("utf-8")
+          )
+
+          if baseline.get("schema") != "wepld.foundation-integrity-baseline.v1":
+              raise SystemExit("unexpected foundation baseline schema")
+          if baseline.get("baseline_class") != "BOOTSTRAP_INTEGRITY_EVIDENCE_NOT_ACCEPTANCE":
+              raise SystemExit("unexpected foundation baseline class")
+          if baseline.get("repository_id") != 1334408699:
+              raise SystemExit("foundation baseline repository ID mismatch")
+          if baseline.get("repository") != "TheHalfMoon/wepld":
+              raise SystemExit("foundation baseline repository mismatch")
+          if baseline.get("source_registry_entries") != 402:
+              raise SystemExit("foundation baseline source count mismatch")
+          if baseline.get("source_admission") != 0:
+              raise SystemExit("foundation baseline unexpectedly admits sources")
+
+          if os.environ.get("EVENT_NAME") == "pull_request":
+              pr_base = os.environ.get("PR_BASE_SHA", "")
+              if not pr_base or pr_base != baseline.get("base_main_sha"):
+                  raise SystemExit(
+                      f"pull-request base SHA does not match immutable baseline: {pr_base}"
+                  )
+
+          expected_archive_sha256 = baseline["canonical_artifact_archive_sha256"]
+          expected_plan_sha256 = baseline["master_plan_v2_2_sha256"]
           expected_members = {
               "WEPLD_MASTER_ARCHITECTURE_EXECUTION_PLAN_2026-08-12_V2_2.md",
               "WEPLD_MASTER_SOURCE_REGISTRY_2026-08-14_V1.json",
@@ -105,7 +148,7 @@ jobs:
           rows = registry.get("registry")
           if not isinstance(rows, list):
               raise SystemExit("registry payload is not a list")
-          if len(rows) != 402:
+          if len(rows) != baseline["source_registry_entries"]:
               raise SystemExit(f"expected 402 registry rows, got {len(rows)}")
 
           names = [row.get("name") for row in rows]
@@ -139,6 +182,8 @@ jobs:
                   raise SystemExit(f"canonical artifact is empty: {name}")
 
           print("foundation canonical artifact verification: PASS")
+          print(f"baseline_commit_sha={baseline_commit_sha}")
+          print(f"baseline_blob_sha={baseline_response['sha']}")
           print(f"archive_sha256={actual_archive_sha256}")
           print(f"master_plan_sha256={plan_sha256}")
           print("source_registry_entries=402")
@@ -157,8 +202,10 @@ jobs:
             docs/canonical/ARCHITECTURE_INVARIANTS.md
             docs/canonical/BUILD_METHOD.md
             docs/canonical/SECURITY_REVIEW_POLICY.md
+            docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md
             docs/governance/DEPENDENCY_REGISTER.md
             docs/governance/REPOSITORY_AUTHORITY_EVIDENCE_2026-08-14.md
+            docs/governance/FOUNDATION_INTEGRITY_BASELINE.md
             specs/000-wepld-fresh-reconstitution/spec.md
             specs/000-wepld-fresh-reconstitution/plan.md
             specs/000-wepld-fresh-reconstitution/tasks.md

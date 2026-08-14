@@ -97,3 +97,4 @@ Wrong endpoint, stale target, unavailable environment, denied capability, timeou
 The founder must still decide the Alpha scope. The recommended boundary is WePLD-owned desktop/core/terminal/project/review surfaces only, under explicit profiles. General browser/computer-use verification, arbitrary third-party systems, broad production access, and open-ended autonomous exploration remain Post-Alpha.
 
 ---
+

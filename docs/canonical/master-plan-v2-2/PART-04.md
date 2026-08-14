@@ -97,3 +97,4 @@ Work             What durable outcome/coordination record exists for people and 
 AGILLE           What engineering method, rigor, obligations, and admissibility apply?
 Mission Runtime  What execution state and effects are durably true, and how do they recover?
 ```
+

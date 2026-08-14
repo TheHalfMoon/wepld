@@ -47,7 +47,7 @@ Requires at least one of:
 - a second independent evidence source supporting the same mechanism/failure; or
 - deterministic reproduction against the same pinned source/tool identity.
 
-Contradictory evidence blocks promotion until the conflict is recorded and resolved or explicitly retained.
+Contradictory evidence blocks promotion while the conflict remains unresolved. Recording or retaining the conflict for audit does not satisfy this gate; promotion requires resolution with supporting evidence.
 
 ### `CORROBORATED -> CANDIDATE`
 
@@ -95,6 +95,6 @@ CURRENT_FOUNDER_AUTHORIZED_REPOSITORY_WRITE
 
 For `QUALIFIED`, `REJECTED`, or `INCORPORATED`, the applicable explicit acceptance/authority boundary must also be recorded.
 
-After Nawat exists, status mutation requires an exact Nawat grant for the relevant canonical record. Byan remains a learning/proposal producer and does not mint that grant.
+After Nawat exists, an exact Nawat grant is additive to, and never a replacement for, every applicable transition gate, recorded acceptance requirement, and `CURRENT_FOUNDER_AUTHORIZED_REPOSITORY_WRITE`. The grant authorizes the status mutation only after those prerequisites are satisfied. Byan remains a learning/proposal producer and does not mint that grant.
 
 Only qualified material may enter canonical contracts/tests/skills, and normal authority/source-admission rules still apply.

@@ -69,11 +69,18 @@ VERSION / BUILD = exact value when exposed; otherwise UNVERSIONED_HOSTED_SERVICE
 EVALUATION_DATE
 BASE_SHA / HEAD_SHA or immutable patch identity
 FILE_SCOPE
-EGRESS_CLASSIFICATION / APPROVAL
+CONTENT_CLASSIFICATION
+SCREENING_EVIDENCE
+REDACTIONS
+RETENTION / TRAINING-USE DECISION
+TENANT-ISOLATION DECISION
+EGRESS_APPROVAL
 COMPATIBILITY_DECISION = CURRENT | STALE | INCOMPATIBLE
 MATERIAL_SERVICE_DIFFERENCES
 RESULT / COVERAGE_LIMITATIONS
 ```
+
+If any required egress field is stored in a separate egress record, the evaluation record must contain an immutable link to that exact record. A mutable dashboard reference or an unversioned prose statement is not sufficient evidence.
 
 Prior evaluation evidence may be reused only after a new use-time official-reference check confirms the same provider/product identity and records a `CURRENT` compatibility decision for the intended scope. A material provider/product/model/worker behavior change makes the old evidence `STALE` until re-evaluated.
 

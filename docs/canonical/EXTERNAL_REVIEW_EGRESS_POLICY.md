@@ -34,7 +34,7 @@ Broad repository upload requires a separately recorded justification and egress 
 
 ## Secret and private-data screening
 
-Before egress of any non-trivially scoped content:
+Before egress of any repository content:
 
 - run an approved secret/private-data screening step appropriate to the repository;
 - remove or redact detected credentials and prohibited private data before transfer;
@@ -60,7 +60,7 @@ If required retention, isolation, training-use, or contractual facts are unknown
 
 ## Egress record
 
-Every material external review record must include:
+Every external review record must include:
 
 ```text
 PROVIDER / PRODUCT

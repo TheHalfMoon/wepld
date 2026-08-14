@@ -35,6 +35,7 @@ jobs:
           import os
           import pathlib
           import tarfile
+          import urllib.error
           import urllib.request
 
           archive_path = pathlib.Path(
@@ -47,6 +48,19 @@ jobs:
               "https://api.github.com/repos/TheHalfMoon/wepld/contents/"
               f"{baseline_path}?ref={baseline_commit_sha}"
           )
+
+          class RejectRedirects(urllib.request.HTTPRedirectHandler):
+              """Fail closed before urllib can copy Authorization to a redirect."""
+
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  raise urllib.error.HTTPError(
+                      req.full_url,
+                      code,
+                      f"redirect refused while fetching immutable baseline: {newurl}",
+                      headers,
+                      fp,
+                  )
+
           request = urllib.request.Request(
               baseline_url,
               headers={
@@ -55,7 +69,10 @@ jobs:
                   "X-GitHub-Api-Version": "2022-11-28",
               },
           )
-          with urllib.request.urlopen(request, timeout=30) as response:
+          opener = urllib.request.build_opener(RejectRedirects())
+          with opener.open(request, timeout=30) as response:
+              if response.geturl() != baseline_url:
+                  raise SystemExit("immutable baseline request target changed unexpectedly")
               baseline_response = json.load(response)
           baseline = json.loads(
               base64.b64decode(baseline_response["content"]).decode("utf-8")
@@ -233,11 +250,37 @@ jobs:
             exit 1
           fi
 
+          # The fresh-foundation tree is documentation/governance only. Use a
+          # positive tracked-path allowlist so a new language extension or a
+          # nested dependency manifest cannot evade a denylist.
+          unexpected_tracked="$(git ls-files | awk '
+            function allowed(path) {
+              if (path == ".coderabbit.yaml") return 1
+              if (path == ".github/workflows/foundation-integrity.yml") return 1
+              if (path == "AGENTS.md" || path == "README.md") return 1
+              if (path == "src/.gitkeep") return 1
+              if (path == "docs/canonical/artifacts/WEPLD_CANONICAL_ARTIFACTS_2026-08-14.tar.gz") return 1
+              if (path ~ /^docs\/.*\.md$/) return 1
+              if (path ~ /^specs\/.*\.md$/) return 1
+              return 0
+            }
+            !allowed($0) { print $0 }
+          ')"
+          if [ -n "$unexpected_tracked" ]; then
+            echo "tracked path outside fresh-foundation allowlist:" >&2
+            printf '%s\n' "$unexpected_tracked" >&2
+            exit 1
+          fi
+
+          # Defense in depth: reject common implementation files even if the
+          # allowlist is later expanded incorrectly.
           unexpected_impl="$(find . -path './.git' -prune -o -type f \( \
             -name '*.rs' -o -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' \
-            -o -name '*.py' -o -name '*.go' -o -name '*.java' -o -name '*.kt' \
+            -o -name '*.py' -o -name '*.go' -o -name '*.java' -o -name '*.kt' -o -name '*.kts' \
             -o -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \
-            -o -name '*.swift' \
+            -o -name '*.cs' -o -name '*.fs' -o -name '*.fsx' -o -name '*.vb' -o -name '*.scala' \
+            -o -name '*.swift' -o -name '*.rb' -o -name '*.php' -o -name '*.lua' -o -name '*.dart' \
+            -o -name '*.zig' -o -name '*.ex' -o -name '*.exs' -o -name '*.sh' -o -name '*.ps1' \
           \) -print)"
           if [ -n "$unexpected_impl" ]; then
             echo "unexpected implementation-language file in fresh foundation:" >&2
@@ -245,18 +288,19 @@ jobs:
             exit 1
           fi
 
-          dependency_manifests=(
-            Cargo.toml Cargo.lock
-            package.json package-lock.json pnpm-lock.yaml yarn.lock
-            pyproject.toml requirements.txt Pipfile poetry.lock uv.lock
-            go.mod go.sum
-          )
-          for manifest in "${dependency_manifests[@]}"; do
-            if [ -e "$manifest" ]; then
-              echo "unexpected implementation dependency manifest: $manifest" >&2
-              exit 1
-            fi
-          done
+          dependency_manifests="$(find . -path './.git' -prune -o -type f \( \
+            -name 'Cargo.toml' -o -name 'Cargo.lock' \
+            -o -name 'package.json' -o -name 'package-lock.json' -o -name 'pnpm-lock.yaml' -o -name 'yarn.lock' \
+            -o -name 'pyproject.toml' -o -name 'requirements.txt' -o -name 'Pipfile' -o -name 'Pipfile.lock' \
+            -o -name 'poetry.lock' -o -name 'uv.lock' -o -name 'setup.py' -o -name 'setup.cfg' \
+            -o -name 'go.mod' -o -name 'go.sum' -o -name 'Gemfile' -o -name 'Gemfile.lock' \
+            -o -name 'composer.json' -o -name 'composer.lock' -o -name '*.csproj' -o -name '*.fsproj' \
+          \) -print)"
+          if [ -n "$dependency_manifests" ]; then
+            echo "unexpected implementation dependency manifest:" >&2
+            printf '%s\n' "$dependency_manifests" >&2
+            exit 1
+          fi
 
           test ! -d .github/repair-payload || { echo 'repair payload leaked into active tree' >&2; exit 1; }
           test ! -e docs/canonical/CODEX_SECURITY_REVIEW_POLICY.md || { echo 'duplicate Codex Security canonical policy detected' >&2; exit 1; }

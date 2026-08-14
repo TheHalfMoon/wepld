@@ -22,9 +22,10 @@ Run a Codex Security diff scan when available and egress policy permits for mate
 - CI/workflow trust boundaries;
 - configuration or infrastructure with security effect;
 - serialization/deserialization or protocol boundaries;
-- security-sensitive recovery or rollback.
+- security-sensitive recovery or rollback;
+- security-review, scan/egress, authority, status/coverage, or source-admission policy changes.
 
-Documentation-only changes with no executable/security-boundary effect may be `NOT_APPLICABLE`. Workflow/configuration/infrastructure changes are not automatically documentation-only; evaluate their actual effects.
+Documentation-only changes with no executable/security-boundary effect may be `NOT_APPLICABLE`. Workflow/configuration/infrastructure changes and changes to security-review or authority policy are not automatically documentation-only; evaluate their actual effects.
 
 ## Exact scan identity
 
@@ -59,14 +60,14 @@ A workflow-only or configuration-only trust change can therefore require securit
 ## Status vocabulary
 
 ```text
-PASS = completed applicable scan with no validated reportable finding and accounted coverage
+PASS = completed applicable scan; every applicable changed file reviewed; no unresolved coverage limitation; no validated reportable finding
 FAIL = validated reportable security finding blocks the applicable gate
-DEFERRED = unresolved candidate or coverage limitation explicitly retained
+DEFERRED = unresolved candidate or any applicable coverage limitation explicitly retained
 NOT_APPLICABLE = no material security-review surface for this change
 NOT_RUN_NON_BLOCKING = Codex Security unavailable or policy/egress prevents execution
 ```
 
-`NOT_RUN_NON_BLOCKING` is never rewritten as `PASS`.
+A coverage gap on any applicable changed file cannot be reported as `PASS`. `NOT_RUN_NON_BLOCKING` is never rewritten as `PASS`.
 
 ## Authority invariants
 

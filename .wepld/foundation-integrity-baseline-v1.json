@@ -1,0 +1,14 @@
+{
+  "schema": "wepld.foundation-integrity-baseline.v1",
+  "baseline_class": "BOOTSTRAP_INTEGRITY_EVIDENCE_NOT_ACCEPTANCE",
+  "repository_id": 1334408699,
+  "repository": "TheHalfMoon/wepld",
+  "base_main_sha": "7813dea9c53863378a5ae2fefcaf66f6b5d43103",
+  "canonical_artifact_archive_sha256": "35dee10e7526d1958c5b3b88a1a9b569b0d1a464f5eec4e20e16c19c99f1c6b0",
+  "master_plan_v2_2_sha256": "e269b10ef711731c4ad3af7b1135546f92d82a78975cabc9ff52c2dea4b5bf44",
+  "source_registry_entries": 402,
+  "source_admission": 0,
+  "created_at": "2026-08-14",
+  "created_by_actor_id": 285091250,
+  "authority_note": "This baseline is an immutable digest source for foundation verification. It is not founder acceptance, source admission, dependency admission, S1 authorization, or CompletionDecision."
+}

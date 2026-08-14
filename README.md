@@ -2,7 +2,12 @@
 
 WePLD is being reconstituted from a clean foundation.
 
-The canonical architecture, source registry, build method, and fresh-reconstitution specification are being introduced through a reviewable pull request before implementation begins.
+This repository is the canonical home of the new WePLD foundation. Architecture, source acquisition, build method, governance invariants, and implementation slices enter through reviewable pull requests.
+
+Start with:
+
+1. `AGENTS.md`
+2. `docs/canonical/CURRENT_STATE.md`
 
 ```text
 IMPLEMENTATION = NOT_STARTED

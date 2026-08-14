@@ -1,0 +1,21 @@
+# Tasks — WePLD Fresh Reconstitution Foundation
+
+- [x] FR-001 Verify live repo metadata and permissions.
+- [x] FR-002 Reverify PR #1 and PR #11 identity.
+- [x] FR-003 Select fresh owner/admin repository `TheHalfMoon/wepld`.
+- [x] FR-004 Materialize ratified V2.2 plan and P0 evidence.
+- [x] FR-005 Consolidate 402-entry source registry.
+- [x] FR-006 Add Continue bounded enrichment and current source pin.
+- [x] FR-007 Create AGENTS bootstrap.
+- [x] FR-008 Create CURRENT_STATE.
+- [x] FR-009 Create architecture invariants.
+- [x] FR-010 Create mandatory build method.
+- [x] FR-011 Create build-learning protocol and ledger.
+- [x] FR-012 Create fresh salvage ledger.
+- [x] FR-013 Create zero-admission dependency register.
+- [x] FR-014 Create package integrity manifest.
+- [x] FR-015 Founder-selected owner/admin repository established (`TheHalfMoon/wepld`).
+- [ ] FR-016 Publish complete documentation-only foundation and open Draft PR.
+- [ ] FR-017 CodeRabbit/Qodo/Augment/Graphite/Cubic/Continue review of published branch.
+- [ ] FR-018 Founder acceptance of fresh foundation.
+- [ ] FR-019 S1 authorization — separate future decision.

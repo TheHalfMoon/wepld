@@ -15,7 +15,7 @@
 - [x] FR-013 Create zero-admission dependency register.
 - [x] FR-014 Create package integrity manifest.
 - [x] FR-015 Founder-selected owner/admin repository established (`TheHalfMoon/wepld`).
-- [ ] FR-016 Publish complete documentation-only foundation and open Draft PR.
-- [ ] FR-017 CodeRabbit/Qodo/Augment/Graphite/Cubic/Continue review of published branch.
+- [x] FR-016 Publish complete documentation-only foundation and open Draft PR.
+- [ ] FR-017 CodeRabbit/Qodo/Augment/Graphite/Cubic/Continue review of published branch — remains open until evidence from each available/required route is recorded; unavailable/not-run is never PASS.
 - [ ] FR-018 Founder acceptance of fresh foundation.
 - [ ] FR-019 S1 authorization — separate future decision.

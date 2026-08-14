@@ -124,3 +124,45 @@ jobs:
           print("source_registry_entries=402")
           print("source_admission=0")
           PY
+
+      - name: Verify fresh-foundation boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          required=(
+            AGENTS.md
+            docs/canonical/CURRENT_STATE.md
+            docs/canonical/ARCHITECTURE_INVARIANTS.md
+            docs/canonical/BUILD_METHOD.md
+            docs/canonical/SECURITY_REVIEW_POLICY.md
+            docs/governance/DEPENDENCY_REGISTER.md
+            docs/governance/REPOSITORY_AUTHORITY_EVIDENCE_2026-08-14.md
+            specs/000-wepld-fresh-reconstitution/spec.md
+            specs/000-wepld-fresh-reconstitution/plan.md
+            specs/000-wepld-fresh-reconstitution/tasks.md
+            specs/000-wepld-fresh-reconstitution/acceptance.md
+          )
+          for path in "${required[@]}"; do
+            test -f "$path" || { echo "missing required foundation path: $path" >&2; exit 1; }
+          done
+
+          unexpected_src="$(find src -type f ! -name '.gitkeep' -print)"
+          if [ -n "$unexpected_src" ]; then
+            echo "unexpected implementation source in fresh foundation:" >&2
+            printf '%s\n' "$unexpected_src" >&2
+            exit 1
+          fi
+
+          test ! -d .github/repair-payload || { echo 'repair payload leaked into active tree' >&2; exit 1; }
+          test ! -e docs/canonical/CODEX_SECURITY_REVIEW_POLICY.md || { echo 'duplicate Codex Security canonical policy detected' >&2; exit 1; }
+
+          repair_workflows="$(find .github/workflows -maxdepth 1 -type f \( -name 'repair-canonical-archive*.yml' -o -name 'finalize-canonical-archive*.yml' \) -print)"
+          if [ -n "$repair_workflows" ]; then
+            echo "temporary repair workflow leaked into active tree:" >&2
+            printf '%s\n' "$repair_workflows" >&2
+            exit 1
+          fi
+
+          grep -Fx 'FRESH_IMPLEMENTATION_DEPENDENCIES = 0' docs/governance/DEPENDENCY_REGISTER.md >/dev/null
+          echo 'fresh foundation boundaries: PASS'

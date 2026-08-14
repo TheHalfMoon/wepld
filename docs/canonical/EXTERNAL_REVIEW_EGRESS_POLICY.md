@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This policy governs sending repository content to hosted/external review systems, including CodeRabbit, Qodo, Augment Code, Graphite-hosted review surfaces, Cubic cloud review, Continue-hosted services, and Codex Security when those products process content outside the trusted local boundary.
+This policy governs sending repository content to hosted/external review systems, including CodeRabbit, Qodo, Augment Code, Graphite-hosted review surfaces, Cubic cloud review, Continue-hosted services, Greptile-hosted review surfaces, and Codex Security when those products process content outside the trusted local boundary.
 
 External review is evidence production, not authority.
 

@@ -44,6 +44,7 @@ Run all applicable formatting, lint/static/type, unit, integration, contract, ne
 
 Named review producers are used when connected and policy/egress permits:
 - CodeRabbit
+- Greptile
 - Qodo
 - Augment Code
 - Graphite
@@ -77,6 +78,7 @@ Codex Security supplements deterministic security gates and the correctness revi
 
 ```text
 CodeRabbit clean != CompletionDecision
+Greptile clean != CompletionDecision
 Qodo clean != CompletionDecision
 Augment clean != CompletionDecision
 Graphite clean != CompletionDecision

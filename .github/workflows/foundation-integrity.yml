@@ -35,7 +35,7 @@ jobs:
           )
 
           expected_archive_sha256 = (
-              "f8b6d44b7358d083e8c8ce28a28f3a0bbae01a2e6c556f57e175e48aee2c970e"
+              "35dee10e7526d1958c5b3b88a1a9b569b0d1a464f5eec4e20e16c19c99f1c6b0"
           )
           expected_plan_sha256 = (
               "e269b10ef711731c4ad3af7b1135546f92d82a78975cabc9ff52c2dea4b5bf44"
@@ -70,7 +70,10 @@ jobs:
                   extracted = tf.extractfile(name)
                   if extracted is None:
                       raise SystemExit(f"unable to read archive member: {name}")
-                  payloads[name] = extracted.read()
+                  payload = extracted.read()
+                  if len(payload) != next(m.size for m in members if m.name == name):
+                      raise SystemExit(f"truncated archive member: {name}")
+                  payloads[name] = payload
 
           plan_name = "WEPLD_MASTER_ARCHITECTURE_EXECUTION_PLAN_2026-08-12_V2_2.md"
           plan_sha256 = hashlib.sha256(payloads[plan_name]).hexdigest()
@@ -119,4 +122,5 @@ jobs:
           print(f"archive_sha256={actual_archive_sha256}")
           print(f"master_plan_sha256={plan_sha256}")
           print("source_registry_entries=402")
+          print("source_admission=0")
           PY

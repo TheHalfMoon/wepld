@@ -250,6 +250,13 @@ jobs:
             exit 1
           fi
 
+          gitlinks="$(git ls-files -s | awk '$1 == "160000"')"
+          if [ -n "$gitlinks" ]; then
+            echo "git submodule/gitlink entries are not permitted in the fresh foundation:" >&2
+            printf '%s\n' "$gitlinks" >&2
+            exit 1
+          fi
+
           # The fresh-foundation tree is documentation/governance only. Use a
           # positive tracked-path allowlist so a new language extension or a
           # nested dependency manifest cannot evade a denylist.

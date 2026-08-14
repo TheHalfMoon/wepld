@@ -1,0 +1,70 @@
+| `SRC-0266` | Wispr Flow | Voice / Ambient Input | `UWC` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://wisprflow.ai |
+| `SRC-0267` | ElevenLabs UI | Voice / Multimodal UI | `UWC` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/elevenlabs/ui |
+| `SRC-0268` | Tavily | Web Research | `Fehrest` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://www.tavily.com |
+| `SRC-0269` | Tavily Skills / MCP | Web Research / Skills | `Fehrest` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/tavily-ai |
+| `SRC-0270` | Huly | Work / Collaboration | `Work` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/hcengineering/platform |
+| `SRC-0271` | Microsoft Loop / Teams / Planner | Work / Collaboration | `Work` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://microsoft.com |
+| `SRC-0272` | Coda | Work / Documents | `Work` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://coda.io |
+| `SRC-0273` | Fibery | Work / Knowledge | `Work` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://fibery.io |
+| `SRC-0274` | Asana Work Graph / AI Teammates | Work / Organization Graph | `Work` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://asana.com |
+| `SRC-0275` | Atlassian Teamwork Graph | Work / Organization Graph | `Work` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://www.atlassian.com |
+| `SRC-0276` | Linear | Work Management | `Work` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://linear.app |
+| `SRC-0277` | Plane | Work Management | `Work` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/makeplane/plane |
+| `SRC-0278` | ChatGPT Work / Projects / Apps / Scheduled Work | Work Platform | `Work` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://openai.com |
+| `SRC-0279` | SPIFFE / SPIRE | Workload Identity | `Nawat` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/spiffe/spire |
+| `SRC-0280` | Backstage | Workspace / Catalog | `Work` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/backstage/backstage |
+| `SRC-0281` | Augment Code | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BOUNDED_ENRICHED` | `NOT_ADMITTED` | https://www.augmentcode.com |
+| `SRC-0282` | augmentcode/context-connectors | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/augmentcode/context-connectors |
+| `SRC-0283` | Graphite | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BOUNDED_ENRICHED` | `NOT_ADMITTED` | https://graphite.com |
+| `SRC-0284` | github/gh-stack | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/github/gh-stack |
+| `SRC-0285` | git-town/git-town | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/git-town/git-town |
+| `SRC-0286` | ejoffe/spr | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/ejoffe/spr |
+| `SRC-0287` | ezyang/ghstack | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/ezyang/ghstack |
+| `SRC-0288` | Composio Agent Orchestrator | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/ComposioHQ/agent-orchestrator |
+| `SRC-0289` | 21st-dev/1code | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/21st-dev/1code |
+| `SRC-0290` | kdlbs/kandev | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/kdlbs/kandev |
+| `SRC-0291` | fynnfluegge/agtx | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/fynnfluegge/agtx |
+| `SRC-0292` | morapelker/hive | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/morapelker/hive |
+| `SRC-0293` | elara-labs/code-context-engine | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/elara-labs/code-context-engine |
+| `SRC-0294` | Helweg/opencode-codebase-index | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/Helweg/opencode-codebase-index |
+| `SRC-0295` | flupkede/codesearch | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/flupkede/codesearch |
+| `SRC-0296` | intuit/infigraph | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/intuit/infigraph |
+| `SRC-0297` | giancarloerra/SocratiCode | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/giancarloerra/SocratiCode |
+| `SRC-0298` | PatrickSys/codebase-context | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/PatrickSys/codebase-context |
+| `SRC-0299` | Microsoft GraphRAG | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/microsoft/graphrag |
+| `SRC-0300` | Graphiti | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/getzep/graphiti |
+| `SRC-0301` | Mem0 | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/mem0ai/mem0 |
+| `SRC-0302` | Context7 | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/upstash/context7 |
+| `SRC-0303` | OpenGrok | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/oracle/opengrok |
+| `SRC-0304` | OpenFGA | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/openfga/openfga |
+| `SRC-0305` | SpiceDB | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/authzed/spicedb |
+| `SRC-0306` | OPAL | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/permitio/opal |
+| `SRC-0307` | Microsoft MCP Gateway | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/microsoft/mcp-gateway |
+| `SRC-0308` | Microsoft LiteBox | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `PATH_MINED_PASS1` | `NOT_ADMITTED` | https://github.com/microsoft/litebox |
+| `SRC-0309` | microsoft/hcsshim | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `PATH_MINED_PASS1` | `NOT_ADMITTED` | https://github.com/microsoft/hcsshim |
+| `SRC-0310` | Alibaba OpenSandbox | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/alibaba/OpenSandbox |
+| `SRC-0311` | ServiceNow WorkArena | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/ServiceNow/WorkArena |
+| `SRC-0312` | ServiceNow AgentLab | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/ServiceNow/AgentLab |
+| `SRC-0313` | Windows Agent Arena | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/microsoft/WindowsAgentArena |
+| `SRC-0314` | AutoElicit | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/microsoft/AutoElicit |
+| `SRC-0315` | RedTeamCUA | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/microsoft/RedTeamCUA |
+| `SRC-0316` | Parca | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/parca-dev/parca |
+| `SRC-0317` | Pyroscope | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/grafana/pyroscope |
+| `SRC-0318` | OpenTelemetry eBPF Profiler | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/open-telemetry/opentelemetry-ebpf-profiler |
+| `SRC-0319` | Microsoft ETW | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/microsoft/Windows-classic-samples |
+| `SRC-0320` | Samply | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/mstange/samply |
+| `SRC-0321` | flamegraph-rs | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/flamegraph-rs/flamegraph |
+| `SRC-0322` | TensorZero | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/tensorzero/tensorzero |
+| `SRC-0323` | LiteLLM | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/BerriAI/litellm |
+| `SRC-0324` | Bifrost | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/maximhq/bifrost |
+| `SRC-0325` | Portkey Gateway | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/Portkey-AI/gateway |
+| `SRC-0326` | SGLang | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/sgl-project/sglang |
+| `SRC-0327` | Candle | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/huggingface/candle |
+| `SRC-0328` | TLA+ | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/tlaplus/tlaplus |
+| `SRC-0329` | Apalache | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/apalache-mc/apalache |
+| `SRC-0330` | P language | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/p-org/P |
+| `SRC-0331` | FoundationDB | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/apple/foundationdb |
+| `SRC-0332` | Verus | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/verus-lang/verus |
+| `SRC-0333` | Prusti | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/viperproject/prusti-dev |
+| `SRC-0334` | LiveStore | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/livestorejs/livestore |
+| `SRC-0335` | PGlite | V1.5 final global discovery additions (88 newly named entries) | `P0-D2_PENDING` | `BASELINE_ACCOUNTED_PENDING_PATH_MINING` | `NOT_ADMITTED` | https://github.com/electric-sql/pglite |

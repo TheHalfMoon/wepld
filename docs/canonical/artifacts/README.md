@@ -6,7 +6,7 @@ Archive:
 
 ```text
 WEPLD_CANONICAL_ARTIFACTS_2026-08-14.tar.gz
-SHA256 = f2d96ceda6f0b5a761c209a4596fe47211d4caafdbf1f2c355ba4d3644c0b0e4
+SHA256 = f8b6d44b7358d083e8c8ce28a28f3a0bbae01a2e6c556f57e175e48aee2c970e
 ```
 
 Contents:
@@ -25,6 +25,8 @@ Important integrity anchors:
 MASTER_PLAN_V2_2_SHA256 = e269b10ef711731c4ad3af7b1135546f92d82a78975cabc9ff52c2dea4b5bf44
 ACCOUNTED_SOURCE_ENTRIES = 402
 ```
+
+The repository CI verifies the archive hash, exact member set, master-plan hash, JSON/CSV source counts and uniqueness, and that every source entry remains `NOT_ADMITTED`.
 
 Restore locally with:
 

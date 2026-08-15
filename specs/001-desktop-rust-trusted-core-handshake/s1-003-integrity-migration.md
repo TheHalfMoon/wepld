@@ -7,68 +7,134 @@ SLICE = S1
 TASK = S1-003
 BASE_MAIN = 12fd72c19d639b4b72a8dec8dba644282383d0db
 PR_3_PLANNING_BASELINE_MERGE = 12fd72c19d639b4b72a8dec8dba644282383d0db
+ACTIVE_PR = #4
 BRANCH = ci/s1-stage-aware-foundation-integrity
+MAIN_POST_MERGE_INTEGRITY = PASS
+MAIN_POST_MERGE_INTEGRITY_RUN = 31908187069 / #146
+PR_4_INITIAL_PLANNING_INTEGRITY = PASS
+PR_4_INITIAL_PLANNING_INTEGRITY_RUN = 31908422218 / #147
 SOURCE_ACQUISITION_CHECK = OPEN
 DEPENDENCY_ADMISSION = NONE
 PRODUCT_IMPLEMENTATION = BLOCKED
 ```
 
-This record refines the already-approved S1 plan for one security-relevant workflow migration. It does not reopen the S1 architecture, admit packages, create Cargo manifests, or authorize product behavior.
+This record refines the already-reviewed S1 plan for one security-relevant workflow migration. It does not reopen the S1 architecture, admit packages, create a dependency lock, or authorize product behavior.
 
-## Purpose
+## Why the P0 gate must change
 
-The P0 `foundation-integrity` workflow intentionally rejects every implementation-language file and dependency manifest. That preserved the fresh foundation, but S1-004 must later create a bounded dependency-resolution candidate before final component admission can be decided.
+The P0 `foundation-integrity` workflow intentionally rejected every implementation-language file and dependency manifest. That was correct for the fresh foundation, but S1-004 must later create a **bounded candidate** Cargo graph so its exact transitive dependencies, features, lockfile, SBOM, and advisories can be inspected before admission.
 
-S1-003 therefore changes the integrity gate from a single documentation-only allowlist into a **stage-aware fail-closed policy** while preserving every immutable P0/source-registry invariant.
+S1-003 therefore changes the gate from one documentation-only tree shape into a stage-aware, fail-closed policy while preserving immutable P0/source-registry evidence.
 
-The migration must make the next acquisition step possible without creating a self-authorizing path from mutable planning/status text to product implementation.
+```text
+DEPENDENCY_RESOLUTION_CANDIDATE != RUNTIME_DEPENDENCY_ADMISSION
+S1_003_MERGED != SOURCE_ACQUISITION_PASS
+SOURCE_ACQUISITION_PASS != S1_ACCEPTANCE
+```
 
-## Non-bypassable design rule
+## Authority rule
+
+No mutable same-PR text may unlock implementation.
 
 ```text
 MUTABLE_MARKDOWN_FLAG != PHASE_AUTHORITY
 PR_BRANCH_NAME != SOURCE_ADMISSION
+PR_LABEL != SOURCE_ADMISSION
+CHECKBOX != SOURCE_ADMISSION
 FILE_PRESENCE != PRODUCT_IMPLEMENTATION_AUTHORITY
-DEPENDENCY_RESOLUTION_CANDIDATE != RUNTIME_DEPENDENCY_ADMITTED
-S1_003_MERGED != SOURCE_ACQUISITION_PASS
 ```
 
-The workflow MUST derive the active repository stage from the actual tracked-tree shape and policy-owned structural rules. It MUST NOT unlock code by reading a mutable `PASS`, `AUTHORIZED`, stage name, checkbox, PR label, branch name, or other same-PR text value as authority.
+The policy derives the candidate stage from the actual tracked Git object graph and exact policy-owned file/content contracts.
+
+## Two-layer integrity model
+
+S1-003 introduces two complementary checks.
+
+### Layer 1 — `foundation-integrity`
+
+`foundation-integrity` remains the familiar self-check and canonical-main check.
+
+- `pull_request`: inspect the exact PR head checkout with `permissions: {}` and no token passed to the policy;
+- `push` to `main`: inspect canonical main with the same embedded immutable baseline constants;
+- execute policy self-tests on every run;
+- use `actions/checkout` pinned to `v7.0.1` commit `3d3c42e5aac5ba805825da76410c181273ba90b1`.
+
+This layer is useful evidence, but a PR-controlled workflow/policy cannot be the sole authority that judges its own mutation.
+
+### Layer 2 — `s1-admission-integrity`
+
+After S1-003 is merged into canonical `main`, `s1-admission-integrity` runs on `pull_request_target` using the **base branch's trusted workflow and policy**.
+
+Security design:
+
+```text
+CANDIDATE_CHECKOUT = NONE
+CANDIDATE_CODE_EXECUTION = NONE
+CANDIDATE_BUILD = NONE
+CANDIDATE_SCRIPT_EXECUTION = NONE
+TOKEN_PERMISSION = contents:read
+POLICY_SOURCE = exact PR base SHA
+CANDIDATE_INPUT = Git tree/blob data fetched through GitHub API
+```
+
+The trusted policy fetches the candidate commit/tree/blob objects through GitHub's Git data API, validates object identities/modes/paths/sizes, and parses only the narrowly required text/TOML/archive data. It never checks out or executes candidate code.
+
+This deliberately follows GitHub's `pull_request_target` security guidance: privileged workflows must not check out and then execute untrusted PR code.
+
+### Base-controlled paths
+
+For ordinary future candidate PRs, the authoritative layer byte-compares these candidate paths to their base copies:
+
+```text
+.coderabbit.yaml
+cubic.yaml
+.github/scripts/wepld_integrity.py
+.github/workflows/foundation-integrity.yml
+.github/workflows/s1-admission-integrity.yml
+AGENTS.md
+docs/canonical/ARCHITECTURE_INVARIANTS.md
+docs/canonical/BUILD_METHOD.md
+docs/canonical/SECURITY_REVIEW_POLICY.md
+docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md
+docs/canonical/FOUNDER_RATIFICATION.md
+docs/canonical/MASTER_PLAN_INDEX.md
+docs/governance/FOUNDATION_INTEGRITY_BASELINE.md
+```
+
+An ordinary dependency/product PR therefore cannot rewrite the gate or the core governance contracts used to judge it. A legitimate later policy migration requires a separately governed bootstrap/override path; it is not silently self-authorizing.
 
 ## Stage model
 
 ### Stage A — `S1_PLANNING_ONLY`
 
-This is the current tree shape.
+Allowed tree classes:
 
-Allowed:
-
-- current canonical/governance/acquisition Markdown;
-- current S1 Spec Kit Markdown;
+- `AGENTS.md`, `README.md`;
+- canonical/governance/acquisition/learning/historical Markdown under `docs/`;
+- Spec Kit/planning Markdown under `specs/`;
 - immutable canonical artifact archive;
-- `AGENTS.md` / `README.md`;
-- approved reviewer repository configs;
-- the canonical integrity workflow;
-- `src/.gitkeep` only under the root historical placeholder `src/`.
+- reviewer repository config files;
+- the two integrity workflows and policy script;
+- empty `src/.gitkeep` historical placeholder.
 
 Rejected:
 
-- Cargo/package/dependency manifests;
-- implementation-language files;
-- additional workflows/scripts/binaries;
+- dependency manifests/lockfiles;
+- implementation-language files outside the policy script itself;
+- arbitrary root/package-manager files;
+- extra workflows/scripts;
 - symlinks/gitlinks;
-- temporary repair payloads;
-- any product/runtime behavior.
+- temporary repair payloads/workflows;
+- product/runtime behavior.
 
-### Stage B — `S1_DEPENDENCY_RESOLUTION_CANDIDATE`
+### Stage B1 — `S1_DEPENDENCY_RESOLUTION_INPUT`
 
-This future stage exists only so S1-004 can resolve and inspect the minimum intended Cargo graph.
+Stage B1 exists only to let S1-004 run Cargo dependency resolution.
 
-It MAY add only an explicitly enumerated candidate set such as:
+It requires **all** of this exact candidate input shape:
 
 ```text
 Cargo.toml
-Cargo.lock
 rust-toolchain.toml
 apps/desktop/src-tauri/Cargo.toml
 apps/desktop/src-tauri/src/main.rs
@@ -78,164 +144,245 @@ crates/core/Cargo.toml
 crates/core/src/main.rs
 ```
 
-The S1-003 implementation MUST finalize the exact permitted set before merge. Any target stub required only so Cargo recognizes a package MUST have an exact bounded skeleton contract; arbitrary Rust content is prohibited in Stage B.
+Partial Stage B is rejected.
 
-Stage B is **not product implementation**. It permits dependency-resolution mechanics only.
+### Stage B2 — `S1_DEPENDENCY_RESOLUTION_LOCKED`
+
+Stage B2 is Stage B1 plus:
+
+```text
+Cargo.lock
+```
+
+The lock is candidate supply-chain evidence, not admission.
 
 ### Stage C — product implementation
 
 ```text
-S1_PRODUCT_IMPLEMENTATION = BLOCKED_BY_S1_003
+S1_PRODUCT_IMPLEMENTATION = BLOCKED
 ```
 
-S1-003 MUST NOT create a generic rule that admits arbitrary Rust, Tauri UI, JavaScript, build scripts, capabilities, plugins, or other product paths after a Markdown flag changes.
+S1-003 does not create a Markdown/status switch that unlocks arbitrary Rust, Tauri UI, JS, capabilities, plugins, build scripts, or later-slice paths.
 
-A later reviewed gate may expand the integrity policy only after S1-005 has produced exact admitted dependency evidence and `SOURCE_ACQUISITION_CHECK = PASS`.
+## Exact Stage-B candidate content
 
-## Candidate manifest policy
+The stage-aware policy uses exact content rather than a permissive TOML allowlist.
 
-The Stage B policy must constrain direct dependencies semantically, not only by filename.
+### Root workspace
 
-Initial allowed candidate component families are limited to the S1 acquisition record:
-
-```text
-tauri = 2.11.5 candidate only
-tauri-build = 2.6.3 candidate only
-serde = 1.0.229 candidate only
-serde_json = 1.0.151 candidate only
-local WePLD workspace path dependencies = candidate mechanics only
+```toml
+[workspace]
+resolver = "2"
+members = [
+  "apps/desktop/src-tauri",
+  "crates/contracts",
+  "crates/core",
+]
 ```
 
-The workflow policy MUST reject, as direct dependencies unless a separately reviewed acquisition decision changes the contract:
+### Desktop candidate
+
+```toml
+[package]
+name = "wepld-desktop"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+tauri = { version = "=2.11.5", default-features = false, features = ["wry"] }
+wepld-contracts = { path = "../../../crates/contracts" }
+
+[build-dependencies]
+tauri-build = { version = "=2.6.3", default-features = false }
+```
+
+`default-features = false` plus explicit `wry` is an acquisition **candidate**, not final admission. The pinned Tauri 2.11.5 source shows its default feature set adds additional platform/capability surface; S1-004/S1-005 may change this only through measured evidence and reviewed acquisition reconciliation.
+
+### Contracts candidate
+
+```toml
+[package]
+name = "wepld-contracts"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.151"
+```
+
+### Core candidate
+
+```toml
+[package]
+name = "wepld-core"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+wepld-contracts = { path = "../contracts" }
+```
+
+### Toolchain candidate
+
+```toml
+[toolchain]
+channel = "1.97.1"
+profile = "minimal"
+components = ["clippy", "rustfmt"]
+targets = ["x86_64-pc-windows-msvc"]
+```
+
+### Exact target skeletons
+
+Desktop/Core binary target:
+
+```rust
+#![forbid(unsafe_code)]
+
+fn main() {}
+```
+
+Contracts library:
+
+```rust
+#![forbid(unsafe_code)]
+```
+
+These files exist only so Cargo recognizes the candidate packages. Any product-like behavior or extra Rust module remains rejected.
+
+## Direct dependency exclusions
+
+Exact templates prevent direct introduction of:
 
 ```text
 tauri-plugin-shell
-Tokio direct dependency in Core
+Tokio in Core
 UUID/random-ID crate
 RPC framework
 protobuf / Cap'n Proto / MessagePack framework
-frontend framework/package manager stack
-DB client/runtime
-network client/server library
+frontend framework/package manager
+database client/runtime
+network client/server package
 telemetry SDK
 unapproved git dependency
 unapproved alternate registry
-wildcard/unbounded direct version requirement
+wildcard/unbounded direct version
 ```
 
-The exact initial Tauri feature/default-feature candidate must be explicitly enumerated in the workflow policy and reviewed before S1-003 closes. Feature names are admission-sensitive surface and cannot be left as arbitrary same-PR input.
+A transitive package appearing through an admitted candidate is not equivalent to a direct WePLD API dependency; S1-004/S1-005 must still inspect and reconcile it.
 
-## Candidate source skeleton rule
+## Cargo.lock policy
 
-If Cargo requires target files for metadata/lock resolution, S1-003 may permit only exact minimal skeleton files at the enumerated paths.
+Stage B2 requires:
 
-Requirements:
+- UTF-8 TOML;
+- maximum 2 MiB;
+- lock format version 4;
+- bounded package count;
+- package sources either workspace/path (`source` absent) or crates.io's canonical registry source;
+- no git sources;
+- no alternate registry;
+- registry checksums present and 64-hex;
+- exact candidate packages/versions present;
+- `tauri-plugin-shell` absent.
 
-- bounded byte size;
-- no filesystem/process/network/project effects;
-- no Tauri application startup;
-- no IPC/protocol behavior;
-- no unsafe code;
-- exact or equivalently strict deterministic content validation;
-- any deviation remains rejected until a later reviewed policy phase.
+The lockfile still does not establish runtime admission.
 
-This avoids treating “a `.rs` file exists” as product implementation authority.
+## Immutable P0 protections retained
 
-## Cargo.lock constraints
+The policy preserves or strengthens:
 
-When Stage B appears, the gate should treat the lockfile as candidate supply-chain evidence rather than authority.
-
-At minimum:
-
-- bounded file size;
-- parseable lockfile structure;
-- no `git+` package source unless separately qualified;
-- no unapproved alternate registry source;
-- checksums expected for registry packages where Cargo supplies them;
-- exact direct candidate versions remain consistent with the manifests;
-- lockfile presence never equals runtime admission.
-
-Full resolved transitive/advisory/SBOM reconciliation remains S1-004/S1-005 work.
-
-## Immutable P0 protections that survive unchanged
-
-S1-003 MUST preserve evidence equivalent to or stronger than the current gate for:
-
-- immutable foundation baseline commit identity;
+- immutable foundation baseline identity;
 - canonical artifact archive SHA-256;
-- V2.2 master-plan SHA-256;
-- exact canonical archive member set and bounded extraction;
-- frozen 402-source restoration registry count/uniqueness;
-- `admission_status = NOT_ADMITTED` across the frozen registry;
-- CSV/JSON registry consistency protections already present;
-- bounded/no-follow canonical archive read;
+- V2.2 SHA-256;
+- exact archive member set;
+- bounded no-follow local archive read;
+- bounded remote blob read;
+- frozen 402-row source registry;
+- JSON/CSV source-name consistency;
+- every frozen registry row remains `NOT_ADMITTED`;
 - symlink rejection;
 - gitlink/submodule rejection;
-- repair-payload / temporary-repair-workflow rejection;
-- duplicate canonical-security-policy rejection;
-- reviewer repository config fail-closed profile;
-- frozen `FRESH_IMPLEMENTATION_DEPENDENCIES = 0` P0 evidence as historical foundation truth, without misusing it to claim S1 dependency admission.
+- case-insensitive tracked-path collision rejection;
+- temporary repair payload/workflow rejection;
+- duplicate canonical security-policy rejection;
+- historical `FRESH_IMPLEMENTATION_DEPENDENCIES = 0` evidence.
 
-## Reviewer egress controls
+## Reviewer egress controls and Cubic limitation
 
-S1-003 MUST preserve the current repository-level controls:
+Repository policy continues to require explicit manual-only CodeRabbit/Cubic configuration bytes.
 
-```text
-CodeRabbit automatic review = disabled
-CodeRabbit automatic incremental review = disabled
-Cubic reviews = disabled
-Cubic PR descriptions = disabled
-Cubic auto-approve = disabled
-Cubic Ultrareview = disabled
-Cubic automatic Ultrareview = disabled
-Cubic thread auto-resolution = disabled
-Cubic fix/write surfaces = disabled
-```
+However two observed Cubic incidents now prove repository intent is not provider-effective proof:
 
-Repository-file validation remains distinct from provider-effective state:
+- PR #3 incident: comment `5303961793`;
+- PR #4 incident: comment `5304248582`.
 
 ```text
 LOCAL_REVIEWER_CONFIG_VALIDATION != PROVIDER_EFFECTIVE_STATE
-CUBIC_PROVIDER_EFFECTIVE_STATE = NOT_PROVEN
+CUBIC_PROVIDER_EFFECTIVE_STATE = CONFLICTING_WITH_REPOSITORY_INTENT / NOT_PROVEN_SAFE
+CUBIC_REVIEW_ELIGIBILITY = BLOCKED
+CUBIC_OUTPUT_COUNTS_AS_REVIEW_PASS = NO
 ```
 
-Current Cubic documentation states that partial YAML fields can inherit lower-priority configuration and that invalid repository YAML falls back to UI settings. Therefore S1-003 must preserve exact explicit security-relevant fields and add a deterministic schema/semantic validation strategy or equivalent reviewed contract. It still MUST NOT report Cubic provider-effective state as proven without provider-side evidence.
+No intentional Cubic review may be triggered until provider-side effective settings are independently verified. Repository config remains defense in depth, not proof of external provider behavior.
 
-## Negative probes
+## Deterministic negative probes
 
-The migrated gate must include deterministic policy probes that prove rejection of representative bypass attempts. At minimum probe:
+The policy self-test exercises the same classification/content functions used by real verification and requires rejection of representative bypasses:
 
-- arbitrary root `package.json`;
-- arbitrary `src/main.rs` under the historical root `src/`;
-- extra Rust module outside the exact Stage B skeleton paths;
-- `crates/worker/Cargo.toml` or another later-slice crate;
-- a second workflow file that is not explicitly admitted;
-- a symlink or gitlink path;
+- partial Stage B candidate;
+- arbitrary `package.json`;
+- root `src/main.rs`;
+- extra Rust module;
+- later-slice crate;
+- extra workflow;
+- symlink;
+- gitlink;
+- case-fold path collision;
+- Markdown `SOURCE_ACQUISITION_CHECK = PASS` trying to change stage;
 - direct `tauri-plugin-shell`;
 - direct Core `tokio`;
-- direct network/database/telemetry package;
-- wildcard/unpinned direct candidate dependency;
-- git dependency / alternate registry candidate;
-- product-like Rust content in a Stage B skeleton;
-- a mutable Markdown `SOURCE_ACQUISITION_CHECK = PASS` that attempts to unlock code.
+- direct network dependency;
+- wildcard dependency;
+- git dependency;
+- product behavior in a skeleton;
+- git/alternate-registry lock source;
+- base-controlled policy mutation.
 
-The negative tests must exercise the same policy functions/rules used against the actual checked-out tree, not a disconnected illustrative implementation.
+## Bootstrap limitation
 
-## Main post-merge integrity dependency
+The new `pull_request_target` workflow does not exist in PR #4's **base** (`12fd72c...`), so it cannot authoritatively run against the PR that introduces it.
 
-The PR #3 merge created canonical `main` commit:
+Therefore:
 
 ```text
-12fd72c19d639b4b72a8dec8dba644282383d0db
+PR_4_HEAD_SELFCHECK = REQUIRED
+PR_4_INDEPENDENT_SECURITY/CORRECTNESS_REVIEW = REQUIRED
+POST_MERGE_MAIN_INTEGRITY = REQUIRED
+FIRST_POST_MERGE_BASE_CONTROLLED_CANARY = REQUIRED_BEFORE_S1_004_MANIFESTS
+S1_003_ACTIVATION_PROVEN_BEFORE_CANARY = NO
 ```
 
-Push run `foundation-integrity` #146 / `31908187069` was queued when this S1-003 planning record was created. It is not reported as PASS while queued.
+After PR #4 is reviewed/merged, create a docs-only canary PR from the new main and require `s1-admission-integrity` to inspect it successfully. Only after that base-controlled activation proof may S1-004 add candidate manifests.
 
-Substantive S1-003 workflow mutation is blocked until that canonical-main post-merge run completes successfully or an explicit failure is investigated and reconciled.
+## Platform enforcement limitation
 
-## S1-003 review requirements
+This session has no GitHub connector action capable of configuring branch protection/rulesets, and the branch-protection endpoint is not readable by the integration.
 
-This migration changes CI/workflow trust and future source/dependency admission mechanics, so:
+```text
+PLATFORM_REQUIRED_CHECK_ENFORCEMENT = NOT_PROVEN
+PLATFORM_RULESET_MUTATION_BY_THIS_PR = NONE
+```
+
+Canonical WePLD governance will treat `s1-admission-integrity` as mandatory evidence, but that process rule must not be misreported as GitHub platform enforcement.
+
+## Security/review requirements
+
+S1-003 changes workflow trust and future dependency-resolution admission mechanics.
 
 ```text
 SECURITY_REVIEW_APPLICABILITY = APPLICABLE
@@ -244,34 +391,21 @@ INDEPENDENT_CORRECTNESS_REVIEW = REQUIRED
 EXACT_HEAD_BINDING = REQUIRED
 ```
 
-If Codex Security remains unavailable in the current host, record `NOT_RUN_NON_BLOCKING`; never call it PASS.
+If Codex Security is unavailable in this host, record `NOT_RUN_NON_BLOCKING`; never call it PASS.
 
-Any hosted correctness review requires a fresh exact-head pre-egress record and must not reactivate automatic review.
+Any hosted correctness review requires a fresh exact-head pre-egress record. Cubic is currently ineligible because provider-effective automatic processing contradicts repository intent.
 
-## Acceptance for S1-003 only
+## S1-003 closure
 
-S1-003 may close only when one exact head proves:
+PR #4 may merge only after its exact head passes the local/head policy self-check, preserves the reviewed planning invariants, completes independent review, reconciles findings, and records security coverage honestly.
 
-- post-P0 archive/registry invariants preserved;
-- Stage A remains as strict as the reviewed planning baseline;
-- Stage B admits only the exact dependency-resolution candidate shape;
-- Stage C/product behavior remains blocked;
-- candidate manifest/dependency semantics are fail-closed;
-- exact skeleton content cannot carry product behavior;
-- negative bypass probes pass;
-- reviewer automatic-egress controls remain fail-closed;
-- deterministic workflow gate passes;
-- applicable security coverage is honestly accounted;
-- independent correctness review is complete;
-- all valid findings are reconciled;
-- zero unresolved material findings remain.
-
-S1-003 completion authorizes **only** the S1-004 bounded dependency-resolution bootstrap described by the S1 plan.
+But **S1-003 activation is not fully proven by PR #4 alone**. The post-merge docs-only canary must prove the base-controlled `s1-admission-integrity` path before S1-004 manifests are introduced.
 
 ```text
 S1_ACCEPTED = NO
 SOURCE_ACQUISITION_CHECK = OPEN
 RUNTIME_DEPENDENCY_ADMISSION = NONE
 PRODUCT_IMPLEMENTATION = BLOCKED
-NEXT_AFTER_S1_003 = S1-004 dependency-resolution candidate
+NEXT_AFTER_PR_4 = POST_MERGE S1-003 ACTIVATION CANARY
+NEXT_AFTER_CANARY_PASS = S1-004 DEPENDENCY-RESOLUTION CANDIDATE
 ```

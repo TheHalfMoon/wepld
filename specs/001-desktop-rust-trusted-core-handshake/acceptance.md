@@ -38,7 +38,7 @@ S1 acceptance is exact-head evidence, not a checkbox ritual. Historical gates/re
 - [ ] Event delivery works under explicit bounds.
 - [ ] Cancellation is correlated, idempotent where specified, and race-tested.
 - [ ] Duplicate/replay/stale-launch semantics are deterministic.
-- [ ] Backpressure/in-flight/watch/recent-ID bounds are enforced.
+- [ ] Backpressure/in-flight/watch bounds and the launch-wide monotonic command-ID high-water invariant are enforced.
 - [ ] Core crash/EOF immediately invalidates ready state.
 - [ ] Restart negotiates a fresh launch identity and does not fabricate prior completion.
 
@@ -87,7 +87,7 @@ S1 acceptance is exact-head evidence, not a checkbox ritual. Historical gates/re
 
 ```text
 S1_ACCEPTED = NO
-PLANNING = READY_FOR_DRAFT_PR
+PLANNING = DRAFT_PR_ACTIVE
 SOURCE_ACQUISITION_CHECK = OPEN
 DEPENDENCY_ADMISSION = NONE
 IMPLEMENTATION = BLOCKED

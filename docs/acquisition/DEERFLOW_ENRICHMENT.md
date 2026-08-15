@@ -43,6 +43,12 @@ blob = daf4b0e0bd07e3c567e5aab7aef81f29e34d0557
 
 frontend/src/content/en/harness/memory.mdx
 blob = e0f4ea906c55c41ce000a0ba209cf72ba6c07b9a
+
+backend/app/scheduler/service.py
+blob = ffce4af6d253205ed81c50ccdd00de336d72fc60
+
+backend/tests/test_scheduled_task_service.py
+blob = 4874a0fb90604eeb28b8d90b219c60e06b882bfc
 ```
 
 The pinned main commit also changes `backend/app/scheduler/service.py` and its tests to enforce the configured global concurrent-run budget for manual triggers, while explicitly documenting that the count is a non-atomic best-effort guard rather than a database-level global cap.

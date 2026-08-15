@@ -37,7 +37,7 @@ HEAD_SHA
 CHANGED_FILE_SET
 ```
 
-Do not silently continue a security conclusion after the reviewed head changes. Material repair requires re-scan of the new range or explicit coverage accounting.
+Any change to `HEAD_SHA` invalidates the prior security conclusion. The new exact head cannot be reported as `PASS` until the new exact range is rescanned or explicit coverage accounting demonstrates that every applicable changed file on the new range is covered by independently valid security evidence with no unresolved coverage limitation.
 
 ## Required security-scan method
 

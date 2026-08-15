@@ -59,7 +59,7 @@ Redaction must preserve enough context for the requested review without reconstr
 
 ## Provider data-handling gate
 
-For `PUBLIC_SOURCE_ONLY`, repository content may be sent only when the provider identity is known and the user/founder has authorized that external review surface.
+For `PUBLIC_SOURCE_ONLY`, repository content may be sent only when the provider identity is known and the founder has authorized that external review surface.
 
 For `APPROVED_NON_PUBLIC_SOURCE`, the evaluation record must additionally establish, from current official/provider terms or an applicable contract:
 

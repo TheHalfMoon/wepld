@@ -231,11 +231,15 @@ jobs:
             AGENTS.md
             docs/canonical/CURRENT_STATE.md
             docs/canonical/ARCHITECTURE_INVARIANTS.md
+            docs/canonical/MASTER_PLAN_INDEX.md
+            docs/canonical/FOUNDER_RATIFICATION.md
             docs/canonical/BUILD_METHOD.md
             docs/canonical/SECURITY_REVIEW_POLICY.md
             docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md
+            docs/canonical/artifacts/README.md
             docs/governance/DEPENDENCY_REGISTER.md
             docs/governance/REPOSITORY_AUTHORITY_EVIDENCE_2026-08-14.md
+            docs/governance/REPOSITORY_IP_STATE.md
             docs/governance/FOUNDATION_INTEGRITY_BASELINE.md
             specs/000-wepld-fresh-reconstitution/spec.md
             specs/000-wepld-fresh-reconstitution/plan.md

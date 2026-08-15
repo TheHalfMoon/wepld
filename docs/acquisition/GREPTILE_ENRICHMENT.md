@@ -19,6 +19,17 @@ Greptile already exists in the frozen WePLD discussion/source universe. This rec
 
 The public VS Code repository establishes only an edge/integration surface. It does **not** establish that Greptile's hosted code-review engine or graph/indexing backend is available as public source.
 
+## Public edge rights / provenance
+
+The `PUBLIC_EDGE_LICENSE = MIT` claim is limited to the pinned public edge repository and is anchored to the exact license blob at `PUBLIC_EDGE_PIN`:
+
+```text
+LICENSE
+blob = 7387056d467b28c0f447e355f494b4be06999f47
+```
+
+This root-license anchor does not establish rights for Greptile's hosted core, transitive dependencies, remote services, or any other repository.
+
 ## Current official behavior evidence
 
 The exact public-documentation provenance used for the behavior claims below is frozen as bounded normalized evidence capsules in:

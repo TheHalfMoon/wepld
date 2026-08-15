@@ -62,18 +62,19 @@ Untrusted WebView / minimal presentation
 Desktop Rust Host
   - owns Core child lifecycle
   - assigns desktop_host principal
-  - allocates launch_id/request_id
+  - serializes strictly increasing command IDs onto one writer
   - never grants S1 effects beyond handshake scope
               |
-              | inherited stdin/stdout byte streams
+              | inherited stdin/stdout protocol byte streams
+              | stderr diagnostics only
               | 4-byte BE length + JSON envelope
               v
 Separate Rust Core Process
   - owns protocol parser/validation
   - owns handshake state
+  - owns launch-wide monotonic replay floor/high-water mark
   - health/version/capability responses
   - bounded health observation + cancellation
-  - duplicate/replay rejection
               |
               v
 No filesystem/project/network/worker authority in S1
@@ -81,7 +82,7 @@ No filesystem/project/network/worker authority in S1
 
 ## Proposed repository layout
 
-Expected implementation paths are provisional until Source Acquisition closes:
+Expected implementation paths remain provisional until Source Acquisition closes. Analysis removed the initially proposed abstraction-only `crates/ipc` crate; framing belongs with the protocol contracts unless implementation evidence later establishes an independent ownership boundary.
 
 ```text
 Cargo.toml
@@ -104,15 +105,12 @@ crates/
   core/
     Cargo.toml
     src/
-  ipc/
-    Cargo.toml
-    src/
 tests/
   desktop_core/
 specs/001-desktop-rust-trusted-core-handshake/
 ```
 
-The final tree must remain smaller if a crate has no independent contract/ownership reason. `crates/ipc` is not automatically justified merely because V2.2 lists it as an expected path; Ponytail may fold framing into `contracts` or `core` if that is simpler without mixing ownership.
+Any further crate must have an independently justified contract/ownership reason; expected V2.2 paths are not entitlement to extra abstractions.
 
 ## Protocol v1 planning contract
 
@@ -124,9 +122,12 @@ kind = request | response | event | cancel | protocol_error
 principal = desktop_host
 launch_id = u64
 request_id = u64 where applicable
+target_request_id = u64 for cancellation
 operation = typed enum where applicable
 payload = operation-specific typed value
 ```
+
+Inbound Desktop→Core request/cancel IDs are allocated in serialized writer order, are strictly increasing within one launch, never wrap/reuse, and are rejected by Core when `id <= highest_accepted_command_id`. Responses/events may complete out of request order but must preserve launch/request correlation.
 
 Framing:
 
@@ -135,7 +136,7 @@ Framing:
 MAX_PAYLOAD_BYTES = 65_536
 ```
 
-Unknown version/kind/principal/operation, malformed length, over-budget payload, invalid JSON, and stale launch identity fail closed.
+Unknown version/kind/principal/operation, malformed length, over-budget payload, invalid JSON, stale launch identity, and non-monotonic/replayed command IDs fail closed.
 
 ## Implementation phases
 
@@ -143,24 +144,27 @@ Unknown version/kind/principal/operation, malformed length, over-budget payload,
 
 - complete Spec Kit artifacts;
 - execute Ponytail FULL;
-- re-pin required components;
+- re-pin required components and record candidate-only status;
 - decide package versus stdlib mechanics;
-- authorize only the minimum dependency-resolution step needed to produce a lockfile/SBOM candidate;
-- inspect resolved transitive dependencies and advisories;
-- finalize component admission record;
-- evolve `foundation-integrity` into a stage-aware invariant gate before implementation paths are introduced.
+- migrate `foundation-integrity` to a stage-aware invariant gate **before** any candidate implementation/dependency manifest is introduced;
+- independently validate/review that workflow-trust migration and reconcile findings;
+- only then authorize the minimum dependency-resolution bootstrap needed to produce a candidate lockfile/SBOM;
+- inspect resolved direct/transitive features, dependencies, SBOM, and advisories;
+- finalize component admission record and `SOURCE_ACQUISITION_CHECK = PASS` only when evidence is complete.
 
 ### S1-P2 — Contracts and pure protocol engine
 
-- create minimal Rust workspace/toolchain pin;
+- create minimal admitted Rust workspace/toolchain pin;
 - implement typed protocol v1 contracts;
 - implement bounded frame encoder/decoder;
-- implement pure handshake state/replay/cancellation semantics;
+- implement launch-wide monotonic replay rejection plus pure handshake/cancellation semantics;
 - add unit/property/negative tests before Desktop integration.
 
 ### S1-P3 — Core process
 
 - separate Core executable;
+- protocol uses stdin/stdout only;
+- stderr is diagnostics-only and must be continuously drained/handled without blocking protocol progress;
 - stdin reader + bounded event loop using stdlib unless a qualified need changes this;
 - health/version/capabilities;
 - bounded health observation and cancellation;
@@ -173,6 +177,7 @@ Unknown version/kind/principal/operation, malformed length, over-budget payload,
 - bundle Core via `externalBin` or the minimum qualified bundling mechanism;
 - launch only the owned sibling Core executable;
 - pipe framing and child lifecycle;
+- concurrently drain/handle diagnostics stderr with bounded retained data and observable truncation;
 - project typed status into a minimal local UI;
 - expose no general shell/filesystem/process capability to WebView.
 
@@ -181,10 +186,13 @@ Unknown version/kind/principal/operation, malformed length, over-budget payload,
 - round-trip, event, cancellation;
 - malformed and oversized frames;
 - version/principal/downgrade attacks;
-- duplicate/replay/stale launch;
+- launch-wide duplicate/replay/non-monotonic ID rejection;
+- duplicate stateful observation/cancellation semantics;
+- stale launch;
 - Core unavailable/crash/restart;
 - Desktop crash/pipe close;
 - backpressure/flood budgets;
+- stderr pipe-fill while protocol remains live;
 - exact-binary identity capture.
 
 ### S1-P6 — Windows-first qualification and cross-platform evidence
@@ -208,7 +216,7 @@ Required secondary evidence:
 - independently qualified correctness/engineering review;
 - normalize/reconcile all findings;
 - bounded repair only;
-- rerun affected gates/reviews on exact head;
+- rerun every affected deterministic/dependency/platform/security/review/benchmark gate on the resulting exact head;
 - record S1 acceptance only after exact-head evidence is complete;
 - Build Learning capture.
 
@@ -216,7 +224,7 @@ Required secondary evidence:
 
 The P0 workflow currently intentionally rejects all implementation-language files and dependency manifests. S1 MUST NOT simply delete those protections.
 
-Before implementation begins, replace the P0-only boundary with a stage-aware gate that continues to prove:
+Before candidate manifests or implementation are introduced, replace the P0-only boundary with a stage-aware gate that continues to prove:
 
 - immutable P0 canonical archive and V2.2 identity;
 - frozen 402 registry restoration evidence remains unchanged;
@@ -225,7 +233,9 @@ Before implementation begins, replace the P0-only boundary with a stage-aware ga
 - only S1-qualified implementation paths/manifests are allowed;
 - required S1 planning/acquisition/lock/admission records exist;
 - later slices remain absent;
-- no temporary repair payload/workflow leakage.
+- no temporary repair payload/workflow leakage;
+- hosted-review repository configs remain manual-only;
+- Cubic repository configuration is schema-valid and provider-effective state is not assumed from file comparison alone; Cubic stays blocked from being counted/used when provider validation evidence is unavailable.
 
 That workflow change is security-relevant and requires exact-head security coverage.
 
@@ -237,12 +247,13 @@ Initial safety budgets, subject to measured tightening before acceptance:
 MAX_FRAME_BYTES = 65_536
 MAX_IN_FLIGHT_REQUESTS = 32
 MAX_HEALTH_WATCHES = 8
-RECENT_REQUEST_ID_WINDOW = 1_024
 MAX_CAPABILITY_ITEMS = 64
 MAX_PROTOCOL_ERROR_TEXT_BYTES = 1_024
+MAX_RETAINED_DIAGNOSTIC_BYTES = 65_536
+REPLAY_STATE = O(1) highest_accepted_command_id per launch
 ```
 
-These are upper bounds, not throughput goals. Tests must prove rejection at and beyond boundaries.
+These are upper bounds, not throughput goals. Tests must prove rejection at and beyond boundaries. Command IDs never wrap or reuse within a launch; exhaustion requires a fresh launch rather than weakening the replay invariant.
 
 ## Recovery
 
@@ -250,7 +261,8 @@ These are upper bounds, not throughput goals. Tests must prove rejection at and 
 - A restart receives a new `launch_id` and must re-negotiate protocol v1.
 - Old response/event data is rejected by launch identity.
 - In-flight requests become explicit interrupted/unknown terminal states; none is fabricated successful.
-- S1 read-only/introspection operations may be safely reissued only after fresh handshake.
+- S1 read-only/introspection operations may be safely reissued only after fresh handshake with new command IDs.
+- Stderr retention pressure may truncate retained diagnostics but must not stop the drain or protocol progress.
 - Child cleanup behavior is measured on Windows; orphaning is a defect, not a tolerated normal state.
 
 ## Evidence retention
@@ -273,4 +285,4 @@ The S1 acceptance packet must retain or link exact immutable evidence for:
 
 ## Exit condition
 
-S1 exits only when the exact accepted head demonstrates typed round-trip, bounded event delivery, cancellation, fail-closed malformed/unauthorized input, no silent downgrade, crash/restart without false authority, Windows runtime qualification, exact dependency/binary identity, applicable security review, independent engineering review, finding reconciliation, and authorized acceptance.
+S1 exits only when the exact accepted head demonstrates typed round-trip, bounded event delivery, cancellation, launch-wide replay rejection, fail-closed malformed/unauthorized input, no silent downgrade, crash/restart without false authority, non-blocking bounded stderr diagnostics handling, Windows runtime qualification, exact dependency/binary identity, applicable security review, independent engineering review, finding reconciliation, and authorized acceptance.

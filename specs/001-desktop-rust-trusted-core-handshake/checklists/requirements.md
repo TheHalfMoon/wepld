@@ -19,7 +19,7 @@ This checklist evaluates specification quality and execution readiness. Checked 
 - [x] Unknown version/kind/principal/operation fails closed.
 - [x] Silent downgrade is prohibited.
 - [x] Correlation and launch identity are required.
-- [x] Duplicate/replay behavior is deterministic.
+- [x] Duplicate/replay behavior is deterministic and launch-wide; evicted cache state cannot make an old ID fresh again.
 - [x] Cancellation has explicit in-flight semantics.
 - [x] Backpressure and retained-state budgets are explicit.
 - [x] EOF/crash/restart invalidates ready state.
@@ -31,6 +31,7 @@ This checklist evaluates specification quality and execution readiness. Checked 
 - [x] TCP/localhost service is rejected for base S1.
 - [x] Named pipes are fallback-only, not silently selected.
 - [x] Tauri sidecar packaging is separated from protocol authority.
+- [x] Protocol bytes are confined to stdin/stdout; stderr is diagnostics-only and must not be allowed to block protocol progress.
 
 ## Ponytail
 
@@ -65,6 +66,7 @@ This checklist evaluates specification quality and execution readiness. Checked 
 - [x] S1 requires exact-range Codex Security coverage when available/egress-permitted.
 - [x] S1 requires independent correctness/engineering review.
 - [x] Missing applicable security/reviewer coverage cannot become PASS.
+- [x] Repository-file validation of hosted-review configuration is not misrepresented as proof of provider-effective settings.
 
 ## Platform
 
@@ -82,15 +84,17 @@ This checklist evaluates specification quality and execution readiness. Checked 
 - [x] Downgrade attack is covered.
 - [x] Oversize/truncated/malformed frames are covered.
 - [x] Duplicate/replay/stale-launch cases are covered.
+- [x] Stateful duplicate observation/cancellation behavior is covered.
 - [x] Flood/budget exhaustion is covered.
 - [x] Core unavailable/crash/restart is covered.
 - [x] Desktop crash/pipe close is covered.
+- [x] Stderr pipe-fill cannot block protocol progress.
 
 ## Evidence and acceptance
 
 - [x] Exact binary/protocol/toolchain/lock identities are required.
 - [x] Performance measurements are required but not used as correctness substitutes.
-- [x] Acceptance requires rerun after material repair/head change as applicable.
+- [x] After a material repair or head change, every affected gate must be rerun on the resulting exact head: applicable deterministic/unit/integration/contract gates; dependency/SBOM/advisory gates when manifests or lock data changed; platform/runtime gates when covered behavior changed; security review when security-relevant paths or claims changed; independent correctness review for material changes; and benchmark/evidence gates when their covered claims changed.
 - [x] Build Learning capture is part of exit.
 - [ ] Implementation exact-head deterministic gates complete.
 - [ ] Security review complete/accounted.

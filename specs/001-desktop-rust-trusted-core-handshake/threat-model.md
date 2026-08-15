@@ -22,12 +22,13 @@ S1 must preserve:
 2. A successful connection/handshake cannot mint authority.
 3. Only the Desktop-owned Core child is used by the base transport design.
 4. Frames cannot induce unbounded pre-deserialization allocation.
-5. Stale/replayed/duplicate messages cannot be accepted as fresh effects.
+5. Stale/replayed/duplicate messages cannot be accepted as fresh effects, including after terminal/cache state has been discarded.
 6. Restart/crash cannot fabricate request success or preserve stale readiness.
 7. Cancellation cannot cross request identity boundaries.
 8. Runtime S1 does not require network access or secrets.
 9. Dependency/build provenance remains exact and auditable.
 10. UI cannot obtain generalized process/filesystem/shell permissions merely for S1.
+11. Diagnostic stderr cannot deadlock protocol progress or become a second protocol channel.
 
 ## Trust boundaries
 
@@ -56,7 +57,8 @@ Threats:
 - malformed frame length/body;
 - unsupported version/downgrade;
 - forged or stale launch identity;
-- duplicate/replay IDs;
+- duplicate/replay/non-monotonic command IDs;
+- replay after bounded terminal/cache eviction;
 - request flood;
 - cancellation identifier confusion.
 
@@ -64,27 +66,35 @@ Controls:
 - fixed 4-byte length prefix;
 - 64 KiB maximum payload before allocation/deserialization;
 - strict typed version/kind/principal/operation validation;
-- bounded in-flight and recent-ID state;
-- deterministic duplicate/replay rejection;
-- correlated cancellation.
+- Desktop allocates command IDs in serialized wire order;
+- Core retains an O(1) launch-wide `highest_accepted_command_id` and rejects `id <= high_water` before dispatch;
+- IDs never wrap/reuse within a launch; exhaustion requires a fresh launch;
+- bounded in-flight/watch state;
+- correlated cancellation with separate target identity.
 
-### TB-3 — Core stdout → Desktop Rust host
+### TB-3 — Core stdout/stderr → Desktop Rust host
 
 Threats:
-- malformed/truncated frames;
+- malformed/truncated protocol frames on stdout;
 - unexpected event/response kind;
 - stale response after restart;
 - response ID mismatch;
-- output flood;
-- forged readiness/capability shape.
+- stdout/event flood;
+- forged readiness/capability shape;
+- diagnostics flooding stderr until the OS pipe fills and blocks Core progress;
+- diagnostics accidentally parsed as protocol data.
 
 Controls:
-- same bounded frame decoder on Desktop side;
+- protocol bytes use stdout only and the same bounded frame decoder on Desktop side;
+- stderr is diagnostics-only;
 - exact launch/request correlation;
 - typed response/event enums;
 - bounded queues/state;
+- Desktop concurrently drains piped stderr or uses an explicitly non-blocking alternative;
+- retained diagnostics are bounded and truncation is observable while draining continues;
 - broken pipe/EOF invalidates readiness;
-- unknown or malformed output fails channel state closed.
+- unknown or malformed protocol output fails channel state closed;
+- integration test fills stderr beyond expected pipe capacity while a normal protocol exchange remains live.
 
 ### TB-4 — Process lifecycle / executable identity
 
@@ -106,7 +116,7 @@ Controls/planned evidence:
 
 S1 does NOT claim a strong hostile-process containment boundary merely because Desktop spawned Core.
 
-### TB-5 — Build/dependency supply chain
+### TB-5 — Build/dependency/reviewer supply chain
 
 Threats:
 - mutable/unpinned tool/package identity;
@@ -114,7 +124,9 @@ Threats:
 - vulnerable transitive crate;
 - dependency confusion or feature creep;
 - generated lockfile/SBOM drift;
-- CI weakening to permit arbitrary implementation paths.
+- CI weakening to permit arbitrary implementation paths;
+- repository reviewer config accepted locally but rejected by provider, causing fallback to conflicting provider/UI settings;
+- automatic hosted review occurs before required pre-egress classification/screening/approval.
 
 Controls:
 - exact toolchain/package candidates;
@@ -123,6 +135,9 @@ Controls:
 - SBOM + advisory scan;
 - Ponytail rejects unnecessary packages;
 - stage-aware CI uses explicit S1 path/admission constraints rather than removing P0 controls;
+- reviewer repository configs remain manual-only;
+- local file-byte/schema validation is not treated as provider-effective proof;
+- provider-effective Cubic validation is required before Cubic is counted/used; otherwise Cubic remains blocked/not-run;
 - exact-head security review for workflow/security-boundary changes.
 
 ## Threat catalogue
@@ -134,10 +149,10 @@ Controls:
 | S1-T03 | malformed JSON | parser confusion | typed deserialize error, channel remains fail-closed |
 | S1-T04 | unknown protocol version | downgrade/undefined semantics | reject; no implicit v1 fallback |
 | S1-T05 | unknown principal | authority confusion | only internally assigned `desktop_host` accepted |
-| S1-T06 | duplicate request ID | duplicate effect | deterministic duplicate/replay rejection |
+| S1-T06 | duplicate/replayed/non-monotonic command ID | duplicate state mutation/event stream | serialized strictly increasing IDs + launch-wide O(1) high-water rejection before dispatch; no wrap/reuse |
 | S1-T07 | stale launch response | cross-restart confusion | launch ID must match current child lifecycle |
-| S1-T08 | cancellation ID collision | wrong operation cancelled | launch + request correlation and terminal-state checks |
-| S1-T09 | request/event flood | memory/CPU exhaustion | explicit queue/in-flight/watch/window budgets |
+| S1-T08 | cancellation ID collision | wrong operation cancelled | fresh cancellation command ID + explicit target ID + terminal-state checks |
+| S1-T09 | request/event flood | memory/CPU exhaustion | explicit queue/in-flight/watch budgets |
 | S1-T10 | Core crash during request | fabricated completion | mark interrupted/unknown; never success |
 | S1-T11 | Desktop loses pipe | stale ready state | EOF/broken pipe transitions out of ready immediately |
 | S1-T12 | wrong Core executable | binary substitution | explicit sibling path + package/binary identity evidence |
@@ -149,6 +164,9 @@ Controls:
 | S1-T18 | dependency advisory ignored | supply-chain vulnerability | advisory reconciliation blocks final admission when reportable |
 | S1-T19 | restart loop | availability/resource exhaustion | bounded restart policy + visible failure state |
 | S1-T20 | orphan Core child | stray process/state | Windows lifecycle test; failure retained honestly if not solved within S1 without importing S3 scope |
+| S1-T21 | stderr pipe fills | Core/protocol deadlock | diagnostics-only stderr + concurrent drain/redirection + pipe-fill integration test |
+| S1-T22 | Cubic config rejected/fallback | unscreened automatic external processing | schema/provider-effective validation before use; otherwise Cubic remains blocked/not-run |
+| S1-T23 | canonical archive path is symlink/non-regular/oversized stream | CI resource exhaustion before gate | no-follow regular-file open + bounded read before archive parsing |
 
 ## Explicit non-claims
 
@@ -158,11 +176,12 @@ ANONYMOUS_PIPE != CRYPTOGRAPHIC_AUTHENTICATION
 PRINCIPAL_LABEL != NAWAT_GRANT
 TAURI_ACL != CORE_AUTHORITY
 PROTOCOL_VALIDATION != WINDOWS_SANDBOX
+LOCAL_REVIEWER_CONFIG_VALIDATION != PROVIDER_EFFECTIVE_STATE
 CLEAN_SECURITY_REVIEW != TRUSTED_COMPLETION
 ```
 
 ## Security review applicability
 
-S1 implementation and the stage-aware CI migration are security-relevant under `docs/canonical/SECURITY_REVIEW_POLICY.md` because they affect process/IPC boundaries, external-input parsing, configuration, dependency execution, and workflow trust.
+S1 implementation and the stage-aware CI migration are security-relevant under `docs/canonical/SECURITY_REVIEW_POLICY.md` because they affect process/IPC boundaries, external-input parsing, configuration, dependency execution, reviewer egress, and workflow trust.
 
 A Codex Security diff scan is therefore applicable when available and egress policy permits. Any missing applicable coverage is recorded as coverage limitation/`NOT_RUN_NON_BLOCKING` under policy, never rewritten as PASS.

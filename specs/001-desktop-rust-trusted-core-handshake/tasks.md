@@ -6,6 +6,7 @@ This is the execution-authoritative S1 task ledger. A checked box requires stabl
 SLICE = S1
 BASE_MAIN = 6eff72319cad99c878a80f0d5bce9f107d213679
 BRANCH = feat/s1-desktop-rust-core-handshake
+PR = #3
 FOUNDER_STANDING_AUTHORIZATION = GRANTED
 SOURCE_ACQUISITION_CHECK = OPEN
 DEPENDENCY_ADMISSION = NONE
@@ -22,24 +23,28 @@ IMPLEMENTATION = BLOCKED
 - [x] Complete threat model.
 - [x] Reconcile provisional decomposition through `analyze.md`.
 
-Evidence: this initial S1 planning commit and `specs/001-desktop-rust-trusted-core-handshake/**`.
+Evidence: planning commit `b114fc503c5fba17072b2870612815fd07cc8c8c` and `specs/001-desktop-rust-trusted-core-handshake/**`.
 
 ## S1-002 — Publish live S1 checkpoint
 
-- [ ] Open Draft PR against `main` from the S1 branch.
-- [ ] Update `docs/canonical/CURRENT_STATE.md` with exact PR number/head and P0 merged identity.
-- [ ] Verify planning-only `foundation-integrity` on the exact checkpoint head.
+- [x] Open Draft PR #3 against `main` from the S1 branch. Evidence: GitHub PR #3.
+- [x] Update `docs/canonical/CURRENT_STATE.md` with exact PR number, P0 merged identity, and planning checkpoint. Evidence: commit `e86c675680355eb609b02f62df8a30be23f55951`.
+- [x] Verify planning-only `foundation-integrity` on the checkpoint head. Evidence: run `31905067180` / #123 PASS on `e86c675680355eb609b02f62df8a30be23f55951`.
 
-Gate: no implementation/dependency manifest may enter during this task.
+Historical note: later commits do not inherit run #123; each changed head must satisfy its own applicable gates.
 
 ## S1-003 — Migrate P0 foundation CI to stage-aware S1 integrity
 
 - [ ] Preserve immutable P0 archive/V2.2/402-registry validation.
+- [ ] Bound canonical-archive reads before allocation and reject symlink/non-regular archive paths before reading.
 - [ ] Preserve symlink/gitlink/repair-payload/duplicate-policy protections.
 - [ ] Replace the P0-only implementation prohibition with an explicit S1 phase/path/admission contract.
 - [ ] Ensure later-slice implementation paths remain rejected.
 - [ ] Add deterministic negative fixtures/probes proving unauthorized manifests/code still fail.
-- [ ] Keep hosted reviewer auto-trigger disabled.
+- [ ] Keep CodeRabbit and Cubic automatic hosted review disabled.
+- [ ] Validate `cubic.yaml` against a qualified/pinned schema or equivalent deterministic semantic contract; exact file-byte comparison alone is not provider-effective proof.
+- [ ] Obtain provider-effective Cubic validation evidence (dashboard/export/API or equivalent provider acknowledgment) before Cubic may be treated as available for manual review; if unavailable, record `CUBIC_REVIEW = BLOCKED/NOT_RUN`, never PASS.
+- [ ] Verify the intended manual Cubic trigger path only after an exact-scope pre-egress record; do not enable automatic review as a test.
 - [ ] Run exact-head deterministic workflow tests.
 - [ ] Run/apply security review because CI trust boundary changes.
 - [ ] Reconcile all valid findings before S1-004.
@@ -92,16 +97,20 @@ Gate: **S1 product implementation is prohibited until this task passes.**
 ## S1-007 — Implement pure handshake / replay / cancellation state
 
 - [ ] Implement launch/request correlation semantics.
-- [ ] Implement bounded recent-ID replay window.
+- [ ] Implement serialized strictly increasing inbound command IDs per launch and an O(1) Core high-water mark; IDs never wrap/reuse within a launch.
+- [ ] Reject every command with `id <= highest_accepted_command_id` before dispatch so replay protection survives eviction of unrelated terminal/cache state.
 - [ ] Implement bounded in-flight/watch state.
 - [ ] Implement health/version/capability operations.
-- [ ] Implement bounded health-observation state and idempotent cancellation.
-- [ ] Prove stale launch IDs, duplicate IDs, cancellation races, and budget exhaustion fail deterministically.
+- [ ] Implement bounded health-observation state and deterministic cancellation.
+- [ ] Prove duplicate observation cannot allocate a second watch/event stream.
+- [ ] Prove replayed cancellation cannot mutate state again and fresh cancellation of an already terminal operation is a deterministic no-op/terminal result.
+- [ ] Prove stale launch IDs, non-monotonic/reused IDs, cancellation races, and budget exhaustion fail deterministically.
 - [ ] Keep logic testable without Tauri or OS child processes.
 
 ## S1-008 — Implement separate Rust Core child process
 
-- [ ] Core executable reads/writes only inherited stdin/stdout/stderr for S1 protocol.
+- [ ] Core protocol bytes use inherited stdin/stdout only.
+- [ ] Core stderr is diagnostics-only and is never parsed as protocol data.
 - [ ] Use stdlib process/IO/concurrency primitives unless a separately qualified need changes this.
 - [ ] No network listener/client.
 - [ ] No project/filesystem/terminal/worker authority.
@@ -112,8 +121,10 @@ Gate: **S1 product implementation is prohibited until this task passes.**
 ## S1-009 — Implement Desktop-owned Core lifecycle and protocol client
 
 - [ ] Resolve explicit packaged sibling Core executable path; no shell/PATH lookup.
-- [ ] Launch separate Core child with piped stdin/stdout/stderr.
+- [ ] Launch separate Core child with piped stdin/stdout and an explicit stderr strategy.
+- [ ] If stderr is piped, drain it concurrently; retain at most the accepted diagnostics budget while continuing to drain and exposing a truncation indicator.
 - [ ] Assign `desktop_host` principal and fresh launch ID internally.
+- [ ] Allocate request/cancel command IDs in the same serialized order frames are written to the Core.
 - [ ] Implement typed request/event/cancel client.
 - [ ] EOF/child exit immediately invalidates readiness.
 - [ ] Restart uses a new launch ID and invalidates prior in-flight operations.
@@ -137,13 +148,17 @@ Gate: **S1 product implementation is prohibited until this task passes.**
 - [ ] Unknown command/version/principal and downgrade attempt.
 - [ ] zero/oversized/truncated/malformed frames.
 - [ ] invalid UTF-8/text contract cases.
-- [ ] duplicate/replay/stale launch.
+- [ ] duplicate/replay/non-monotonic command IDs and stale launch.
+- [ ] replay after terminal/cache eviction remains rejected by launch-wide high-water state.
+- [ ] duplicate observation cannot allocate a second watch/event stream.
+- [ ] replayed cancellation cannot mutate twice; fresh cancel of terminal target is deterministic/non-mutating.
 - [ ] cancellation of unknown/completed/already-cancelled request and cancellation race.
-- [ ] in-flight/watch/recent-ID budget exhaustion.
+- [ ] in-flight/watch budget exhaustion.
 - [ ] Core unavailable/crash/restart.
 - [ ] Desktop writer/reader loss and Desktop exit.
 - [ ] stale response/event after restart.
 - [ ] wrong/missing/mismatched Core binary/package scenario.
+- [ ] emit diagnostics beyond expected OS stderr pipe capacity while protocol exchanges continue, proving the drain/redirect strategy cannot deadlock Core protocol progress.
 
 ## S1-012 — Windows-first qualification and secondary platform evidence
 
@@ -165,6 +180,7 @@ Gate: **S1 product implementation is prohibited until this task passes.**
 - [ ] Measure cancellation latency.
 - [ ] Measure crash detection + fresh-handshake recovery.
 - [ ] Measure malformed/oversized rejection cost.
+- [ ] Measure sustained diagnostic-drain behavior and retained-diagnostics truncation.
 - [ ] Tighten initial budgets where evidence supports a lower bound.
 - [ ] Record exact Desktop/Core binaries, toolchain, lockfile, protocol version, commit and platform identities.
 
@@ -179,7 +195,7 @@ Gate: **S1 product implementation is prohibited until this task passes.**
 
 - [ ] Validate each finding against exact current code.
 - [ ] Repair only valid findings within bounded scope.
-- [ ] Rerun all affected deterministic/platform/security/review gates on the resulting exact head.
+- [ ] Rerun every affected gate on the resulting exact head: deterministic/unit/integration/contract, dependency/SBOM/advisory when applicable, platform/runtime when applicable, security review for security-relevant changes, independent correctness review for material changes, and benchmark/evidence gates for changed claims.
 - [ ] Zero unresolved material findings.
 - [ ] Zero stale-evidence inheritance across changed heads.
 
@@ -195,8 +211,9 @@ Gate: **S1 product implementation is prohibited until this task passes.**
 ## Current gate
 
 ```text
-COMPLETED = S1-001 PLANNING CONTENT PREPARED
-NEXT = ATOMIC PLANNING COMMIT -> DRAFT PR -> S1-002
+COMPLETED = S1-001 + S1-002
+CURRENT = VALIDATE_AND_REPAIR PR #3 PLANNING / REVIEW-EGRESS HOTFIX FINDINGS
+NEXT_AFTER_CLEAN_EXACT_HEAD_REVIEW = CLOSE PLANNING BASELINE, THEN S1-003
 SOURCE_ACQUISITION_CHECK = OPEN
 DEPENDENCY_ADMISSION = NONE
 IMPLEMENTATION = BLOCKED

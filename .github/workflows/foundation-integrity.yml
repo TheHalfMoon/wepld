@@ -36,6 +36,7 @@ jobs:
           import json
           import os
           import pathlib
+          import stat
           import tarfile
           import urllib.error
           import urllib.request
@@ -117,8 +118,31 @@ jobs:
               "WEPLD_SOURCE_CAPABILITY_MINING_PRIORITY_MATRIX_2026-08-14_V1.md",
           }
 
-          archive_bytes = archive_path.read_bytes()
-          if len(archive_bytes) > 1_000_000:
+          max_archive_bytes = 1_000_000
+          try:
+              archive_lstat = archive_path.lstat()
+          except OSError as exc:
+              raise SystemExit(f"unable to stat canonical artifact archive: {exc}") from exc
+          if not stat.S_ISREG(archive_lstat.st_mode):
+              raise SystemExit("canonical artifact archive must be a regular non-symlink file")
+
+          open_flags = os.O_RDONLY
+          if hasattr(os, "O_NOFOLLOW"):
+              open_flags |= os.O_NOFOLLOW
+          try:
+              archive_fd = os.open(archive_path, open_flags)
+          except OSError as exc:
+              raise SystemExit(f"unable to open canonical artifact archive safely: {exc}") from exc
+          try:
+              archive_fstat = os.fstat(archive_fd)
+              if not stat.S_ISREG(archive_fstat.st_mode):
+                  raise SystemExit("opened canonical artifact archive is not a regular file")
+              with os.fdopen(archive_fd, "rb", closefd=False) as archive_file:
+                  archive_bytes = archive_file.read(max_archive_bytes + 1)
+          finally:
+              os.close(archive_fd)
+
+          if len(archive_bytes) > max_archive_bytes:
               raise SystemExit("archive exceeds bounded compressed size")
           actual_archive_sha256 = hashlib.sha256(archive_bytes).hexdigest()
           if actual_archive_sha256 != expected_archive_sha256:
@@ -315,7 +339,7 @@ jobs:
           grep -Fx 'FRESH_IMPLEMENTATION_DEPENDENCIES = 0' docs/governance/DEPENDENCY_REGISTER.md >/dev/null
           echo 'documentation-only foundation boundaries: PASS'
 
-      - name: Verify hosted reviewers remain manual-only
+      - name: Verify hosted reviewer repository configs remain manual-only
         shell: bash
         run: |
           set -euo pipefail
@@ -359,9 +383,14 @@ jobs:
           actual_coderabbit = Path('.coderabbit.yaml').read_text(encoding='utf-8')
           actual_cubic = Path('cubic.yaml').read_text(encoding='utf-8')
           if actual_coderabbit != expected_coderabbit:
-              raise SystemExit('CodeRabbit manual-only configuration drifted')
+              raise SystemExit('CodeRabbit manual-only repository configuration drifted')
           if actual_cubic != expected_cubic:
-              raise SystemExit('Cubic manual-only configuration drifted')
+              raise SystemExit('Cubic manual-only repository configuration drifted')
 
-          print('hosted reviewer manual-only configuration: PASS')
+          # This check proves only the checked-out repository configuration bytes.
+          # Cubic documents that invalid YAML can fall back to UI settings, so provider-
+          # effective Cubic state must be validated separately before Cubic is used or
+          # counted as an available manual reviewer.
+          print('hosted reviewer repository configuration bytes: PASS')
+          print('cubic_provider_effective_state=NOT_PROVEN_BY_THIS_CI')
           PY

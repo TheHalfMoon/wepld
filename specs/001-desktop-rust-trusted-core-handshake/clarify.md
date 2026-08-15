@@ -20,7 +20,7 @@ Tauri is a desktop framework and may mediate WebView-to-Desktop-host presentatio
 
 **Decision:** not for the initial S1 implementation candidate.
 
-Tauri `externalBin` solves bundling of a sidecar binary. The Rust standard library can launch a known packaged sibling executable with piped stdin/stdout/stderr. Installing the shell plugin would add a broader command/process package and additional transitive surface when S1 needs only one owned child executable.
+Tauri `externalBin` solves bundling of a sidecar binary. The Rust standard library can launch a known packaged sibling executable with piped stdin/stdout and an explicit stderr strategy. Installing the shell plugin would add a broader command/process package and additional transitive surface when S1 needs only one owned child executable.
 
 `tauri-plugin-shell` remains a reference/negative oracle and a fallback candidate only if direct `std::process::Command` plus Tauri bundling fails measured packaging/recovery requirements. Any fallback requires a new explicit acquisition disposition; there is no silent substitution.
 
@@ -44,7 +44,9 @@ The Desktop Rust host assigns it; arbitrary WebView input cannot select or manuf
 
 ## C-007 — How are launches and correlations identified?
 
-**Decision:** each Desktop-managed Core launch has a monotonic Desktop-local `launch_id`; request IDs are monotonically allocated `u64` values within that launch. Responses/events must echo both. Stale launch IDs fail closed.
+**Decision:** each Desktop-managed Core launch has a monotonic Desktop-local `launch_id`. Within one launch, every new request/cancel command gets a `u64` message/request ID allocated in the same serialized writer order in which frames are placed on the single Desktop→Core byte stream. IDs MUST be strictly increasing on that stream and MUST NOT wrap or be reused within a launch. Responses/events echo the relevant launch/request identities. Stale launch identities fail closed.
+
+The Core retains an O(1) launch-wide high-water mark for accepted command IDs. A new request/cancel frame with an ID less than or equal to that mark is a replay/duplicate and is rejected before dispatch. Response completion may occur out of order; only inbound command acceptance is monotonic in wire order. If the `u64` command-ID space were ever exhausted, the launch must terminate and a fresh launch/handshake is required rather than wrapping.
 
 No cryptographic authenticity claim is made for these IDs. The inherited pipe relationship provides the minimum local origin constraint for S1; future authority-bearing operations require Nawat-owned grants and stronger evidence as applicable.
 
@@ -54,13 +56,20 @@ No cryptographic authenticity claim is made for these IDs. The inherited pipe re
 
 This exists to prove the event/cancellation contract with a real runtime path rather than a test-only fake command. It is not a generalized streaming or telemetry subsystem. Event interval, lifetime, and concurrent-watch count are bounded.
 
-## C-009 — What happens on duplicate request IDs?
+## C-009 — What happens on duplicate or replayed command IDs?
 
-**Decision:** duplicate/replayed IDs are rejected deterministically and never re-execute work. S1 keeps a bounded recent-ID window; overflow evicts oldest terminal IDs without changing authority semantics.
+**Decision:** duplicate/replayed IDs are rejected deterministically before dispatch and never re-execute work. S1 does not rely on a bounded recent-ID cache for this security property. The launch-wide monotonic high-water mark from C-007 continues to reject every previously accepted ID even after any unrelated terminal-result/cache state has been discarded.
+
+For the stateful S1 operations specifically:
+
+- replaying the original health-observation command ID cannot allocate a second watch or emit a second event stream;
+- a cancellation command has its own fresh monotonic command ID and names a target observation request ID;
+- replaying the same cancellation command ID is rejected before state mutation;
+- a different fresh cancellation command targeting an already-cancelled/completed observation returns a deterministic terminal/no-op result and does not mutate operation state again.
 
 ## C-010 — Is out-of-order concurrency required?
 
-**Decision:** limited concurrency is required only to the extent necessary for an in-flight health observation plus cancellation and ordinary introspection requests. S1 does not build a generalized async RPC runtime.
+**Decision:** limited concurrency is required only to the extent necessary for an in-flight health observation plus cancellation and ordinary introspection requests. Inbound command frames remain serialized and monotonically identified on one Desktop→Core stream; responses/events may complete or arrive out of request order where their typed semantics permit it. S1 does not build a generalized async RPC runtime.
 
 ## C-011 — What frontend stack is required?
 
@@ -75,3 +84,9 @@ This exists to prove the event/cancellation contract with a real runtime path ra
 **Decision:** no. Runtime S1 network requirement is `NONE`.
 
 Build-time package acquisition is a separate controlled software-supply-chain activity and is not a runtime network capability.
+
+## C-014 — What is stderr used for?
+
+**Decision:** protocol bytes use stdin/stdout only. Core stderr is diagnostics-only and is never parsed as protocol input.
+
+If stderr is piped, the Desktop must drain it concurrently so a full OS pipe cannot block Core progress. Retained diagnostic data must be bounded; overflow may truncate/drop retained diagnostic bytes while the drain continues, and the truncation must be observable. An integration test must deliberately emit more diagnostic stderr than the platform pipe capacity while a normal protocol exchange continues successfully.

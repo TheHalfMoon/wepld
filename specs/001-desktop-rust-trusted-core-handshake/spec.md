@@ -43,9 +43,20 @@ Requests MUST carry or inherit an explicit Desktop-host principal identity that 
 
 Requests and responses MUST carry bounded correlation identifiers. A Core launch/restart MUST have a launch identity so stale responses/events from a previous launch cannot be accepted as current.
 
+Within one launch, new Desktop→Core request/cancel command IDs MUST be allocated in serialized wire order, MUST be strictly increasing, and MUST NOT wrap or be reused. Core MUST retain a launch-wide monotonic high-water mark so a previously accepted ID remains rejectable as replay without unbounded retained-ID state.
+
 ### FR-007 — Replay / duplicate semantics
 
-Duplicate or replayed request identifiers MUST have deterministic behavior and MUST NOT execute a second effect. S1 commands are non-effecting handshake/introspection operations; the protocol still MUST establish a reusable duplicate-detection invariant for later slices.
+Duplicate or replayed command identifiers MUST be rejected before dispatch and MUST NOT execute a second effect. S1 commands do not carry project or external side effects, but health observation and cancellation are stateful protocol operations and therefore remain covered by this invariant.
+
+Specifically:
+
+- replaying a health-observation command ID MUST NOT allocate another watch or emit a duplicate event stream;
+- a cancellation command MUST use its own fresh monotonic command ID and identify its target operation separately;
+- replaying a cancellation command ID MUST NOT mutate state a second time;
+- a fresh cancellation targeting an already terminal operation MUST return a deterministic terminal/no-op result without another state mutation.
+
+The no-replay guarantee is launch-wide and MUST NOT depend on retaining every terminal request ID in a bounded cache.
 
 ### FR-008 — Core introspection
 
@@ -53,11 +64,11 @@ Protocol v1 MUST provide typed health, version/build identity, and capability-de
 
 ### FR-009 — Events and cancellation
 
-The protocol MUST support a bounded long-lived S1-owned observation operation sufficient to prove event delivery and cancellation. Cancellation MUST be correlated to an in-flight operation, idempotent, and unable to cancel a different request by identifier confusion.
+The protocol MUST support a bounded long-lived S1-owned observation operation sufficient to prove event delivery and cancellation. Cancellation MUST be correlated to an in-flight operation, idempotent in its state effect, and unable to cancel a different request by identifier confusion.
 
 ### FR-010 — Backpressure and bounded state
 
-The Core MUST place explicit bounds on frame size, queued/in-flight operations, retained duplicate identifiers, and emitted events. Flooding MUST produce bounded rejection/backpressure rather than unbounded memory growth.
+The Core MUST place explicit bounds on frame size, queued/in-flight operations, health observations, emitted events, diagnostics retention, and any terminal-result/cache state. Launch-wide replay rejection MUST remain bounded through the monotonic high-water invariant rather than unbounded request-ID retention. Flooding MUST produce bounded rejection/backpressure rather than unbounded memory growth.
 
 ### FR-011 — Restart and EOF semantics
 
@@ -74,6 +85,10 @@ Acceptance evidence MUST identify the exact Desktop binary, Core binary, protoco
 ### FR-014 — Platform qualification
 
 Windows x86_64 MSVC is the primary acceptance platform. macOS and Linux require compile/contract coverage according to the S1 plan; absence of Windows runtime evidence blocks the Windows-first S1 claim.
+
+### FR-015 — Protocol/diagnostic stream separation
+
+Core protocol bytes MUST use stdin/stdout only. Stderr is diagnostics-only and MUST NOT be parsed as protocol data. If stderr is piped, Desktop MUST drain it concurrently with bounded retained diagnostics so a full stderr pipe cannot block protocol progress. Diagnostic truncation/drop under retention pressure MUST be observable.
 
 ## Security and trust requirements
 
@@ -92,7 +107,11 @@ The deterministic suite MUST cover at least:
 - unknown/unsupported protocol version;
 - attempted schema downgrade;
 - forged/unknown principal;
-- request-id duplicate/replay;
+- duplicate/replayed command ID both before and after any terminal-cache eviction;
+- non-monotonic command ID and attempted ID wrap/reuse;
+- duplicate health-observation command cannot allocate another watch;
+- duplicate cancellation command cannot mutate twice;
+- fresh cancellation targeting an already terminal operation is deterministic and non-mutating;
 - stale launch identity;
 - zero-length and oversized frame;
 - truncated prefix/body;
@@ -106,7 +125,8 @@ The deterministic suite MUST cover at least:
 - Desktop-side writer loss;
 - Core crash;
 - Desktop crash / stdin close;
-- stale response/event after restart.
+- stale response/event after restart;
+- diagnostics output exceeding OS stderr pipe capacity while protocol progress remains live.
 
 ## Performance budgets to measure
 
@@ -119,7 +139,8 @@ No performance result is a correctness substitute. S1 records at minimum:
 - CPU while idle;
 - cancellation latency;
 - crash detection and fresh-handshake recovery latency;
-- malformed/oversized-frame rejection cost.
+- malformed/oversized-frame rejection cost;
+- diagnostic-drain behavior under sustained bounded stderr output.
 
 Thresholds are finalized from measured baseline evidence before S1 acceptance rather than invented as success criteria in advance.
 

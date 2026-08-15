@@ -2,6 +2,8 @@ name: s1-admission-integrity
 
 on:
   pull_request_target:
+    branches:
+      - main
     types:
       - opened
       - synchronize

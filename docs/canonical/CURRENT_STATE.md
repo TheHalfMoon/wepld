@@ -100,13 +100,19 @@ Ponytail source is pinned at `DietrichGebert/ponytail@2ed6c52c9d7e5e569425085910
 
 ```text
 TRANSPORT_PREFERENCE = inherited child stdin/stdout anonymous pipes
-RUNTIME_NETWORK = NONE
-PROTOCOL_V1_FRAMING = 4-byte big-endian length + UTF-8 JSON
-INITIAL_MAX_PAYLOAD_BYTES = 65536
+HANDSHAKE_RUNTIME_NETWORK = NONE
+PROTOCOL_V1_FRAMING = 4-byte big-endian payload length + UTF-8 JSON payload
+LENGTH_PREFIX_BYTES = 4
+MAX_PAYLOAD_BYTES = 65536
+MAX_WIRE_FRAME_BYTES = 65540
 PROTOCOL_PRINCIPAL = desktop_host
 CONNECTION_GRANTS_AUTHORITY = NO
 TAURI_ACL_IS_NAWAT_AUTHORITY = NO
 ```
+
+`HANDSHAKE_RUNTIME_NETWORK = NONE` applies only to the S1 Desktop ↔ Core handshake runtime boundary. It is not a repository-wide prohibition on network capabilities that later slices may separately specify, qualify, and authorize.
+
+For protocol v1, the 4-byte prefix encodes **payload length**. A declared payload length greater than `65_536` is rejected before payload allocation/read/deserialization. The largest complete wire frame is therefore `65_540` bytes (`4 + 65_536`).
 
 Ponytail currently rejects unnecessary base-S1 machinery:
 
@@ -151,6 +157,40 @@ S1 must first migrate it to a stage-aware integrity gate that preserves:
 - hosted reviewer manual pre-egress control.
 
 The workflow change is security-relevant and requires applicable exact-head security coverage. Broadly deleting or weakening P0 protections is prohibited.
+
+## Hosted reviewer egress controls
+
+Repository configuration paths:
+
+- `.coderabbit.yaml`
+- `cubic.yaml`
+- `.github/workflows/foundation-integrity.yml`
+- `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md`
+
+The current S1 planning contract is fail-closed and explicit:
+
+```text
+CODERABBIT_AUTO_REVIEW = false
+CODERABBIT_AUTO_INCREMENTAL_REVIEW = false
+CODERABBIT_REVIEW_WHEN_USED = MANUAL_EXACT_SCOPE_AFTER_RECORDED_PREFLIGHT
+
+CUBIC_REVIEWS_ENABLED = false
+CUBIC_INCREMENTAL_COMMITS = false
+CUBIC_CHECK_DRAFTS = false
+CUBIC_PR_DESCRIPTION_GENERATION = false
+CUBIC_AUTO_APPROVE = disabled
+CUBIC_ULTRAREVIEW = disabled
+CUBIC_AUTO_ULTRAREVIEW = disabled
+CUBIC_THREAD_AUTO_RESOLUTION = false
+CUBIC_FIX_WITH_CUBIC_BUTTONS = false
+CUBIC_PR_COMMENT_FIXES = false
+CUBIC_FIX_COMMITS_TO_PR = false
+CUBIC_PROVIDER_EFFECTIVE_STATE = NOT_PROVEN
+```
+
+`foundation-integrity` verifies the checked-out repository-configuration bytes against the approved profile. That proves repository-file state only. It does **not** prove Cubic accepted the YAML or that provider/dashboard-effective settings match it. Cubic must remain `BLOCKED/NOT_RUN` as a reviewer until separate provider-effective evidence exists; no Cubic output may be counted as PASS merely from the repository file.
+
+PR #3 comment `5303961793` records the historical automatic Cubic PR-description egress-order incident. Hosted review after that incident is manual and exact-scope only after the canonical pre-egress classification/screening/approval record. CodeRabbit review evidence is always bound to the exact reviewed head; a changed head invalidates the prior review for acceptance purposes.
 
 ## Architecture state
 
@@ -221,6 +261,7 @@ ANONYMOUS_PIPE != CRYPTOGRAPHIC_AUTHENTICATION
 PRINCIPAL_LABEL != NAWAT_GRANT
 TAURI_ACL != CORE_AUTHORITY
 PROTOCOL_VALIDATION != WINDOWS_SANDBOX
+LOCAL_REVIEWER_CONFIG_VALIDATION != PROVIDER_EFFECTIVE_STATE
 COMPILE_SUCCESS != RUNTIME_QUALIFICATION
 SECURITY_REVIEW_CLEAN != COMPLETION
 ```
@@ -246,10 +287,11 @@ Speak Arabic to the founder. Write repository artifacts and ready-to-use technic
 
 ## Next gate
 
-1. verify the new exact PR #3 head and `foundation-integrity` result after this checkpoint commit;
-2. execute S1-003: stage-aware foundation-integrity migration while tree is still planning-only;
-3. security-review/reconcile that workflow-trust change;
-4. execute S1-004 bounded dependency-resolution bootstrap only after S1-003 is validated;
-5. generate/reconcile lockfile, feature tree, SBOM and advisory evidence;
-6. complete S1-005 component admission / `SOURCE_ACQUISITION_CHECK = PASS`;
-7. only then begin S1 product implementation.
+1. finish PR #3 exact-head finding reconciliation and rerun `foundation-integrity` plus independent exact-head review;
+2. close/merge the S1 planning baseline only when the exact head is clean and repository merge conditions are satisfied;
+3. execute S1-003: stage-aware foundation-integrity migration while tree is still planning-only;
+4. security-review/reconcile that workflow-trust change;
+5. execute S1-004 bounded dependency-resolution bootstrap only after S1-003 is validated;
+6. generate/reconcile lockfile, feature tree, SBOM and advisory evidence;
+7. complete S1-005 component admission / `SOURCE_ACQUISITION_CHECK = PASS`;
+8. only then begin S1 product implementation.

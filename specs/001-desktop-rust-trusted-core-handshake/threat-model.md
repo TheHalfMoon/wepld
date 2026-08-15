@@ -1,0 +1,189 @@
+# Threat Model — S1 Desktop ↔ Rust Trusted Core Handshake
+
+## Scope
+
+This threat model covers only the S1 boundary between:
+
+```text
+WebView / local presentation
+        ↓
+Desktop Rust host
+        ↓ inherited anonymous pipes
+Separate Rust Core child
+```
+
+It does not claim S3 hostile-worker containment, Nawat authorization, project filesystem security, terminal confinement, or network sandboxing.
+
+## Protected properties
+
+S1 must preserve:
+
+1. Core protocol parser/state cannot be bypassed by WebView-supplied data.
+2. A successful connection/handshake cannot mint authority.
+3. Only the Desktop-owned Core child is used by the base transport design.
+4. Frames cannot induce unbounded pre-deserialization allocation.
+5. Stale/replayed/duplicate messages cannot be accepted as fresh effects, including after terminal/cache state has been discarded.
+6. Restart/crash cannot fabricate request success or preserve stale readiness.
+7. Cancellation cannot cross request identity boundaries.
+8. The S1 Desktop ↔ Core handshake runtime does not require network access or secrets.
+9. Dependency/build provenance remains exact and auditable.
+10. UI cannot obtain generalized process/filesystem/shell permissions merely for S1.
+11. Diagnostic stderr cannot deadlock protocol progress or become a second protocol channel.
+
+## Trust boundaries
+
+### TB-1 — WebView → Desktop Rust host
+
+**Trust:** untrusted input crosses into local Rust host.
+
+Threats:
+- forged principal or protocol fields;
+- oversized strings/payloads;
+- arbitrary command invocation;
+- UI attempting to acquire shell/filesystem/process permissions;
+- stale UI state displaying Core as ready after loss.
+
+Controls:
+- Desktop assigns principal/launch identity internally;
+- narrow typed commands/projections only;
+- no general shell/filesystem/network WebView capability for the S1 handshake;
+- ready state derives from live Core lifecycle state, not UI memory.
+
+### TB-2 — Desktop Rust host → Core child stdin
+
+**Trust:** Desktop host is transport owner but still cannot bypass Core validation.
+
+Threats:
+- malformed frame length/body;
+- unsupported version/downgrade;
+- forged or stale launch identity;
+- duplicate/replay/non-monotonic command IDs;
+- replay after bounded terminal/cache eviction;
+- request flood;
+- cancellation identifier confusion.
+
+Controls:
+- fixed 4-byte unsigned big-endian **payload-length** prefix;
+- `MAX_PAYLOAD_BYTES = 65_536`;
+- `MAX_WIRE_FRAME_BYTES = 65_540` derived as `4 + MAX_PAYLOAD_BYTES`;
+- reject a declared payload length `> 65_536` before payload allocation/read/deserialization;
+- strict typed version/kind/principal/operation validation;
+- Desktop allocates command IDs in serialized wire order;
+- Core retains an O(1) launch-wide `highest_accepted_command_id` and rejects `id <= high_water` before dispatch;
+- IDs never wrap/reuse within a launch; exhaustion requires a fresh launch;
+- bounded in-flight/watch state;
+- correlated cancellation with separate target identity.
+
+### TB-3 — Core stdout/stderr → Desktop Rust host
+
+Threats:
+- malformed/truncated protocol frames on stdout;
+- unexpected event/response kind;
+- stale response after restart;
+- response ID mismatch;
+- stdout/event flood;
+- forged readiness/capability shape;
+- diagnostics flooding stderr until the OS pipe fills and blocks Core progress;
+- diagnostics accidentally parsed as protocol data.
+
+Controls:
+- protocol bytes use stdout only and the same bounded payload-length frame decoder on Desktop side;
+- stderr is diagnostics-only;
+- exact launch/request correlation;
+- typed response/event enums;
+- bounded queues/state;
+- Desktop concurrently drains piped stderr or uses an explicitly non-blocking alternative;
+- retained diagnostics are bounded and truncation is observable while draining continues;
+- broken pipe/EOF invalidates readiness;
+- unknown or malformed protocol output fails channel state closed;
+- integration test fills stderr beyond expected pipe capacity while a normal protocol exchange remains live.
+
+### TB-4 — Process lifecycle / executable identity
+
+Threats:
+- wrong executable path;
+- PATH search/substitution;
+- stale bundled Core binary;
+- Core orphan after Desktop exit;
+- rapid crash/restart loop;
+- update/install leaves mismatched Desktop/Core versions.
+
+Controls/planned evidence:
+- launch an explicit packaged sibling path, never shell/PATH lookup;
+- capture exact Core/Desktop binary identity in acceptance evidence;
+- protocol/version mismatch fails closed;
+- Windows package/upgrade and lifecycle tests;
+- bounded restart policy/no infinite silent restart loop;
+- orphan behavior is measured and failure is explicit.
+
+S1 does NOT claim a strong hostile-process containment boundary merely because Desktop spawned Core.
+
+### TB-5 — Build/dependency/reviewer supply chain
+
+Threats:
+- mutable/unpinned tool/package identity;
+- unnecessary dependencies increase attack surface;
+- vulnerable transitive crate;
+- dependency confusion or feature creep;
+- generated lockfile/SBOM drift;
+- CI weakening to permit arbitrary implementation paths;
+- repository reviewer config accepted locally but rejected by provider, causing fallback to conflicting provider/UI settings;
+- automatic hosted review occurs before required pre-egress classification/screening/approval.
+
+Controls:
+- exact toolchain/package candidates;
+- generated Cargo.lock before final admission;
+- direct/transitive feature inventory;
+- SBOM + advisory scan;
+- Ponytail rejects unnecessary packages;
+- stage-aware CI uses explicit S1 path/admission constraints rather than removing P0 controls;
+- reviewer repository configs remain manual-only;
+- local file-byte/schema validation is not treated as provider-effective proof;
+- provider-effective Cubic validation is required before Cubic is counted/used; otherwise Cubic remains blocked/not-run;
+- exact-head security review for workflow/security-boundary changes.
+
+## Threat catalogue
+
+| ID | Threat | Impact | S1 control / required evidence |
+|---|---|---|---|
+| S1-T01 | oversized payload-length prefix | memory/resource exhaustion | read 4-byte prefix first; reject declared payload length `> MAX_PAYLOAD_BYTES (65_536)` before payload allocation/read/deserialization; max complete wire frame = `65_540` bytes |
+| S1-T02 | truncated frame | parser desync / false success | exact-length read or explicit terminal protocol error |
+| S1-T03 | malformed JSON | parser confusion | typed deserialize error, channel remains fail-closed |
+| S1-T04 | unknown protocol version | downgrade/undefined semantics | reject; no implicit v1 fallback |
+| S1-T05 | unknown principal | authority confusion | only internally assigned `desktop_host` accepted |
+| S1-T06 | duplicate/replayed/non-monotonic command ID | duplicate state mutation/event stream | serialized strictly increasing IDs + launch-wide O(1) high-water rejection before dispatch; no wrap/reuse |
+| S1-T07 | stale launch response | cross-restart confusion | launch ID must match current child lifecycle |
+| S1-T08 | cancellation ID collision | wrong operation cancelled | fresh cancellation command ID + explicit target ID + terminal-state checks |
+| S1-T09 | request/event flood | memory/CPU exhaustion | explicit queue/in-flight/watch budgets |
+| S1-T10 | Core crash during request | fabricated completion | mark interrupted/unknown; never success |
+| S1-T11 | Desktop loses pipe | stale ready state | EOF/broken pipe transitions out of ready immediately |
+| S1-T12 | wrong Core executable | binary substitution | explicit sibling path + package/binary identity evidence |
+| S1-T13 | mismatched packaged versions | protocol corruption | version negotiation + packaging tests |
+| S1-T14 | WebView obtains shell access | privilege expansion | no shell plugin/general process permission in base S1 |
+| S1-T15 | Tauri capability mistaken for authority | authorization bypass | canonical invariant; Core never consumes Tauri ACL as Nawat grant |
+| S1-T16 | S1 handshake runtime network unexpectedly opened | new remote attack surface | no network listener/client requirement for the handshake; verify runtime behavior |
+| S1-T17 | CI allowlist broadly relaxed | later unauthorized source/dependency admission | stage-aware explicit allowlist/admission checks + security review |
+| S1-T18 | dependency advisory ignored | supply-chain vulnerability | advisory reconciliation blocks final admission when reportable |
+| S1-T19 | restart loop | availability/resource exhaustion | bounded restart policy + visible failure state |
+| S1-T20 | orphan Core child | stray process/state | Windows lifecycle test; failure retained honestly if not solved within S1 without importing S3 scope |
+| S1-T21 | stderr pipe fills | Core/protocol deadlock | diagnostics-only stderr + concurrent drain/redirection + pipe-fill integration test |
+| S1-T22 | Cubic config rejected/fallback | unscreened automatic external processing | schema/provider-effective validation before use; otherwise Cubic remains blocked/not-run |
+| S1-T23 | canonical archive path is symlink/non-regular/oversized stream | CI resource exhaustion before gate | no-follow regular-file open + bounded read before archive parsing |
+
+## Explicit non-claims
+
+```text
+CHILD_PROCESS_RELATIONSHIP != CONTAINMENT
+ANONYMOUS_PIPE != CRYPTOGRAPHIC_AUTHENTICATION
+PRINCIPAL_LABEL != NAWAT_GRANT
+TAURI_ACL != CORE_AUTHORITY
+PROTOCOL_VALIDATION != WINDOWS_SANDBOX
+LOCAL_REVIEWER_CONFIG_VALIDATION != PROVIDER_EFFECTIVE_STATE
+CLEAN_SECURITY_REVIEW != TRUSTED_COMPLETION
+```
+
+## Security review applicability
+
+S1 implementation and the stage-aware CI migration are security-relevant under `docs/canonical/SECURITY_REVIEW_POLICY.md` because they affect process/IPC boundaries, external-input parsing, configuration, dependency execution, reviewer egress, and workflow trust.
+
+A Codex Security diff scan is therefore applicable when available and egress policy permits. Any missing applicable coverage is recorded as coverage limitation/`NOT_RUN_NON_BLOCKING` under policy, never rewritten as PASS.

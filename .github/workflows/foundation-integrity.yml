@@ -4,7 +4,9 @@ on:
   pull_request:
   push:
     branches:
+      - main
       - docs/fresh-reconstitution-v1
+      - feat/s1-desktop-rust-core-handshake
 
 permissions:
   contents: read
@@ -34,6 +36,7 @@ jobs:
           import json
           import os
           import pathlib
+          import stat
           import tarfile
           import urllib.error
           import urllib.request
@@ -41,7 +44,6 @@ jobs:
           archive_path = pathlib.Path(
               "docs/canonical/artifacts/WEPLD_CANONICAL_ARTIFACTS_2026-08-14.tar.gz"
           )
-
           baseline_commit_sha = "421c769b47fd8ad4f5bcba67ff8b00ba0adfc6c3"
           baseline_path = ".wepld/foundation-integrity-baseline-v1.json"
           baseline_url = (
@@ -50,8 +52,6 @@ jobs:
           )
 
           class RejectRedirects(urllib.request.HTTPRedirectHandler):
-              """Fail closed before urllib can copy Authorization to a redirect."""
-
               def redirect_request(self, req, fp, code, msg, headers, newurl):
                   raise urllib.error.HTTPError(
                       req.full_url,
@@ -61,33 +61,36 @@ jobs:
                       fp,
                   )
 
-          request_headers = {
+          headers = {
               "Accept": "application/vnd.github+json",
               "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
               "X-GitHub-Api-Version": "2022-11-28",
           }
-          request = urllib.request.Request(baseline_url, headers=request_headers)
           opener = urllib.request.build_opener(RejectRedirects())
-          with opener.open(request, timeout=30) as response:
-              if response.geturl() != baseline_url:
-                  raise SystemExit("immutable baseline request target changed unexpectedly")
-              baseline_response = json.load(response)
+
+          def fetch_json_exact(url):
+              request = urllib.request.Request(url, headers=headers)
+              with opener.open(request, timeout=30) as response:
+                  if response.geturl() != url:
+                      raise SystemExit(f"request target changed unexpectedly: {url}")
+                  return json.load(response)
+
+          baseline_response = fetch_json_exact(baseline_url)
           baseline = json.loads(
               base64.b64decode(baseline_response["content"]).decode("utf-8")
           )
 
-          if baseline.get("schema") != "wepld.foundation-integrity-baseline.v1":
-              raise SystemExit("unexpected foundation baseline schema")
-          if baseline.get("baseline_class") != "BOOTSTRAP_INTEGRITY_EVIDENCE_NOT_ACCEPTANCE":
-              raise SystemExit("unexpected foundation baseline class")
-          if baseline.get("repository_id") != 1334408699:
-              raise SystemExit("foundation baseline repository ID mismatch")
-          if baseline.get("repository") != "TheHalfMoon/wepld":
-              raise SystemExit("foundation baseline repository mismatch")
-          if baseline.get("source_registry_entries") != 402:
-              raise SystemExit("foundation baseline source count mismatch")
-          if baseline.get("source_admission") != 0:
-              raise SystemExit("foundation baseline unexpectedly admits sources")
+          expected_baseline = {
+              "schema": "wepld.foundation-integrity-baseline.v1",
+              "baseline_class": "BOOTSTRAP_INTEGRITY_EVIDENCE_NOT_ACCEPTANCE",
+              "repository_id": 1334408699,
+              "repository": "TheHalfMoon/wepld",
+              "source_registry_entries": 402,
+              "source_admission": 0,
+          }
+          for key, expected in expected_baseline.items():
+              if baseline.get(key) != expected:
+                  raise SystemExit(f"foundation baseline mismatch for {key}")
 
           if os.environ.get("EVENT_NAME") == "pull_request":
               pr_base = os.environ.get("PR_BASE_SHA", "")
@@ -99,14 +102,7 @@ jobs:
                       "https://api.github.com/repos/TheHalfMoon/wepld/compare/"
                       f"{baseline_base}...{pr_base}"
                   )
-                  compare_request = urllib.request.Request(
-                      compare_url,
-                      headers=request_headers,
-                  )
-                  with opener.open(compare_request, timeout=30) as response:
-                      if response.geturl() != compare_url:
-                          raise SystemExit("pull-request base ancestry request target changed unexpectedly")
-                      comparison = json.load(response)
+                  comparison = fetch_json_exact(compare_url)
                   if comparison.get("status") not in {"ahead", "identical"}:
                       raise SystemExit(
                           "pull-request base is not the immutable baseline base or its descendant"
@@ -121,16 +117,33 @@ jobs:
               "WEPLD_SOURCE_ARTIFACT_PIN_LEDGER_2026-08-14_V1.md",
               "WEPLD_SOURCE_CAPABILITY_MINING_PRIORITY_MATRIX_2026-08-14_V1.md",
           }
+
           max_archive_bytes = 1_000_000
-          max_member_bytes = 1_000_000
-          max_total_uncompressed_bytes = 2_000_000
+          try:
+              archive_lstat = archive_path.lstat()
+          except OSError as exc:
+              raise SystemExit(f"unable to stat canonical artifact archive: {exc}") from exc
+          if not stat.S_ISREG(archive_lstat.st_mode):
+              raise SystemExit("canonical artifact archive must be a regular non-symlink file")
 
-          archive_bytes = archive_path.read_bytes()
+          open_flags = os.O_RDONLY
+          if hasattr(os, "O_NOFOLLOW"):
+              open_flags |= os.O_NOFOLLOW
+          try:
+              archive_fd = os.open(archive_path, open_flags)
+          except OSError as exc:
+              raise SystemExit(f"unable to open canonical artifact archive safely: {exc}") from exc
+          try:
+              archive_fstat = os.fstat(archive_fd)
+              if not stat.S_ISREG(archive_fstat.st_mode):
+                  raise SystemExit("opened canonical artifact archive is not a regular file")
+              with os.fdopen(archive_fd, "rb", closefd=False) as archive_file:
+                  archive_bytes = archive_file.read(max_archive_bytes + 1)
+          finally:
+              os.close(archive_fd)
+
           if len(archive_bytes) > max_archive_bytes:
-              raise SystemExit(
-                  f"archive exceeds bounded compressed size: {len(archive_bytes)}"
-              )
-
+              raise SystemExit("archive exceeds bounded compressed size")
           actual_archive_sha256 = hashlib.sha256(archive_bytes).hexdigest()
           if actual_archive_sha256 != expected_archive_sha256:
               raise SystemExit(
@@ -140,34 +153,24 @@ jobs:
           with tarfile.open(fileobj=io.BytesIO(archive_bytes), mode="r:gz") as tf:
               members = tf.getmembers()
               names = [member.name for member in members]
-              unique_names = set(names)
-
-              if len(members) != len(expected_members) or len(unique_names) != len(members):
-                  raise SystemExit("archive contains duplicate or unexpected member count")
-              if unique_names != expected_members:
-                  raise SystemExit(
-                      f"archive member mismatch: expected={sorted(expected_members)} actual={sorted(unique_names)}"
-                  )
+              if len(names) != len(expected_members) or set(names) != expected_members:
+                  raise SystemExit("archive member mismatch or duplicate member")
               if any(not member.isfile() for member in members):
                   raise SystemExit("archive contains a non-regular member")
-              if any(member.size > max_member_bytes for member in members):
-                  raise SystemExit("archive member exceeds bounded uncompressed size")
-              total_uncompressed = sum(member.size for member in members)
-              if total_uncompressed > max_total_uncompressed_bytes:
-                  raise SystemExit(
-                      f"archive exceeds bounded total uncompressed size: {total_uncompressed}"
-                  )
+              if any(member.size > 1_000_000 for member in members):
+                  raise SystemExit("archive member exceeds bounded size")
+              if sum(member.size for member in members) > 2_000_000:
+                  raise SystemExit("archive exceeds bounded total uncompressed size")
 
-              members_by_name = {member.name: member for member in members}
               payloads = {}
-              for name in expected_members:
-                  extracted = tf.extractfile(members_by_name[name])
+              for member in members:
+                  extracted = tf.extractfile(member)
                   if extracted is None:
-                      raise SystemExit(f"unable to read archive member: {name}")
+                      raise SystemExit(f"unable to read archive member: {member.name}")
                   payload = extracted.read()
-                  if len(payload) != members_by_name[name].size:
-                      raise SystemExit(f"truncated archive member: {name}")
-                  payloads[name] = payload
+                  if len(payload) != member.size:
+                      raise SystemExit(f"truncated archive member: {member.name}")
+                  payloads[member.name] = payload
 
           plan_name = "WEPLD_MASTER_ARCHITECTURE_EXECUTION_PLAN_2026-08-12_V2_2.md"
           plan_sha256 = hashlib.sha256(payloads[plan_name]).hexdigest()
@@ -177,16 +180,12 @@ jobs:
           registry_name = "WEPLD_MASTER_SOURCE_REGISTRY_2026-08-14_V1.json"
           registry = json.loads(payloads[registry_name].decode("utf-8"))
           rows = registry.get("registry")
-          if not isinstance(rows, list):
-              raise SystemExit("registry payload is not a list")
-          if len(rows) != baseline["source_registry_entries"]:
-              raise SystemExit(f"expected 402 registry rows, got {len(rows)}")
-
+          if not isinstance(rows, list) or len(rows) != 402:
+              raise SystemExit("source registry row count mismatch")
           names = [row.get("name") for row in rows]
-          normalized_names = [name.casefold() for name in names if isinstance(name, str)]
-          if len(normalized_names) != 402 or len(set(normalized_names)) != 402:
+          normalized = [name.casefold() for name in names if isinstance(name, str)]
+          if len(normalized) != 402 or len(set(normalized)) != 402:
               raise SystemExit("registry names are missing, malformed, or non-unique")
-
           if any(row.get("admission_status") != "NOT_ADMITTED" for row in rows):
               raise SystemExit("registry unexpectedly contains an admitted source")
 
@@ -198,17 +197,20 @@ jobs:
           if counts.get("current_accounted_named_entries") != 402:
               raise SystemExit("current source count mismatch")
 
-          csv_name = "WEPLD_MASTER_SOURCE_REGISTRY_2026-08-14_V1.csv"
-          csv_rows = list(
-              csv.DictReader(io.StringIO(payloads[csv_name].decode("utf-8")))
-          )
+          csv_rows = list(csv.DictReader(io.StringIO(
+              payloads["WEPLD_MASTER_SOURCE_REGISTRY_2026-08-14_V1.csv"].decode("utf-8")
+          )))
           if len(csv_rows) != 402:
-              raise SystemExit(f"expected 402 CSV rows, got {len(csv_rows)}")
+              raise SystemExit("CSV source registry row count mismatch")
           csv_names = [row.get("name", "").casefold() for row in csv_rows]
           if len(set(csv_names)) != 402:
               raise SystemExit("CSV registry names are non-unique")
 
-          for name in expected_members - {plan_name, registry_name, csv_name}:
+          for name in expected_members - {
+              plan_name,
+              registry_name,
+              "WEPLD_MASTER_SOURCE_REGISTRY_2026-08-14_V1.csv",
+          }:
               if not payloads[name].strip():
                   raise SystemExit(f"canonical artifact is empty: {name}")
 
@@ -219,16 +221,16 @@ jobs:
           print(f"master_plan_sha256={plan_sha256}")
           print("source_registry_entries=402")
           print("source_admission=0")
-          print(f"archive_uncompressed_bytes={total_uncompressed}")
           PY
 
-      - name: Verify fresh-foundation boundaries
+      - name: Verify documentation-only foundation boundaries
         shell: bash
         run: |
           set -euo pipefail
 
           required=(
             AGENTS.md
+            cubic.yaml
             docs/canonical/CURRENT_STATE.md
             docs/canonical/ARCHITECTURE_INVARIANTS.md
             docs/canonical/MASTER_PLAN_INDEX.md
@@ -257,31 +259,29 @@ jobs:
 
           unexpected_src="$(find src -type f ! -name '.gitkeep' -print)"
           if [ -n "$unexpected_src" ]; then
-            echo "unexpected implementation source in fresh foundation:" >&2
+            echo "unexpected implementation source in documentation-only phase:" >&2
             printf '%s\n' "$unexpected_src" >&2
             exit 1
           fi
 
           unexpected_symlinks="$(find . -path './.git' -prune -o -type l -print)"
           if [ -n "$unexpected_symlinks" ]; then
-            echo "symbolic links are not permitted in the fresh foundation:" >&2
+            echo "symbolic links are not permitted in documentation-only phase:" >&2
             printf '%s\n' "$unexpected_symlinks" >&2
             exit 1
           fi
 
           gitlinks="$(git ls-files -s | awk '$1 == "160000"')"
           if [ -n "$gitlinks" ]; then
-            echo "git submodule/gitlink entries are not permitted in the fresh foundation:" >&2
+            echo "git submodule/gitlink entries are not permitted:" >&2
             printf '%s\n' "$gitlinks" >&2
             exit 1
           fi
 
-          # The fresh-foundation tree is documentation/governance only. Use a
-          # positive tracked-path allowlist so a new language extension or a
-          # nested dependency manifest cannot evade a denylist.
           unexpected_tracked="$(git ls-files | awk '
             function allowed(path) {
               if (path == ".coderabbit.yaml") return 1
+              if (path == "cubic.yaml") return 1
               if (path == ".github/workflows/foundation-integrity.yml") return 1
               if (path == "AGENTS.md" || path == "README.md") return 1
               if (path == "src/.gitkeep") return 1
@@ -293,13 +293,11 @@ jobs:
             !allowed($0) { print $0 }
           ')"
           if [ -n "$unexpected_tracked" ]; then
-            echo "tracked path outside fresh-foundation allowlist:" >&2
+            echo "tracked path outside documentation-only allowlist:" >&2
             printf '%s\n' "$unexpected_tracked" >&2
             exit 1
           fi
 
-          # Defense in depth: reject common implementation files even if the
-          # allowlist is later expanded incorrectly.
           unexpected_impl="$(find . -path './.git' -prune -o -type f \( \
             -name '*.rs' -o -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' \
             -o -name '*.py' -o -name '*.go' -o -name '*.java' -o -name '*.kt' -o -name '*.kts' \
@@ -309,7 +307,7 @@ jobs:
             -o -name '*.zig' -o -name '*.ex' -o -name '*.exs' -o -name '*.sh' -o -name '*.ps1' \
           \) -print)"
           if [ -n "$unexpected_impl" ]; then
-            echo "unexpected implementation-language file in fresh foundation:" >&2
+            echo "unexpected implementation-language file in documentation-only phase:" >&2
             printf '%s\n' "$unexpected_impl" >&2
             exit 1
           fi
@@ -323,7 +321,7 @@ jobs:
             -o -name 'composer.json' -o -name 'composer.lock' -o -name '*.csproj' -o -name '*.fsproj' \
           \) -print)"
           if [ -n "$dependency_manifests" ]; then
-            echo "unexpected implementation dependency manifest:" >&2
+            echo "unexpected dependency manifest in documentation-only phase:" >&2
             printf '%s\n' "$dependency_manifests" >&2
             exit 1
           fi
@@ -339,4 +337,62 @@ jobs:
           fi
 
           grep -Fx 'FRESH_IMPLEMENTATION_DEPENDENCIES = 0' docs/governance/DEPENDENCY_REGISTER.md >/dev/null
-          echo 'fresh foundation boundaries: PASS'
+          echo 'documentation-only foundation boundaries: PASS'
+
+      - name: Verify hosted reviewer repository configs remain manual-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          expected_coderabbit = """# External hosted review is manual-only until WePLD has a machine-enforced
+          # pre-egress classification/screening/approval gate. Manual CodeRabbit review
+          # commands remain available after the canonical egress preflight is recorded.
+          reviews:
+            auto_review:
+              enabled: false
+              auto_incremental_review: false
+          """
+
+          expected_cubic = """# yaml-language-server: $schema=https://cubic.dev/schema/cubic-repository-config.schema.json
+
+          version: 1
+
+          # WePLD requires a recorded exact-scope pre-egress gate before any hosted review.
+          # Keep Cubic connected if desired, but do not let repository events transmit
+          # repository content automatically.
+          reviews:
+            enabled: false
+            incremental_commits: false
+            check_drafts: false
+            resolve_threads_when_addressed: false
+            auto_approve_behavior: disabled
+            auto_approve: disabled
+            ultrareview: disabled
+            auto_ultrareview: disabled
+            custom_rules: []
+
+          pr_descriptions:
+            generate: false
+
+          issues:
+            fix_with_cubic_buttons: false
+            pr_comment_fixes: false
+            fix_commits_to_pr: false
+          """
+
+          actual_coderabbit = Path('.coderabbit.yaml').read_text(encoding='utf-8')
+          actual_cubic = Path('cubic.yaml').read_text(encoding='utf-8')
+          if actual_coderabbit != expected_coderabbit:
+              raise SystemExit('CodeRabbit manual-only repository configuration drifted')
+          if actual_cubic != expected_cubic:
+              raise SystemExit('Cubic manual-only repository configuration drifted')
+
+          # This check proves only the checked-out repository configuration bytes.
+          # Cubic documents that invalid YAML can fall back to UI settings, so provider-
+          # effective Cubic state must be validated separately before Cubic is used or
+          # counted as an available manual reviewer.
+          print('hosted reviewer repository configuration bytes: PASS')
+          print('cubic_provider_effective_state=NOT_PROVEN_BY_THIS_CI')
+          PY

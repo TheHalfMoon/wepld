@@ -1,9 +1,9 @@
 # WePLD Current State
 
-**Checkpoint date:** 2026-08-15 03:24 Asia/Riyadh  
+**Checkpoint date:** 2026-08-15 Asia/Riyadh  
 **Canonical repository:** `TheHalfMoon/wepld`
 
-This file is the durable continuation checkpoint for new chats and new agents. Reverify live GitHub state before any mutation; point-in-time SHAs and review states below are evidence, not standing authority.
+This file is durable continuation memory, not live-state authority. Before any write, review, admission, acceptance, or merge, re-read the live GitHub PR head/check/review state. Repository canonical memory outranks chat memory.
 
 ## Repository identity
 
@@ -11,33 +11,186 @@ This file is the durable continuation checkpoint for new chats and new agents. R
 REPOSITORY_ID = 1334408699
 OWNER = TheHalfMoon
 DEFAULT_BRANCH = main
-BASE_MAIN = 7813dea9c53863378a5ae2fefcaf66f6b5d43103
 VISIBILITY = public
-CONNECTED_ACCOUNT = TheHalfMoon
-SESSION_ADMIN = true
-SESSION_MAINTAIN = true
-SESSION_PUSH = true
 ```
 
-The repository is a fresh initialization and does not inherit the former WePLD implementation tree.
-
-## Active foundation PR
+## P0 — accepted and merged
 
 ```text
+P0 = Fresh Foundation
 PR = #2
-TITLE = docs: establish fresh WePLD canonical foundation
-BRANCH = docs/fresh-reconstitution-v1
-STATE = OPEN
-DRAFT = true
-MERGED = false
-LAST_ACQUISITION_HEAD = aa5ea4dab7ce26b75be18ffb7fb1fbb03e3dd7d9
-LAST_ACQUISITION_COMMIT = docs: add DeerFlow Agentica and LLM Space acquisition evidence
-LAST_INDEPENDENTLY_REVIEWED_HEAD = d74b5baa2ad95eb1c7c344ca66c681586318a434
-LAST_FULL_REVIEW_RUN_ID = ee7f2c6e-c05a-4cd6-974b-40a7037c1c60
-LAST_FULL_REVIEW_SUBMITTED_AT = 2026-08-14T23:59:56Z
+FOUNDER_ACCEPTED_HEAD = b67fc1be0e505b7cbd1adf286c6a26db9da9c95c
+FOUNDER_ACCEPTANCE_COMMENT = 5303860663
+FOUNDATION_INTEGRITY = PASS
+FOUNDATION_INTEGRITY_RUN = 31901805621
+FOUNDATION_INTEGRITY_RUN_NUMBER = 121
+INDEPENDENT_EXACT_HEAD_REVIEW = SATISFIED
+UNRESOLVED_MATERIAL_FINDINGS_AT_ACCEPTANCE = 0
+MERGE_COMMIT = 6eff72319cad99c878a80f0d5bce9f107d213679
+P0_STATE = MERGED / CANONICAL
 ```
 
-The live PR head must be read from GitHub rather than copied from this checkpoint before any write, review, acceptance, or merge decision.
+P0 acceptance was exact-head bound. The merge does not waive later-slice qualification requirements.
+
+## Standing founder authority
+
+PR #2 comment `5303875093` records standing founder authorization to continue WePLD without repeated per-gate approval requests.
+
+```text
+FOUNDER_STANDING_AUTHORIZATION = GRANTED
+```
+
+It authorizes governed execution, branches, commits, PRs, reviews, bounded repair, qualified source/dependency admission, Ready transitions, merges, and roadmap continuation when canonical conditions are satisfied.
+
+It is **not** a bypass for Spec Kit, Ponytail FULL, Source Acquisition Check, deterministic gates, applicable security review, independent engineering review, finding reconciliation, exact-head evidence, AMAN/Nawat/containment/egress invariants, or Trusted Completion.
+
+```text
+Authority != Qualification
+Permission != PASS
+```
+
+## Active slice — S1
+
+```text
+SLICE = S1
+NAME = Desktop ↔ Rust Trusted Core Handshake
+BRANCH = feat/s1-desktop-rust-core-handshake
+PR = #3
+PR_STATE_AT_CHECKPOINT = OPEN / DRAFT
+BASE_MAIN = 6eff72319cad99c878a80f0d5bce9f107d213679
+INITIAL_PLANNING_HEAD = b114fc503c5fba17072b2870612815fd07cc8c8c
+INITIAL_PLANNING_TREE = e33e28d694deb0c48f778cc445b12df7a8698573
+INITIAL_PLANNING_INTEGRITY_RUN = 31905016507
+INITIAL_PLANNING_INTEGRITY_RUN_NUMBER = 122
+INITIAL_PLANNING_INTEGRITY = PASS
+```
+
+The live PR #3 head after this checkpoint commit must be read from GitHub; do not copy `INITIAL_PLANNING_HEAD` forward as live authority.
+
+### S1 canonical target
+
+Establish one typed, versioned, observable local channel between a Tauri Desktop process and a **separate Rust Trusted Core process**.
+
+Required properties include health/version/capability negotiation, bounded framing, correlation, duplicate/replay handling, events, cancellation, fail-closed malformed/unauthorized input, restart/reconnect without false authority or fabricated completion, exact build/protocol evidence, and Windows-first runtime qualification.
+
+S1 non-goals include project opening, terminal execution, AI workers, Fehrest, native review/repair systems, cloud control, generalized plugin transport, and S3 hostile-worker containment.
+
+## S1 planning / method state
+
+Active Spec Kit directory:
+
+`specs/001-desktop-rust-trusted-core-handshake/`
+
+It contains constitution, spec, clarifications, plan, requirements checklist, provisional task decomposition, analysis, final tasks, threat model, Ponytail FULL record, Source Acquisition preflight, and acceptance contract.
+
+```text
+SPEC_KIT_PLANNING = COMPLETE_FOR_CURRENT_SCOPE
+PONYTAIL_FULL = COMPLETE_FOR_PLANNING
+SOURCE_ACQUISITION_CHECK = OPEN
+DEPENDENCY_ADMISSION = NONE
+SOURCE_IMPORT = NONE
+PRODUCT_IMPLEMENTATION = BLOCKED
+```
+
+Spec Kit upstream is pinned as a development-method reference at `github/spec-kit@bf88c9f9a82fa370c7a7257aa2b3cf10b457b65c`. Its current command order differs from WePLD's canonical order, so S1 explicitly uses a compatibility sequence with provisional tasks before analysis and corrected/final `tasks.md` after analysis. Upstream tool behavior does not override repository authority.
+
+Ponytail source is pinned at `DietrichGebert/ponytail@2ed6c52c9d7e5e56942508591085fd45dea277d3`, `skills/ponytail/SKILL.md` blob `02c0712c86277d49d18a77da3a2b825657bf02d1`.
+
+## S1 current architecture decisions
+
+```text
+TRANSPORT_PREFERENCE = inherited child stdin/stdout anonymous pipes
+HANDSHAKE_RUNTIME_NETWORK = NONE
+PROTOCOL_V1_FRAMING = 4-byte big-endian payload length + UTF-8 JSON payload
+LENGTH_PREFIX_BYTES = 4
+MAX_PAYLOAD_BYTES = 65536
+MAX_WIRE_FRAME_BYTES = 65540
+PROTOCOL_PRINCIPAL = desktop_host
+CONNECTION_GRANTS_AUTHORITY = NO
+TAURI_ACL_IS_NAWAT_AUTHORITY = NO
+```
+
+`HANDSHAKE_RUNTIME_NETWORK = NONE` applies only to the S1 Desktop ↔ Core handshake runtime boundary. It is not a repository-wide prohibition on network capabilities that later slices may separately specify, qualify, and authorize.
+
+For protocol v1, the 4-byte prefix encodes **payload length**. A declared payload length greater than `65_536` is rejected before payload allocation/read/deserialization. The largest complete wire frame is therefore `65_540` bytes (`4 + 65_536`).
+
+Ponytail currently rejects unnecessary base-S1 machinery:
+
+```text
+TCP/localhost service = REJECT
+General RPC framework = REJECT
+Direct Tokio dependency in Core = REJECT
+UUID/random-ID package = REJECT
+React/Vite/Tailwind/frontend package manager = REJECT
+Database/network/telemetry package = REJECT
+Tauri shell plugin = REJECT_INITIAL / REFERENCE_ONLY
+```
+
+`tauri-plugin-shell` may be reconsidered only through a new explicit acquisition decision if direct stdlib launch of the packaged Core is proven insufficient. No silent fallback is allowed.
+
+## S1 component candidates — not yet admitted
+
+Current acquisition pins include:
+
+```text
+Rust = 1.97.1 / release commit 8bab26f4f68e0e26f0bb7960be334d5b520ea452
+Tauri = 2.11.5 / 7cd71369c00978a3783b6ae3e9972358abbe4ae6
+Tauri-build = 2.6.3 at the same Tauri source commit
+Serde = 1.0.229 / 7fc3b4c30c94f73a96ebd1553f2b090d928fc3a8
+serde_json = 1.0.151 / de8500740cdcabffb9734f503e4889def823cf10
+```
+
+These are **candidate identities**, not admitted runtime dependencies. Final admission requires the resolved lockfile, feature inventory, SBOM, advisory reconciliation, exact dependency-register state, minimum capability surface, and replacement/exit strategy.
+
+## Foundation CI transition
+
+The current P0 `foundation-integrity` workflow intentionally rejects implementation-language files and dependency manifests. That is correct for P0 but incompatible with S1 implementation.
+
+S1 must first migrate it to a stage-aware integrity gate that preserves:
+
+- immutable P0 canonical archive / V2.2 identity;
+- frozen 402-source restoration evidence unchanged;
+- zero unauthorized source/dependency admission;
+- symlink/gitlink/repair-payload protections;
+- explicit S1-only phase/path/admission rules;
+- rejection of later-slice implementation;
+- hosted reviewer manual pre-egress control.
+
+The workflow change is security-relevant and requires applicable exact-head security coverage. Broadly deleting or weakening P0 protections is prohibited.
+
+## Hosted reviewer egress controls
+
+Repository configuration paths:
+
+- `.coderabbit.yaml`
+- `cubic.yaml`
+- `.github/workflows/foundation-integrity.yml`
+- `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md`
+
+The current S1 planning contract is fail-closed and explicit:
+
+```text
+CODERABBIT_AUTO_REVIEW = false
+CODERABBIT_AUTO_INCREMENTAL_REVIEW = false
+CODERABBIT_REVIEW_WHEN_USED = MANUAL_EXACT_SCOPE_AFTER_RECORDED_PREFLIGHT
+
+CUBIC_REVIEWS_ENABLED = false
+CUBIC_INCREMENTAL_COMMITS = false
+CUBIC_CHECK_DRAFTS = false
+CUBIC_PR_DESCRIPTION_GENERATION = false
+CUBIC_AUTO_APPROVE = disabled
+CUBIC_ULTRAREVIEW = disabled
+CUBIC_AUTO_ULTRAREVIEW = disabled
+CUBIC_THREAD_AUTO_RESOLUTION = false
+CUBIC_FIX_WITH_CUBIC_BUTTONS = false
+CUBIC_PR_COMMENT_FIXES = false
+CUBIC_FIX_COMMITS_TO_PR = false
+CUBIC_PROVIDER_EFFECTIVE_STATE = NOT_PROVEN
+```
+
+`foundation-integrity` verifies the checked-out repository-configuration bytes against the approved profile. That proves repository-file state only. It does **not** prove Cubic accepted the YAML or that provider/dashboard-effective settings match it. Cubic must remain `BLOCKED/NOT_RUN` as a reviewer until separate provider-effective evidence exists; no Cubic output may be counted as PASS merely from the repository file.
+
+PR #3 comment `5303961793` records the historical automatic Cubic PR-description egress-order incident. Hosted review after that incident is manual and exact-scope only after the canonical pre-egress classification/screening/approval record. CodeRabbit review evidence is always bound to the exact reviewed head; a changed head invalidates the prior review for acceptance purposes.
 
 ## Architecture state
 
@@ -45,38 +198,22 @@ The live PR head must be read from GitHub rather than copied from this checkpoin
 MASTER_PLAN = V2.2
 MASTER_PLAN_SHA256 = e269b10ef711731c4ad3af7b1135546f92d82a78975cabc9ff52c2dea4b5bf44
 RAT-01..RAT-06 = APPROVED
-BROAD_DISCOVERY = CLOSED
 ROADMAP = P0 + S1..S10
 NON_PRIMARY_GATE = S3-D
+BROAD_DISCOVERY = CLOSED
 PATH_LEVEL_ACQUISITION = CAPABILITY_TRIGGERED
 ```
 
-The complete byte-identical master plan is preserved in:
+Canonical artifact archive:
 
 ```text
 docs/canonical/artifacts/WEPLD_CANONICAL_ARTIFACTS_2026-08-14.tar.gz
 ARCHIVE_SHA256 = 35dee10e7526d1958c5b3b88a1a9b569b0d1a464f5eec4e20e16c19c99f1c6b0
-MEMBER = WEPLD_MASTER_ARCHITECTURE_EXECUTION_PLAN_2026-08-12_V2_2.md
+MASTER_PLAN_MEMBER_SHA256 = e269b10ef711731c4ad3af7b1135546f92d82a78975cabc9ff52c2dea4b5bf44
+FROZEN_REGISTRY_V1_ACCOUNTED_ENTRIES = 402
 ```
 
-`docs/canonical/MASTER_PLAN_INDEX.md` is the human-readable roadmap entrypoint. The archive is the byte-level recovery source.
-
-## Roadmap
-
-- P0 — architecture/governance/minimal contracts/acquisition/benchmark/build-method.
-- S1 — Desktop ↔ Rust Trusted Core handshake.
-- S2 — Open Project + Project Doctor + local identity/storage.
-- S3 — Terminal Fabric + trusted process ownership + Windows qualification foundation.
-- S3-D — non-primary deterministic assurance seed gate.
-- S4 — Fehrest Minimum / Project Brain bootstrap.
-- S5 — Spec Kit mechanics + AGILLE + Plan Qualification + Ponytail sufficiency.
-- S6 — UWC + Mirefa Minimum + Edara Minimum.
-- S7 — Native Review & Assurance.
-- S8 — Controlled Repair + bounded fallback/reassignment + Trusted Completion.
-- S9 — Quality Passport + Recovery Time Machine + ChangeUnit/Delivery evidence.
-- S10 — Fehrest expansion + Byan outcome/benchmark analytics candidate.
-
-Do not insert additional primary slices without a new founder-ratified architecture decision.
+The frozen 402 registry remains restoration evidence. New donor discoveries/enrichments do not silently rewrite it.
 
 ## Canonical owners
 
@@ -99,173 +236,62 @@ Byan = learns from outcomes without authorizing
 ## Mandatory build method
 
 ```text
-SPEC_KIT_BUILD_METHOD = REQUIRED
-PONYTAIL_MODE = FULL
-SOURCE_ACQUISITION_CHECK = REQUIRED
-DETERMINISTIC_GATES = REQUIRED
-INDEPENDENT_REVIEW = REQUIRED
-BUILD_LEARNING_CAPTURE = REQUIRED
-
-CORRECTNESS_REVIEW_PRODUCERS =
-CodeRabbit + Greptile + Qodo + Augment Code + Graphite + Cubic + Continue
-
-SECURITY_SPECIALIST_REVIEWER = Codex Security
-```
-
-Required material-work sequence:
-
-```text
-Spec Kit planning
+Spec Kit
 -> Ponytail FULL
 -> Source Acquisition Check
--> Implement minimum sufficient solution
--> Deterministic gates
--> Independent correctness / engineering review
--> Security-specialist review when applicable
--> Finding reconciliation
--> Bounded repair
--> Re-run gates
--> Re-review material changes
--> Authorized acceptance
--> Build Learning Capture
+-> minimum sufficient implementation
+-> deterministic gates
+-> independent correctness / engineering review
+-> security-specialist review when applicable
+-> finding reconciliation
+-> bounded repair
+-> rerun affected gates
+-> rereview material changes
+-> authorized exact-head acceptance
+-> Build Learning capture
 ```
 
-At least one independently qualified correctness/engineering review is required before acceptance of material work. Reviewer-product unavailability is not PASS. No reviewer is completion authority. Codex Security supplements deterministic security coverage and never replaces correctness review, Ponytail, AMAN/Nawat governance, or Trusted Completion.
+At least one independently qualified correctness/engineering review is required before acceptance of material work. Reviewer-product unavailability is not PASS. Codex Security supplements deterministic security coverage and does not replace correctness review or Trusted Completion.
 
-While building with these tools, learn from their proven mechanics and failure modes. Record evidence-backed positive mechanisms and negative oracles in the Build Learning ledger/protocol. Learning proposes; it never authorizes.
-
-## Source universe
+## Security / claim boundaries
 
 ```text
-FROZEN_V1_5_ENTRIES = 397
-POST_V1_5_TOP_LEVEL_ENTRIES_IN_REGISTRY_V1 = 5
-FROZEN_REGISTRY_V1_ACCOUNTED_ENTRIES = 402
-ALL_SOURCES_ADMITTED = NO
-ALL_SOURCES_PATH_MINED = NO
-BROAD_DISCOVERY = CLOSED
+CHILD_PROCESS_RELATIONSHIP != CONTAINMENT
+ANONYMOUS_PIPE != CRYPTOGRAPHIC_AUTHENTICATION
+PRINCIPAL_LABEL != NAWAT_GRANT
+TAURI_ACL != CORE_AUTHORITY
+PROTOCOL_VALIDATION != WINDOWS_SANDBOX
+LOCAL_REVIEWER_CONFIG_VALIDATION != PROVIDER_EFFECTIVE_STATE
+COMPILE_SUCCESS != RUNTIME_QUALIFICATION
+SECURITY_REVIEW_CLEAN != COMPLETION
 ```
 
-Registry V1 remains immutable restoration evidence. Later discoveries are recorded as post-V1 candidates pending a separately governed registry revision rather than silently rewriting 402.
+Windows hostile-worker containment remains future evidence-gated work. S1 may measure child lifecycle and orphan behavior but must not claim S3 process ownership/containment without matching evidence.
 
-### Current bounded enrichments
+## Historical repository
 
-```text
-Continue
-  continuedev/continue@5522c6f44ca0ac3528b37244818fbfa39b5af470
-  ROLE = SOURCE_DONOR + BEHAVIOR_ORACLE + BUILD_TOOL_CANDIDATE
-
-Greptile
-  greptileai/greptile-vscode@72fc0c5a68ff966e64c2b182a2e6bf5912410821
-  STATUS = existing-registry enrichment / hosted core source not established
-
-DeepCode
-  HKUDS/DeepCode@287510fbf6820147a48adf79f7fd86b0ed1afe92
-  STATUS = POST_V1_CANDIDATE_PENDING_NEXT_REGISTRY_REVISION
-
-DeerFlow
-  bytedance/deer-flow@1dd6ba1acb03700589994b0366c5d1c7d05e2eff
-  STATUS = existing frozen-registry source SRC-0364 / bounded enrichment
-
-Agentica
-  wrtnlabs/agentica@dc91f4307a3f2ee25e1ee07cf48777fcd13b6b0d
-  STATUS = POST_V1_CANDIDATE_PENDING_NEXT_REGISTRY_REVISION
-
-LLM Space
-  deer-flow/llm-space@be629ddd58c6a9f5f011687580a1858652f12925
-  STATUS = POST_V1_CANDIDATE_PENDING_NEXT_REGISTRY_REVISION
-```
-
-None of these records grants source admission, dependency admission, runtime trust, write authority, or completion.
-
-### Important newly learned mechanics
-
-- DeerFlow: minimum-benefit subagent routing, bounded concurrency/delegation budgets, durable subagent lifecycle/steps, structured stop reasons, deferred tools, per-agent memory isolation, context compaction and recovery. Negative oracle: completed/capped result is not Trusted Completion; tool discovery/promotion is not Nawat authority.
-- Agentica: compiler/schema-driven function normalization across TypeScript/OpenAPI/MCP, typed validation-failure events, argument-correction loop, selector abstraction and benchmark quarry. Negative oracle: runtime validation feedback may narrow a qualified tool contract but cannot override canonical WePLD authority/security contracts.
-- LLM Space: local durable Thread experiment files, trace/replay/debug, immutable run/evaluation snapshots, rubric scoring separated from human verdict, non-destructive compaction, plugin/extension packaging and path-safety mechanics. Negative oracle: discovered/enabled/local plugin is not automatically trusted or effect-authorized.
-- DeepCode: bounded harness/subagent/recovery mechanics and Windows Job Object quarry. Negative oracle: required containment failure must not silently degrade to unconstrained execution.
-- Greptile: graph-aware review/context and cascading review rules. Negative oracle: graph relevance, learned team behavior, clean review, or fix suggestion is not canonical truth, authority, write permission, or completion.
-
-## Deterministic evidence at last independently reviewed head
-
-```text
-HEAD = d74b5baa2ad95eb1c7c344ca66c681586318a434
-FOUNDATION_INTEGRITY_RUN = 31850347972
-FOUNDATION_INTEGRITY_RUN_NUMBER = 111
-FOUNDATION_INTEGRITY = PASS
-SOURCE_ADMISSION = 0
-DEPENDENCY_ADMISSION = 0
-FROZEN_REGISTRY_V1 = 402 UNCHANGED
-```
-
-Any later repair/checkpoint commit must re-run the integrity gate; never inherit PASS across a changed head.
-
-## Reviewer state at checkpoint
-
-CodeRabbit completed a full review of the exact head `d74b5baa2ad95eb1c7c344ca66c681586318a434` (Run ID `ee7f2c6e-c05a-4cd6-974b-40a7037c1c60`, submitted `2026-08-14T23:59:56Z`). The review created seven new inline threads. Six were validated as repairable findings; the Greptile evidence-date thread was rejected as a timezone false positive because the evidence was retrieved at `2026-08-15T02:21:00+03:00`, before the review at `2026-08-15T02:59:56+03:00`. Two additional non-inline nitpick repairs were accepted for the foundation workflow/base handling and artifact-workflow wording.
-
-```text
-CODERABBIT_FULL_REVIEW = COMPLETED_WITH_FINDINGS
-CODERABBIT_REVIEWED_HEAD = d74b5baa2ad95eb1c7c344ca66c681586318a434
-CODERABBIT_RUN_ID = ee7f2c6e-c05a-4cd6-974b-40a7037c1c60
-NEW_INLINE_THREADS = 7
-INLINE_REPAIR_FINDINGS = 6
-GREPTILE_EVIDENCE_DATE_THREAD = FALSE_POSITIVE_TIMEZONE
-ADDITIONAL_NITPICK_REPAIRS = 2
-GREPTILE_HOSTED_REVIEW = NOT_RUN
-```
-
-The resulting repair candidate is not accepted merely because the prior head had a completed review. The repair head must pass deterministic gates and receive an independently qualified re-review.
-
-## Implementation / authorization state
-
-```text
-IMPLEMENTATION = NOT_STARTED
-S1_IMPLEMENTATION = NOT_AUTHORIZED
-SOURCE_IMPORT = NOT_AUTHORIZED
-DEPENDENCY_INSTALLATION = NOT_AUTHORIZED
-FOUNDER_ACCEPTANCE_FOR_PR_2 = NOT_RECORDED
-MERGE_AUTHORIZATION = NOT_GRANTED
-PR_2_MUST_REMAIN_DRAFT = YES
-```
-
-Windows hostile-worker containment remains evidence-gated. Worktrees/process groups/job objects are not automatically security boundaries; missing containment evidence fails closed.
-
-## Former repository
-
-`wepld/wepld` is a historical quarry only. Its old main, PR #1, and PR #11 may provide exact concepts/tests/failure corpora only after salvage/acquisition review. Do not build on the former architecture wholesale and do not rewrite Git history.
+`wepld/wepld` remains a historical quarry only. Concepts/tests/failure corpora may be salvaged only through bounded acquisition/salvage review. Do not inherit the former architecture wholesale.
 
 ## New-chat bootstrap
 
-When continuing in a new chat:
-
 ```text
 Continue WePLD.
+Repository: TheHalfMoon/wepld
 
-Repository:
-TheHalfMoon/wepld
-
-Read AGENTS.md first.
-Then read docs/canonical/CURRENT_STATE.md.
-Then read docs/canonical/ARCHITECTURE_INVARIANTS.md,
-docs/canonical/BUILD_METHOD.md,
-docs/canonical/SECURITY_REVIEW_POLICY.md,
-docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md,
-docs/canonical/MASTER_PLAN_INDEX.md,
-docs/acquisition/SOURCE_REGISTRY_INDEX.md,
-and the active Spec Kit directory.
-
-Verify live PR #2 and GitHub checks/reviews before any mutation.
+Read AGENTS.md first, then docs/canonical/CURRENT_STATE.md, then the remaining mandatory canonical documents and active Spec Kit directory.
+Verify live PR #3 head/check/review state before any mutation.
 Treat repository canonical documents as authority over chat memory.
-Do not merge or start S1 without explicit founder authorization.
-Speak to me in Arabic. Write ready-to-use technical prompts in English.
+Standing founder authorization permits governed continuation without repeated approval requests; it does not waive gates.
+Speak Arabic to the founder. Write repository artifacts and ready-to-use technical prompts in English.
 ```
 
 ## Next gate
 
-1. verify the live repair head and deterministic integrity gate;
-2. obtain an actual independently qualified re-review of the current head;
-3. reconcile any new material findings;
-4. re-run deterministic gates and affected reviews after any further material repairs;
-5. record explicit founder acceptance of the fresh foundation;
-6. preserve accepted build-learning evidence;
-7. separately authorize the first implementation slice; only then begin S1.
+1. finish PR #3 exact-head finding reconciliation and rerun `foundation-integrity` plus independent exact-head review;
+2. close/merge the S1 planning baseline only when the exact head is clean and repository merge conditions are satisfied;
+3. execute S1-003: stage-aware foundation-integrity migration while tree is still planning-only;
+4. security-review/reconcile that workflow-trust change;
+5. execute S1-004 bounded dependency-resolution bootstrap only after S1-003 is validated;
+6. generate/reconcile lockfile, feature tree, SBOM and advisory evidence;
+7. complete S1-005 component admission / `SOURCE_ACQUISITION_CHECK = PASS`;
+8. only then begin S1 product implementation.

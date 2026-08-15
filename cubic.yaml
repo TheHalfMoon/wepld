@@ -12,6 +12,8 @@ reviews:
   resolve_threads_when_addressed: false
   auto_approve_behavior: disabled
   auto_approve: disabled
+  ultrareview: disabled
+  auto_ultrareview: disabled
   custom_rules: []
 
 pr_descriptions:

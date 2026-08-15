@@ -88,8 +88,10 @@ Gate: **S1 product implementation is prohibited until this task passes.**
 
 - [ ] Create typed protocol request/response/event/cancel/error enums/structs.
 - [ ] Freeze protocol v1 constants and capability schema.
-- [ ] Implement 4-byte big-endian length framing.
-- [ ] Reject frames above the accepted bound before payload allocation/deserialization.
+- [ ] Freeze one framing-size contract: `LENGTH_PREFIX_BYTES = 4`, `MAX_PAYLOAD_BYTES = 65_536`, `MAX_WIRE_FRAME_BYTES = 65_540` where the prefix encodes payload length and the wire-frame maximum is derived as `4 + MAX_PAYLOAD_BYTES`.
+- [ ] Implement 4-byte big-endian payload-length framing.
+- [ ] Read/validate the prefix before payload allocation/read/deserialization; reject declared payload length `> 65_536` before any of those payload operations.
+- [ ] Prove a declared payload length exactly `65_536` is within the framing bound and `65_537` is rejected before payload allocation/read/deserialization.
 - [ ] Strictly reject unknown versions/kinds/principals/operations and malformed required data.
 - [ ] Add golden fixtures and unit/property/negative tests.
 - [ ] No process, filesystem, network, UI, or project effects.
@@ -112,7 +114,7 @@ Gate: **S1 product implementation is prohibited until this task passes.**
 - [ ] Core protocol bytes use inherited stdin/stdout only.
 - [ ] Core stderr is diagnostics-only and is never parsed as protocol data.
 - [ ] Use stdlib process/IO/concurrency primitives unless a separately qualified need changes this.
-- [ ] No network listener/client.
+- [ ] No network listener/client for the S1 Desktop ↔ Core handshake.
 - [ ] No project/filesystem/terminal/worker authority.
 - [ ] EOF/broken input terminates or degrades predictably.
 - [ ] Malformed/oversized protocol data cannot fabricate success.
@@ -136,7 +138,7 @@ Gate: **S1 product implementation is prohibited until this task passes.**
 - [ ] Minimal Tauri Desktop application only.
 - [ ] Bundle Core using the minimum qualified Tauri external-binary mechanism.
 - [ ] Expose only narrow typed status/control projection needed by S1 UI.
-- [ ] No general shell/filesystem/network permission to WebView.
+- [ ] No general shell/filesystem/network permission to WebView merely for the S1 handshake.
 - [ ] Static local UI shows Core readiness/health/version/capabilities and cancellable observation state.
 - [ ] Keyboard/focus/status semantics satisfy the applicable accessibility baseline for this minimal UI.
 - [ ] No React/Vite/Tailwind/frontend package manager unless a new measured need is qualified.
@@ -146,7 +148,8 @@ Gate: **S1 product implementation is prohibited until this task passes.**
 - [ ] Valid request/response round-trip.
 - [ ] Event delivery and cancellation.
 - [ ] Unknown command/version/principal and downgrade attempt.
-- [ ] zero/oversized/truncated/malformed frames.
+- [ ] zero-length payload and malformed/truncated framing.
+- [ ] declared payload length `65_536` is within the framing bound; declared payload length `65_537` is rejected before payload allocation/read/deserialization.
 - [ ] invalid UTF-8/text contract cases.
 - [ ] duplicate/replay/non-monotonic command IDs and stale launch.
 - [ ] replay after terminal/cache eviction remains rejected by launch-wide high-water state.
@@ -179,7 +182,7 @@ Gate: **S1 product implementation is prohibited until this task passes.**
 - [ ] Measure idle Desktop/Core memory and idle CPU.
 - [ ] Measure cancellation latency.
 - [ ] Measure crash detection + fresh-handshake recovery.
-- [ ] Measure malformed/oversized rejection cost.
+- [ ] Measure malformed/oversized-payload rejection cost.
 - [ ] Measure sustained diagnostic-drain behavior and retained-diagnostics truncation.
 - [ ] Tighten initial budgets where evidence supports a lower bound.
 - [ ] Record exact Desktop/Core binaries, toolchain, lockfile, protocol version, commit and platform identities.

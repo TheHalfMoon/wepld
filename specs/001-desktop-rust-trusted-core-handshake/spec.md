@@ -31,9 +31,17 @@ Every protocol payload MUST belong to an explicit protocol version and typed env
 
 ### FR-004 — Bounded framing
 
-The receiver MUST validate a fixed-width frame length before allocating or deserializing the payload. Oversized, truncated, malformed, unknown-version, and unknown-kind frames MUST fail closed.
+Protocol v1 uses one canonical framing-size contract:
 
-The initial S1 frame budget is 64 KiB. This is a planning budget, not a permanent product constant; benchmarks and observed S1 payloads may justify reducing it before acceptance. Raising it requires an explicit evidence-backed change.
+```text
+LENGTH_PREFIX_BYTES = 4
+MAX_PAYLOAD_BYTES = 65_536
+MAX_WIRE_FRAME_BYTES = 65_540
+```
+
+The 4-byte unsigned big-endian prefix encodes **payload length**, not total wire-frame length. A receiver MUST read and validate that prefix first. Any declared payload length greater than `65_536` MUST be rejected before payload allocation, payload read, or deserialization. A declared payload length of exactly `65_536` is within the framing bound; the largest complete wire frame is therefore `65_540` bytes including the prefix.
+
+Oversized, truncated, malformed, unknown-version, and unknown-kind frames MUST fail closed. These are initial planning bounds, not permanent product constants; benchmarks and observed S1 payloads may justify reducing `MAX_PAYLOAD_BYTES` before acceptance. Raising it requires an explicit evidence-backed change.
 
 ### FR-005 — Principal binding without false authority
 
@@ -68,7 +76,7 @@ The protocol MUST support a bounded long-lived S1-owned observation operation su
 
 ### FR-010 — Backpressure and bounded state
 
-The Core MUST place explicit bounds on frame size, queued/in-flight operations, health observations, emitted events, diagnostics retention, and any terminal-result/cache state. Launch-wide replay rejection MUST remain bounded through the monotonic high-water invariant rather than unbounded request-ID retention. Flooding MUST produce bounded rejection/backpressure rather than unbounded memory growth.
+The Core MUST place explicit bounds on payload size, queued/in-flight operations, health observations, emitted events, diagnostics retention, and any terminal-result/cache state. Launch-wide replay rejection MUST remain bounded through the monotonic high-water invariant rather than unbounded request-ID retention. Flooding MUST produce bounded rejection/backpressure rather than unbounded memory growth.
 
 ### FR-011 — Restart and EOF semantics
 
@@ -96,7 +104,7 @@ Core protocol bytes MUST use stdin/stdout only. Stderr is diagnostics-only and M
 - Core validates every externally supplied field before trusted-state mutation.
 - No Tauri capability/ACL, process relationship, connection state, principal label, protocol version, or successful health response is a Nawat grant.
 - The Core handshake carries no project content, credentials, secrets, PHI, private customer data, or hosted telemetry.
-- Network access is not required for runtime operation.
+- Network access is not required for the S1 Desktop ↔ Core handshake runtime.
 - Automatic external-review egress remains prohibited without the canonical pre-egress gate.
 
 ## Failure corpus
@@ -113,7 +121,9 @@ The deterministic suite MUST cover at least:
 - duplicate cancellation command cannot mutate twice;
 - fresh cancellation targeting an already terminal operation is deterministic and non-mutating;
 - stale launch identity;
-- zero-length and oversized frame;
+- zero-length payload;
+- declared payload length exactly `65_536` is within the framing bound;
+- declared payload length `65_537` is rejected before payload allocation/read/deserialization;
 - truncated prefix/body;
 - invalid UTF-8 where text is required;
 - malformed JSON;
@@ -139,7 +149,7 @@ No performance result is a correctness substitute. S1 records at minimum:
 - CPU while idle;
 - cancellation latency;
 - crash detection and fresh-handshake recovery latency;
-- malformed/oversized-frame rejection cost;
+- malformed/oversized-payload rejection cost;
 - diagnostic-drain behavior under sustained bounded stderr output.
 
 Thresholds are finalized from measured baseline evidence before S1 acceptance rather than invented as success criteria in advance.

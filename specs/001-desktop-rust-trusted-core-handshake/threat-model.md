@@ -25,7 +25,7 @@ S1 must preserve:
 5. Stale/replayed/duplicate messages cannot be accepted as fresh effects, including after terminal/cache state has been discarded.
 6. Restart/crash cannot fabricate request success or preserve stale readiness.
 7. Cancellation cannot cross request identity boundaries.
-8. Runtime S1 does not require network access or secrets.
+8. The S1 Desktop ↔ Core handshake runtime does not require network access or secrets.
 9. Dependency/build provenance remains exact and auditable.
 10. UI cannot obtain generalized process/filesystem/shell permissions merely for S1.
 11. Diagnostic stderr cannot deadlock protocol progress or become a second protocol channel.
@@ -46,7 +46,7 @@ Threats:
 Controls:
 - Desktop assigns principal/launch identity internally;
 - narrow typed commands/projections only;
-- no general shell/filesystem/network WebView capability;
+- no general shell/filesystem/network WebView capability for the S1 handshake;
 - ready state derives from live Core lifecycle state, not UI memory.
 
 ### TB-2 — Desktop Rust host → Core child stdin
@@ -63,8 +63,10 @@ Threats:
 - cancellation identifier confusion.
 
 Controls:
-- fixed 4-byte length prefix;
-- 64 KiB maximum payload before allocation/deserialization;
+- fixed 4-byte unsigned big-endian **payload-length** prefix;
+- `MAX_PAYLOAD_BYTES = 65_536`;
+- `MAX_WIRE_FRAME_BYTES = 65_540` derived as `4 + MAX_PAYLOAD_BYTES`;
+- reject a declared payload length `> 65_536` before payload allocation/read/deserialization;
 - strict typed version/kind/principal/operation validation;
 - Desktop allocates command IDs in serialized wire order;
 - Core retains an O(1) launch-wide `highest_accepted_command_id` and rejects `id <= high_water` before dispatch;
@@ -85,7 +87,7 @@ Threats:
 - diagnostics accidentally parsed as protocol data.
 
 Controls:
-- protocol bytes use stdout only and the same bounded frame decoder on Desktop side;
+- protocol bytes use stdout only and the same bounded payload-length frame decoder on Desktop side;
 - stderr is diagnostics-only;
 - exact launch/request correlation;
 - typed response/event enums;
@@ -144,7 +146,7 @@ Controls:
 
 | ID | Threat | Impact | S1 control / required evidence |
 |---|---|---|---|
-| S1-T01 | oversized length prefix | memory exhaustion | reject > `MAX_FRAME_BYTES` before allocation |
+| S1-T01 | oversized payload-length prefix | memory/resource exhaustion | read 4-byte prefix first; reject declared payload length `> MAX_PAYLOAD_BYTES (65_536)` before payload allocation/read/deserialization; max complete wire frame = `65_540` bytes |
 | S1-T02 | truncated frame | parser desync / false success | exact-length read or explicit terminal protocol error |
 | S1-T03 | malformed JSON | parser confusion | typed deserialize error, channel remains fail-closed |
 | S1-T04 | unknown protocol version | downgrade/undefined semantics | reject; no implicit v1 fallback |
@@ -159,7 +161,7 @@ Controls:
 | S1-T13 | mismatched packaged versions | protocol corruption | version negotiation + packaging tests |
 | S1-T14 | WebView obtains shell access | privilege expansion | no shell plugin/general process permission in base S1 |
 | S1-T15 | Tauri capability mistaken for authority | authorization bypass | canonical invariant; Core never consumes Tauri ACL as Nawat grant |
-| S1-T16 | runtime network unexpectedly opened | new remote attack surface | no network listener/client requirement; verify runtime behavior |
+| S1-T16 | S1 handshake runtime network unexpectedly opened | new remote attack surface | no network listener/client requirement for the handshake; verify runtime behavior |
 | S1-T17 | CI allowlist broadly relaxed | later unauthorized source/dependency admission | stage-aware explicit allowlist/admission checks + security review |
 | S1-T18 | dependency advisory ignored | supply-chain vulnerability | advisory reconciliation blocks final admission when reportable |
 | S1-T19 | restart loop | availability/resource exhaustion | bounded restart policy + visible failure state |

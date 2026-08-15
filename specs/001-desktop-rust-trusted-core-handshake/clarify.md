@@ -26,11 +26,19 @@ Tauri `externalBin` solves bundling of a sidecar binary. The Rust standard libra
 
 ## C-004 — What framing is used?
 
-**Decision:** 4-byte unsigned big-endian length prefix followed by one UTF-8 JSON payload.
+**Decision:** 4-byte unsigned big-endian **payload-length** prefix followed by one UTF-8 JSON payload.
+
+Canonical initial bounds:
+
+```text
+LENGTH_PREFIX_BYTES = 4
+MAX_PAYLOAD_BYTES = 65_536
+MAX_WIRE_FRAME_BYTES = 65_540
+```
+
+The receiver reads and validates the 4-byte prefix before allocating or reading the payload. A declared payload length greater than `65_536` is rejected before payload allocation/read/deserialization. A declared payload length of exactly `65_536` is within the framing bound; the maximum complete wire frame is `65_540` bytes including the prefix.
 
 **Reason:** the fixed prefix permits a hard allocation bound before deserialization and works over arbitrary byte-stream chunking. Newline-delimited JSON is rejected because a line parser does not itself give an equally direct pre-allocation length gate and creates escaping/framing ambiguity. A binary schema framework is premature for the small S1 contract.
-
-Initial maximum payload: `65_536` bytes.
 
 ## C-005 — What serialization dependency is allowed conceptually?
 
@@ -79,11 +87,11 @@ For the stateful S1 operations specifically:
 
 **Decision:** restart means fresh process identity, fresh protocol negotiation, fresh `launch_id`, and explicit invalidation of prior in-flight requests. No previous request is inferred successful. The Desktop may retry only operations whose S1 semantics are explicitly safe to repeat.
 
-## C-013 — Does S1 need a network permission?
+## C-013 — Does the S1 Desktop ↔ Core handshake need a network permission?
 
-**Decision:** no. Runtime S1 network requirement is `NONE`.
+**Decision:** no. The S1 Desktop ↔ Core handshake runtime network requirement is `NONE`.
 
-Build-time package acquisition is a separate controlled software-supply-chain activity and is not a runtime network capability.
+This decision is scoped to the S1 handshake boundary; it is not a repository-wide network policy for unrelated later slices. Build-time package acquisition is a separate controlled software-supply-chain activity and is not a runtime network capability.
 
 ## C-014 — What is stderr used for?
 

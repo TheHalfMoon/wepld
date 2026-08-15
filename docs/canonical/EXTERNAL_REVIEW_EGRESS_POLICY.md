@@ -20,6 +20,20 @@ PROHIBITED_EGRESS
 
 Unknown classification is `PROHIBITED_EGRESS` until resolved.
 
+## Automatic-trigger boundary
+
+An automated external-review trigger that can transmit repository content before this policy's classification, screening, provider-handling decision, and egress approval is complete is prohibited.
+
+Until WePLD has a machine-enforced pre-egress gate that runs before transmission, hosted external reviewers must remain manual/explicit opt-in. A provider integration may stay installed or connected, but repository configuration must not automatically start review on PR creation, Draft state, push, or incremental commit.
+
+A manual review command may be issued only after the exact review scope has a recorded egress preflight satisfying this policy. Enabling or resuming automatic review requires a separately reviewed machine-enforced pre-egress design; reviewer convenience or quota pressure is not an exception.
+
+```text
+UNSCREENED_AUTOMATIC_EXTERNAL_REVIEW = PROHIBITED_EGRESS
+CONNECTED_EXTERNAL_REVIEWER != EGRESS_AUTHORIZED
+MANUAL_REVIEW_TRIGGER_REQUIRES_RECORDED_PREFLIGHT = YES
+```
+
 ## Allowed file scope
 
 The review request must use the minimum necessary scope:

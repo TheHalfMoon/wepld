@@ -1,9 +1,7 @@
-# WePLD keeps review PRs in Draft until founder acceptance.
-# CodeRabbit must therefore review Draft changes rather than requiring
-# a Ready-for-review transition that would conflict with repository governance.
+# External hosted review is manual-only until WePLD has a machine-enforced
+# pre-egress classification/screening/approval gate. Manual CodeRabbit review
+# commands remain available after the canonical egress preflight is recorded.
 reviews:
   auto_review:
-    enabled: true
-    drafts: true
-    auto_incremental_review: true
-    auto_pause_after_reviewed_commits: 5
+    enabled: false
+    auto_incremental_review: false

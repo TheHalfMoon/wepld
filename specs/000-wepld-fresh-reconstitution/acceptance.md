@@ -1,0 +1,22 @@
+# Acceptance — Fresh Reconstitution Foundation
+
+- [x] Canonical repo is `TheHalfMoon/wepld`.
+- [x] Owner/admin verified.
+- [x] V2.2 exact hash anchor included.
+- [x] Full V2.2 raw artifact preserved in canonical archive.
+- [x] 402-entry source accounting included.
+- [x] Full source registry JSON/CSV + pin ledger + mining matrix preserved in canonical archive.
+- [x] Spec Kit + Ponytail FULL mandatory.
+- [x] CodeRabbit/Greptile/Qodo/Augment/Graphite/Cubic/Continue named as independent review producers.
+- [x] Build Learning Protocol included.
+- [x] Former repo is quarry only.
+- [x] `src/` contains no implementation on reviewed head `552589e9e35d3977a4123d4aca69f23a6eef179c`; its `src/.gitkeep` is the empty blob `e69de29bb2d1d6434b8b29ae775ad8c2e48c5391`.
+- [x] Dependency admission remains zero.
+- [x] Draft PR #2 published.
+- [x] CodeRabbit review explicitly triggered.
+- [x] Historical CodeRabbit full review collected on `d74b5baa2ad95eb1c7c344ca66c681586318a434` (Run ID `ee7f2c6e-c05a-4cd6-974b-40a7037c1c60`).
+- [x] Repair head `552589e9e35d3977a4123d4aca69f23a6eef179c` passed `foundation-integrity` run `31891094949` (run #117) and received exact-head CodeRabbit full re-review Run ID `899e93d3-6829-4f8a-b594-ef912ddf2488`, submitted `2026-08-15T15:28:51Z`; that review produced two actionable findings.
+- [x] Greptile external-review egress preflight and manual trigger were recorded for the earlier exact-head review attempt; no completed Greptile review output has been observed, so Greptile is not counted as PASS.
+- [ ] Close the two findings from CodeRabbit Run `899e93d3-6829-4f8a-b594-ef912ddf2488`. Repair content may be present in the current candidate change, but this item remains open until the resulting live head passes a fresh deterministic gate and an independent re-review.
+- [ ] Remaining connected reviewer outputs reconciled or explicitly accounted as unavailable/not-run under policy.
+- [ ] Founder acceptance recorded.

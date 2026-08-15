@@ -1,0 +1,7 @@
+# External hosted review is manual-only until WePLD has a machine-enforced
+# pre-egress classification/screening/approval gate. Manual CodeRabbit review
+# commands remain available after the canonical egress preflight is recorded.
+reviews:
+  auto_review:
+    enabled: false
+    auto_incremental_review: false

@@ -67,7 +67,7 @@ Desktop Rust Host
               |
               | inherited stdin/stdout protocol byte streams
               | stderr diagnostics only
-              | 4-byte BE length + JSON envelope
+              | 4-byte BE payload length + JSON envelope
               v
 Separate Rust Core Process
   - owns protocol parser/validation
@@ -77,7 +77,7 @@ Separate Rust Core Process
   - bounded health observation + cancellation
               |
               v
-No filesystem/project/network/worker authority in S1
+No filesystem/project/network/worker authority in S1 handshake
 ```
 
 ## Proposed repository layout
@@ -133,8 +133,12 @@ Framing:
 
 ```text
 [u32 big-endian payload length][UTF-8 JSON payload]
+LENGTH_PREFIX_BYTES = 4
 MAX_PAYLOAD_BYTES = 65_536
+MAX_WIRE_FRAME_BYTES = 65_540
 ```
+
+The prefix encodes payload length. The receiver validates it before payload allocation/read/deserialization; declared payload length `> 65_536` fails closed. A declared payload length exactly `65_536` is within the framing bound, producing at most `65_540` wire bytes including the prefix.
 
 Unknown version/kind/principal/operation, malformed length, over-budget payload, invalid JSON, stale launch identity, and non-monotonic/replayed command IDs fail closed.
 
@@ -169,7 +173,7 @@ Unknown version/kind/principal/operation, malformed length, over-budget payload,
 - health/version/capabilities;
 - bounded health observation and cancellation;
 - deterministic EOF/crash behavior;
-- no network/filesystem/project effects.
+- no network/filesystem/project effects within the S1 handshake boundary.
 
 ### S1-P4 — Desktop host and minimal UI
 
@@ -184,7 +188,8 @@ Unknown version/kind/principal/operation, malformed length, over-budget payload,
 ### S1-P5 — Cross-process integration / failure suite
 
 - round-trip, event, cancellation;
-- malformed and oversized frames;
+- malformed, truncated, and over-budget payload framing;
+- exact `65_536`/`65_537` declared-payload boundary tests;
 - version/principal/downgrade attacks;
 - launch-wide duplicate/replay/non-monotonic ID rejection;
 - duplicate stateful observation/cancellation semantics;
@@ -244,7 +249,9 @@ That workflow change is security-relevant and requires exact-head security cover
 Initial safety budgets, subject to measured tightening before acceptance:
 
 ```text
-MAX_FRAME_BYTES = 65_536
+LENGTH_PREFIX_BYTES = 4
+MAX_PAYLOAD_BYTES = 65_536
+MAX_WIRE_FRAME_BYTES = 65_540
 MAX_IN_FLIGHT_REQUESTS = 32
 MAX_HEALTH_WATCHES = 8
 MAX_CAPABILITY_ITEMS = 64
@@ -253,7 +260,9 @@ MAX_RETAINED_DIAGNOSTIC_BYTES = 65_536
 REPLAY_STATE = O(1) highest_accepted_command_id per launch
 ```
 
-These are upper bounds, not throughput goals. Tests must prove rejection at and beyond boundaries. Command IDs never wrap or reuse within a launch; exhaustion requires a fresh launch rather than weakening the replay invariant.
+`MAX_PAYLOAD_BYTES` is the allocation/deserialization gate. `MAX_WIRE_FRAME_BYTES` is derived (`4 + MAX_PAYLOAD_BYTES`) and is not an independent configurable limit. Tests must prove that declared payload length `65_536` is within the framing bound and `65_537` is rejected before payload allocation/read/deserialization.
+
+These are upper bounds, not throughput goals. Command IDs never wrap or reuse within a launch; exhaustion requires a fresh launch rather than weakening the replay invariant.
 
 ## Recovery
 

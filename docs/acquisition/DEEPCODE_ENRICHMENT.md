@@ -22,6 +22,16 @@ DeepCode was identified after the frozen 402-entry source-registry V1 restoratio
 
 The repository root is MIT at the pinned revision. Whole-repository reuse is **not** implied by that root license.
 
+Pinned rights anchors at `287510fbf6820147a48adf79f7fd86b0ed1afe92`:
+
+```text
+LICENSE
+blob = b3ba37ce442298d5bdec96e2e52a8a812a25f123
+
+THIRD_PARTY_NOTICES.md
+blob = 5f3c1d1070080dfb65acccd3c8b1007166e2ff1e
+```
+
 `THIRD_PARTY_NOTICES.md` records resolved Python, JavaScript, Rust, and platform components with multiple license families and additional attributed presentation assets. DeepCode also bundles pinned upstream Agent Skills from OpenAI Codex, OpenAI Skills, and Anthropic Skills, with exact upstream repository/revision/path records in `core/skills/builtin/UPSTREAM_SOURCES.json`.
 
 Therefore:

@@ -7,13 +7,15 @@
 - [x] 402-entry source accounting included.
 - [x] Full source registry JSON/CSV + pin ledger + mining matrix preserved in canonical archive.
 - [x] Spec Kit + Ponytail FULL mandatory.
-- [x] CodeRabbit/Qodo/Augment/Graphite/Cubic/Continue named as independent review producers.
+- [x] CodeRabbit/Greptile/Qodo/Augment/Graphite/Cubic/Continue named as independent review producers.
 - [x] Build Learning Protocol included.
 - [x] Former repo is quarry only.
 - [x] `src/` contains no implementation.
 - [x] Dependency admission remains zero.
 - [x] Draft PR #2 published.
 - [x] CodeRabbit review explicitly triggered.
-- [ ] CodeRabbit findings reconciled.
+- [x] Exact-head CodeRabbit full review collected on `d74b5baa2ad95eb1c7c344ca66c681586318a434` (Run ID `ee7f2c6e-c05a-4cd6-974b-40a7037c1c60`).
+- [x] Greptile hosted reviewer state explicitly accounted as `NOT_RUN` pending applicable egress/availability prerequisites.
+- [ ] Valid findings from the full review reconciled and the repair head independently re-reviewed.
 - [ ] Remaining connected reviewer outputs reconciled.
 - [ ] Founder acceptance recorded.

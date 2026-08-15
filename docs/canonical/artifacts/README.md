@@ -26,7 +26,7 @@ MASTER_PLAN_V2_2_SHA256 = e269b10ef711731c4ad3af7b1135546f92d82a78975cabc9ff52c2
 ACCOUNTED_SOURCE_ENTRIES = 402
 ```
 
-The repository CI verifies the archive hash, exact member set, master-plan hash, JSON/CSV source counts and uniqueness, and that every source entry remains `NOT_ADMITTED`.
+`.github/workflows/foundation-integrity.yml` implements checks for the archive hash, exact member set, master-plan hash, JSON/CSV source counts and uniqueness, and that every source entry remains `NOT_ADMITTED`. A successful workflow run is execution evidence for those checks; this document does not claim repository-level required-check protection or authenticated self-verification of workflow changes.
 
 Restore locally with fail-closed verification:
 

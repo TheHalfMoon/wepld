@@ -1,6 +1,6 @@
 # WePLD Current State
 
-**Checkpoint date:** 2026-08-15 02:10 Asia/Riyadh  
+**Checkpoint date:** 2026-08-15 03:24 Asia/Riyadh  
 **Canonical repository:** `TheHalfMoon/wepld`
 
 This file is the durable continuation checkpoint for new chats and new agents. Reverify live GitHub state before any mutation; point-in-time SHAs and review states below are evidence, not standing authority.
@@ -32,6 +32,9 @@ DRAFT = true
 MERGED = false
 LAST_ACQUISITION_HEAD = aa5ea4dab7ce26b75be18ffb7fb1fbb03e3dd7d9
 LAST_ACQUISITION_COMMIT = docs: add DeerFlow Agentica and LLM Space acquisition evidence
+LAST_INDEPENDENTLY_REVIEWED_HEAD = d74b5baa2ad95eb1c7c344ca66c681586318a434
+LAST_FULL_REVIEW_RUN_ID = ee7f2c6e-c05a-4cd6-974b-40a7037c1c60
+LAST_FULL_REVIEW_SUBMITTED_AT = 2026-08-14T23:59:56Z
 ```
 
 The live PR head must be read from GitHub rather than copied from this checkpoint before any write, review, acceptance, or merge decision.
@@ -182,32 +185,36 @@ None of these records grants source admission, dependency admission, runtime tru
 - DeepCode: bounded harness/subagent/recovery mechanics and Windows Job Object quarry. Negative oracle: required containment failure must not silently degrade to unconstrained execution.
 - Greptile: graph-aware review/context and cascading review rules. Negative oracle: graph relevance, learned team behavior, clean review, or fix suggestion is not canonical truth, authority, write permission, or completion.
 
-## Deterministic evidence at last acquisition head
+## Deterministic evidence at last independently reviewed head
 
 ```text
-HEAD = aa5ea4dab7ce26b75be18ffb7fb1fbb03e3dd7d9
-FOUNDATION_INTEGRITY_RUN = 31847978334
-FOUNDATION_INTEGRITY_RUN_NUMBER = 105
+HEAD = d74b5baa2ad95eb1c7c344ca66c681586318a434
+FOUNDATION_INTEGRITY_RUN = 31850347972
+FOUNDATION_INTEGRITY_RUN_NUMBER = 111
 FOUNDATION_INTEGRITY = PASS
 SOURCE_ADMISSION = 0
 DEPENDENCY_ADMISSION = 0
 FROZEN_REGISTRY_V1 = 402 UNCHANGED
 ```
 
-Any later checkpoint commit must re-run the integrity gate; never inherit PASS across a changed head.
+Any later repair/checkpoint commit must re-run the integrity gate; never inherit PASS across a changed head.
 
 ## Reviewer state at checkpoint
 
-The last CodeRabbit attempt against `aa5ea4d...` ended with GitHub status `success` but description `Review rate limited`. Treat the semantic outcome as:
+CodeRabbit completed a full review of the exact head `d74b5baa2ad95eb1c7c344ca66c681586318a434` (Run ID `ee7f2c6e-c05a-4cd6-974b-40a7037c1c60`, submitted `2026-08-14T23:59:56Z`). The review created seven new inline threads. Six were validated as repairable findings; the Greptile evidence-date thread was rejected as a timezone false positive because the evidence was retrieved at `2026-08-15T02:21:00+03:00`, before the review at `2026-08-15T02:59:56+03:00`. Two additional non-inline nitpick repairs were accepted for the foundation workflow/base handling and artifact-workflow wording.
 
 ```text
-CODERABBIT_FINAL_REREVIEW = NOT_RUN_RATE_LIMITED
-CODERABBIT_STATUS_COLOR = NOT_AUTHORITY
-KNOWN_PREVIOUS_INLINE_FINDINGS = RECONCILED / RESOLVED
+CODERABBIT_FULL_REVIEW = COMPLETED_WITH_FINDINGS
+CODERABBIT_REVIEWED_HEAD = d74b5baa2ad95eb1c7c344ca66c681586318a434
+CODERABBIT_RUN_ID = ee7f2c6e-c05a-4cd6-974b-40a7037c1c60
+NEW_INLINE_THREADS = 7
+INLINE_REPAIR_FINDINGS = 6
+GREPTILE_EVIDENCE_DATE_THREAD = FALSE_POSITIVE_TIMEZONE
+ADDITIONAL_NITPICK_REPAIRS = 2
 GREPTILE_HOSTED_REVIEW = NOT_RUN
 ```
 
-A green provider status carrying `Review rate limited` is not a review PASS. Reverify the live PR review state in the next chat.
+The resulting repair candidate is not accepted merely because the prior head had a completed review. The repair head must pass deterministic gates and receive an independently qualified re-review.
 
 ## Implementation / authorization state
 
@@ -241,6 +248,8 @@ Read AGENTS.md first.
 Then read docs/canonical/CURRENT_STATE.md.
 Then read docs/canonical/ARCHITECTURE_INVARIANTS.md,
 docs/canonical/BUILD_METHOD.md,
+docs/canonical/SECURITY_REVIEW_POLICY.md,
+docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md,
 docs/canonical/MASTER_PLAN_INDEX.md,
 docs/acquisition/SOURCE_REGISTRY_INDEX.md,
 and the active Spec Kit directory.
@@ -253,10 +262,10 @@ Speak to me in Arabic. Write ready-to-use technical prompts in English.
 
 ## Next gate
 
-1. verify the live head and deterministic integrity gate after this checkpoint update;
-2. obtain an actual independently qualified review of the accepted head (CodeRabbit when rate limit clears or an authorized qualified substitute under policy);
+1. verify the live repair head and deterministic integrity gate;
+2. obtain an actual independently qualified re-review of the current head;
 3. reconcile any new material findings;
-4. re-run deterministic gates and affected reviews after material repairs;
+4. re-run deterministic gates and affected reviews after any further material repairs;
 5. record explicit founder acceptance of the fresh foundation;
 6. preserve accepted build-learning evidence;
 7. separately authorize the first implementation slice; only then begin S1.

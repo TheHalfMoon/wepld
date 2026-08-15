@@ -61,14 +61,12 @@ jobs:
                       fp,
                   )
 
-          request = urllib.request.Request(
-              baseline_url,
-              headers={
-                  "Accept": "application/vnd.github+json",
-                  "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
-                  "X-GitHub-Api-Version": "2022-11-28",
-              },
-          )
+          request_headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
+              "X-GitHub-Api-Version": "2022-11-28",
+          }
+          request = urllib.request.Request(baseline_url, headers=request_headers)
           opener = urllib.request.build_opener(RejectRedirects())
           with opener.open(request, timeout=30) as response:
               if response.geturl() != baseline_url:
@@ -93,10 +91,26 @@ jobs:
 
           if os.environ.get("EVENT_NAME") == "pull_request":
               pr_base = os.environ.get("PR_BASE_SHA", "")
-              if not pr_base or pr_base != baseline.get("base_main_sha"):
-                  raise SystemExit(
-                      f"pull-request base SHA does not match immutable baseline: {pr_base}"
+              baseline_base = baseline.get("base_main_sha", "")
+              if not pr_base or not baseline_base:
+                  raise SystemExit("pull-request base or immutable baseline base SHA is missing")
+              if pr_base != baseline_base:
+                  compare_url = (
+                      "https://api.github.com/repos/TheHalfMoon/wepld/compare/"
+                      f"{baseline_base}...{pr_base}"
                   )
+                  compare_request = urllib.request.Request(
+                      compare_url,
+                      headers=request_headers,
+                  )
+                  with opener.open(compare_request, timeout=30) as response:
+                      if response.geturl() != compare_url:
+                          raise SystemExit("pull-request base ancestry request target changed unexpectedly")
+                      comparison = json.load(response)
+                  if comparison.get("status") not in {"ahead", "identical"}:
+                      raise SystemExit(
+                          "pull-request base is not the immutable baseline base or its descendant"
+                      )
 
           expected_archive_sha256 = baseline["canonical_artifact_archive_sha256"]
           expected_plan_sha256 = baseline["master_plan_v2_2_sha256"]

@@ -8,9 +8,10 @@ Before planning, reviewing, implementing, or mutating WePLD:
 2. `docs/canonical/ARCHITECTURE_INVARIANTS.md`
 3. `docs/canonical/BUILD_METHOD.md`
 4. `docs/canonical/SECURITY_REVIEW_POLICY.md`
-5. `docs/canonical/MASTER_PLAN_INDEX.md`
-6. `docs/acquisition/SOURCE_REGISTRY_INDEX.md`
-7. the active Spec Kit feature directory under `specs/`
+5. `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md`
+6. `docs/canonical/MASTER_PLAN_INDEX.md`
+7. `docs/acquisition/SOURCE_REGISTRY_INDEX.md`
+8. the active Spec Kit feature directory under `specs/`
 
 On every new chat or agent session, treat this repository read order as the durable bootstrap. Repository canonical memory outranks chat memory. Verify live PR/check/review state before any mutation.
 
@@ -65,6 +66,8 @@ Security-specific reviewer:
 - Codex Security for security-sensitive changes when available and policy/egress permits.
 
 At least one independently qualified correctness/engineering review is required before acceptance of material work. If no qualified independent reviewer can run, record `REVIEW_BLOCKED`; do not convert unavailability into PASS. Any exception requires explicit authorization, a named qualified substitute, and a residual-limitation record.
+
+Before any repository content is sent to an external reviewer, apply `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md`; reviewer availability never overrides its classification, screening, provider-handling, or approval requirements.
 
 No reviewer is completion authority. Codex Security supplements deterministic security gates and never replaces them.
 

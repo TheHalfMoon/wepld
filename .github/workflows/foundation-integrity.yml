@@ -253,6 +253,7 @@ jobs:
           test -d src || { echo 'src must be a real directory' >&2; exit 1; }
           test ! -L src || { echo 'src must not be a symbolic link' >&2; exit 1; }
           test -f src/.gitkeep || { echo 'src/.gitkeep missing' >&2; exit 1; }
+          test ! -s src/.gitkeep || { echo 'src/.gitkeep must be empty' >&2; exit 1; }
 
           unexpected_src="$(find src -type f ! -name '.gitkeep' -print)"
           if [ -n "$unexpected_src" ]; then

@@ -692,18 +692,24 @@ def validate_lock_bytes(data: bytes) -> None:
                 references.append(reference)
             declared_edges[identity] = references
 
-        if source is None:
-            if identity not in WORKSPACE_LOCK_PACKAGES:
+        checksum = package.get("checksum")
+        if identity in WORKSPACE_LOCK_PACKAGES:
+            if source is not None:
                 fail(
-                    "source-less Cargo.lock package is not an expected Stage-B "
-                    f"workspace member: {name} {version}"
+                    "expected Stage-B workspace package unexpectedly has source: "
+                    f"{name} {version}: {source}"
                 )
-            if package.get("checksum") is not None:
+            if checksum is not None:
                 fail(f"workspace/path package unexpectedly carries checksum: {name}")
             continue
+
+        if source is None:
+            fail(
+                "source-less Cargo.lock package is not an expected Stage-B "
+                f"workspace member: {name} {version}"
+            )
         if source != CRATES_IO_SOURCE:
             fail(f"unapproved Cargo.lock source for {name}: {source}")
-        checksum = package.get("checksum")
         if not isinstance(checksum, str) or len(checksum) != 64:
             fail(f"registry package checksum is missing/malformed: {name}")
         try:
@@ -718,6 +724,9 @@ def validate_lock_bytes(data: bytes) -> None:
         )
         fail("duplicate Cargo.lock package identity: " + repr(duplicates))
 
+    source_by_identity = {
+        (name, version): source for name, version, source in identities
+    }
     observed = set(name_versions)
     missing = sorted(REQUIRED_LOCK_PACKAGES - observed)
     if missing:
@@ -729,11 +738,14 @@ def validate_lock_bytes(data: bytes) -> None:
     if missing_workspace:
         fail("Cargo.lock missing expected workspace members: " + repr(missing_workspace))
 
-    validate_lock_graph(observed, declared_edges)
+    validate_lock_graph(observed, declared_edges, source_by_identity)
 
 
-def parse_lock_dependency(owner: tuple[str, str], reference: str) -> tuple[str, str | None]:
-    """Split a Cargo.lock dependency reference into `name` and optional `version`.
+def parse_lock_dependency(
+    owner: tuple[str, str],
+    reference: str,
+) -> tuple[str, str | None, str | None]:
+    """Split Cargo.lock dependency references, preserving an optional source.
 
     Cargo has written `"name"`, `"name version"`, and `"name version (source)"`.
     """
@@ -743,17 +755,26 @@ def parse_lock_dependency(owner: tuple[str, str], reference: str) -> tuple[str, 
             "malformed Cargo.lock dependency reference: "
             f"{owner[0]} {owner[1]} -> {reference!r}"
         )
-    if len(parts) == 3 and not (parts[2].startswith("(") and parts[2].endswith(")")):
-        fail(
-            "malformed Cargo.lock dependency source qualifier: "
-            f"{owner[0]} {owner[1]} -> {reference!r}"
-        )
-    return parts[0], parts[1] if len(parts) >= 2 else None
+    source_qualifier: str | None = None
+    if len(parts) == 3:
+        if not (parts[2].startswith("(") and parts[2].endswith(")")):
+            fail(
+                "malformed Cargo.lock dependency source qualifier: "
+                f"{owner[0]} {owner[1]} -> {reference!r}"
+            )
+        source_qualifier = parts[2][1:-1]
+        if not source_qualifier:
+            fail(
+                "malformed Cargo.lock dependency source qualifier: "
+                f"{owner[0]} {owner[1]} -> {reference!r}"
+            )
+    return parts[0], parts[1] if len(parts) >= 2 else None, source_qualifier
 
 
 def validate_lock_graph(
     observed: set[tuple[str, str]],
     declared_edges: Mapping[tuple[str, str], list[str]],
+    source_by_identity: Mapping[tuple[str, str], str | None],
 ) -> None:
     """Require each dependency reference to resolve uniquely, and require the
     direct workspace edges implied by the exact Stage-B manifests.
@@ -770,7 +791,7 @@ def validate_lock_graph(
     for owner, references in declared_edges.items():
         resolved: set[tuple[str, str]] = set()
         for reference in references:
-            name, version = parse_lock_dependency(owner, reference)
+            name, version, source_qualifier = parse_lock_dependency(owner, reference)
             known = versions_by_name.get(name)
             if not known:
                 fail(
@@ -789,7 +810,15 @@ def validate_lock_graph(
                     "Cargo.lock dependency version does not resolve to a package "
                     f"in the lock: {owner[0]} {owner[1]} -> {reference!r}"
                 )
-            resolved.add((name, version))
+            target = (name, version)
+            if source_qualifier is not None:
+                actual_source = source_by_identity.get(target)
+                if actual_source != source_qualifier:
+                    fail(
+                        "Cargo.lock dependency source qualifier does not match "
+                        f"resolved package: {owner[0]} {owner[1]} -> {reference!r}"
+                    )
+            resolved.add(target)
         resolved_edges[owner] = resolved
 
     for owner, required in REQUIRED_LOCK_EDGES.items():
@@ -1484,7 +1513,7 @@ def selftest_object_identity() -> None:
 
 
 def selftest_lock_graph() -> None:
-    """R3: structural constraints a fabricated package list cannot satisfy."""
+    """R3/R6/R7: structural constraints a fabricated package list cannot satisfy."""
     validate_lock_bytes(lock_document(VALID_LOCK_PACKAGES))
 
     expect_failure_matching(
@@ -1509,6 +1538,15 @@ def selftest_lock_graph() -> None:
         "source-less Cargo.lock package is not an expected Stage-B workspace member",
         validate_lock_bytes,
         lock_document(VALID_LOCK_PACKAGES + [{"name": "smuggled", "version": "0.1.0"}]),
+    )
+
+    registry_workspace = [dict(package) for package in VALID_LOCK_PACKAGES]
+    registry_workspace[0]["source"] = CRATES_IO_SOURCE
+    expect_failure_matching(
+        "workspace identity represented as registry package",
+        "expected Stage-B workspace package unexpectedly has source",
+        validate_lock_bytes,
+        lock_document(registry_workspace),
     )
 
     missing_edge = [dict(package) for package in VALID_LOCK_PACKAGES]
@@ -1555,6 +1593,25 @@ def selftest_lock_graph() -> None:
         validate_lock_bytes,
         lock_document(unresolved),
     )
+
+    mismatched_source = [dict(package) for package in VALID_LOCK_PACKAGES]
+    mismatched_source[1]["dependencies"] = [
+        "serde 1.0.229 (registry+https://example.invalid/index)",
+        "serde_json",
+    ]
+    expect_failure_matching(
+        "dependency reference with mismatched source qualifier",
+        "dependency source qualifier does not match resolved package",
+        validate_lock_bytes,
+        lock_document(mismatched_source),
+    )
+
+    canonical_source = [dict(package) for package in VALID_LOCK_PACKAGES]
+    canonical_source[1]["dependencies"] = [
+        f"serde 1.0.229 ({CRATES_IO_SOURCE})",
+        "serde_json",
+    ]
+    validate_lock_bytes(lock_document(canonical_source))
 
     ambiguous = [dict(package) for package in VALID_LOCK_PACKAGES]
     ambiguous.append({"name": "serde", "version": "1.0.230", "source": CRATES_IO_SOURCE})

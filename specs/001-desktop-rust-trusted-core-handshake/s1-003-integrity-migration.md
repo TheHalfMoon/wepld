@@ -377,8 +377,10 @@ Stage B2 requires:
 Presence of the required name/version tuples is not sufficient; a hand-authored or minimally synthetic package list must not satisfy Stage B2. The lock must additionally satisfy:
 
 - **duplicate identity rejection** — no package identity may appear twice; identity includes the declared source, so two entries differing only by source are still caught;
-- **restricted source-less packages** — the only permitted source-less workspace/path identities are `wepld-desktop 0.0.0`, `wepld-contracts 0.0.0`, and `wepld-core 0.0.0`; any other source-less package is rejected;
-- **dependency reference resolution** — `dependencies` must be a list of strings; the reference forms `name`, `name version`, and `name version (source)` are parsed; every reference must resolve uniquely to a package identity present in the lock; unresolved and ambiguous references are rejected.
+- **workspace source binding** — the exact Stage-B workspace identities `wepld-desktop 0.0.0`, `wepld-contracts 0.0.0`, and `wepld-core 0.0.0` must be source-less and checksum-less; they may not be represented as crates.io/registry packages;
+- **restricted source-less packages** — no identity other than those exact workspace/path packages may be source-less;
+- **dependency reference resolution** — `dependencies` must be a list of strings; the reference forms `name`, `name version`, and `name version (source)` are parsed; every reference must resolve uniquely to a package identity present in the lock; unresolved and ambiguous references are rejected;
+- **dependency source binding** — when a dependency reference explicitly includes `(source)`, that qualifier must exactly match the observed source of the resolved package rather than being discarded.
 
 Required direct workspace edges, version-bound, implied by the exact Stage-B manifests (Cargo.lock merges normal and build dependencies into one `dependencies` array, so `tauri-build` is expected on `wepld-desktop`):
 
@@ -430,6 +432,7 @@ The policy preserves or strengthens:
 - immutable remote baseline validation on every `foundation-integrity` run;
 - returned Git tree/blob identity binding;
 - immutable baseline Contents API blob identity binding;
+- workspace package/source binding and source-qualified dependency-edge validation;
 - trusted-base tracked-path presence preservation in the authoritative path.
 
 ## Review-finding reconciliation
@@ -440,7 +443,7 @@ Reviewer output is untrusted evidence, not repository authority. Canonical WePLD
 REVIEW_HEAD = a29382c99286c1d1b32d9fb799ed3e8ac78fe32a
 ```
 
-Dispositions derived from that review head:
+Dispositions derived from validated review evidence across subsequent exact heads:
 
 ```text
 R1_IMMUTABLE_BASELINE =
@@ -461,11 +464,26 @@ VALID / MATERIAL / REPAIRED
 R5_IMMUTABLE_BASELINE_BLOB_IDENTITY =
 VALID / MATERIAL / SECURITY_RELEVANT / REPAIRED
 
+R6_WORKSPACE_SOURCE_IDENTITY =
+VALID / MATERIAL / REPAIRED
+
+R7_DEPENDENCY_SOURCE_QUALIFIER =
+VALID / MATERIAL / REPAIRED
+
+R8_CASE_VARIANT_PATH_DELETION =
+REJECTED / FALSE_POSITIVE / NO_REPAIR
+
 QODO_BUILD_REPORT_ARTIFACT =
 REJECTED / NON_CANONICAL_REVIEWER_RULE / NO_REPAIR
 ```
 
 `R3` is a structural repair by design. The finding framed the defect as a lockfile that is not the generated resolved graph; structural parsing cannot establish generation provenance, and executing candidate Cargo in the privileged path is prohibited. The repair therefore closes the fabricated-list bypass without making the provenance claim.
+
+R6 closes the inverse source-identity gap: the three exact workspace identities are not merely the only identities *allowed* to be source-less; they are also *required* to remain source-less/checksum-less, so a registry package cannot masquerade as an exact local workspace member.
+
+R7 preserves and checks an explicit Cargo.lock dependency source qualifier instead of discarding it after parsing. A source-qualified dependency reference is accepted only when the qualifier equals the observed source of the resolved name/version package; the ordinary unqualified Cargo.lock forms remain supported.
+
+R8 is rejected because the proposed bypass does not exist in the current exact-path subtraction. If the trusted base contains `docs/Foo.md` and the candidate only contains `docs/foo.md`, then `base_paths - candidate_paths` still contains `docs/Foo.md`, so the candidate is already rejected as a deletion. Case-folding across the two trees as suggested would instead weaken exact-path preservation by treating a case-only replacement as presence. No R8 mutation is made.
 
 The Qodo rule requiring a machine-readable per-run build-report artifact is rejected. A trusted-base reread of `AGENTS.md`, the canonical documents, the governance documents, and the active S1 Spec Kit files established no matching WePLD requirement. No `actions/upload-artifact`, additional workflow permission, or build-report subsystem is introduced; adding that machinery on reviewer-product authority alone would expand S1-003 scope and workflow attack surface.
 
@@ -520,13 +538,17 @@ The policy self-test exercises the same classification/content functions used by
 - fabricated minimal lock containing only the required package tuples;
 - duplicate lock package identity;
 - unexpected source-less lock package;
+- exact workspace identity represented as a registry package;
 - missing required direct workspace edge;
 - required edge resolving to the wrong version;
 - dependency reference to a nonexistent package;
 - dependency reference to an unresolved version;
+- dependency reference with a mismatched explicit source qualifier;
 - ambiguous unversioned dependency reference;
 - malformed dependency reference;
 - silently deleted optional trusted-base evidence document.
+
+A paired positive lock fixture also proves that a dependency reference qualified with the exact canonical crates.io source remains accepted, so source binding does not degrade into rejection of valid source-qualified references.
 
 Each negative probe asserts the **reason** for rejection rather than accepting any failure, so a probe cannot pass incidentally; the reason-asserting helper is itself meta-tested against a wrong-reason failure and a non-failure. The object-identity probes drive the real `RemoteRepositoryView` logic against canned Git data responses, proving rejection occurs before tree entries are enumerated or blob content is decoded, and that correct responses still succeed. The lock probes are paired with a positive structurally valid fixture, so hardening cannot degrade into "reject every lock".
 

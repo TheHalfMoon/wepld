@@ -1,0 +1,211 @@
+name: PR9 Qodo glib reachability repair v2
+
+on:
+  push:
+    branches:
+      - bootstrap/pr9-qodo-glib-reachability-repair
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      EXPECTED_TARGET_HEAD: 95aaf017c8af1dca41aa663283b63dc77cc94d7c
+      EXPECTED_TARGET_TREE: 1880acc8021066ad71ce1ad8ad36d88939bf33ac
+      TARGET_BRANCH: ci/s1-005-component-admission-integrity
+      PR_BASE: f1919396eacb90d8d947b06f023ae9da233a4580
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout repair bootstrap
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Verify live target identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.parse
+          import urllib.request
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          target = urllib.parse.quote(os.environ["TARGET_BRANCH"], safe="/")
+          req = urllib.request.Request(
+              f"https://api.github.com/repos/{repo}/git/ref/heads/{target}",
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+                  "X-GitHub-Api-Version": "2022-11-28",
+                  "User-Agent": "wepld-pr9-qodo-repair-v2",
+              },
+          )
+          with urllib.request.urlopen(req, timeout=30) as response:
+              obj = json.load(response)
+          current = obj.get("object", {}).get("sha")
+          if current != os.environ["EXPECTED_TARGET_HEAD"]:
+              raise SystemExit(f"ABORT: PR #9 target moved: {current}")
+          PY
+
+      - name: Apply bounded Qodo repair and selftest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/bootstrap/pr9_qodo_glib_repair.py
+          python3 -m py_compile .github/scripts/wepld_integrity.py
+          python3 .github/scripts/wepld_integrity.py selftest
+
+      - name: Validate clean repaired candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate="$RUNNER_TEMP/pr9-qodo-repaired"
+          rm -rf "$candidate"
+
+          git fetch --no-tags --depth=1 \
+            https://github.com/TheHalfMoon/wepld.git \
+            "$EXPECTED_TARGET_HEAD"
+          test "$(git rev-parse FETCH_HEAD)" = "$EXPECTED_TARGET_HEAD"
+          git worktree add --detach "$candidate" "$EXPECTED_TARGET_HEAD"
+
+          cp .github/scripts/wepld_integrity.py "$candidate/.github/scripts/wepld_integrity.py"
+          cp \
+            specs/001-desktop-rust-trusted-core-handshake/s1-005-component-admission-integrity.md \
+            "$candidate/specs/001-desktop-rust-trusted-core-handshake/s1-005-component-admission-integrity.md"
+
+          git -C "$candidate" config user.name "WePLD Repair Validator"
+          git -C "$candidate" config user.email "repair-validator@users.noreply.github.com"
+          git -C "$candidate" add -- \
+            .github/scripts/wepld_integrity.py \
+            specs/001-desktop-rust-trusted-core-handshake/s1-005-component-admission-integrity.md
+          git -C "$candidate" diff --cached --check
+
+          mapfile -t changed < <(git -C "$candidate" diff --cached --name-only)
+          test "${#changed[@]}" -eq 2
+          test "${changed[0]}" = ".github/scripts/wepld_integrity.py"
+          test "${changed[1]}" = "specs/001-desktop-rust-trusted-core-handshake/s1-005-component-admission-integrity.md"
+
+          GIT_AUTHOR_DATE='2000-01-01T00:00:00Z' \
+          GIT_COMMITTER_DATE='2000-01-01T00:00:00Z' \
+            git -C "$candidate" commit -m "fix(s1): require reachable frozen glib graph"
+
+          test "$(git -C "$candidate" rev-parse HEAD^)" = "$EXPECTED_TARGET_HEAD"
+          python3 "$candidate/.github/scripts/wepld_integrity.py" selftest
+          python3 "$candidate/.github/scripts/wepld_integrity.py" verify-local \
+            --root "$candidate" \
+            --remote-baseline \
+            --pr-base-sha "$PR_BASE"
+
+          echo "LOCAL_TREE=$(git -C "$candidate" rev-parse 'HEAD^{tree}')" >> "$GITHUB_ENV"
+          echo "SCRIPT_BLOB=$(git -C "$candidate" rev-parse 'HEAD:.github/scripts/wepld_integrity.py')" >> "$GITHUB_ENV"
+          echo "SPEC_BLOB=$(git -C "$candidate" rev-parse 'HEAD:specs/001-desktop-rust-trusted-core-handshake/s1-005-component-admission-integrity.md')" >> "$GITHUB_ENV"
+
+      - name: Fast-forward exact PR branch after identity match
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          import pathlib
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          token = os.environ["GH_TOKEN"]
+          expected_head = os.environ["EXPECTED_TARGET_HEAD"]
+          expected_tree = os.environ["EXPECTED_TARGET_TREE"]
+          local_tree = os.environ["LOCAL_TREE"]
+          target = os.environ["TARGET_BRANCH"]
+          api = f"https://api.github.com/repos/{repo}"
+
+          def request(method, path, payload=None):
+              data = None if payload is None else json.dumps(payload, separators=(",", ":")).encode("utf-8")
+              req = urllib.request.Request(
+                  api + path,
+                  data=data,
+                  method=method,
+                  headers={
+                      "Accept": "application/vnd.github+json",
+                      "Authorization": f"Bearer {token}",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                      "User-Agent": "wepld-pr9-qodo-repair-v2",
+                      "Content-Type": "application/json",
+                  },
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as response:
+                      return json.loads(response.read().decode("utf-8"))
+              except urllib.error.HTTPError as exc:
+                  body = exc.read().decode("utf-8", errors="replace")
+                  raise SystemExit(f"ABORT: GitHub API {method} {path}: {exc.code} {body}")
+
+          ref_path = "/git/ref/heads/" + urllib.parse.quote(target, safe="/")
+          current = request("GET", ref_path).get("object", {}).get("sha")
+          if current != expected_head:
+              raise SystemExit(f"ABORT: PR branch moved before repair write: {current}")
+
+          parent = request("GET", f"/git/commits/{expected_head}")
+          if parent.get("tree", {}).get("sha") != expected_tree:
+              raise SystemExit("ABORT: PR parent tree mismatch")
+
+          entries = []
+          for rel, expected_blob in [
+              (".github/scripts/wepld_integrity.py", os.environ["SCRIPT_BLOB"]),
+              ("specs/001-desktop-rust-trusted-core-handshake/s1-005-component-admission-integrity.md", os.environ["SPEC_BLOB"]),
+          ]:
+              raw = pathlib.Path(rel).read_bytes()
+              blob = request("POST", "/git/blobs", {
+                  "content": base64.b64encode(raw).decode("ascii"),
+                  "encoding": "base64",
+              })
+              if blob.get("sha") != expected_blob:
+                  raise SystemExit(f"ABORT: blob identity mismatch for {rel}")
+              entries.append({"path": rel, "mode": "100644", "type": "blob", "sha": expected_blob})
+
+          tree = request("POST", "/git/trees", {"base_tree": expected_tree, "tree": entries})
+          if tree.get("sha") != local_tree:
+              raise SystemExit(
+                  f"ABORT: GitHub repaired tree != local validated tree: {tree.get('sha')} != {local_tree}"
+              )
+
+          commit = request("POST", "/git/commits", {
+              "message": "fix(s1): require reachable frozen glib graph",
+              "tree": local_tree,
+              "parents": [expected_head],
+          })
+          new_head = commit.get("sha")
+          if not isinstance(new_head, str) or len(new_head) != 40:
+              raise SystemExit("ABORT: malformed repaired commit SHA")
+
+          current2 = request("GET", ref_path).get("object", {}).get("sha")
+          if current2 != expected_head:
+              raise SystemExit(f"ABORT: PR branch raced before ref update: {current2}")
+
+          updated = request("PATCH", "/git/refs/heads/" + urllib.parse.quote(target, safe="/"), {
+              "sha": new_head,
+              "force": False,
+          })
+          if updated.get("object", {}).get("sha") != new_head:
+              raise SystemExit("ABORT: repaired PR ref identity mismatch")
+
+          print("WEPLD_PR9_QODO_REPAIR")
+          print(f"OLD_HEAD={expected_head}")
+          print(f"NEW_HEAD={new_head}")
+          print(f"NEW_TREE={local_tree}")
+          print(f"SCRIPT_BLOB={os.environ['SCRIPT_BLOB']}")
+          print(f"SPEC_BLOB={os.environ['SPEC_BLOB']}")
+          print("CHANGED_PATH_SET_UNCHANGED=YES")
+          print("SOURCE_ACQUISITION_CHECK=OPEN")
+          print("DEPENDENCY_ADMISSION=NONE")
+          print("PRODUCT_IMPLEMENTATION=BLOCKED")
+          PY

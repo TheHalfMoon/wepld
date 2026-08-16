@@ -1,0 +1,49 @@
+name: s1-admission-integrity
+
+on:
+  pull_request_target:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout trusted base policy only
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          lfs: false
+          submodules: false
+
+      - name: Run trusted policy self-tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python .github/scripts/wepld_integrity.py selftest
+
+      - name: Inspect candidate Git objects as data only
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          CANDIDATE_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          python .github/scripts/wepld_integrity.py verify-remote \
+            --repository "$CANDIDATE_REPOSITORY" \
+            --sha "$CANDIDATE_SHA" \
+            --policy-root . \
+            --pr-base-sha "$PR_BASE_SHA"

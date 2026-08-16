@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """Bounded S1 execution extension over the canonical acquisition integrity policy.
 
-This file exists to make the first product-code stage explicit without weakening the
-S1-003/S1-005 fail-closed machinery. The privileged pull_request_target workflow still
-checks candidate Git objects as data only; candidate Rust is compiled/tested only in the
-separate unprivileged pull_request workflow.
+The privileged pull_request_target path still treats candidate Git objects as data only.
+Candidate Rust executes only in the separate token-minimal pull_request contracts gate.
 """
 
 from __future__ import annotations
 
+import hashlib
 import os
 import sys
 from pathlib import Path
@@ -33,12 +32,21 @@ S1_005_EVIDENCE_PATH = (
     "s1-005-component-admission-evidence.md"
 )
 S1_006_FROZEN_EVIDENCE_PATHS = frozenset(
-    {
-        "docs/governance/DEPENDENCY_REGISTER.md",
-        S1_005_EVIDENCE_PATH,
-    }
+    {"docs/governance/DEPENDENCY_REGISTER.md", S1_005_EVIDENCE_PATH}
 )
 MAX_S1_006_SOURCE_BYTES = 256_000
+
+EXPECTED_WORKFLOW_SHA256 = {
+    ".github/workflows/foundation-integrity.yml": (
+        "ea999efbe2a5b4226eb008d1517469c7ade1d5b99fb9179f3fca6a6c8a17310e"
+    ),
+    ".github/workflows/s1-admission-integrity.yml": (
+        "d3c34c3cfdee9849ca94ede21ea9d20df5d8fe68cabea1e620fe853e029a9e71"
+    ),
+    CONTRACTS_WORKFLOW: (
+        "fc44c982c5fe59f5b717af9b576c1118bd8b1c4ace0cec4a61d3ea4269c5b6b9"
+    ),
+}
 
 PROHIBITED_EFFECT_TOKENS = (
     "std::fs",
@@ -61,164 +69,6 @@ PROHIBITED_EFFECT_TOKENS = (
     "include_str!(",
     "#[path",
 )
-
-EXPECTED_FOUNDATION_WORKFLOW = """name: foundation-integrity
-
-on:
-  pull_request:
-  push:
-    branches:
-      - main
-
-permissions: {}
-
-jobs:
-  verify:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout exact revision
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: false
-          fetch-depth: 1
-          lfs: false
-          submodules: false
-
-      - name: Run integrity policy self-tests
-        shell: bash
-        run: |
-          set -euo pipefail
-          python .github/scripts/wepld_s1_execution_integrity.py selftest
-
-      # The checked-out policy must never be the sole owner of its own expected
-      # digests, so both events also verify the separately governed immutable
-      # baseline. The request is unauthenticated on purpose: the repository and
-      # the baseline object are public, and no GITHUB_TOKEN may reach the policy
-      # script.
-      - name: Verify exact checked-out tree against the immutable baseline
-        shell: bash
-        env:
-          WEPLD_COMPARISON_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
-        run: |
-          set -euo pipefail
-          if [ -z "${WEPLD_COMPARISON_SHA:-}" ]; then
-            echo 'immutable baseline comparison SHA could not be established' >&2
-            exit 1
-          fi
-          python .github/scripts/wepld_s1_execution_integrity.py verify-local \
-            --root . \
-            --remote-baseline \
-            --pr-base-sha "$WEPLD_COMPARISON_SHA"
-"""
-
-EXPECTED_ADMISSION_WORKFLOW = """name: s1-admission-integrity
-
-on:
-  pull_request_target:
-    branches:
-      - main
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-
-permissions:
-  contents: read
-
-jobs:
-  verify:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout trusted base policy only
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.pull_request.base.sha }}
-          persist-credentials: false
-          fetch-depth: 1
-          lfs: false
-          submodules: false
-
-      - name: Run trusted policy self-tests
-        shell: bash
-        run: |
-          set -euo pipefail
-          python .github/scripts/wepld_s1_execution_integrity.py selftest
-
-      - name: Inspect candidate Git objects as data only
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          CANDIDATE_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
-          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
-          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: |
-          set -euo pipefail
-          python .github/scripts/wepld_s1_execution_integrity.py verify-remote \
-            --repository "$CANDIDATE_REPOSITORY" \
-            --sha "$CANDIDATE_SHA" \
-            --policy-root . \
-            --pr-base-sha "$PR_BASE_SHA"
-"""
-
-EXPECTED_CONTRACTS_WORKFLOW = """name: s1-contracts
-
-on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "rust-toolchain.toml"
-      - "crates/contracts/**"
-      - ".github/scripts/wepld_s1_execution_integrity.py"
-      - ".github/workflows/s1-contracts.yml"
-
-permissions: {}
-
-jobs:
-  contracts:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout exact candidate
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          persist-credentials: false
-          fetch-depth: 1
-          lfs: false
-          submodules: false
-
-      - name: Verify pinned Rust toolchain
-        shell: bash
-        run: |
-          set -euo pipefail
-          rustc --version --verbose
-          cargo --version --verbose
-
-      - name: Format contracts
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo fmt --package wepld-contracts -- --check
-
-      - name: Clippy contracts
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo clippy --locked --package wepld-contracts --all-targets -- -D warnings
-
-      - name: Test contracts
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo test --locked --package wepld-contracts --all-targets
-"""
 
 
 def classify_stage(paths: set[str]) -> str:
@@ -279,9 +129,14 @@ def validate_allowed_paths(paths: set[str], stage: str) -> None:
 
 
 def verify_policy_workflows(view: base.RepositoryView) -> None:
-    base.read_text_exact(view, ".github/workflows/foundation-integrity.yml", EXPECTED_FOUNDATION_WORKFLOW)
-    base.read_text_exact(view, ".github/workflows/s1-admission-integrity.yml", EXPECTED_ADMISSION_WORKFLOW)
-    base.read_text_exact(view, CONTRACTS_WORKFLOW, EXPECTED_CONTRACTS_WORKFLOW)
+    for relative, expected_sha in sorted(EXPECTED_WORKFLOW_SHA256.items()):
+        data = view.read_bytes(relative, base.MAX_POLICY_FILE_BYTES)
+        actual = hashlib.sha256(data).hexdigest()
+        if actual != expected_sha:
+            base.fail(
+                f"exact workflow bytes drifted: {relative}: "
+                f"expected={expected_sha} actual={actual}"
+            )
 
 
 def verify_extension_controlled_paths(
@@ -412,7 +267,6 @@ def selftest() -> None:
         | {base.FROZEN_GLIB_VENDOR_PREFIX + "/src/variant_iter.rs"}
         | set(EXTENSION_CONTROLLED_PATHS)
     )
-
     if classify_stage(component_paths) != base.COMPONENT_STAGE:
         base.fail("S1 execution self-test: component stage compatibility failed")
 
@@ -428,7 +282,6 @@ def selftest() -> None:
         classify_stage,
         one_marker,
     )
-
     base.expect_failure_matching(
         "extra S1-006 Rust module",
         "tracked path outside S1-006 allowlist",
@@ -445,13 +298,13 @@ def selftest() -> None:
     }
     verify_protocol_sources(base.MemoryView(safe_sources))
 
-    unsafe_effect = dict(safe_sources)
-    unsafe_effect["crates/contracts/src/frame.rs"] = b"use std::net::TcpStream;\n"
+    network_effect = dict(safe_sources)
+    network_effect["crates/contracts/src/frame.rs"] = b"use std::net::TcpStream;\n"
     base.expect_failure_matching(
         "network effect in S1-006",
         "S1-006 prohibited effect token",
         verify_protocol_sources,
-        base.MemoryView(unsafe_effect),
+        base.MemoryView(network_effect),
     )
 
     print("wepld S1 execution integrity policy self-tests: PASS")
@@ -498,9 +351,7 @@ def main(argv: list[str]) -> int:
         policy_base = base.LocalRepositoryView(Path(args.policy_root))
         candidate = base.RemoteRepositoryView(args.repository, args.sha, client)
         stage = verify_view(candidate, policy_base=policy_base)
-        base.verify_remote_baseline(
-            client, base.require_comparison_sha(args.pr_base_sha)
-        )
+        base.verify_remote_baseline(client, base.require_comparison_sha(args.pr_base_sha))
         print_success(stage, "REMOTE_CANDIDATE_DATA_ONLY")
         return 0
 

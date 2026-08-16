@@ -70,6 +70,21 @@ BASELINE_VALIDATION_ON_PUSH_TO_MAIN = REQUIRED
 BASELINE_FAILURE = FAIL_CLOSED
 ```
 
+The immutable baseline identity is bound end-to-end through the separately governed contract:
+
+```text
+BASELINE_COMMIT = 421c769b47fd8ad4f5bcba67ff8b00ba0adfc6c3
+BASELINE_PATH = .wepld/foundation-integrity-baseline-v1.json
+BASELINE_BLOB = a7c1423c95683f94479fb4a166ec73b3c35149ed
+```
+
+The Contents API response must report that exact blob identity before its content is decoded. The complete baseline chain is therefore the immutable commit plus exact path plus exact returned blob identity plus the expected baseline semantic fields plus base ancestry. No single element substitutes for another.
+
+```text
+REQUESTED_BASELINE_COMMIT_PATH != RETURNED_BASELINE_BLOB_IDENTITY
+BASELINE_CONTENT_FIELDS_MATCH != BASELINE_BLOB_IDENTITY_PROVEN
+```
+
 The workflow establishes one explicit comparison SHA and passes it to the policy:
 
 ```text
@@ -414,6 +429,7 @@ The policy preserves or strengthens:
 - historical `FRESH_IMPLEMENTATION_DEPENDENCIES = 0` evidence;
 - immutable remote baseline validation on every `foundation-integrity` run;
 - returned Git tree/blob identity binding;
+- immutable baseline Contents API blob identity binding;
 - trusted-base tracked-path presence preservation in the authoritative path.
 
 ## Review-finding reconciliation
@@ -441,6 +457,9 @@ NOT_PROVEN / DEFERRED_TO_S1_004_S1_005
 
 R4_TRUSTED_BASE_PATH_DELETION =
 VALID / MATERIAL / REPAIRED
+
+R5_IMMUTABLE_BASELINE_BLOB_IDENTITY =
+VALID / MATERIAL / SECURITY_RELEVANT / REPAIRED
 
 QODO_BUILD_REPORT_ARTIFACT =
 REJECTED / NON_CANONICAL_REVIEWER_RULE / NO_REPAIR
@@ -493,6 +512,8 @@ The policy self-test exercises the same classification/content functions used by
 - git/alternate-registry lock source;
 - base-controlled policy mutation;
 - absent or malformed immutable-baseline comparison SHA;
+- immutable baseline response with wrong, missing, or malformed returned blob identity;
+- immutable baseline response with non-base64 encoding;
 - Git tree response returning an object SHA other than the requested tree;
 - Git blob response returning an object SHA other than the requested blob;
 - malformed returned object identity;

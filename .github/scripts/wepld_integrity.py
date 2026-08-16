@@ -34,6 +34,7 @@ REPOSITORY = "TheHalfMoon/wepld"
 REPOSITORY_ID = 1334408699
 BASELINE_COMMIT_SHA = "421c769b47fd8ad4f5bcba67ff8b00ba0adfc6c3"
 BASELINE_PATH = ".wepld/foundation-integrity-baseline-v1.json"
+BASELINE_BLOB_SHA = "a7c1423c95683f94479fb4a166ec73b3c35149ed"
 BASELINE_BASE_MAIN_SHA = "7813dea9c53863378a5ae2fefcaf66f6b5d43103"
 EXPECTED_ARCHIVE_SHA256 = "35dee10e7526d1958c5b3b88a1a9b569b0d1a464f5eec4e20e16c19c99f1c6b0"
 EXPECTED_PLAN_SHA256 = "e269b10ef711731c4ad3af7b1135546f92d82a78975cabc9ff52c2dea4b5bf44"
@@ -923,6 +924,11 @@ def verify_remote_baseline(
         f"https://api.github.com/repos/{REPOSITORY}/contents/"
         f"{urllib.parse.quote(BASELINE_PATH, safe='/')}?ref={BASELINE_COMMIT_SHA}"
     )
+    require_object_identity(
+        "immutable baseline blob", BASELINE_BLOB_SHA, response.get("sha")
+    )
+    if response.get("encoding") != "base64":
+        fail("immutable baseline API response encoding is not base64")
     encoded = response.get("content")
     if not isinstance(encoded, str):
         fail("immutable baseline API response has no content")
@@ -1279,6 +1285,7 @@ checksum = "0000000000000000000000000000000000000000000000000000000000000000"
 
     selftest_helper_contract()
     selftest_baseline_comparison_sha()
+    selftest_baseline_blob_identity()
     selftest_object_identity()
     selftest_lock_graph()
     selftest_base_path_preservation()
@@ -1330,6 +1337,61 @@ def selftest_baseline_comparison_sha() -> None:
     )
     if require_comparison_sha("a" * 40) != "a" * 40:
         fail("self-test: a valid comparison SHA must be preserved")
+
+
+def selftest_baseline_blob_identity() -> None:
+    """R5: baseline Contents response must bind to the canonical blob identity."""
+    baseline_url = (
+        f"https://api.github.com/repos/{REPOSITORY}/contents/"
+        f"{urllib.parse.quote(BASELINE_PATH, safe='/')}?ref={BASELINE_COMMIT_SHA}"
+    )
+    baseline_content = base64.b64encode(
+        json.dumps(EXPECTED_BASELINE, sort_keys=True).encode("utf-8")
+    ).decode("ascii")
+
+    def client_for(
+        blob_identity: object,
+        encoding: object = "base64",
+    ) -> StubGitHubClient:
+        return StubGitHubClient(
+            {
+                baseline_url: {
+                    "sha": blob_identity,
+                    "encoding": encoding,
+                    "content": baseline_content,
+                }
+            }
+        )
+
+    expect_failure_matching(
+        "immutable baseline wrong returned blob SHA",
+        "returned immutable baseline blob object identity does not match the requested object",
+        verify_remote_baseline,
+        client_for("b" * 40),
+        BASELINE_BASE_MAIN_SHA,
+    )
+    expect_failure_matching(
+        "immutable baseline missing returned blob SHA",
+        "returned immutable baseline blob object identity is malformed",
+        verify_remote_baseline,
+        client_for(None),
+        BASELINE_BASE_MAIN_SHA,
+    )
+    expect_failure_matching(
+        "immutable baseline malformed returned blob SHA",
+        "returned immutable baseline blob object identity is malformed",
+        verify_remote_baseline,
+        client_for("not-a-sha"),
+        BASELINE_BASE_MAIN_SHA,
+    )
+    expect_failure_matching(
+        "immutable baseline wrong encoding",
+        "immutable baseline API response encoding is not base64",
+        verify_remote_baseline,
+        client_for(BASELINE_BLOB_SHA, "utf-8"),
+        BASELINE_BASE_MAIN_SHA,
+    )
+    verify_remote_baseline(client_for(BASELINE_BLOB_SHA), BASELINE_BASE_MAIN_SHA)
 
 
 def selftest_object_identity() -> None:

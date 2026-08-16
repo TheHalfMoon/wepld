@@ -32,8 +32,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          expected="$(python - <<'PY'
+          import tomllib
+          with open("rust-toolchain.toml", "rb") as fh:
+              print(tomllib.load(fh)["toolchain"]["channel"])
+          PY
+          )"
           rustc --version --verbose
           cargo --version --verbose
+          actual_rustc="$(rustc --version | awk '{print $2}')"
+          actual_cargo="$(cargo --version | awk '{print $2}')"
+          test "$actual_rustc" = "$expected"
+          test "$actual_cargo" = "$expected"
 
       - name: Format contracts
         shell: bash
@@ -45,7 +55,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo clippy --locked --package wepld-contracts --all-targets -- -D warnings
+          cargo clippy --locked --package wepld-contracts --all-targets -- -D warnings -F unsafe-code
 
       - name: Test contracts
         shell: bash

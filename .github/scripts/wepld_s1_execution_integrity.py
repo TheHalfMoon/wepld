@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -44,31 +45,48 @@ EXPECTED_WORKFLOW_SHA256 = {
         "d3c34c3cfdee9849ca94ede21ea9d20df5d8fe68cabea1e620fe853e029a9e71"
     ),
     CONTRACTS_WORKFLOW: (
-        "fc44c982c5fe59f5b717af9b576c1118bd8b1c4ace0cec4a61d3ea4269c5b6b9"
+        "059b6178d3d6b045ed24715f7eff938f88967c55a5478d1b254c5723a9c8051e"
     ),
 }
 
-PROHIBITED_EFFECT_TOKENS = (
-    "std::fs",
-    "std::net",
-    "std::process",
-    "tokio::",
-    "tauri::",
-    "Command::new",
-    "TcpStream",
-    "TcpListener",
-    "UdpSocket",
-    "UnixStream",
-    "UnixListener",
-    "NamedPipe",
-    "File::open",
-    "File::create",
-    "OpenOptions",
-    "include!(",
-    "include_bytes!(",
-    "include_str!(",
-    "#[path",
+# Defense-in-depth source-scope vocabulary. This is deliberately checked only
+# after comments and literals are stripped, and unsafe code is also rejected by
+# the Rust compiler in the separate unprivileged contracts workflow.
+PROHIBITED_EFFECT_IDENTIFIERS = frozenset(
+    {
+        "fs",
+        "net",
+        "process",
+        "env",
+        "thread",
+        "tokio",
+        "tauri",
+        "Command",
+        "TcpStream",
+        "TcpListener",
+        "UdpSocket",
+        "UnixStream",
+        "UnixListener",
+        "NamedPipe",
+        "File",
+        "OpenOptions",
+        "stdin",
+        "stdout",
+        "stderr",
+        "print",
+        "println",
+        "eprint",
+        "eprintln",
+        "include",
+        "include_bytes",
+        "include_str",
+    }
 )
+FORBID_UNSAFE_ATTRIBUTE = re.compile(
+    r"\A#!\s*\[\s*forbid\s*\(\s*unsafe_code\s*\)\s*\]"
+)
+PATH_ATTRIBUTE = re.compile(r"#\s*\[\s*path\b")
+RUST_IDENTIFIER = re.compile(r"(?:r#)?([A-Za-z_][A-Za-z0-9_]*)")
 
 
 def classify_stage(paths: set[str]) -> str:
@@ -167,8 +185,78 @@ def verify_protocol_component_base(
     base.verify_frozen_glib_vendor(view, paths, base.COMPONENT_STAGE)
 
 
+def _blank_non_newlines(text: str) -> str:
+    return "".join("\n" if char == "\n" else " " for char in text)
+
+
+def strip_rust_comments_and_strings(text: str) -> str:
+    """Blank Rust comments and string literals while preserving code/newlines."""
+
+    out: list[str] = []
+    i = 0
+    length = len(text)
+    while i < length:
+        if text.startswith("//", i):
+            end = text.find("\n", i + 2)
+            if end == -1:
+                out.append(" " * (length - i))
+                break
+            out.append(" " * (end - i))
+            out.append("\n")
+            i = end + 1
+            continue
+
+        if text.startswith("/*", i):
+            start = i
+            depth = 1
+            i += 2
+            while i < length and depth:
+                if text.startswith("/*", i):
+                    depth += 1
+                    i += 2
+                elif text.startswith("*/", i):
+                    depth -= 1
+                    i += 2
+                else:
+                    i += 1
+            out.append(_blank_non_newlines(text[start:i]))
+            continue
+
+        raw = re.match(r"(?:br|r)(#{0,255})\"", text[i:])
+        if raw is not None:
+            start = i
+            hashes = raw.group(1)
+            i += raw.end()
+            close = '"' + hashes
+            end = text.find(close, i)
+            i = length if end == -1 else end + len(close)
+            out.append(_blank_non_newlines(text[start:i]))
+            continue
+
+        if text.startswith('b"', i) or text[i] == '"':
+            start = i
+            i += 2 if text.startswith('b"', i) else 1
+            escaped = False
+            while i < length:
+                char = text[i]
+                i += 1
+                if escaped:
+                    escaped = False
+                elif char == "\\":
+                    escaped = True
+                elif char == '"':
+                    break
+            out.append(_blank_non_newlines(text[start:i]))
+            continue
+
+        out.append(text[i])
+        i += 1
+
+    return "".join(out)
+
+
 def verify_protocol_sources(view: base.RepositoryView) -> None:
-    texts: dict[str, str] = {}
+    code_by_path: dict[str, str] = {}
     for relative in sorted(S1_006_ALLOWED_PATHS):
         data = view.read_bytes(relative, MAX_S1_006_SOURCE_BYTES)
         try:
@@ -177,21 +265,29 @@ def verify_protocol_sources(view: base.RepositoryView) -> None:
             base.fail(f"S1-006 Rust source is not UTF-8: {relative}: {exc}")
         if "\x00" in text:
             base.fail(f"S1-006 Rust source contains NUL: {relative}")
-        texts[relative] = text
+        code_by_path[relative] = strip_rust_comments_and_strings(text)
 
     for required_forbid in (
         "crates/contracts/src/lib.rs",
         "crates/contracts/tests/protocol_v1.rs",
     ):
-        if "#![forbid(unsafe_code)]" not in texts[required_forbid]:
-            base.fail(f"S1-006 crate/test root must forbid unsafe code: {required_forbid}")
+        code = code_by_path[required_forbid].lstrip()
+        if FORBID_UNSAFE_ATTRIBUTE.match(code) is None:
+            base.fail(
+                "S1-006 crate/test root must begin with an actual "
+                f"#![forbid(unsafe_code)] attribute: {required_forbid}"
+            )
 
-    for relative, text in texts.items():
-        for token in PROHIBITED_EFFECT_TOKENS:
-            if token in text:
-                base.fail(
-                    f"S1-006 prohibited effect token {token!r} found in {relative}"
-                )
+    for relative, code in code_by_path.items():
+        identifiers = set(RUST_IDENTIFIER.findall(code))
+        forbidden = sorted(identifiers & PROHIBITED_EFFECT_IDENTIFIERS)
+        if forbidden:
+            base.fail(
+                "S1-006 prohibited effect identifier(s) found in code: "
+                f"{relative}: {', '.join(forbidden)}"
+            )
+        if PATH_ATTRIBUTE.search(code):
+            base.fail(f"S1-006 #[path] module indirection is prohibited: {relative}")
 
 
 def freeze_s1_005_evidence(
@@ -291,20 +387,57 @@ def selftest() -> None:
     )
 
     safe_sources = {
-        "crates/contracts/src/lib.rs": b"#![forbid(unsafe_code)]\n",
-        "crates/contracts/src/frame.rs": b"pub fn frame() {}\n",
+        "crates/contracts/src/lib.rs": b"// policy comment\n#![forbid(unsafe_code)]\n",
+        "crates/contracts/src/frame.rs": (
+            b'const DOC: &str = "std::net::TcpStream include!(x)";\n'
+            b"// use std::{net::TcpStream};\n"
+            b"pub fn frame() {}\n"
+        ),
         "crates/contracts/src/protocol.rs": b"pub fn protocol() {}\n",
         "crates/contracts/tests/protocol_v1.rs": b"#![forbid(unsafe_code)]\n",
     }
     verify_protocol_sources(base.MemoryView(safe_sources))
 
-    network_effect = dict(safe_sources)
-    network_effect["crates/contracts/src/frame.rs"] = b"use std::net::TcpStream;\n"
+    comment_only_forbid = dict(safe_sources)
+    comment_only_forbid["crates/contracts/src/lib.rs"] = (
+        b"// #![forbid(unsafe_code)]\npub fn not_forbidden() {}\n"
+    )
     base.expect_failure_matching(
-        "network effect in S1-006",
-        "S1-006 prohibited effect token",
+        "comment-only forbid attribute",
+        "must begin with an actual #![forbid(unsafe_code)] attribute",
         verify_protocol_sources,
-        base.MemoryView(network_effect),
+        base.MemoryView(comment_only_forbid),
+    )
+
+    grouped_network_effect = dict(safe_sources)
+    grouped_network_effect["crates/contracts/src/frame.rs"] = (
+        b"use std::{net::TcpStream};\npub fn frame() {}\n"
+    )
+    base.expect_failure_matching(
+        "grouped network effect in S1-006",
+        "S1-006 prohibited effect identifier(s) found in code",
+        verify_protocol_sources,
+        base.MemoryView(grouped_network_effect),
+    )
+
+    spaced_include = dict(safe_sources)
+    spaced_include["crates/contracts/src/protocol.rs"] = b'include ! ("other.rs");\n'
+    base.expect_failure_matching(
+        "spaced include macro in S1-006",
+        "S1-006 prohibited effect identifier(s) found in code",
+        verify_protocol_sources,
+        base.MemoryView(spaced_include),
+    )
+
+    path_indirection = dict(safe_sources)
+    path_indirection["crates/contracts/src/protocol.rs"] = (
+        b'#[path = "other.rs"]\nmod hidden;\n'
+    )
+    base.expect_failure_matching(
+        "path indirection in S1-006",
+        "S1-006 #[path] module indirection is prohibited",
+        verify_protocol_sources,
+        base.MemoryView(path_indirection),
     )
 
     print("wepld S1 execution integrity policy self-tests: PASS")

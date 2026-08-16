@@ -56,8 +56,37 @@ S1-003 introduces two complementary checks.
 
 - `pull_request`: inspect the exact PR head checkout with `permissions: {}`; `actions/checkout` still receives its required token input by default, credentials are not persisted, and no `GITHUB_TOKEN` is passed to the policy script;
 - `push` to `main`: inspect canonical main with the same embedded immutable baseline constants;
+- validate the separately governed immutable remote baseline on **every** run;
 - execute policy self-tests on every run;
 - use `actions/checkout` pinned to `v7.0.1` commit `3d3c42e5aac5ba805825da76410c181273ba90b1`.
+
+#### Immutable remote baseline validation
+
+A checked-out policy that owns its own expected digests can be satisfied by a candidate that changes the canonical artifact and the embedded constants together. That is the data-plane defect `docs/governance/FOUNDATION_INTEGRITY_BASELINE.md` exists to close, so every run validates the immutable baseline object at the pinned baseline commit.
+
+```text
+BASELINE_VALIDATION_ON_PR_HEAD = REQUIRED
+BASELINE_VALIDATION_ON_PUSH_TO_MAIN = REQUIRED
+BASELINE_FAILURE = FAIL_CLOSED
+```
+
+The workflow establishes one explicit comparison SHA and passes it to the policy:
+
+```text
+WEPLD_COMPARISON_SHA = github.event.pull_request.base.sha || github.sha
+pull_request -> the exact PR base SHA
+push to main -> the pushed canonical commit SHA
+```
+
+An exact comparison SHA is **required**. When `--remote-baseline` is selected and the comparison SHA is missing or malformed, verification fails closed rather than degrading to identity-only checking.
+
+The baseline request is deliberately unauthenticated, which is sufficient because the repository and the baseline object are public, and it keeps any credential out of the candidate-controlled head workflow.
+
+```text
+JOB_PERMISSIONS = {}
+PERSIST_CREDENTIALS = false
+GITHUB_TOKEN_PASSED_TO_POLICY_SCRIPT = NO
+```
 
 This layer is useful evidence, but a PR-controlled workflow/policy cannot be the sole authority that judges its own mutation.
 
@@ -78,6 +107,19 @@ CANDIDATE_INPUT = Git tree/blob data fetched through GitHub API
 ```
 
 The trusted policy fetches the candidate commit/tree/blob objects through GitHub's Git data API, validates object identities/modes/paths/sizes, and parses only the narrowly required text/TOML/archive data. It never checks out or executes candidate code.
+
+#### Returned object identity is bound to the requested SHA
+
+Each Git data response is bound to the object identity that was actually requested, not merely to the request URL:
+
+```text
+COMMIT_RESPONSE_SHA == REQUESTED_CANDIDATE_COMMIT_SHA
+TREE_RESPONSE_SHA   == REQUESTED_TREE_SHA
+BLOB_RESPONSE_SHA   == REQUESTED_BLOB_SHA
+IDENTITY_MISMATCH   = FAIL_CLOSED_BEFORE_CONSUMPTION
+```
+
+The returned SHA must exist, be a valid Git object SHA, and equal the requested SHA case-insensitively, consistent with the existing SHA normalization policy. A tree response is rejected before its entries are enumerated, and a blob response is rejected before its content is decoded or consumed. Size and content-shape checks are not treated as a substitute for identity.
 
 This deliberately follows GitHub's `pull_request_target` security guidance: privileged workflows must not check out and then execute untrusted PR code.
 
@@ -102,6 +144,31 @@ docs/governance/FOUNDATION_INTEGRITY_BASELINE.md
 ```
 
 An ordinary dependency/product PR therefore cannot rewrite the gate or the core governance contracts used to judge it. A legitimate later policy migration requires a separately governed bootstrap/override path; it is not silently self-authorizing.
+
+These paths remain byte-frozen against the trusted base, separately from the presence rule below.
+
+### Trusted-base tracked path preservation
+
+The stage allowlist permits any Markdown under `docs/` or `specs/`, and `REQUIRED_PATHS` is a deliberate subset rather than a complete inventory of trusted-base documentation/evidence. Without a further rule, a candidate could silently delete canonical governance, acquisition, historical, learning, or evidence documents that no fixed list enumerates.
+
+The authoritative layer therefore validates both tracked-entry sets and rejects deletions:
+
+```text
+TRUSTED_BASE_EXISTING_PATH -> candidate may preserve
+TRUSTED_BASE_EXISTING_PATH -> candidate may modify only if other policy permits
+TRUSTED_BASE_EXISTING_PATH -> candidate may not silently delete
+NEW_CANDIDATE_PATH         -> allowed only through the stage allowlist
+```
+
+This is **presence** preservation, derived from the trusted base checkout rather than a hard-coded enumeration.
+
+```text
+PRESENCE_PRESERVATION != CONTENT_FREEZE
+```
+
+Markdown is not byte-frozen: candidate modifications to non-base-controlled `docs/`/`specs/` documents remain eligible under existing stage rules, `BASE_CONTROLLED_PATHS` continue byte-for-byte comparison, and candidate additions must still satisfy the stage allowlist.
+
+This records the S1 admission policy's current fail-closed behavior. It does not create an eternal prohibition on deletion; a separately governed future policy migration may define deletion/retirement semantics.
 
 ## Stage model
 
@@ -290,7 +357,41 @@ Stage B2 requires:
 - exact candidate packages/versions present;
 - `tauri-plugin-shell` absent.
 
-The lockfile still does not establish runtime admission.
+### Structural graph rules
+
+Presence of the required name/version tuples is not sufficient; a hand-authored or minimally synthetic package list must not satisfy Stage B2. The lock must additionally satisfy:
+
+- **duplicate identity rejection** — no package identity may appear twice; identity includes the declared source, so two entries differing only by source are still caught;
+- **restricted source-less packages** — the only permitted source-less workspace/path identities are `wepld-desktop 0.0.0`, `wepld-contracts 0.0.0`, and `wepld-core 0.0.0`; any other source-less package is rejected;
+- **dependency reference resolution** — `dependencies` must be a list of strings; the reference forms `name`, `name version`, and `name version (source)` are parsed; every reference must resolve uniquely to a package identity present in the lock; unresolved and ambiguous references are rejected.
+
+Required direct workspace edges, version-bound, implied by the exact Stage-B manifests (Cargo.lock merges normal and build dependencies into one `dependencies` array, so `tauri-build` is expected on `wepld-desktop`):
+
+```text
+wepld-desktop 0.0.0 ->
+  tauri 2.11.5
+  wepld-contracts 0.0.0
+  tauri-build 2.6.3
+
+wepld-contracts 0.0.0 ->
+  serde 1.0.229
+  serde_json 1.0.151
+
+wepld-core 0.0.0 ->
+  wepld-contracts 0.0.0
+```
+
+Transitive edges are not asserted, because they are not implied by WePLD-owned manifests.
+
+### Claim boundary
+
+These rules are evaluated by parsing bytes in a data-only path. No candidate Cargo and no candidate code of any kind is executed by `pull_request_target` or the privileged policy path, and parsing cannot establish what produced a file.
+
+```text
+STRUCTURALLY_CONSISTENT_LOCK != CARGO_GENERATION_PROVENANCE
+```
+
+Cargo-generation provenance, `cargo tree`, feature inventory, SBOM, and advisory evidence remain S1-004/S1-005 responsibilities. The lockfile still does not establish runtime admission.
 
 ## Immutable P0 protections retained
 
@@ -310,7 +411,46 @@ The policy preserves or strengthens:
 - case-insensitive tracked-path collision rejection;
 - temporary repair payload/workflow rejection;
 - duplicate canonical security-policy rejection;
-- historical `FRESH_IMPLEMENTATION_DEPENDENCIES = 0` evidence.
+- historical `FRESH_IMPLEMENTATION_DEPENDENCIES = 0` evidence;
+- immutable remote baseline validation on every `foundation-integrity` run;
+- returned Git tree/blob identity binding;
+- trusted-base tracked-path presence preservation in the authoritative path.
+
+## Review-finding reconciliation
+
+Reviewer output is untrusted evidence, not repository authority. Canonical WePLD documents outrank reviewer-product rules.
+
+```text
+REVIEW_HEAD = a29382c99286c1d1b32d9fb799ed3e8ac78fe32a
+```
+
+Dispositions derived from that review head:
+
+```text
+R1_IMMUTABLE_BASELINE =
+VALID / BLOCKING / REPAIRED
+
+R2_TREE_BLOB_IDENTITY =
+VALID / BLOCKING / REPAIRED
+
+R3_LOCKFILE_STRUCTURE =
+VALID_IN_PART / MATERIAL / STRUCTURAL_REPAIR
+
+R3_GENERATION_PROVENANCE =
+NOT_PROVEN / DEFERRED_TO_S1_004_S1_005
+
+R4_TRUSTED_BASE_PATH_DELETION =
+VALID / MATERIAL / REPAIRED
+
+QODO_BUILD_REPORT_ARTIFACT =
+REJECTED / NON_CANONICAL_REVIEWER_RULE / NO_REPAIR
+```
+
+`R3` is a structural repair by design. The finding framed the defect as a lockfile that is not the generated resolved graph; structural parsing cannot establish generation provenance, and executing candidate Cargo in the privileged path is prohibited. The repair therefore closes the fabricated-list bypass without making the provenance claim.
+
+The Qodo rule requiring a machine-readable per-run build-report artifact is rejected. A trusted-base reread of `AGENTS.md`, the canonical documents, the governance documents, and the active S1 Spec Kit files established no matching WePLD requirement. No `actions/upload-artifact`, additional workflow permission, or build-report subsystem is introduced; adding that machinery on reviewer-product authority alone would expand S1-003 scope and workflow attack surface.
+
+The new exact head is intentionally **not** recorded in this tracked file: writing the resulting SHA here would recursively change that SHA. Exact-head CI, security, egress, and independent-review binding remain GitHub-side evidence.
 
 ## Reviewer egress controls and Cubic limitation
 
@@ -351,9 +491,25 @@ The policy self-test exercises the same classification/content functions used by
 - git dependency;
 - product behavior in a skeleton;
 - git/alternate-registry lock source;
-- base-controlled policy mutation.
+- base-controlled policy mutation;
+- absent or malformed immutable-baseline comparison SHA;
+- Git tree response returning an object SHA other than the requested tree;
+- Git blob response returning an object SHA other than the requested blob;
+- malformed returned object identity;
+- fabricated minimal lock containing only the required package tuples;
+- duplicate lock package identity;
+- unexpected source-less lock package;
+- missing required direct workspace edge;
+- required edge resolving to the wrong version;
+- dependency reference to a nonexistent package;
+- dependency reference to an unresolved version;
+- ambiguous unversioned dependency reference;
+- malformed dependency reference;
+- silently deleted optional trusted-base evidence document.
 
-These dependency-labeled probes currently prove **exact Stage-B template drift rejection**. They do not claim independent semantic manifest rules beyond the exact templates unless such semantic validators are added later.
+Each negative probe asserts the **reason** for rejection rather than accepting any failure, so a probe cannot pass incidentally; the reason-asserting helper is itself meta-tested against a wrong-reason failure and a non-failure. The object-identity probes drive the real `RemoteRepositoryView` logic against canned Git data responses, proving rejection occurs before tree entries are enumerated or blob content is decoded, and that correct responses still succeed. The lock probes are paired with a positive structurally valid fixture, so hardening cannot degrade into "reject every lock".
+
+These dependency-labeled probes prove **exact Stage-B template drift rejection** plus the structural graph rules above. They do not claim Cargo-generation provenance or independent semantic manifest rules beyond the exact templates.
 
 ## Bootstrap limitation
 

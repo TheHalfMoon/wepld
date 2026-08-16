@@ -23,7 +23,6 @@ import stat
 import subprocess
 import sys
 import tarfile
-import tempfile
 import tomllib
 import urllib.error
 import urllib.parse
@@ -252,6 +251,36 @@ REQUIRED_LOCK_PACKAGES = {
     ("wepld-core", "0.0.0"),
 }
 
+# Only the workspace members declared by the exact Stage-B manifests may appear
+# without a `source`. Any other source-less identity is an unresolved or
+# fabricated package masquerading as a local path crate.
+WORKSPACE_LOCK_PACKAGES = {
+    ("wepld-desktop", "0.0.0"),
+    ("wepld-contracts", "0.0.0"),
+    ("wepld-core", "0.0.0"),
+}
+
+# Direct dependency edges implied by the exact Stage-B manifests. Cargo.lock
+# merges normal and build dependencies into one `dependencies` array, so
+# `tauri-build` is expected on `wepld-desktop`. Transitive edges are not
+# asserted here; they are not implied by WePLD-owned manifests.
+REQUIRED_LOCK_EDGES = {
+    ("wepld-desktop", "0.0.0"): frozenset(
+        {
+            ("tauri", "2.11.5"),
+            ("wepld-contracts", "0.0.0"),
+            ("tauri-build", "2.6.3"),
+        }
+    ),
+    ("wepld-contracts", "0.0.0"): frozenset(
+        {
+            ("serde", "1.0.229"),
+            ("serde_json", "1.0.151"),
+        }
+    ),
+    ("wepld-core", "0.0.0"): frozenset({("wepld-contracts", "0.0.0")}),
+}
+
 REPOSITORY_SLUG_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 OBJECT_SHA_RE = re.compile(r"^[0-9a-fA-F]{40,64}$")
 
@@ -389,6 +418,25 @@ class LocalRepositoryView(RepositoryView):
         return data
 
 
+def require_object_identity(kind: str, requested: str, returned: object) -> None:
+    """Bind a Git data API response to the exact object identity requested.
+
+    Without this the policy would trust the request URL rather than the answer,
+    and would consume whatever tree entries or blob content came back. Object IDs
+    compare case-insensitively, matching the existing SHA normalization policy
+    (`OBJECT_SHA_RE` accepts either case; the candidate commit SHA is lowercased).
+    """
+    if not OBJECT_SHA_RE.fullmatch(requested):
+        fail(f"requested {kind} object SHA is malformed: {requested!r}")
+    if not isinstance(returned, str) or not OBJECT_SHA_RE.fullmatch(returned):
+        fail(f"returned {kind} object identity is malformed: {returned!r}")
+    if returned.lower() != requested.lower():
+        fail(
+            f"returned {kind} object identity does not match the requested object: "
+            f"requested={requested.lower()} returned={returned.lower()}"
+        )
+
+
 class RemoteRepositoryView(RepositoryView):
     """Read a candidate Git object graph through GitHub API without checkout."""
 
@@ -428,6 +476,8 @@ class RemoteRepositoryView(RepositoryView):
         tree = self.client.json(
             f"https://api.github.com/repos/{self.repository}/git/trees/{tree_sha}?recursive=1"
         )
+        # Bind the response to the requested tree before any entry is consumed.
+        require_object_identity("tree", tree_sha, tree.get("sha"))
         if tree.get("truncated") is True:
             fail("candidate Git tree response is truncated")
         raw_entries = tree.get("tree")
@@ -480,6 +530,8 @@ class RemoteRepositoryView(RepositoryView):
         payload = self.client.json(
             f"https://api.github.com/repos/{self.repository}/git/blobs/{blob_sha}"
         )
+        # Bind the response to the requested blob before any content is decoded.
+        require_object_identity("blob", blob_sha, payload.get("sha"))
         encoding = payload.get("encoding")
         content = payload.get("content")
         if encoding != "base64" or not isinstance(content, str):
@@ -608,7 +660,8 @@ def validate_lock_bytes(data: bytes) -> None:
     if len(packages) > MAX_LOCK_PACKAGES:
         fail("Cargo.lock package count exceeds bounded maximum")
 
-    observed: set[tuple[str, str]] = set()
+    identities: list[tuple[str, str, str | None]] = []
+    declared_edges: dict[tuple[str, str], list[str]] = {}
     for package in packages:
         if not isinstance(package, dict):
             fail("Cargo.lock contains a non-table package")
@@ -616,10 +669,34 @@ def validate_lock_bytes(data: bytes) -> None:
         version = package.get("version")
         if not isinstance(name, str) or not isinstance(version, str):
             fail("Cargo.lock package name/version is malformed")
-        observed.add((name, version))
+        if not name or not version:
+            fail("Cargo.lock package name/version is empty")
+        identity = (name, version)
 
         source = package.get("source")
+        if source is not None and not isinstance(source, str):
+            fail(f"Cargo.lock package source is malformed: {name}")
+        # Identity includes source so two entries differing only by source are
+        # still caught as a duplicate package identity.
+        identities.append((name, version, source))
+
+        raw_dependencies = package.get("dependencies")
+        if raw_dependencies is not None:
+            if not isinstance(raw_dependencies, list):
+                fail(f"Cargo.lock dependencies field is not an array: {name}")
+            references: list[str] = []
+            for reference in raw_dependencies:
+                if not isinstance(reference, str) or not reference.strip():
+                    fail(f"Cargo.lock dependency reference is malformed: {name}")
+                references.append(reference)
+            declared_edges[identity] = references
+
         if source is None:
+            if identity not in WORKSPACE_LOCK_PACKAGES:
+                fail(
+                    "source-less Cargo.lock package is not an expected Stage-B "
+                    f"workspace member: {name} {version}"
+                )
             if package.get("checksum") is not None:
                 fail(f"workspace/path package unexpectedly carries checksum: {name}")
             continue
@@ -633,11 +710,94 @@ def validate_lock_bytes(data: bytes) -> None:
         except ValueError:
             fail(f"registry package checksum is not hexadecimal: {name}")
 
+    name_versions = [(name, version) for name, version, _source in identities]
+    if len(name_versions) != len(set(name_versions)):
+        duplicates = sorted(
+            {item for item in name_versions if name_versions.count(item) > 1}
+        )
+        fail("duplicate Cargo.lock package identity: " + repr(duplicates))
+
+    observed = set(name_versions)
     missing = sorted(REQUIRED_LOCK_PACKAGES - observed)
     if missing:
         fail("Cargo.lock missing required candidate packages: " + repr(missing))
     if any(name == "tauri-plugin-shell" for name, _version in observed):
         fail("tauri-plugin-shell is prohibited in the S1 dependency candidate")
+
+    missing_workspace = sorted(WORKSPACE_LOCK_PACKAGES - observed)
+    if missing_workspace:
+        fail("Cargo.lock missing expected workspace members: " + repr(missing_workspace))
+
+    validate_lock_graph(observed, declared_edges)
+
+
+def parse_lock_dependency(owner: tuple[str, str], reference: str) -> tuple[str, str | None]:
+    """Split a Cargo.lock dependency reference into `name` and optional `version`.
+
+    Cargo has written `"name"`, `"name version"`, and `"name version (source)"`.
+    """
+    parts = reference.split()
+    if not parts or len(parts) > 3:
+        fail(
+            "malformed Cargo.lock dependency reference: "
+            f"{owner[0]} {owner[1]} -> {reference!r}"
+        )
+    if len(parts) == 3 and not (parts[2].startswith("(") and parts[2].endswith(")")):
+        fail(
+            "malformed Cargo.lock dependency source qualifier: "
+            f"{owner[0]} {owner[1]} -> {reference!r}"
+        )
+    return parts[0], parts[1] if len(parts) >= 2 else None
+
+
+def validate_lock_graph(
+    observed: set[tuple[str, str]],
+    declared_edges: Mapping[tuple[str, str], list[str]],
+) -> None:
+    """Require each dependency reference to resolve uniquely, and require the
+    direct workspace edges implied by the exact Stage-B manifests.
+
+    This establishes structural consistency only:
+
+        STRUCTURALLY_CONSISTENT_LOCK != CARGO_GENERATION_PROVENANCE
+    """
+    versions_by_name: dict[str, set[str]] = {}
+    for name, version in observed:
+        versions_by_name.setdefault(name, set()).add(version)
+
+    resolved_edges: dict[tuple[str, str], set[tuple[str, str]]] = {}
+    for owner, references in declared_edges.items():
+        resolved: set[tuple[str, str]] = set()
+        for reference in references:
+            name, version = parse_lock_dependency(owner, reference)
+            known = versions_by_name.get(name)
+            if not known:
+                fail(
+                    "Cargo.lock dependency does not resolve to any package in the "
+                    f"lock: {owner[0]} {owner[1]} -> {reference!r}"
+                )
+            if version is None:
+                if len(known) != 1:
+                    fail(
+                        "ambiguous unversioned Cargo.lock dependency reference: "
+                        f"{owner[0]} {owner[1]} -> {reference!r}"
+                    )
+                version = next(iter(known))
+            elif version not in known:
+                fail(
+                    "Cargo.lock dependency version does not resolve to a package "
+                    f"in the lock: {owner[0]} {owner[1]} -> {reference!r}"
+                )
+            resolved.add((name, version))
+        resolved_edges[owner] = resolved
+
+    for owner, required in REQUIRED_LOCK_EDGES.items():
+        absent = sorted(required - resolved_edges.get(owner, set()))
+        if absent:
+            fail(
+                "Cargo.lock is missing required direct dependency edges for "
+                f"{owner[0]} {owner[1]}: " + repr(absent)
+            )
 
 
 def verify_dependency_register(view: RepositoryView) -> None:
@@ -739,6 +899,22 @@ def verify_archive(view: RepositoryView) -> None:
             fail(f"canonical archive member is empty: {name}")
 
 
+def require_comparison_sha(value: str | None) -> str:
+    """Resolve the commit whose ancestry the immutable baseline must cover.
+
+    On `pull_request` this is the exact PR base SHA; on `push` to `main` it is
+    the pushed canonical commit. Baseline verification must never silently
+    degrade to identity-only checking, so a missing or malformed comparison SHA
+    fails closed.
+    """
+    candidate = (value or "").strip()
+    if not candidate:
+        fail("immutable baseline comparison SHA could not be established")
+    if not OBJECT_SHA_RE.fullmatch(candidate):
+        fail(f"immutable baseline comparison SHA is malformed: {candidate!r}")
+    return candidate
+
+
 def verify_remote_baseline(
     client: GitHubClient,
     pr_base_sha: str | None,
@@ -772,7 +948,7 @@ def verify_remote_baseline(
 
 def compare_base_controlled(
     candidate: RepositoryView,
-    policy_base: LocalRepositoryView,
+    policy_base: RepositoryView,
 ) -> None:
     for relative in sorted(BASE_CONTROLLED_PATHS):
         candidate_bytes = candidate.read_bytes(relative, MAX_POLICY_FILE_BYTES)
@@ -781,10 +957,47 @@ def compare_base_controlled(
             fail(f"base-controlled policy/governance path changed: {relative}")
 
 
+def verify_base_path_preservation(
+    candidate_paths: set[str],
+    base_paths: set[str],
+) -> None:
+    """Every tracked path present in the trusted base must still be present.
+
+    `REQUIRED_PATHS` is a deliberate subset, not a complete inventory, so
+    presence is derived from the trusted base checkout itself:
+
+        TRUSTED_BASE_EXISTING_PATH -> candidate may preserve
+        TRUSTED_BASE_EXISTING_PATH -> candidate may modify only if other policy permits
+        TRUSTED_BASE_EXISTING_PATH -> candidate may not silently delete
+        NEW_CANDIDATE_PATH         -> allowed only through the stage allowlist
+
+    This is presence preservation, not a content freeze, and it states the S1
+    admission policy's current fail-closed behavior rather than an eternal
+    prohibition; a separately governed future migration may define deletion
+    semantics.
+    """
+    deleted = sorted(base_paths - candidate_paths)
+    if deleted:
+        fail("trusted-base tracked path deleted by candidate: " + ", ".join(deleted))
+
+
+def compare_against_policy_base(
+    candidate: RepositoryView,
+    candidate_paths: set[str],
+    policy_base: RepositoryView,
+) -> None:
+    """Authoritative comparison: presence preservation for every trusted-base
+    tracked path, plus byte equality for base-controlled paths."""
+    verify_base_path_preservation(
+        candidate_paths, validate_entries(policy_base.entries())
+    )
+    compare_base_controlled(candidate, policy_base)
+
+
 def verify_view(
     view: RepositoryView,
     *,
-    policy_base: LocalRepositoryView | None = None,
+    policy_base: RepositoryView | None = None,
 ) -> str:
     paths = validate_entries(view.entries())
     stage = classify_stage(paths)
@@ -815,7 +1028,7 @@ def verify_view(
             fail(f"temporary repair workflow leaked into active tree: {path}")
 
     if policy_base is not None:
-        compare_base_controlled(view, policy_base)
+        compare_against_policy_base(view, paths, policy_base)
 
     return stage
 
@@ -824,6 +1037,21 @@ def expect_failure(label: str, func, *args, **kwargs) -> None:
     try:
         func(*args, **kwargs)
     except PolicyError:
+        return
+    fail(f"negative self-test unexpectedly passed: {label}")
+
+
+def expect_failure_matching(label: str, expected_reason: str, func, *args, **kwargs) -> None:
+    """Assert both that the policy rejects and that it rejects for the intended
+    reason, so a probe cannot pass incidentally."""
+    try:
+        func(*args, **kwargs)
+    except PolicyError as exc:
+        if expected_reason not in str(exc):
+            fail(
+                f"negative self-test failed for the wrong reason: {label}: "
+                f"expected {expected_reason!r} in {str(exc)!r}"
+            )
         return
     fail(f"negative self-test unexpectedly passed: {label}")
 
@@ -850,6 +1078,65 @@ class MemoryView(RepositoryView):
         if len(data) > limit:
             fail(f"memory-view file exceeds bound: {relative}")
         return data
+
+
+class StubGitHubClient(GitHubClient):
+    """Serve canned Git data API responses so object-identity binding can be
+    proven deterministically against the real RemoteRepositoryView logic."""
+
+    def __init__(self, responses: Mapping[str, Mapping[str, object]]):
+        super().__init__(None)
+        self.responses = dict(responses)
+
+    def json(self, url: str) -> Mapping[str, object]:
+        if url not in self.responses:
+            fail(f"stub GitHub client has no canned response for: {url}")
+        return self.responses[url]
+
+
+def lock_document(packages: Iterable[Mapping[str, object]]) -> bytes:
+    """Render a Cargo.lock-shaped TOML document for deterministic self-tests."""
+    lines = ["version = 4", ""]
+    for package in packages:
+        lines.append("[[package]]")
+        lines.append(f'name = "{package["name"]}"')
+        lines.append(f'version = "{package["version"]}"')
+        source = package.get("source")
+        if source is not None:
+            lines.append(f'source = "{source}"')
+            lines.append(f'checksum = "{"a" * 64}"')
+        dependencies = package.get("dependencies")
+        if dependencies is not None:
+            rendered = ", ".join(f'"{item}"' for item in dependencies)
+            lines.append(f"dependencies = [{rendered}]")
+        lines.append("")
+    return "\n".join(lines).encode("utf-8")
+
+
+# A structurally valid Stage-B2 fixture. Hardening must not degrade into
+# "reject every lock", so this must keep passing.
+VALID_LOCK_PACKAGES = [
+    {
+        "name": "wepld-desktop",
+        "version": "0.0.0",
+        "dependencies": ["tauri", "tauri-build", "wepld-contracts"],
+    },
+    {
+        "name": "wepld-contracts",
+        "version": "0.0.0",
+        "dependencies": ["serde", "serde_json"],
+    },
+    {"name": "wepld-core", "version": "0.0.0", "dependencies": ["wepld-contracts"]},
+    {
+        "name": "tauri",
+        "version": "2.11.5",
+        "source": CRATES_IO_SOURCE,
+        "dependencies": ["serde", "serde_json"],
+    },
+    {"name": "tauri-build", "version": "2.6.3", "source": CRATES_IO_SOURCE},
+    {"name": "serde", "version": "1.0.229", "source": CRATES_IO_SOURCE},
+    {"name": "serde_json", "version": "1.0.151", "source": CRATES_IO_SOURCE},
+]
 
 
 def selftest() -> None:
@@ -979,27 +1266,283 @@ checksum = "0000000000000000000000000000000000000000000000000000000000000000"
     )
 
     # Base-controlled comparison must fail closed on a changed policy file.
-    control_files = {
-        path: b"same"
-        for path in BASE_CONTROLLED_PATHS
-    }
+    control_files = {path: b"same" for path in BASE_CONTROLLED_PATHS}
     candidate_files = dict(control_files)
     candidate_files[".github/scripts/wepld_integrity.py"] = b"changed"
-    with tempfile.TemporaryDirectory() as temp:
-        root = Path(temp)
-        (root / ".git").mkdir()
-        for relative, data in control_files.items():
-            target = root / relative
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(data)
-        expect_failure(
-            "base-controlled policy mutation",
-            compare_base_controlled,
-            MemoryView(candidate_files),
-            LocalRepositoryView(root),
-        )
+    expect_failure_matching(
+        "base-controlled policy mutation",
+        "base-controlled policy/governance path changed",
+        compare_base_controlled,
+        MemoryView(candidate_files),
+        MemoryView(control_files),
+    )
+
+    selftest_helper_contract()
+    selftest_baseline_comparison_sha()
+    selftest_object_identity()
+    selftest_lock_graph()
+    selftest_base_path_preservation()
 
     print("wepld integrity policy self-tests: PASS")
+
+
+def selftest_helper_contract() -> None:
+    """The reason-asserting helper must not accept a correct failure that
+    failed for the wrong reason, nor a non-failure."""
+    try:
+        expect_failure_matching(
+            "meta", "UNRELATED_REASON", require_comparison_sha, ""
+        )
+    except PolicyError as exc:
+        if "failed for the wrong reason" not in str(exc):
+            fail("self-test: helper mis-reported a wrong-reason failure")
+    else:
+        fail("self-test: helper accepted a failure with the wrong reason")
+
+    try:
+        expect_failure_matching("meta", "anything", require_comparison_sha, "a" * 40)
+    except PolicyError as exc:
+        if "unexpectedly passed" not in str(exc):
+            fail("self-test: helper mis-reported a missing failure")
+    else:
+        fail("self-test: helper accepted a non-failure")
+
+
+def selftest_baseline_comparison_sha() -> None:
+    """R1: baseline verification must never run without a comparison identity."""
+    expect_failure_matching(
+        "absent baseline comparison SHA",
+        "comparison SHA could not be established",
+        require_comparison_sha,
+        "",
+    )
+    expect_failure_matching(
+        "missing baseline comparison SHA",
+        "comparison SHA could not be established",
+        require_comparison_sha,
+        None,
+    )
+    expect_failure_matching(
+        "malformed baseline comparison SHA",
+        "comparison SHA is malformed",
+        require_comparison_sha,
+        "not-a-sha",
+    )
+    if require_comparison_sha("a" * 40) != "a" * 40:
+        fail("self-test: a valid comparison SHA must be preserved")
+
+
+def selftest_object_identity() -> None:
+    """R2: tree/blob responses must be bound to the requested object identity."""
+    expect_failure_matching(
+        "mismatched returned identity",
+        "does not match the requested object",
+        require_object_identity,
+        "tree",
+        "a" * 40,
+        "b" * 40,
+    )
+    expect_failure_matching(
+        "malformed returned identity",
+        "returned blob object identity is malformed",
+        require_object_identity,
+        "blob",
+        "a" * 40,
+        "zz",
+    )
+    expect_failure_matching(
+        "absent returned identity",
+        "returned blob object identity is malformed",
+        require_object_identity,
+        "blob",
+        "a" * 40,
+        None,
+    )
+    # Case-insensitive equality is the existing SHA normalization policy.
+    require_object_identity("tree", "a" * 40, "A" * 40)
+
+    repository = "TheHalfMoon/wepld"
+    commit_sha, tree_sha, blob_sha = "1" * 40, "2" * 40, "3" * 40
+    commit_url = f"https://api.github.com/repos/{repository}/git/commits/{commit_sha}"
+    tree_url = (
+        f"https://api.github.com/repos/{repository}/git/trees/{tree_sha}?recursive=1"
+    )
+    blob_url = f"https://api.github.com/repos/{repository}/git/blobs/{blob_sha}"
+    payload = b"canonical"
+    entries = [
+        {
+            "type": "blob",
+            "path": "docs/example.md",
+            "mode": "100644",
+            "sha": blob_sha,
+            "size": len(payload),
+        }
+    ]
+
+    def responses(tree_identity: str, blob_identity: str):
+        return {
+            commit_url: {"sha": commit_sha, "tree": {"sha": tree_sha}},
+            tree_url: {"sha": tree_identity, "truncated": False, "tree": entries},
+            blob_url: {
+                "sha": blob_identity,
+                "encoding": "base64",
+                "content": base64.b64encode(payload).decode("ascii"),
+            },
+        }
+
+    # A syntactically valid tree response with the wrong identity is rejected
+    # before any of its entries are consumed.
+    expect_failure_matching(
+        "tree response with wrong returned SHA",
+        "returned tree object identity does not match the requested object",
+        RemoteRepositoryView,
+        repository,
+        commit_sha,
+        StubGitHubClient(responses("4" * 40, blob_sha)),
+    )
+
+    # A syntactically valid blob response with the wrong identity is rejected
+    # before its content is decoded.
+    wrong_blob = RemoteRepositoryView(
+        repository, commit_sha, StubGitHubClient(responses(tree_sha, "5" * 40))
+    )
+    expect_failure_matching(
+        "blob response with wrong returned SHA",
+        "returned blob object identity does not match the requested object",
+        wrong_blob.read_bytes,
+        "docs/example.md",
+        MAX_POLICY_FILE_BYTES,
+    )
+
+    honest = RemoteRepositoryView(
+        repository, commit_sha, StubGitHubClient(responses(tree_sha, blob_sha))
+    )
+    if honest.read_bytes("docs/example.md", MAX_POLICY_FILE_BYTES) != payload:
+        fail("self-test: honest tree/blob responses must remain readable")
+
+
+def selftest_lock_graph() -> None:
+    """R3: structural constraints a fabricated package list cannot satisfy."""
+    validate_lock_bytes(lock_document(VALID_LOCK_PACKAGES))
+
+    expect_failure_matching(
+        "fabricated minimal lock",
+        "source-less Cargo.lock package is not an expected Stage-B workspace member",
+        validate_lock_bytes,
+        lock_document(
+            [
+                {"name": name, "version": version}
+                for name, version in sorted(REQUIRED_LOCK_PACKAGES)
+            ]
+        ),
+    )
+    expect_failure_matching(
+        "duplicate lock package identity",
+        "duplicate Cargo.lock package identity",
+        validate_lock_bytes,
+        lock_document(VALID_LOCK_PACKAGES + [VALID_LOCK_PACKAGES[-1]]),
+    )
+    expect_failure_matching(
+        "unexpected source-less package",
+        "source-less Cargo.lock package is not an expected Stage-B workspace member",
+        validate_lock_bytes,
+        lock_document(VALID_LOCK_PACKAGES + [{"name": "smuggled", "version": "0.1.0"}]),
+    )
+
+    missing_edge = [dict(package) for package in VALID_LOCK_PACKAGES]
+    missing_edge[0]["dependencies"] = ["tauri", "wepld-contracts"]
+    expect_failure_matching(
+        "missing required direct workspace edge",
+        "missing required direct dependency edges for wepld-desktop",
+        validate_lock_bytes,
+        lock_document(missing_edge),
+    )
+
+    # A second `tauri` in the lock must not let the workspace edge point at the
+    # unexpected version.
+    wrong_edge_version = [dict(package) for package in VALID_LOCK_PACKAGES]
+    wrong_edge_version[0]["dependencies"] = [
+        "tauri 2.11.6",
+        "tauri-build",
+        "wepld-contracts",
+    ]
+    wrong_edge_version.append(
+        {"name": "tauri", "version": "2.11.6", "source": CRATES_IO_SOURCE}
+    )
+    expect_failure_matching(
+        "required edge resolving to the wrong version",
+        "missing required direct dependency edges for wepld-desktop",
+        validate_lock_bytes,
+        lock_document(wrong_edge_version),
+    )
+
+    dangling = [dict(package) for package in VALID_LOCK_PACKAGES]
+    dangling[1]["dependencies"] = ["serde", "serde_json", "nonexistent-crate"]
+    expect_failure_matching(
+        "dependency reference to a nonexistent package",
+        "does not resolve to any package in the lock",
+        validate_lock_bytes,
+        lock_document(dangling),
+    )
+
+    unresolved = [dict(package) for package in VALID_LOCK_PACKAGES]
+    unresolved[1]["dependencies"] = ["serde 9.9.9", "serde_json"]
+    expect_failure_matching(
+        "dependency reference to an unresolved version",
+        "does not resolve to a package in the lock",
+        validate_lock_bytes,
+        lock_document(unresolved),
+    )
+
+    ambiguous = [dict(package) for package in VALID_LOCK_PACKAGES]
+    ambiguous.append({"name": "serde", "version": "1.0.230", "source": CRATES_IO_SOURCE})
+    expect_failure_matching(
+        "ambiguous unversioned dependency reference",
+        "ambiguous unversioned Cargo.lock dependency reference",
+        validate_lock_bytes,
+        lock_document(ambiguous),
+    )
+
+    malformed = [dict(package) for package in VALID_LOCK_PACKAGES]
+    malformed[2]["dependencies"] = [""]
+    expect_failure_matching(
+        "malformed dependency reference",
+        "Cargo.lock dependency reference is malformed",
+        validate_lock_bytes,
+        lock_document(malformed),
+    )
+
+
+def selftest_base_path_preservation() -> None:
+    """R4: trusted-base tracked evidence cannot silently disappear."""
+    optional_evidence = (
+        "docs/acquisition/evidence/GREPTILE_OFFICIAL_BEHAVIOR_EVIDENCE_2026-08-15.md"
+    )
+    base_files = {path: b"same" for path in BASE_CONTROLLED_PATHS}
+    base_files[optional_evidence] = b"evidence"
+
+    candidate_files = {path: b"same" for path in BASE_CONTROLLED_PATHS}
+    expect_failure_matching(
+        "silently deleted optional trusted-base evidence",
+        f"trusted-base tracked path deleted by candidate: {optional_evidence}",
+        compare_against_policy_base,
+        MemoryView(candidate_files),
+        set(candidate_files),
+        MemoryView(base_files),
+    )
+
+    # Preserving every base path while adding one is allowed here; additions are
+    # governed by the stage allowlist elsewhere.
+    added = dict(base_files)
+    added["docs/new-note.md"] = b"added"
+    compare_against_policy_base(MemoryView(added), set(added), MemoryView(base_files))
+
+    # Modifying a non-base-controlled document remains allowed.
+    modified = dict(base_files)
+    modified[optional_evidence] = b"revised evidence"
+    compare_against_policy_base(
+        MemoryView(modified), set(modified), MemoryView(base_files)
+    )
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -1050,14 +1593,14 @@ def main(argv: list[str]) -> int:
             view = LocalRepositoryView(Path(args.root))
             stage = verify_view(view)
             if args.remote_baseline:
-                verify_remote_baseline(client, args.pr_base_sha or None)
+                verify_remote_baseline(client, require_comparison_sha(args.pr_base_sha))
             print_success(stage, "LOCAL_CHECKOUT")
             return 0
 
         policy_base = LocalRepositoryView(Path(args.policy_root))
         candidate = RemoteRepositoryView(args.repository, args.sha, client)
         stage = verify_view(candidate, policy_base=policy_base)
-        verify_remote_baseline(client, args.pr_base_sha)
+        verify_remote_baseline(client, require_comparison_sha(args.pr_base_sha))
         print_success(stage, "REMOTE_CANDIDATE_DATA_ONLY")
         return 0
 

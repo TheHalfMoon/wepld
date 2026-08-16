@@ -54,7 +54,7 @@ S1-003 introduces two complementary checks.
 
 `foundation-integrity` remains the familiar self-check and canonical-main check.
 
-- `pull_request`: inspect the exact PR head checkout with `permissions: {}` and no token passed to the policy;
+- `pull_request`: inspect the exact PR head checkout with `permissions: {}`; `actions/checkout` still receives its required token input by default, credentials are not persisted, and no `GITHUB_TOKEN` is passed to the policy script;
 - `push` to `main`: inspect canonical main with the same embedded immutable baseline constants;
 - execute policy self-tests on every run;
 - use `actions/checkout` pinned to `v7.0.1` commit `3d3c42e5aac5ba805825da76410c181273ba90b1`.
@@ -353,6 +353,8 @@ The policy self-test exercises the same classification/content functions used by
 - git/alternate-registry lock source;
 - base-controlled policy mutation.
 
+These dependency-labeled probes currently prove **exact Stage-B template drift rejection**. They do not claim independent semantic manifest rules beyond the exact templates unless such semantic validators are added later.
+
 ## Bootstrap limitation
 
 The new `pull_request_target` workflow does not exist in PR #4's **base** (`12fd72c...`), so it cannot authoritatively run against the PR that introduces it.
@@ -394,6 +396,23 @@ EXACT_HEAD_BINDING = REQUIRED
 If Codex Security is unavailable in this host, record `NOT_RUN_NON_BLOCKING`; never call it PASS.
 
 Any hosted correctness review requires a fresh exact-head pre-egress record. Cubic is currently ineligible because provider-effective automatic processing contradicts repository intent.
+
+### Exact-head evidence protocol
+
+The final PR candidate cannot safely self-record its own commit SHA inside this tracked file because changing the file would change that SHA again. Exact-head binding therefore lives in GitHub/PR evidence after the final content commit.
+
+Before merge or activation, require and record:
+
+```text
+LIVE_PR_HEAD_SHA = <current GitHub PR head>
+FOUNDATION_INTEGRITY_RUN_ID = <exact run id>
+FOUNDATION_INTEGRITY_RUN_HEAD_SHA = <run head_sha>
+FOUNDATION_INTEGRITY_CONCLUSION = success
+REQUIRED_EQUALITY = LIVE_PR_HEAD_SHA == FOUNDATION_INTEGRITY_RUN_HEAD_SHA
+INDEPENDENT_REVIEW_RANGE_END = LIVE_PR_HEAD_SHA
+```
+
+If any content commit changes `LIVE_PR_HEAD_SHA`, prior CI, security accounting, egress preflight, and independent review are historical and must be rebound to the new head. A run number without matching `run.head_sha` is insufficient evidence.
 
 ## S1-003 closure
 

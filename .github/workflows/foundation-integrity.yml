@@ -26,7 +26,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python .github/scripts/wepld_integrity.py selftest
+          python .github/scripts/wepld_s1_execution_integrity.py selftest
 
       # The checked-out policy must never be the sole owner of its own expected
       # digests, so both events also verify the separately governed immutable
@@ -43,7 +43,7 @@ jobs:
             echo 'immutable baseline comparison SHA could not be established' >&2
             exit 1
           fi
-          python .github/scripts/wepld_integrity.py verify-local \
+          python .github/scripts/wepld_s1_execution_integrity.py verify-local \
             --root . \
             --remote-baseline \
             --pr-base-sha "$WEPLD_COMPARISON_SHA"

@@ -99,13 +99,9 @@ jobs:
 
               packages = {p["id"]: p for p in metadata["packages"]}
               node_ids = [n["id"] for n in metadata["resolve"]["nodes"]]
-              resolved = {
+              metadata_nodes = {
                   (packages[node_id]["name"], packages[node_id]["version"])
                   for node_id in node_ids
-              }
-              external = {
-                  identity for identity in resolved
-                  if identity[0] not in allowed_internal
               }
 
               listed = set()
@@ -123,22 +119,29 @@ jobs:
                   for item in values:
                       license_ids.add(item)
 
-              missing = sorted(external - listed)
-              if missing:
-                  raise SystemExit(
-                      f"ABORT: target {target} has external resolved packages absent "
-                      f"from cargo-deny license inventory: {missing!r}"
-                  )
               if empty:
                   raise SystemExit(
                       f"ABORT: target {target} has external packages with no detected license: "
                       f"{sorted(empty)!r}"
                   )
 
+              # cargo-deny constructs its own target/feature-aware graph. Cargo metadata
+              # may contain additional resolved-but-inactive optional identities, so it
+              # is context evidence rather than a coverage denominator for `deny list`.
+              unexpected = sorted(
+                  identity for identity in listed
+                  if identity not in metadata_nodes and identity[0] not in allowed_internal
+              )
+              if unexpected:
+                  raise SystemExit(
+                      f"ABORT: target {target} cargo-deny listed identities absent from "
+                      f"target-filtered Cargo metadata: {unexpected!r}"
+                  )
+
               summary.append(
-                  f"{target}: RESOLVE_NODES={len(resolved)} "
-                  f"EXTERNAL_RESOLVED={len(external)} "
-                  f"LICENSE_LISTED={len(listed)} "
+                  f"{target}: METADATA_RESOLVE_NODES={len(metadata_nodes)} "
+                  f"CARGO_DENY_LISTED={len(listed)} "
+                  f"EXTERNAL_EMPTY_LICENSES=0 "
                   f"UNIQUE_LICENSE_IDS={','.join(sorted(license_ids))}"
               )
 

@@ -1,0 +1,54 @@
+name: s1-contracts
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - "crates/contracts/**"
+      - ".github/scripts/wepld_s1_execution_integrity.py"
+      - ".github/workflows/s1-contracts.yml"
+
+permissions: {}
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          lfs: false
+          submodules: false
+
+      - name: Verify pinned Rust toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustc --version --verbose
+          cargo --version --verbose
+
+      - name: Format contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt --package wepld-contracts -- --check
+
+      - name: Clippy contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo clippy --locked --package wepld-contracts --all-targets -- -D warnings
+
+      - name: Test contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --locked --package wepld-contracts --all-targets

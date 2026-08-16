@@ -1,0 +1,241 @@
+name: S1-005 exact component admission evidence
+
+on:
+  push:
+    branches:
+      - evidence/s1-005-component-admission
+
+permissions: {}
+
+jobs:
+  evidence:
+    name: Capture dependency, advisory, license, and SBOM evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      CANDIDATE_SHA: 590f7453d022f8192af9a0259560f92de280c8ed
+      CANDIDATE_TREE: 4552c2910de58759ca5d65354dee37a721b1e7c8
+      FROZEN_VENDOR_TREE: c064fcd71830730d12645b54228326cefefd6188
+      PATCHED_VARIANT_BLOB: e0997f651b103f7b198e528ee41137ad374e19b8
+      CARGO_TOML_SHA256: 6688d45616ad298c0e89d0a792d0fe9e2b1e86165089956ce1c273c58b6d73a9
+      CARGO_LOCK_SHA256: 3816d2befde7412f5a64b2015e437683dcd9876259fd756e7082b0d9c331cbc9
+      EXPECTED_PACKAGE_COUNT: "417"
+    steps:
+      - name: Install pinned evidence tooling before candidate acquisition
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.97.1 --profile minimal
+          cargo +1.97.1 install --locked cargo-audit --version 0.22.2
+          cargo +1.97.1 install --locked cargo-deny --version 0.19.7
+          cargo +1.97.1 install --locked cargo-cyclonedx --version 0.5.9
+
+      - name: Acquire exact candidate as public Git data and verify immutable identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          export LC_ALL=C
+          umask 077
+
+          root="$RUNNER_TEMP/wepld-s1-005-component-evidence"
+          repo="$root/repo"
+          out="$root/out"
+          rm -rf "$root"
+          mkdir -p "$repo" "$out"
+
+          git -C "$repo" init -q
+          git -C "$repo" remote add origin https://github.com/TheHalfMoon/wepld.git
+          git -C "$repo" -c protocol.version=2 fetch --no-tags --depth=1 origin "$CANDIDATE_SHA"
+          git -C "$repo" checkout --detach --quiet FETCH_HEAD
+
+          test "$(git -C "$repo" rev-parse HEAD)" = "$CANDIDATE_SHA"
+          test "$(git -C "$repo" rev-parse HEAD^{tree})" = "$CANDIDATE_TREE"
+          test "$(git -C "$repo" rev-parse HEAD:third_party/glib-0.18.5-wepld1)" = "$FROZEN_VENDOR_TREE"
+          test "$(git -C "$repo" rev-parse HEAD:third_party/glib-0.18.5-wepld1/src/variant_iter.rs)" = "$PATCHED_VARIANT_BLOB"
+
+          test "$(sha256sum "$repo/Cargo.toml" | awk '{print $1}')" = "$CARGO_TOML_SHA256"
+          test "$(sha256sum "$repo/Cargo.lock" | awk '{print $1}')" = "$CARGO_LOCK_SHA256"
+
+          git -C "$repo" status --porcelain=v1 > "$out/repository-status-before.txt"
+          test ! -s "$out/repository-status-before.txt"
+
+          printf '%s\n' "$CANDIDATE_SHA" > "$out/candidate-sha.txt"
+          printf '%s\n' "$CANDIDATE_TREE" > "$out/candidate-tree.txt"
+          printf '%s\n' "$FROZEN_VENDOR_TREE" > "$out/frozen-vendor-tree.txt"
+          printf '%s\n' "$PATCHED_VARIANT_BLOB" > "$out/patched-variant-blob.txt"
+          sha256sum "$repo/Cargo.toml" > "$out/cargo-toml-sha256.txt"
+          sha256sum "$repo/Cargo.lock" > "$out/cargo-lock-sha256.txt"
+
+      - name: Capture exact dependency graph and feature evidence without building product code
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/wepld-s1-005-component-evidence"
+          repo="$root/repo"
+          out="$root/out"
+          cd "$repo"
+
+          cargo +1.97.1 --version > "$out/cargo-version.txt"
+          rustc +1.97.1 -vV > "$out/rustc-vv.txt"
+          cargo +1.97.1 metadata --locked --format-version 1 > "$out/cargo-metadata.json"
+          cargo +1.97.1 tree --locked --all-targets > "$out/cargo-tree-all-targets.txt"
+          cargo +1.97.1 tree --locked --all-targets --all-features > "$out/cargo-feature-tree-all-targets.txt"
+          cargo +1.97.1 tree --locked -i glib@0.18.5 > "$out/glib-reverse-tree.txt"
+
+          python3 - "$out/cargo-metadata.json" "$EXPECTED_PACKAGE_COUNT" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          path = pathlib.Path(sys.argv[1])
+          expected = int(sys.argv[2])
+          obj = json.loads(path.read_text(encoding="utf-8"))
+          packages = obj.get("packages")
+          resolve = obj.get("resolve", {}).get("nodes")
+          if not isinstance(packages, list) or not isinstance(resolve, list):
+              raise SystemExit("ABORT: malformed cargo metadata package/resolve lists")
+          if len(packages) != expected or len(resolve) != expected:
+              raise SystemExit(
+                  f"ABORT: expected {expected} metadata packages/nodes, got "
+                  f"{len(packages)}/{len(resolve)}"
+              )
+          pathlib.Path(path.parent / "metadata-counts.txt").write_text(
+              f"METADATA_PACKAGES={len(packages)}\nRESOLVE_NODES={len(resolve)}\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Capture advisory evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/wepld-s1-005-component-evidence"
+          repo="$root/repo"
+          out="$root/out"
+          cd "$repo"
+
+          cargo +1.97.1 audit --version > "$out/cargo-audit-version.txt"
+          set +e
+          cargo +1.97.1 audit --json > "$out/cargo-audit.json" 2> "$out/cargo-audit.stderr.txt"
+          audit_exit=$?
+          set -e
+          printf '%s\n' "$audit_exit" > "$out/cargo-audit-exit.txt"
+
+          python3 - "$out/cargo-audit.json" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          path = pathlib.Path(sys.argv[1])
+          obj = json.loads(path.read_text(encoding="utf-8"))
+          vulns = obj.get("vulnerabilities", {})
+          vuln_count = vulns.get("count")
+          if not isinstance(vuln_count, int):
+              lst = vulns.get("list", [])
+              vuln_count = len(lst) if isinstance(lst, list) else -1
+          warnings = obj.get("warnings", {})
+          counts = {}
+          if isinstance(warnings, dict):
+              for key, value in warnings.items():
+                  counts[key] = len(value) if isinstance(value, list) else 0
+          lines = [f"AUDIT_VULNERABILITY_COUNT={vuln_count}"]
+          for key in sorted(counts):
+              lines.append(f"AUDIT_WARNING_{key.upper()}={counts[key]}")
+          path.with_name("cargo-audit-summary.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+
+      - name: Capture machine-readable license inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/wepld-s1-005-component-evidence"
+          repo="$root/repo"
+          out="$root/out"
+          cd "$repo"
+
+          cargo +1.97.1 deny --version > "$out/cargo-deny-version.txt"
+          cargo +1.97.1 deny list --format json --layout crate > "$out/cargo-deny-license-list.json"
+          test -s "$out/cargo-deny-license-list.json"
+
+      - name: Generate reproducible CycloneDX 1.5 SBOMs for all workspace members
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/wepld-s1-005-component-evidence"
+          repo="$root/repo"
+          out="$root/out"
+          cd "$repo"
+
+          cargo +1.97.1 cyclonedx --version > "$out/cargo-cyclonedx-version.txt"
+          export SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
+          cargo +1.97.1 cyclonedx \
+            --format json \
+            --spec-version 1.5 \
+            --target all \
+            --all-features
+
+          mapfile -d '' sboms < <(find . -type f -name '*.cdx.json' -print0 | sort -z)
+          test "${#sboms[@]}" -eq 3
+          for file in "${sboms[@]}"; do
+            rel="${file#./}"
+            safe="${rel//\//__}"
+            cp "$file" "$out/sbom__${safe}"
+          done
+          printf 'SBOM_FILE_COUNT=%s\n' "${#sboms[@]}" > "$out/sbom-count.txt"
+
+          # SBOM files are generated evidence, never repository changes.
+          find . -type f -name '*.cdx.json' -delete
+          git diff --exit-code -- .
+          git diff --cached --exit-code -- .
+          test -z "$(git status --porcelain=v1)"
+
+      - name: Freeze evidence hashes and summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/wepld-s1-005-component-evidence"
+          out="$root/out"
+
+          (
+            cd "$out"
+            find . -maxdepth 1 -type f ! -name SHA256SUMS.txt -printf '%f\n' \
+              | LC_ALL=C sort \
+              | while IFS= read -r file; do sha256sum "$file"; done \
+              > SHA256SUMS.txt
+          )
+
+          cat > "$out/EVIDENCE.txt" <<EOF
+          WEPLD_S1_005_COMPONENT_ADMISSION_EVIDENCE
+          CANDIDATE_SHA=$CANDIDATE_SHA
+          CANDIDATE_TREE=$CANDIDATE_TREE
+          FROZEN_VENDOR_TREE=$FROZEN_VENDOR_TREE
+          PATCHED_VARIANT_BLOB=$PATCHED_VARIANT_BLOB
+          CARGO_TOML_SHA256=$CARGO_TOML_SHA256
+          CARGO_LOCK_SHA256=$CARGO_LOCK_SHA256
+          EXPECTED_PACKAGE_COUNT=$EXPECTED_PACKAGE_COUNT
+          PRODUCT_BUILD=NONE
+          PRODUCT_TEST=NONE
+          PRODUCT_RUN=NONE
+          SOURCE_ACQUISITION_CHECK=OPEN
+          RUNTIME_DEPENDENCY_ADMISSION=NONE
+          PRODUCT_IMPLEMENTATION=BLOCKED
+          EOF
+
+          cat "$out/metadata-counts.txt" >> "$out/EVIDENCE.txt"
+          cat "$out/cargo-audit-summary.txt" >> "$out/EVIDENCE.txt"
+          cat "$out/sbom-count.txt" >> "$out/EVIDENCE.txt"
+          cat "$out/EVIDENCE.txt"
+
+          (
+            cd "$out"
+            sha256sum EVIDENCE.txt SHA256SUMS.txt
+          )
+
+      - name: Upload exact component-admission raw evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: s1-005-exact-component-admission-evidence
+          path: ${{ runner.temp }}/wepld-s1-005-component-evidence/out/
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0

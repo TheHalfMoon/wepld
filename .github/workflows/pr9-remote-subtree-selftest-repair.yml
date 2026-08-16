@@ -1,0 +1,403 @@
+name: PR9 remote subtree selftest repair
+
+on:
+  push:
+    branches:
+      - bootstrap/pr9-remote-subtree-selftest
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      EXPECTED_TARGET_HEAD: c279b574ee310f4f5da41d40ee6fdb3e8debfd1e
+      EXPECTED_TARGET_TREE: a706d0ec20b0efafa33f9781728fa7430c1f717f
+      TARGET_BRANCH: ci/s1-005-component-admission-integrity
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout repair bootstrap
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+
+      - name: Verify repair base and live PR head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_TARGET_HEAD"
+          test "$(git rev-parse "$EXPECTED_TARGET_HEAD^{tree}")" = "$EXPECTED_TARGET_TREE"
+          python3 - <<'PY'
+          import json, os, urllib.parse, urllib.request
+          repo = os.environ["GITHUB_REPOSITORY"]
+          target = os.environ["TARGET_BRANCH"]
+          req = urllib.request.Request(
+              f"https://api.github.com/repos/{repo}/git/ref/heads/{urllib.parse.quote(target, safe='/')}",
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+                  "X-GitHub-Api-Version": "2022-11-28",
+                  "User-Agent": "wepld-pr9-selftest-repair",
+              },
+          )
+          with urllib.request.urlopen(req, timeout=30) as response:
+              obj = json.load(response)
+          current = obj.get("object", {}).get("sha")
+          if current != os.environ["EXPECTED_TARGET_HEAD"]:
+              raise SystemExit(f"ABORT: PR target branch moved: {current}")
+          PY
+
+      - name: Apply bounded remote-subtree selftest repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          script = Path(".github/scripts/wepld_integrity.py")
+          text = script.read_text(encoding="utf-8")
+
+          old = '''    entries = [
+              {
+                  "type": "blob",
+                  "path": "docs/example.md",
+                  "mode": "100644",
+                  "sha": blob_sha,
+                  "size": len(payload),
+              }
+          ]
+
+          def responses(tree_identity: str, blob_identity: str):
+              return {
+                  commit_url: {"sha": commit_sha, "tree": {"sha": tree_sha}},
+                  tree_url: {"sha": tree_identity, "truncated": False, "tree": entries},
+                  blob_url: {
+                      "sha": blob_identity,
+                      "encoding": "base64",
+                      "content": base64.b64encode(payload).decode("ascii"),
+                  },
+              }
+
+          # A syntactically valid tree response with the wrong identity is rejected
+          # before any of its entries are consumed.
+          expect_failure_matching(
+              "tree response with wrong returned SHA",
+              "returned tree object identity does not match the requested object",
+              RemoteRepositoryView,
+              repository,
+              commit_sha,
+              StubGitHubClient(responses("4" * 40, blob_sha)),
+          )
+
+          # A syntactically valid blob response with the wrong identity is rejected
+          # before its content is decoded.
+          wrong_blob = RemoteRepositoryView(
+              repository, commit_sha, StubGitHubClient(responses(tree_sha, "5" * 40))
+          )
+          expect_failure_matching(
+              "blob response with wrong returned SHA",
+              "returned blob object identity does not match the requested object",
+              wrong_blob.read_bytes,
+              "docs/example.md",
+              MAX_POLICY_FILE_BYTES,
+          )
+
+          honest = RemoteRepositoryView(
+              repository, commit_sha, StubGitHubClient(responses(tree_sha, blob_sha))
+          )
+          if honest.read_bytes("docs/example.md", MAX_POLICY_FILE_BYTES) != payload:
+              fail("self-test: honest tree/blob responses must remain readable")
+          '''
+
+          new = '''    vendor_file = FROZEN_GLIB_VENDOR_PREFIX + "/src/variant_iter.rs"
+              entries = [
+                  {
+                      "type": "tree",
+                      "path": FROZEN_GLIB_VENDOR_PREFIX,
+                      "mode": "040000",
+                      "sha": FROZEN_GLIB_VENDOR_TREE_SHA,
+                  },
+                  {
+                      "type": "blob",
+                      "path": "docs/example.md",
+                      "mode": "100644",
+                      "sha": blob_sha,
+                      "size": len(payload),
+                  },
+                  {
+                      "type": "blob",
+                      "path": vendor_file,
+                      "mode": "100644",
+                      "sha": blob_sha,
+                      "size": len(payload),
+                  },
+              ]
+
+              def responses(
+                  tree_identity: str,
+                  blob_identity: str,
+                  *,
+                  vendor_tree_identity: str = FROZEN_GLIB_VENDOR_TREE_SHA,
+                  vendor_tree_mode: str = "040000",
+              ):
+                  response_entries = [dict(entry) for entry in entries]
+                  response_entries[0]["sha"] = vendor_tree_identity
+                  response_entries[0]["mode"] = vendor_tree_mode
+                  return {
+                      commit_url: {"sha": commit_sha, "tree": {"sha": tree_sha}},
+                      tree_url: {
+                          "sha": tree_identity,
+                          "truncated": False,
+                          "tree": response_entries,
+                      },
+                      blob_url: {
+                          "sha": blob_identity,
+                          "encoding": "base64",
+                          "content": base64.b64encode(payload).decode("ascii"),
+                      },
+                  }
+
+              # A syntactically valid root-tree response with the wrong identity is
+              # rejected before any of its entries are consumed.
+              expect_failure_matching(
+                  "tree response with wrong returned SHA",
+                  "returned tree object identity does not match the requested object",
+                  RemoteRepositoryView,
+                  repository,
+                  commit_sha,
+                  StubGitHubClient(responses("4" * 40, blob_sha)),
+              )
+
+              # A syntactically valid blob response with the wrong identity is rejected
+              # before its content is decoded.
+              wrong_blob = RemoteRepositoryView(
+                  repository, commit_sha, StubGitHubClient(responses(tree_sha, "5" * 40))
+              )
+              expect_failure_matching(
+                  "blob response with wrong returned SHA",
+                  "returned blob object identity does not match the requested object",
+                  wrong_blob.read_bytes,
+                  "docs/example.md",
+                  MAX_POLICY_FILE_BYTES,
+              )
+
+              expect_failure_matching(
+                  "remote subtree with malformed SHA",
+                  "candidate subtree SHA is malformed",
+                  RemoteRepositoryView,
+                  repository,
+                  commit_sha,
+                  StubGitHubClient(
+                      responses(
+                          tree_sha,
+                          blob_sha,
+                          vendor_tree_identity="not-a-sha",
+                      )
+                  ),
+              )
+              expect_failure_matching(
+                  "remote subtree with non-tree mode",
+                  "candidate subtree has unexpected mode 100644",
+                  RemoteRepositoryView,
+                  repository,
+                  commit_sha,
+                  StubGitHubClient(
+                      responses(
+                          tree_sha,
+                          blob_sha,
+                          vendor_tree_mode="100644",
+                      )
+                  ),
+              )
+
+              wrong_vendor_tree = RemoteRepositoryView(
+                  repository,
+                  commit_sha,
+                  StubGitHubClient(
+                      responses(
+                          tree_sha,
+                          blob_sha,
+                          vendor_tree_identity="b" * 40,
+                      )
+                  ),
+              )
+              wrong_vendor_paths = {entry.path for entry in wrong_vendor_tree.entries()}
+              expect_failure_matching(
+                  "remote frozen vendor subtree with wrong identity",
+                  "returned frozen glib vendor tree object identity does not match the requested object",
+                  verify_frozen_glib_vendor,
+                  wrong_vendor_tree,
+                  wrong_vendor_paths,
+                  COMPONENT_STAGE,
+              )
+
+              honest = RemoteRepositoryView(
+                  repository, commit_sha, StubGitHubClient(responses(tree_sha, blob_sha))
+              )
+              if honest.read_bytes("docs/example.md", MAX_POLICY_FILE_BYTES) != payload:
+                  fail("self-test: honest tree/blob responses must remain readable")
+              if honest.tree_identity(FROZEN_GLIB_VENDOR_PREFIX) != FROZEN_GLIB_VENDOR_TREE_SHA:
+                  fail("self-test: honest remote frozen-vendor subtree identity was not retained")
+              honest_paths = {entry.path for entry in honest.entries()}
+              if vendor_file not in honest_paths:
+                  fail("self-test: honest remote frozen-vendor descendant path was not retained")
+              verify_frozen_glib_vendor(honest, honest_paths, COMPONENT_STAGE)
+          '''
+
+          # Normalize indentation encoded in the workflow literal to the exact source.
+          old = "\n".join(line[10:] if line.startswith("          ") else line for line in old.splitlines()) + "\n"
+          new = "\n".join(line[10:] if line.startswith("          ") else line for line in new.splitlines()) + "\n"
+
+          if text.count(old) != 1:
+              raise SystemExit(f"ABORT: remote selftest patch anchor count={text.count(old)}")
+          text = text.replace(old, new, 1)
+          script.write_text(text, encoding="utf-8")
+
+          spec = Path("specs/001-desktop-rust-trusted-core-handshake/s1-005-component-admission-integrity.md")
+          spec_text = spec.read_text(encoding="utf-8")
+          spec_old = """- malformed frozen vendor subtree identity;\n- wrong frozen vendor subtree identity;\n"""
+          spec_new = """- malformed frozen vendor subtree identity;\n- wrong frozen vendor subtree identity;\n- trusted remote recursive-tree capture of the exact frozen subtree identity;\n- trusted remote rejection of malformed subtree SHA and non-tree mode;\n"""
+          if spec_text.count(spec_old) != 1:
+              raise SystemExit("ABORT: spec probe anchor mismatch")
+          spec.write_text(spec_text.replace(spec_old, spec_new, 1), encoding="utf-8")
+          PY
+
+          python3 -m py_compile .github/scripts/wepld_integrity.py
+          python3 .github/scripts/wepld_integrity.py selftest
+
+      - name: Validate clean repaired PR candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate="$RUNNER_TEMP/pr9-repaired"
+          rm -rf "$candidate"
+          git worktree add --detach "$candidate" "$EXPECTED_TARGET_HEAD"
+
+          cp .github/scripts/wepld_integrity.py "$candidate/.github/scripts/wepld_integrity.py"
+          cp \
+            specs/001-desktop-rust-trusted-core-handshake/s1-005-component-admission-integrity.md \
+            "$candidate/specs/001-desktop-rust-trusted-core-handshake/s1-005-component-admission-integrity.md"
+
+          git -C "$candidate" config user.name "WePLD Repair Validator"
+          git -C "$candidate" config user.email "repair-validator@users.noreply.github.com"
+          git -C "$candidate" add -- \
+            .github/scripts/wepld_integrity.py \
+            specs/001-desktop-rust-trusted-core-handshake/s1-005-component-admission-integrity.md
+          git -C "$candidate" diff --cached --check
+
+          mapfile -t changed < <(git -C "$candidate" diff --cached --name-only)
+          test "${#changed[@]}" -eq 2
+
+          GIT_AUTHOR_DATE='2000-01-01T00:00:00Z' \
+          GIT_COMMITTER_DATE='2000-01-01T00:00:00Z' \
+            git -C "$candidate" commit -m "test(s1): cover remote frozen-subtree identity"
+
+          python3 "$candidate/.github/scripts/wepld_integrity.py" selftest
+          python3 "$candidate/.github/scripts/wepld_integrity.py" verify-local \
+            --root "$candidate" \
+            --remote-baseline \
+            --pr-base-sha f1919396eacb90d8d947b06f023ae9da233a4580
+
+          echo "LOCAL_TREE=$(git -C "$candidate" rev-parse 'HEAD^{tree}')" >> "$GITHUB_ENV"
+          echo "SCRIPT_BLOB=$(git -C "$candidate" rev-parse 'HEAD:.github/scripts/wepld_integrity.py')" >> "$GITHUB_ENV"
+          echo "SPEC_BLOB=$(git -C "$candidate" rev-parse 'HEAD:specs/001-desktop-rust-trusted-core-handshake/s1-005-component-admission-integrity.md')" >> "$GITHUB_ENV"
+
+      - name: Fast-forward exact PR branch after identity match
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64, json, os, pathlib, urllib.error, urllib.parse, urllib.request
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          token = os.environ["GH_TOKEN"]
+          expected_head = os.environ["EXPECTED_TARGET_HEAD"]
+          expected_tree = os.environ["EXPECTED_TARGET_TREE"]
+          local_tree = os.environ["LOCAL_TREE"]
+          target = os.environ["TARGET_BRANCH"]
+          api = f"https://api.github.com/repos/{repo}"
+
+          def request(method, path, payload=None):
+              data = None if payload is None else json.dumps(payload, separators=(",", ":")).encode()
+              req = urllib.request.Request(
+                  api + path,
+                  data=data,
+                  method=method,
+                  headers={
+                      "Accept": "application/vnd.github+json",
+                      "Authorization": f"Bearer {token}",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                      "User-Agent": "wepld-pr9-selftest-repair",
+                      "Content-Type": "application/json",
+                  },
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as response:
+                      return json.loads(response.read().decode())
+              except urllib.error.HTTPError as exc:
+                  body = exc.read().decode(errors="replace")
+                  raise SystemExit(f"ABORT: GitHub API {method} {path}: {exc.code} {body}")
+
+          ref_path = "/git/ref/heads/" + urllib.parse.quote(target, safe="/")
+          current = request("GET", ref_path).get("object", {}).get("sha")
+          if current != expected_head:
+              raise SystemExit(f"ABORT: PR branch moved before repair: {current}")
+
+          parent = request("GET", f"/git/commits/{expected_head}")
+          if parent.get("tree", {}).get("sha") != expected_tree:
+              raise SystemExit("ABORT: PR parent tree mismatch")
+
+          entries = []
+          for rel, expected_blob in [
+              (".github/scripts/wepld_integrity.py", os.environ["SCRIPT_BLOB"]),
+              ("specs/001-desktop-rust-trusted-core-handshake/s1-005-component-admission-integrity.md", os.environ["SPEC_BLOB"]),
+          ]:
+              raw = pathlib.Path(rel).read_bytes()
+              blob = request("POST", "/git/blobs", {
+                  "content": base64.b64encode(raw).decode("ascii"),
+                  "encoding": "base64",
+              })
+              if blob.get("sha") != expected_blob:
+                  raise SystemExit(f"ABORT: blob identity mismatch for {rel}")
+              entries.append({"path": rel, "mode": "100644", "type": "blob", "sha": expected_blob})
+
+          tree = request("POST", "/git/trees", {"base_tree": expected_tree, "tree": entries})
+          if tree.get("sha") != local_tree:
+              raise SystemExit(
+                  f"ABORT: repaired GitHub tree != local validated tree: {tree.get('sha')} != {local_tree}"
+              )
+
+          commit = request("POST", "/git/commits", {
+              "message": "test(s1): cover remote frozen-subtree identity",
+              "tree": local_tree,
+              "parents": [expected_head],
+          })
+          new_head = commit.get("sha")
+          if not isinstance(new_head, str) or len(new_head) != 40:
+              raise SystemExit("ABORT: malformed repaired commit SHA")
+
+          current2 = request("GET", ref_path).get("object", {}).get("sha")
+          if current2 != expected_head:
+              raise SystemExit(f"ABORT: PR branch raced before update: {current2}")
+
+          updated = request("PATCH", "/git/refs/heads/" + urllib.parse.quote(target, safe="/"), {
+              "sha": new_head,
+              "force": False,
+          })
+          if updated.get("object", {}).get("sha") != new_head:
+              raise SystemExit("ABORT: repaired PR ref identity mismatch")
+
+          print("WEPLD_PR9_P9_R1_REPAIR")
+          print(f"OLD_HEAD={expected_head}")
+          print(f"NEW_HEAD={new_head}")
+          print(f"NEW_TREE={local_tree}")
+          print(f"SCRIPT_BLOB={os.environ['SCRIPT_BLOB']}")
+          print(f"SPEC_BLOB={os.environ['SPEC_BLOB']}")
+          print("CHANGED_PATH_SET_UNCHANGED=YES")
+          print("SOURCE_ACQUISITION_CHECK=OPEN")
+          print("DEPENDENCY_ADMISSION=NONE")
+          print("PRODUCT_IMPLEMENTATION=BLOCKED")
+          PY

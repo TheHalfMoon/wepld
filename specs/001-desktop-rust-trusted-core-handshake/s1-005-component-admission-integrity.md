@@ -154,6 +154,8 @@ The candidate policy must retain all existing S1-003 probes and add at least:
 - missing frozen vendor subtree identity;
 - malformed frozen vendor subtree identity;
 - wrong frozen vendor subtree identity;
+- trusted remote recursive-tree capture of the exact frozen subtree identity;
+- trusted remote rejection of malformed subtree SHA and non-tree mode;
 - frozen vendor present with the old root Cargo template;
 - patched root Cargo presented as ordinary Stage B2 without a vendor stage;
 - source-less `glib 0.18.5` rejected in ordinary Stage B2;

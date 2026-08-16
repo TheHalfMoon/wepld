@@ -1638,7 +1638,7 @@ def selftest_baseline_blob_identity() -> None:
 
 
 def selftest_object_identity() -> None:
-    """R2: tree/blob responses must be bound to the requested object identity."""
+    """R2/P9-R1: Git object responses and frozen subtree identity are exact."""
     expect_failure_matching(
         "mismatched returned identity",
         "does not match the requested object",
@@ -1674,29 +1674,55 @@ def selftest_object_identity() -> None:
     )
     blob_url = f"https://api.github.com/repos/{repository}/git/blobs/{blob_sha}"
     payload = b"canonical"
+    vendor_file = FROZEN_GLIB_VENDOR_PREFIX + "/src/variant_iter.rs"
+
     entries = [
         {
-            "type": "blob",
-            "path": "docs/example.md",
-            "mode": "100644",
-            "sha": blob_sha,
-            "size": len(payload),
-        }
+  "type": "tree",
+  "path": FROZEN_GLIB_VENDOR_PREFIX,
+  "mode": "040000",
+  "sha": FROZEN_GLIB_VENDOR_TREE_SHA,
+        },
+        {
+  "type": "blob",
+  "path": "docs/example.md",
+  "mode": "100644",
+  "sha": blob_sha,
+  "size": len(payload),
+        },
+        {
+  "type": "blob",
+  "path": vendor_file,
+  "mode": "100644",
+  "sha": blob_sha,
+  "size": len(payload),
+        },
     ]
 
-    def responses(tree_identity: str, blob_identity: str):
+    def responses(
+        tree_identity: str,
+        blob_identity: str,
+        *,
+        vendor_tree_identity: str = FROZEN_GLIB_VENDOR_TREE_SHA,
+        vendor_tree_mode: str = "040000",
+    ):
+        response_entries = [dict(entry) for entry in entries]
+        response_entries[0]["sha"] = vendor_tree_identity
+        response_entries[0]["mode"] = vendor_tree_mode
         return {
-            commit_url: {"sha": commit_sha, "tree": {"sha": tree_sha}},
-            tree_url: {"sha": tree_identity, "truncated": False, "tree": entries},
-            blob_url: {
-                "sha": blob_identity,
-                "encoding": "base64",
-                "content": base64.b64encode(payload).decode("ascii"),
-            },
+  commit_url: {"sha": commit_sha, "tree": {"sha": tree_sha}},
+  tree_url: {
+      "sha": tree_identity,
+      "truncated": False,
+      "tree": response_entries,
+  },
+  blob_url: {
+      "sha": blob_identity,
+      "encoding": "base64",
+      "content": base64.b64encode(payload).decode("ascii"),
+  },
         }
 
-    # A syntactically valid tree response with the wrong identity is rejected
-    # before any of its entries are consumed.
     expect_failure_matching(
         "tree response with wrong returned SHA",
         "returned tree object identity does not match the requested object",
@@ -1706,8 +1732,6 @@ def selftest_object_identity() -> None:
         StubGitHubClient(responses("4" * 40, blob_sha)),
     )
 
-    # A syntactically valid blob response with the wrong identity is rejected
-    # before its content is decoded.
     wrong_blob = RemoteRepositoryView(
         repository, commit_sha, StubGitHubClient(responses(tree_sha, "5" * 40))
     )
@@ -1719,12 +1743,68 @@ def selftest_object_identity() -> None:
         MAX_POLICY_FILE_BYTES,
     )
 
+    expect_failure_matching(
+        "remote subtree with malformed SHA",
+        "candidate subtree SHA is malformed",
+        RemoteRepositoryView,
+        repository,
+        commit_sha,
+        StubGitHubClient(
+  responses(
+      tree_sha,
+      blob_sha,
+      vendor_tree_identity="not-a-sha",
+  )
+        ),
+    )
+
+    expect_failure_matching(
+        "remote subtree with non-tree mode",
+        "candidate subtree has unexpected mode 100644",
+        RemoteRepositoryView,
+        repository,
+        commit_sha,
+        StubGitHubClient(
+  responses(
+      tree_sha,
+      blob_sha,
+      vendor_tree_mode="100644",
+  )
+        ),
+    )
+
+    wrong_vendor_tree = RemoteRepositoryView(
+        repository,
+        commit_sha,
+        StubGitHubClient(
+  responses(
+      tree_sha,
+      blob_sha,
+      vendor_tree_identity="b" * 40,
+  )
+        ),
+    )
+    wrong_vendor_paths = {entry.path for entry in wrong_vendor_tree.entries()}
+    expect_failure_matching(
+        "remote frozen vendor subtree with wrong identity",
+        "returned frozen glib vendor tree object identity does not match the requested object",
+        verify_frozen_glib_vendor,
+        wrong_vendor_tree,
+        wrong_vendor_paths,
+        COMPONENT_STAGE,
+    )
+
     honest = RemoteRepositoryView(
         repository, commit_sha, StubGitHubClient(responses(tree_sha, blob_sha))
     )
     if honest.read_bytes("docs/example.md", MAX_POLICY_FILE_BYTES) != payload:
         fail("self-test: honest tree/blob responses must remain readable")
-
+    if honest.tree_identity(FROZEN_GLIB_VENDOR_PREFIX) != FROZEN_GLIB_VENDOR_TREE_SHA:
+        fail("self-test: honest remote frozen-vendor subtree identity was not retained")
+    honest_paths = {entry.path for entry in honest.entries()}
+    if vendor_file not in honest_paths:
+        fail("self-test: honest remote frozen-vendor descendant path was not retained")
+    verify_frozen_glib_vendor(honest, honest_paths, COMPONENT_STAGE)
 
 def selftest_lock_graph() -> None:
     """R3/R6/R7: structural constraints a fabricated package list cannot satisfy."""

@@ -332,7 +332,7 @@ def verify_view(
         verify_protocol_sources(view)
     else:
         base.verify_frozen_glib_vendor(view, paths, stage)
-        base.verify_stage_b_templates(view(view, stage)
+        base.verify_stage_b_templates(view, stage)
 
     if any(path.startswith(".github/repair-payload/") for path in paths):
         base.fail("repair payload leaked into active tree")

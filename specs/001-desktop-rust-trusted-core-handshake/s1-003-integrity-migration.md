@@ -376,7 +376,7 @@ Stage B2 requires:
 
 Presence of the required name/version tuples is not sufficient; a hand-authored or minimally synthetic package list must not satisfy Stage B2. The lock must additionally satisfy:
 
-- **duplicate identity rejection** — no package identity may appear twice; identity includes the declared source, so two entries differing only by source are still caught;
+- **duplicate name/version rejection** — no `(name, version)` identity may appear more than once; entries that differ only by declared source still collide and are rejected;
 - **workspace source binding** — the exact Stage-B workspace identities `wepld-desktop 0.0.0`, `wepld-contracts 0.0.0`, and `wepld-core 0.0.0` must be source-less and checksum-less; they may not be represented as crates.io/registry packages;
 - **restricted source-less packages** — no identity other than those exact workspace/path packages may be source-less;
 - **dependency reference resolution** — `dependencies` must be a list of strings; the reference forms `name`, `name version`, and `name version (source)` are parsed; every reference must resolve uniquely to a package identity present in the lock; unresolved and ambiguous references are rejected;
@@ -473,6 +473,12 @@ VALID / MATERIAL / REPAIRED
 R8_CASE_VARIANT_PATH_DELETION =
 REJECTED / FALSE_POSITIVE / NO_REPAIR
 
+R9_LOCK_IDENTITY_SPEC_ALIGNMENT =
+VALID / MATERIAL / DOCS_TRUTH_REPAIR
+
+R10_ORDER_DEPENDENT_WORKSPACE_SELFTEST =
+VALID / LOW / NON_MATERIAL / DEFERRED
+
 QODO_BUILD_REPORT_ARTIFACT =
 REJECTED / NON_CANONICAL_REVIEWER_RULE / NO_REPAIR
 ```
@@ -484,6 +490,10 @@ R6 closes the inverse source-identity gap: the three exact workspace identities 
 R7 preserves and checks an explicit Cargo.lock dependency source qualifier instead of discarding it after parsing. A source-qualified dependency reference is accepted only when the qualifier equals the observed source of the resolved name/version package; the ordinary unqualified Cargo.lock forms remain supported.
 
 R8 is rejected because the proposed bypass does not exist in the current exact-path subtraction. If the trusted base contains `docs/Foo.md` and the candidate only contains `docs/foo.md`, then `base_paths - candidate_paths` still contains `docs/Foo.md`, so the candidate is already rejected as a deletion. Case-folding across the two trees as suggested would instead weaken exact-path preservation by treating a case-only replacement as presence. No R8 mutation is made.
+
+R9 corrects the specification to match the fail-closed implementation: duplicate rejection is keyed by `(name, version)`, so entries that differ only by declared source are still duplicates. The previous wording incorrectly said source was part of that duplicate identity while simultaneously claiming source-only variants collided.
+
+R10 is a valid maintainability observation but does not change the current policy result: the fixture order is stable and exact-head selftests exercise the intended workspace-source failure. It is explicitly deferred rather than relabeled as a correctness/security PASS or silently ignored.
 
 The Qodo rule requiring a machine-readable per-run build-report artifact is rejected. A trusted-base reread of `AGENTS.md`, the canonical documents, the governance documents, and the active S1 Spec Kit files established no matching WePLD requirement. No `actions/upload-artifact`, additional workflow permission, or build-report subsystem is introduced; adding that machinery on reviewer-product authority alone would expand S1-003 scope and workflow attack surface.
 

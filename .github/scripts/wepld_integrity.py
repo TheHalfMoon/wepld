@@ -186,8 +186,15 @@ STAGE_B_ALL_PATHS = STAGE_B_INPUT_PATHS | {STAGE_B_LOCK_PATH}
 COMPONENT_STAGE = "S1_COMPONENT_ACQUISITION_CANDIDATE"
 FROZEN_GLIB_VENDOR_PREFIX = "third_party/glib-0.18.5-wepld1"
 FROZEN_GLIB_VENDOR_TREE_SHA = "c064fcd71830730d12645b54228326cefefd6188"
+# Corroborative acquisition identity only. Enforcement is transitive:
+# the exact vendor tree SHA above binds this descendant blob and every
+# other path/mode/blob in the 121-file frozen subtree.
 FROZEN_GLIB_PATCHED_VARIANT_BLOB_SHA = "e0997f651b103f7b198e528ee41137ad374e19b8"
 FROZEN_GLIB_LOCK_PACKAGE = ("glib", "0.18.5")
+FROZEN_GLIB_REACHABILITY_ROOT = ("wepld-desktop", "0.0.0")
+FROZEN_GLIB_COMPONENT_LOCK_SHA256 = (
+    "3816d2befde7412f5a64b2015e437683dcd9876259fd756e7082b0d9c331cbc9"
+)
 
 COMMON_EXACT_ALLOWED = {
     ".coderabbit.yaml",
@@ -707,6 +714,12 @@ def verify_frozen_glib_vendor(view: RepositoryView, paths: set[str], stage: str)
     )
 
 
+def require_frozen_component_lock_identity(data: bytes) -> None:
+    actual = hashlib.sha256(data).hexdigest()
+    if actual != FROZEN_GLIB_COMPONENT_LOCK_SHA256:
+        fail(f"component candidate Cargo.lock SHA-256 mismatch: {actual}")
+
+
 def verify_stage_b_templates(view: RepositoryView, stage: str) -> None:
     if stage == "S1_PLANNING_ONLY":
         return
@@ -719,11 +732,13 @@ def verify_stage_b_templates(view: RepositoryView, stage: str) -> None:
         read_text_exact(view, relative, expected)
 
     if stage in {"S1_DEPENDENCY_RESOLUTION_LOCKED", COMPONENT_STAGE}:
+        lock_bytes = view.read_bytes(STAGE_B_LOCK_PATH, MAX_LOCKFILE_BYTES)
+        if stage == COMPONENT_STAGE:
+            require_frozen_component_lock_identity(lock_bytes)
         validate_lock_bytes(
-            view.read_bytes(STAGE_B_LOCK_PATH, MAX_LOCKFILE_BYTES),
+            lock_bytes,
             allow_frozen_glib=(stage == COMPONENT_STAGE),
         )
-
 
 def validate_lock_bytes(data: bytes, *, allow_frozen_glib: bool = False) -> None:
     if len(data) > MAX_LOCKFILE_BYTES:
@@ -839,7 +854,12 @@ def validate_lock_bytes(data: bytes, *, allow_frozen_glib: bool = False) -> None
     if missing_workspace:
         fail("Cargo.lock missing expected workspace members: " + repr(missing_workspace))
 
-    validate_lock_graph(observed, declared_edges, source_by_identity)
+    validate_lock_graph(
+        observed,
+        declared_edges,
+        source_by_identity,
+        required_reachable=(FROZEN_GLIB_LOCK_PACKAGE if allow_frozen_glib else None),
+    )
 
 
 def parse_lock_dependency(
@@ -876,13 +896,16 @@ def validate_lock_graph(
     observed: set[tuple[str, str]],
     declared_edges: Mapping[tuple[str, str], list[str]],
     source_by_identity: Mapping[tuple[str, str], str | None],
+    *,
+    required_reachable: tuple[str, str] | None = None,
 ) -> None:
-    """Require each dependency reference to resolve uniquely, and require the
-    direct workspace edges implied by the exact Stage-B manifests.
+    """Require dependency references to resolve uniquely and preserve the
+    direct workspace edges implied by exact Stage-B manifests.
 
-    This establishes structural consistency only:
+    The frozen component stage additionally proves that the source-less glib
+    package is transitively reachable from the desktop workspace root.
 
-        STRUCTURALLY_CONSISTENT_LOCK != CARGO_GENERATION_PROVENANCE
+    STRUCTURALLY_CONSISTENT_LOCK != CARGO_GENERATION_PROVENANCE
     """
     versions_by_name: dict[str, set[str]] = {}
     for name, version in observed:
@@ -930,6 +953,25 @@ def validate_lock_graph(
                 f"{owner[0]} {owner[1]}: " + repr(absent)
             )
 
+    if required_reachable is not None:
+        root = FROZEN_GLIB_REACHABILITY_ROOT
+        if root not in observed:
+            fail("component candidate reachability root is missing from Cargo.lock")
+
+        reachable: set[tuple[str, str]] = set()
+        pending = [root]
+        while pending:
+            current = pending.pop()
+            if current in reachable:
+                continue
+            reachable.add(current)
+            pending.extend(sorted(resolved_edges.get(current, set()) - reachable))
+
+        if required_reachable not in reachable:
+            fail(
+                "component candidate frozen glib 0.18.5 is not reachable "
+                "from wepld-desktop"
+            )
 
 def verify_dependency_register(view: RepositoryView) -> None:
     lines = view.read_text(
@@ -1431,7 +1473,7 @@ checksum = "0000000000000000000000000000000000000000000000000000000000000000"
 
 
 def selftest_frozen_glib_component() -> None:
-    """S1-005: only the exact frozen glib subtree may enter the component stage."""
+    """S1-005: only the exact frozen glib component may enter this stage."""
     base_paths = set(REQUIRED_PATHS) | {"README.md", "src/.gitkeep"}
     stage_b_locked = base_paths | set(STAGE_B_ALL_PATHS)
     vendor_file = FROZEN_GLIB_VENDOR_PREFIX + "/src/variant_iter.rs"
@@ -1486,9 +1528,28 @@ def selftest_frozen_glib_component() -> None:
         COMPONENT_STAGE,
     )
 
-    component_packages = [dict(package) for package in VALID_LOCK_PACKAGES] + [
+    disconnected_packages = [dict(package) for package in VALID_LOCK_PACKAGES] + [
         {"name": "glib", "version": "0.18.5"}
     ]
+    disconnected_lock = lock_document(disconnected_packages)
+    expect_failure_matching(
+        "disconnected frozen glib",
+        "component candidate frozen glib 0.18.5 is not reachable from wepld-desktop",
+        validate_lock_bytes,
+        disconnected_lock,
+        allow_frozen_glib=True,
+    )
+
+    component_packages: list[dict[str, object]] = []
+    for package in VALID_LOCK_PACKAGES:
+        copied = dict(package)
+        if "dependencies" in copied:
+            copied["dependencies"] = list(copied["dependencies"])
+        if (copied["name"], copied["version"]) == ("tauri", "2.11.5"):
+            copied.setdefault("dependencies", [])
+            copied["dependencies"].append("glib")
+        component_packages.append(copied)
+    component_packages.append({"name": "glib", "version": "0.18.5"})
     component_lock = lock_document(component_packages)
     validate_lock_bytes(component_lock, allow_frozen_glib=True)
 
@@ -1499,7 +1560,7 @@ def selftest_frozen_glib_component() -> None:
         component_lock,
     )
 
-    registry_glib = [dict(package) for package in VALID_LOCK_PACKAGES] + [
+    registry_glib = [dict(package) for package in component_packages[:-1]] + [
         {"name": "glib", "version": "0.18.5", "source": CRATES_IO_SOURCE}
     ]
     expect_failure_matching(
@@ -1511,11 +1572,19 @@ def selftest_frozen_glib_component() -> None:
     )
 
     component_files = {
-        relative: expected.encode("utf-8") for relative, expected in STAGE_B_TEXT.items()
+        relative: expected.encode("utf-8")
+        for relative, expected in STAGE_B_TEXT.items()
     }
     component_files["Cargo.toml"] = ROOT_CARGO_COMPONENT.encode("utf-8")
     component_files[STAGE_B_LOCK_PATH] = component_lock
-    verify_stage_b_templates(MemoryView(component_files), COMPONENT_STAGE)
+
+    expect_failure_matching(
+        "synthetic component lock is not the independently frozen exact lock",
+        "component candidate Cargo.lock SHA-256 mismatch",
+        verify_stage_b_templates,
+        MemoryView(component_files),
+        COMPONENT_STAGE,
+    )
 
     old_root = dict(component_files)
     old_root["Cargo.toml"] = ROOT_CARGO.encode("utf-8")
@@ -1534,7 +1603,6 @@ def selftest_frozen_glib_component() -> None:
         MemoryView(component_files),
         "S1_DEPENDENCY_RESOLUTION_LOCKED",
     )
-
 
 def selftest_helper_contract() -> None:
     """The reason-asserting helper must not accept a correct failure that

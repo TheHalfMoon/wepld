@@ -50,7 +50,7 @@ Prefix membership is not authority. The Git subtree object must be exactly:
 c064fcd71830730d12645b54228326cefefd6188
 ```
 
-That tree identity binds the complete descendant path set, file modes, and blob identities. The independently verified patched `src/variant_iter.rs` blob inside that tree is:
+That tree identity binds the complete descendant path set, file modes, and blob identities. The independently verified patched `src/variant_iter.rs` blob inside that tree is recorded as corroborative acquisition evidence; enforcement of that file identity is transitive through the exact subtree SHA rather than a second independent runtime check:
 
 ```text
 e0997f651b103f7b198e528ee41137ad374e19b8
@@ -87,7 +87,9 @@ CARGO_TREE_FEATURES_SHA256 = aea7d62ec7c22290ad4b975ba7167750d065fb0bc9d27d0a9e9
 GLIB_REVERSE_TREE_SHA256 = 09bb41be5e50873e99d8dd90e76b25f1f3497d2777b859b4c169133ff3095e8f
 ```
 
-The exact `glib 0.18.5` package entry has no `source` and no `checksum`, as Cargo requires for the selected path source.
+The exact `glib 0.18.5` package entry has no `source` and no `checksum`, as Cargo requires for the selected path source. The component stage additionally requires the complete `Cargo.lock` bytes to match the independently reproduced SHA-256 `3816d2befde7412f5a64b2015e437683dcd9876259fd756e7082b0d9c331cbc9`. A structurally plausible but hand-edited component lock is rejected.
+
+The policy also requires the exact source-less `glib 0.18.5` identity to be transitively reachable from the `wepld-desktop 0.0.0` workspace root in the resolved lock graph. Mere presence of a disconnected source-less glib table is not component-acquisition evidence.
 
 ## Lock fail-closed rule
 
@@ -102,7 +104,9 @@ Only in `S1_COMPONENT_ACQUISITION_CANDIDATE`:
 must be present and must be source-less/checksum-less. A registry-sourced `glib 0.18.5` in this stage is rejected because it proves the frozen path override was not selected. No other source-less package becomes eligible.
 
 ```text
-SOURCELESS_GLIB_WITH_EXACT_FROZEN_TREE = COMPONENT_CANDIDATE_EVIDENCE
+SOURCELESS_GLIB_WITH_EXACT_FROZEN_TREE_AND_EXACT_LOCK_AND_REACHABILITY = COMPONENT_CANDIDATE_EVIDENCE
+DISCONNECTED_SOURCELESS_GLIB = REJECT
+COMPONENT_LOCK_SHA256_DRIFT = REJECT
 SOURCELESS_GLIB_WITHOUT_EXACT_FROZEN_TREE = REJECT
 ARBITRARY_SOURCELESS_PACKAGE = REJECT
 ```
@@ -160,7 +164,9 @@ The candidate policy must retain all existing S1-003 probes and add at least:
 - patched root Cargo presented as ordinary Stage B2 without a vendor stage;
 - source-less `glib 0.18.5` rejected in ordinary Stage B2;
 - registry-sourced `glib 0.18.5` rejected in the component stage;
-- positive exact frozen-component lock fixture;
+- disconnected source-less `glib 0.18.5` rejected for missing workspace reachability;
+- synthetic/hand-edited component lock bytes rejected unless the exact frozen lock SHA-256 matches;
+- positive reachable frozen-component graph fixture, with the exact production lock exercised by the remote-object canary;
 - all existing source, symlink, gitlink, case-fold, policy-control, immutable-baseline, object-identity, and trusted-base path-preservation probes.
 
 Every negative probe must assert the intended rejection reason.
@@ -204,3 +210,10 @@ until a fresh docs-only canary proves the newly canonical trusted-base `s1-admis
 Only after that activation proof may the frozen prep branch be updated with the exact root Cargo path override and regenerated lock, then presented as the S1-005 component-acquisition candidate.
 
 Product implementation remains blocked throughout this migration.
+
+
+## Exact-head review reconciliation — Qodo
+
+On exact PR head `95aaf017c8af1dca41aa663283b63dc77cc94d7c`, Qodo identified that a disconnected source-less `glib 0.18.5` table could satisfy the component lock validator because structural edge resolution did not establish workspace reachability. The finding was independently reconciled as `VALID / MATERIAL / SECURITY_RELEVANT`. The repair requires both transitive reachability from `wepld-desktop` and the exact independently reproduced component-lock SHA-256.
+
+Qodo also noted that `FROZEN_GLIB_PATCHED_VARIANT_BLOB_SHA` was not read by policy logic. That finding is `VALID / NON-MATERIAL`: the exact vendor subtree identity already transitively binds the patched blob. The constant remains as corroborative acquisition evidence and is now explicitly documented as such.

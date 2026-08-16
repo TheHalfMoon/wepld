@@ -5,3 +5,6 @@ members = [
   "crates/contracts",
   "crates/core",
 ]
+
+[patch.crates-io]
+glib = { path = "third_party/glib-0.18.5-wepld1" }

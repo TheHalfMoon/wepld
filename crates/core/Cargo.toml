@@ -1,0 +1,8 @@
+[package]
+name = "wepld-core"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+wepld-contracts = { path = "../contracts" }

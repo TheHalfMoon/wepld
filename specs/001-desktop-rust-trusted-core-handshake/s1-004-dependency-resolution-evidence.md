@@ -98,8 +98,6 @@ aa8b3adee3f46131af32c9e02c45a00a19cafb5802194ed1a104a4d7a37cf0d0  warning-tree__
 3a03def41e50bd8679823661f311e03155309d594fa69fad90a58691012b012c  warning-tree__RUSTSEC-2025-0100__unic-ucd-ident__0.9.0.txt
 ```
 
-**Correction note:** the founder console transcript records the canonical empty-file SHA-256 as `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` for both CycloneDX capture files. Any shortened or malformed transcription of that digest is invalid; the complete value above is authoritative for this record.
-
 ## Evidence-run summary retained in GitHub
 
 ```text

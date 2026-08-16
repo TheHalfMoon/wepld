@@ -87,6 +87,7 @@ FORBID_UNSAFE_ATTRIBUTE = re.compile(
 )
 PATH_ATTRIBUTE = re.compile(r"#\s*\[\s*path\b")
 RUST_IDENTIFIER = re.compile(r"(?:r#)?([A-Za-z_][A-Za-z0-9_]*)")
+RAW_STRING_PREFIX = re.compile(r'(?:br|r)(#{0,255})"')
 
 
 def classify_stage(paths: set[str]) -> str:
@@ -219,17 +220,21 @@ def strip_rust_comments_and_strings(text: str) -> str:
                     i += 2
                 else:
                     i += 1
+            if depth != 0:
+                base.fail("unterminated block comment")
             out.append(_blank_non_newlines(text[start:i]))
             continue
 
-        raw = re.match(r"(?:br|r)(#{0,255})\"", text[i:])
+        raw = RAW_STRING_PREFIX.match(text, i)
         if raw is not None:
             start = i
             hashes = raw.group(1)
-            i += raw.end()
+            i = raw.end()
             close = '"' + hashes
             end = text.find(close, i)
-            i = length if end == -1 else end + len(close)
+            if end == -1:
+                base.fail("unterminated raw string literal")
+            i = end + len(close)
             out.append(_blank_non_newlines(text[start:i]))
             continue
 
@@ -237,6 +242,7 @@ def strip_rust_comments_and_strings(text: str) -> str:
             start = i
             i += 2 if text.startswith('b"', i) else 1
             escaped = False
+            closed = False
             while i < length:
                 char = text[i]
                 i += 1
@@ -245,7 +251,10 @@ def strip_rust_comments_and_strings(text: str) -> str:
                 elif char == "\\":
                     escaped = True
                 elif char == '"':
+                    closed = True
                     break
+            if not closed:
+                base.fail("unterminated string literal")
             out.append(_blank_non_newlines(text[start:i]))
             continue
 
@@ -323,7 +332,7 @@ def verify_view(
         verify_protocol_sources(view)
     else:
         base.verify_frozen_glib_vendor(view, paths, stage)
-        base.verify_stage_b_templates(view, stage)
+        base.verify_stage_b_templates(view(view, stage)
 
     if any(path.startswith(".github/repair-payload/") for path in paths):
         base.fail("repair payload leaked into active tree")
@@ -438,6 +447,35 @@ def selftest() -> None:
         "S1-006 #[path] module indirection is prohibited",
         verify_protocol_sources,
         base.MemoryView(path_indirection),
+    )
+
+    unterminated_block_comment = dict(safe_sources)
+    unterminated_block_comment["crates/contracts/src/protocol.rs"] = (
+        b"/* unterminated block comment\nTcpStream\n"
+    )
+    base.expect_failure_matching(
+        "unterminated block comment in S1-006",
+        "unterminated block comment",
+        verify_protocol_sources,
+        base.MemoryView(unterminated_block_comment),
+    )
+
+    unterminated_raw_string = dict(safe_sources)
+    unterminated_raw_string["crates/contracts/src/protocol.rs"] = b'r#"unterminated\n'
+    base.expect_failure_matching(
+        "unterminated raw string in S1-006",
+        "unterminated raw string literal",
+        verify_protocol_sources,
+        base.MemoryView(unterminated_raw_string),
+    )
+
+    unterminated_string = dict(safe_sources)
+    unterminated_string["crates/contracts/src/protocol.rs"] = b'"unterminated\n'
+    base.expect_failure_matching(
+        "unterminated string in S1-006",
+        "unterminated string literal",
+        verify_protocol_sources,
+        base.MemoryView(unterminated_string),
     )
 
     print("wepld S1 execution integrity policy self-tests: PASS")

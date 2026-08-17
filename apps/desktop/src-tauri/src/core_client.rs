@@ -2,7 +2,8 @@
 
 use std::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard, mpsc};
+use std::sync::{Arc, mpsc};
+use std::sync::{Mutex, MutexGuard};
 use std::thread;
 
 use wepld_contracts::CancelEnvelope;

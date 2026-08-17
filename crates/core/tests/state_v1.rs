@@ -6,8 +6,8 @@ use wepld_contracts::{
     ProtocolVersion, RequestEnvelope, RequestFields, ResponseEnvelope, VersionRequestPayload,
 };
 use wepld_core::{
-    CoreProfile, HandshakeState, MAX_HEALTH_WATCHES, MAX_IN_FLIGHT_REQUESTS,
-    MAX_TERMINAL_RESULTS, StateError,
+    CoreProfile, HandshakeState, MAX_HEALTH_WATCHES, MAX_IN_FLIGHT_REQUESTS, MAX_TERMINAL_RESULTS,
+    StateError,
 };
 
 const LAUNCH_ID: u64 = 41;
@@ -133,7 +133,10 @@ fn health_version_and_capabilities_dispatch_with_exact_correlation() {
         ResponseEnvelope::Capabilities(fields) => {
             assert_eq!(fields.launch_id, LAUNCH_ID);
             assert_eq!(fields.request_id, 3);
-            assert_eq!(fields.payload.capabilities.as_slice(), profile().capabilities().as_slice());
+            assert_eq!(
+                fields.payload.capabilities.as_slice(),
+                profile().capabilities().as_slice()
+            );
         }
         other => panic!("expected capability response, got {other:?}"),
     }
@@ -174,12 +177,14 @@ fn command_ids_are_strictly_increasing_with_gaps_and_reuse_is_rejected() {
     let first = core
         .accept_request(health_request(LAUNCH_ID, 10))
         .expect("first command must reserve");
-    core.dispatch_request(first).expect("first command must dispatch");
+    core.dispatch_request(first)
+        .expect("first command must dispatch");
 
     let second = core
         .accept_request(health_request(LAUNCH_ID, 12))
         .expect("larger command with a gap must reserve");
-    core.dispatch_request(second).expect("second command must dispatch");
+    core.dispatch_request(second)
+        .expect("second command must dispatch");
 
     assert_eq!(
         core.accept_request(health_request(LAUNCH_ID, 11)),
@@ -231,10 +236,7 @@ fn in_flight_budget_rejects_without_consuming_command_id_and_can_retry() {
     }
     assert_eq!(core.in_flight_count(), MAX_IN_FLIGHT_REQUESTS);
     assert_eq!(
-        core.accept_request(health_request(
-            LAUNCH_ID,
-            MAX_IN_FLIGHT_REQUESTS as u64 + 1,
-        )),
+        core.accept_request(health_request(LAUNCH_ID, MAX_IN_FLIGHT_REQUESTS as u64 + 1,)),
         Err(StateError::InFlightBudgetExhausted {
             max: MAX_IN_FLIGHT_REQUESTS,
         })
@@ -247,10 +249,7 @@ fn in_flight_budget_rejects_without_consuming_command_id_and_can_retry() {
     core.dispatch_request(pending.remove(0))
         .expect("freeing one reservation must succeed");
     let retried = core
-        .accept_request(health_request(
-            LAUNCH_ID,
-            MAX_IN_FLIGHT_REQUESTS as u64 + 1,
-        ))
+        .accept_request(health_request(LAUNCH_ID, MAX_IN_FLIGHT_REQUESTS as u64 + 1))
         .expect("same rejected command id may retry after capacity is free");
     assert_eq!(retried.request_id(), MAX_IN_FLIGHT_REQUESTS as u64 + 1);
     assert_eq!(core.in_flight_count(), MAX_IN_FLIGHT_REQUESTS);
@@ -355,7 +354,10 @@ fn unknown_and_completed_cancellation_targets_are_distinct() {
     let response = completed
         .cancel(cancellation(LAUNCH_ID, 2, 1))
         .expect("fresh terminal cancellation must succeed");
-    assert_eq!(cancel_outcome(response), CancellationOutcome::AlreadyTerminal);
+    assert_eq!(
+        cancel_outcome(response),
+        CancellationOutcome::AlreadyTerminal
+    );
 }
 
 #[test]

@@ -2,9 +2,9 @@ use std::collections::{BTreeMap, VecDeque};
 use std::fmt;
 use wepld_contracts::{
     CancelEnvelope, CancelResponsePayload, CancellationOutcome, CapabilitiesResponsePayload,
-    CapabilityList, EventEnvelope, EventFields, HealthObservationEventPayload, HealthResponsePayload,
-    HealthStatus, ObserveHealthResponsePayload, Principal, ProtocolVersion, RequestEnvelope,
-    ResponseEnvelope, ResponseFields, VersionResponsePayload,
+    CapabilityList, EventEnvelope, EventFields, HealthObservationEventPayload,
+    HealthResponsePayload, HealthStatus, ObserveHealthResponsePayload, Principal, ProtocolVersion,
+    RequestEnvelope, ResponseEnvelope, ResponseFields, VersionResponsePayload,
 };
 
 pub const MAX_IN_FLIGHT_REQUESTS: usize = 32;
@@ -130,13 +130,22 @@ impl fmt::Display for StateError {
                 write!(formatter, "health-watch budget exhausted at {max}")
             }
             Self::PendingRequestNoLongerInFlight { request_id } => {
-                write!(formatter, "pending request {request_id} is no longer in flight")
+                write!(
+                    formatter,
+                    "pending request {request_id} is no longer in flight"
+                )
             }
             Self::PendingRequestMismatch { request_id } => {
-                write!(formatter, "pending request {request_id} does not match reserved state")
+                write!(
+                    formatter,
+                    "pending request {request_id} does not match reserved state"
+                )
             }
             Self::HealthSequenceExhausted { request_id } => {
-                write!(formatter, "health sequence exhausted for request {request_id}")
+                write!(
+                    formatter,
+                    "health sequence exhausted for request {request_id}"
+                )
             }
         }
     }

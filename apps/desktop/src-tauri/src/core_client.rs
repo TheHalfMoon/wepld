@@ -126,6 +126,7 @@ fn spawn_stderr_drain(
     })
 }
 
+#[allow(clippy::type_complexity)]
 fn spawn_owned_core() -> Result<
     (
         Child,

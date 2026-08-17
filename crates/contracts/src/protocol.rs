@@ -1,4 +1,4 @@
-use serde::de;
+use serde::de::{self, SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt;
 
@@ -114,8 +114,44 @@ impl<'de> Deserialize<'de> for CapabilityList {
     where
         D: Deserializer<'de>,
     {
-        let capabilities = Vec::<Capability>::deserialize(deserializer)?;
-        Self::try_from(capabilities).map_err(de::Error::custom)
+        struct CapabilityListVisitor;
+
+        impl<'de> Visitor<'de> for CapabilityListVisitor {
+            type Value = CapabilityList;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(
+                    formatter,
+                    "a capability list with at most {MAX_CAPABILITY_ITEMS} items"
+                )
+            }
+
+            fn visit_seq<A>(self, mut sequence: A) -> Result<Self::Value, A::Error>
+            where
+                A: SeqAccess<'de>,
+            {
+                let capacity = sequence.size_hint().unwrap_or(0).min(MAX_CAPABILITY_ITEMS);
+                let mut capabilities = Vec::with_capacity(capacity);
+
+                while capabilities.len() < MAX_CAPABILITY_ITEMS {
+                    match sequence.next_element::<Capability>()? {
+                        Some(capability) => capabilities.push(capability),
+                        None => return Ok(CapabilityList(capabilities)),
+                    }
+                }
+
+                if sequence.next_element::<de::IgnoredAny>()?.is_some() {
+                    return Err(de::Error::custom(ProtocolBudgetError::CapabilityItemsTooMany {
+                        length: MAX_CAPABILITY_ITEMS + 1,
+                        max: MAX_CAPABILITY_ITEMS,
+                    }));
+                }
+
+                Ok(CapabilityList(capabilities))
+            }
+        }
+
+        deserializer.deserialize_seq(CapabilityListVisitor)
     }
 }
 
@@ -156,7 +192,14 @@ impl TryFrom<&str> for ProtocolErrorText {
     type Error = ProtocolBudgetError;
 
     fn try_from(message: &str) -> Result<Self, Self::Error> {
-        Self::try_from(message.to_owned())
+        let bytes = message.len();
+        if bytes > MAX_PROTOCOL_ERROR_TEXT_BYTES {
+            return Err(ProtocolBudgetError::ProtocolErrorTextTooLong {
+                bytes,
+                max: MAX_PROTOCOL_ERROR_TEXT_BYTES,
+            });
+        }
+        Ok(Self(message.to_owned()))
     }
 }
 
@@ -165,8 +208,41 @@ impl<'de> Deserialize<'de> for ProtocolErrorText {
     where
         D: Deserializer<'de>,
     {
-        let message = String::deserialize(deserializer)?;
-        Self::try_from(message).map_err(de::Error::custom)
+        struct ProtocolErrorTextVisitor;
+
+        impl<'de> Visitor<'de> for ProtocolErrorTextVisitor {
+            type Value = ProtocolErrorText;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(
+                    formatter,
+                    "a protocol error string of at most {MAX_PROTOCOL_ERROR_TEXT_BYTES} UTF-8 bytes"
+                )
+            }
+
+            fn visit_borrowed_str<E>(self, message: &'de str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                ProtocolErrorText::try_from(message).map_err(E::custom)
+            }
+
+            fn visit_str<E>(self, message: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                ProtocolErrorText::try_from(message).map_err(E::custom)
+            }
+
+            fn visit_string<E>(self, message: String) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                ProtocolErrorText::try_from(message).map_err(E::custom)
+            }
+        }
+
+        deserializer.deserialize_str(ProtocolErrorTextVisitor)
     }
 }
 
@@ -338,4 +414,65 @@ pub enum ProtocolEnvelope {
     Event(EventEnvelope),
     Cancel(CancelEnvelope),
     ProtocolError(ProtocolErrorEnvelope),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde::de::value::{BorrowedStrDeserializer, Error as ValueError, SeqDeserializer};
+    use std::cell::Cell;
+    use std::rc::Rc;
+
+    struct CountingCapabilityNames {
+        remaining: usize,
+        consumed: Rc<Cell<usize>>,
+    }
+
+    impl Iterator for CountingCapabilityNames {
+        type Item = &'static str;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            if self.remaining == 0 {
+                return None;
+            }
+
+            self.remaining -= 1;
+            self.consumed.set(self.consumed.get() + 1);
+            Some("health")
+        }
+    }
+
+    #[test]
+    fn capability_deserialization_stops_at_first_over_budget_item() {
+        let consumed = Rc::new(Cell::new(0));
+        let input = CountingCapabilityNames {
+            remaining: MAX_CAPABILITY_ITEMS + 1_000,
+            consumed: Rc::clone(&consumed),
+        };
+        let deserializer = SeqDeserializer::<_, ValueError>::new(input);
+
+        let error = CapabilityList::deserialize(deserializer)
+            .expect_err("over-budget capability sequence must be rejected");
+
+        assert_eq!(consumed.get(), MAX_CAPABILITY_ITEMS + 1);
+        assert!(error.to_string().contains("exceeds maximum 64"));
+    }
+
+    #[test]
+    fn protocol_error_text_borrowed_deserialization_checks_bytes_before_ownership() {
+        let exact = "é".repeat(MAX_PROTOCOL_ERROR_TEXT_BYTES / "é".len());
+        let decoded = ProtocolErrorText::deserialize(BorrowedStrDeserializer::<ValueError>::new(
+            exact.as_str(),
+        ))
+        .expect("exact borrowed UTF-8 byte budget must deserialize");
+        assert_eq!(decoded.bytes_len(), MAX_PROTOCOL_ERROR_TEXT_BYTES);
+
+        let first_over = format!("{exact}a");
+        assert!(
+            ProtocolErrorText::deserialize(BorrowedStrDeserializer::<ValueError>::new(
+                first_over.as_str(),
+            ))
+            .is_err()
+        );
+    }
 }

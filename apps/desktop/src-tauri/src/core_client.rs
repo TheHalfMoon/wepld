@@ -35,6 +35,9 @@ const _: () = assert!(MAX_RETAINED_DIAGNOSTIC_BYTES == 65_536);
 
 const INBOUND_CHANNEL_CAPACITY: usize = 32;
 const PROTOCOL_RESPONSE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+const CHILD_TERMINATION_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+const CHILD_TERMINATION_POLL_INTERVAL: std::time::Duration =
+    std::time::Duration::from_millis(5);
 const INITIAL_COMMAND_ID: u64 = 1;
 
 static NEXT_LAUNCH_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
@@ -49,6 +52,7 @@ pub enum CoreClientError {
     MissingChildStderr,
     ChildExited,
     ProtocolTimeout,
+    ChildTerminationTimeout,
     InboundChannelClosed,
     InboundOverflow,
     UnexpectedInboundKind,
@@ -338,34 +342,35 @@ impl CoreClient {
     pub fn receive(&mut self) -> Result<InboundEnvelope, CoreClientError> {
         self.ensure_child_running()?;
         if self.inbound_overflowed.load(Ordering::Acquire) {
-            self.stop_child();
-            Err(CoreClientError::InboundOverflow)
+            let error = self.stop_with_error(CoreClientError::InboundOverflow);
+            Err(error)
         } else {
             match self.inbound_rx.recv_timeout(PROTOCOL_RESPONSE_TIMEOUT) {
                 Ok(Ok(envelope)) => self.accept_inbound(envelope),
                 Ok(Err(error)) => {
-                    self.stop_child();
-                    Err(CoreClientError::Frame(error))
+                    let error = self.stop_with_error(CoreClientError::Frame(error));
+                    Err(error)
                 }
                 Err(mpsc::RecvTimeoutError::Timeout) => {
-                    self.stop_child();
-                    Err(CoreClientError::ProtocolTimeout)
+                    let error = self.stop_with_error(CoreClientError::ProtocolTimeout);
+                    Err(error)
                 }
                 Err(mpsc::RecvTimeoutError::Disconnected) => {
-                    self.stop_child();
-                    Err(CoreClientError::InboundChannelClosed)
+                    let error = self.stop_with_error(CoreClientError::InboundChannelClosed);
+                    Err(error)
                 }
             }
         }
     }
 
     pub fn restart(&mut self) -> Result<(), CoreClientError> {
-        self.stop_child();
+        self.stop_child()?;
         let launch_id = fresh_launch_id()?;
         let (child, input, output, diagnostic_rx, diagnostics_truncated, diagnostic_thread) =
             spawn_owned_core()?;
+        let ready = Arc::new(AtomicBool::new(false));
         let (inbound_rx, inbound_overflowed, protocol_thread) =
-            spawn_protocol_reader(output, Arc::clone(&self.ready));
+            spawn_protocol_reader(output, Arc::clone(&ready));
         self.child = child;
         self.input = input;
         self.inbound_rx = inbound_rx;
@@ -376,6 +381,7 @@ impl CoreClient {
         self.diagnostic_thread = Some(diagnostic_thread);
         self.launch_id = launch_id;
         self.next_command_id = INITIAL_COMMAND_ID;
+        self.ready = ready;
         Ok(())
     }
 
@@ -397,14 +403,14 @@ impl CoreClient {
                 match write_result {
                     Ok(()) => Ok(()),
                     Err(error) => {
-                        self.stop_child();
-                        Err(CoreClientError::Io(error))
+                        let error = self.stop_with_error(CoreClientError::Io(error));
+                        Err(error)
                     }
                 }
             }
             Err(error) => {
-                self.stop_child();
-                Err(CoreClientError::Frame(error))
+                let error = self.stop_with_error(CoreClientError::Frame(error));
+                Err(error)
             }
         }
     }
@@ -412,13 +418,13 @@ impl CoreClient {
     fn ensure_child_running(&mut self) -> Result<(), CoreClientError> {
         match self.child.try_wait() {
             Ok(Some(_)) => {
-                self.stop_child();
-                Err(CoreClientError::ChildExited)
+                let error = self.stop_with_error(CoreClientError::ChildExited);
+                Err(error)
             }
             Ok(None) => Ok(()),
             Err(error) => {
-                self.stop_child();
-                Err(CoreClientError::Io(error))
+                let error = self.stop_with_error(CoreClientError::Io(error));
+                Err(error)
             }
         }
     }
@@ -432,39 +438,64 @@ impl CoreClient {
             ProtocolEnvelope::Event(event) => InboundEnvelope::Event(event),
             ProtocolEnvelope::ProtocolError(error) => InboundEnvelope::ProtocolError(error),
             ProtocolEnvelope::Request(_) | ProtocolEnvelope::Cancel(_) => {
-                self.stop_child();
-                Err(CoreClientError::UnexpectedInboundKind)?
+                let error = self.stop_with_error(CoreClientError::UnexpectedInboundKind);
+                Err(error)?
             }
         };
         let actual = launch_id_of(&inbound);
         if actual != self.launch_id {
-            self.stop_child();
-            Err(CoreClientError::StaleLaunch {
+            let error = self.stop_with_error(CoreClientError::StaleLaunch {
                 expected: self.launch_id,
                 actual,
-            })
+            });
+            Err(error)
         } else {
             self.ready.store(true, Ordering::Release);
             Ok(inbound)
         }
     }
 
-    fn stop_child(&mut self) {
+    fn stop_with_error(&mut self, original: CoreClientError) -> CoreClientError {
+        match self.stop_child() {
+            Ok(()) => original,
+            Err(cleanup_error) => cleanup_error,
+        }
+    }
+
+    fn stop_child(&mut self) -> Result<(), CoreClientError> {
         self.ready.store(false, Ordering::Release);
-        let _ = self.child.kill();
-        let _ = self.child.wait();
-        if let Some(protocol_thread) = self.protocol_thread.take() {
-            let _ = protocol_thread.join();
-        }
-        if let Some(diagnostic_thread) = self.diagnostic_thread.take() {
-            let _ = diagnostic_thread.join();
-        }
+        let termination = match self.child.try_wait() {
+            Ok(Some(_)) => Ok(()),
+            Ok(None) => {
+                let _ = self.child.kill();
+                let deadline = std::time::Instant::now() + CHILD_TERMINATION_TIMEOUT;
+                let mut outcome = Err(CoreClientError::ChildTerminationTimeout);
+                while std::time::Instant::now() < deadline {
+                    match self.child.try_wait() {
+                        Ok(Some(_)) => {
+                            outcome = Ok(());
+                            break;
+                        }
+                        Ok(None) => thread::sleep(CHILD_TERMINATION_POLL_INTERVAL),
+                        Err(error) => {
+                            outcome = Err(CoreClientError::Io(error));
+                            break;
+                        }
+                    }
+                }
+                outcome
+            }
+            Err(error) => Err(CoreClientError::Io(error)),
+        };
+        let _ = self.protocol_thread.take();
+        let _ = self.diagnostic_thread.take();
+        termination
     }
 }
 
 impl Drop for CoreClient {
     fn drop(&mut self) {
-        self.stop_child();
+        let _ = self.stop_child();
     }
 }
 
@@ -550,11 +581,19 @@ mod tests {
             .child
             .kill()
             .expect("owned Core must accept termination");
-        client.child.wait().expect("owned Core must exit");
+        let exit_deadline = std::time::Instant::now() + CHILD_TERMINATION_TIMEOUT;
+        let mut exited = false;
+        while !exited && std::time::Instant::now() < exit_deadline {
+            match client.child.try_wait().expect("owned Core status must remain readable") {
+                Some(_) => exited = true,
+                None => thread::sleep(CHILD_TERMINATION_POLL_INTERVAL),
+            }
+        }
+        assert!(exited);
 
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
-        while client.is_ready() && std::time::Instant::now() < deadline {
-            thread::sleep(std::time::Duration::from_millis(5));
+        let readiness_deadline = std::time::Instant::now() + CHILD_TERMINATION_TIMEOUT;
+        while client.is_ready() && std::time::Instant::now() < readiness_deadline {
+            thread::sleep(CHILD_TERMINATION_POLL_INTERVAL);
         }
         assert!(!client.is_ready());
     }

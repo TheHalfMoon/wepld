@@ -163,15 +163,15 @@ SPAWN_SIGNATURE = re.compile(
     r"\bfn\s+spawn_owned_core\s*\(\s*\)\s*->\s*Result\s*<\s*\(\s*"
     r"Child\s*,\s*ChildStdin\s*,\s*ChildStdout\s*,\s*"
     r"mpsc\s*::\s*Receiver\s*<\s*Vec\s*<\s*u8\s*>\s*>\s*,\s*"
-    r"Arc\s*<\s*AtomicBool\s*>\s*,\s*thread\s*::\s*JoinHandle\s*<\s*\(\s*\)\s*>\s*"
-    r"\)\s*,\s*CoreClientError\s*>\s*\{",
+    r"Arc\s*<\s*AtomicBool\s*>\s*,\s*thread\s*::\s*JoinHandle\s*<\s*\(\s*\)\s*>\s*,?\s*"
+    r"\)\s*,\s*CoreClientError\s*,?\s*>\s*\{",
     re.MULTILINE,
 )
 STDERR_DRAIN_SIGNATURE = re.compile(
     r"\bfn\s+spawn_stderr_drain\s*\(\s*"
     r"mut\s+stderr\s*:\s*ChildStderr\s*,\s*"
     r"diagnostic_tx\s*:\s*mpsc\s*::\s*SyncSender\s*<\s*Vec\s*<\s*u8\s*>\s*>\s*,\s*"
-    r"diagnostics_truncated\s*:\s*Arc\s*<\s*AtomicBool\s*>\s*"
+    r"diagnostics_truncated\s*:\s*Arc\s*<\s*AtomicBool\s*>\s*,?\s*"
     r"\)\s*->\s*thread\s*::\s*JoinHandle\s*<\s*\(\s*\)\s*>\s*\{",
     re.MULTILINE,
 )
@@ -235,12 +235,12 @@ DIAGNOSTIC_TRUNCATION_FLAG = re.compile(
 )
 STDERR_DRAIN_CALL = re.compile(
     r"\blet\s+diagnostic_thread\s*=\s*spawn_stderr_drain\s*\(\s*"
-    r"stderr\s*,\s*diagnostic_tx\s*,\s*Arc\s*::\s*clone\s*\(\s*&diagnostics_truncated\s*\)\s*"
+    r"stderr\s*,\s*diagnostic_tx\s*,\s*Arc\s*::\s*clone\s*\(\s*&diagnostics_truncated\s*\)\s*,?\s*"
     r"\)\s*;"
 )
 SPAWN_RESULT = re.compile(
     r"Ok\s*\(\s*\(\s*child\s*,\s*input\s*,\s*output\s*,\s*diagnostic_rx\s*,\s*"
-    r"diagnostics_truncated\s*,\s*diagnostic_thread\s*\)\s*\)\s*$"
+    r"diagnostics_truncated\s*,\s*diagnostic_thread\s*,?\s*\)\s*\)\s*$"
 )
 STDERR_THREAD_SPAWN = re.compile(r"\bthread\s*::\s*spawn\s*\(\s*move\s*\|\|\s*\{")
 STDERR_READ = re.compile(

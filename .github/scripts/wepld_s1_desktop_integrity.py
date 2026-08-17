@@ -65,10 +65,6 @@ DESKTOP_LIB_PROHIBITED_IDENTIFIERS = frozenset(
     }
 )
 
-# S1-009 owns one Desktop-managed Core child and its pipe lifecycle. It may use
-# std::process/std::thread/std::sync/std::env::current_exe/path mechanics, but it
-# may not acquire filesystem, network, Tauri/UI, shell, or arbitrary-command
-# authority. S1-010 owns Tauri/UI; later slices own broader effects.
 DESKTOP_CLIENT_PROHIBITED_IDENTIFIERS = frozenset(
     {
         "fs",
@@ -131,17 +127,22 @@ EXACT_PROCESS_IMPORT = re.compile(
     r"Child\s*,\s*ChildStderr\s*,\s*ChildStdin\s*,\s*ChildStdout\s*,\s*Command\s*,\s*Stdio\s*"
     r"\}\s*;"
 )
-EXACT_MPSC_IMPORT = re.compile(r"\buse\s+std\s*::\s*sync\s*::\s*mpsc\s*;")
+EXACT_SYNC_IMPORT = re.compile(
+    r"\buse\s+std\s*::\s*sync\s*::\s*\{\s*Arc\s*,\s*mpsc\s*\}\s*;"
+)
+EXACT_ATOMIC_IMPORT = re.compile(
+    r"\buse\s+std\s*::\s*sync\s*::\s*atomic\s*::\s*\{\s*AtomicBool\s*,\s*Ordering\s*\}\s*;"
+)
 EXACT_THREAD_IMPORT = re.compile(r"\buse\s+std\s*::\s*thread\s*;")
 PROTECTED_LIFECYCLE_DECL = re.compile(
     r"\b(?:struct|enum|union|trait|type|mod)\s+"
-    r"(Command|Stdio|Child|ChildStderr|ChildStdin|ChildStdout|mpsc|thread)\b"
+    r"(Arc|AtomicBool|Command|Ordering|Stdio|Child|ChildStderr|ChildStdin|ChildStdout|mpsc|thread)\b"
 )
 PROTECTED_IMPORT_ALIAS = re.compile(
-    r"\bas\s+(Command|Stdio|Child|ChildStderr|ChildStdin|ChildStdout|mpsc|thread)\b"
+    r"\bas\s+(Arc|AtomicBool|Command|Ordering|Stdio|Child|ChildStderr|ChildStdin|ChildStdout|mpsc|thread)\b"
 )
 PROTECTED_IMPORT = re.compile(
-    r"\buse\b[^;]*\b(Command|Stdio|Child|ChildStderr|ChildStdin|ChildStdout|mpsc|thread)\b[^;]*;",
+    r"\buse\b[^;]*\b(Arc|AtomicBool|Command|Ordering|Stdio|Child|ChildStderr|ChildStdin|ChildStdout|mpsc|thread)\b[^;]*;",
     re.DOTALL,
 )
 STD_ENV_MEMBER = re.compile(
@@ -159,8 +160,20 @@ RESOLVER_SIGNATURE = re.compile(
     r"Result\s*<\s*std\s*::\s*path\s*::\s*PathBuf\s*,\s*CoreClientError\s*>\s*\{"
 )
 SPAWN_SIGNATURE = re.compile(
-    r"\bfn\s+spawn_owned_core\s*\(\s*\)\s*->\s*"
-    r"Result\s*<[^\{;]*CoreClientError[^\{;]*>\s*\{"
+    r"\bfn\s+spawn_owned_core\s*\(\s*\)\s*->\s*Result\s*<\s*\(\s*"
+    r"Child\s*,\s*ChildStdin\s*,\s*ChildStdout\s*,\s*"
+    r"mpsc\s*::\s*Receiver\s*<\s*Vec\s*<\s*u8\s*>\s*>\s*,\s*"
+    r"Arc\s*<\s*AtomicBool\s*>\s*,\s*thread\s*::\s*JoinHandle\s*<\s*\(\s*\)\s*>\s*"
+    r"\)\s*,\s*CoreClientError\s*>\s*\{",
+    re.MULTILINE,
+)
+STDERR_DRAIN_SIGNATURE = re.compile(
+    r"\bfn\s+spawn_stderr_drain\s*\(\s*"
+    r"mut\s+stderr\s*:\s*ChildStderr\s*,\s*"
+    r"diagnostic_tx\s*:\s*mpsc\s*::\s*SyncSender\s*<\s*Vec\s*<\s*u8\s*>\s*>\s*,\s*"
+    r"diagnostics_truncated\s*:\s*Arc\s*<\s*AtomicBool\s*>\s*"
+    r"\)\s*->\s*thread\s*::\s*JoinHandle\s*<\s*\(\s*\)\s*>\s*\{",
+    re.MULTILINE,
 )
 CURRENT_EXE_BINDING = re.compile(
     r"\blet\s+current_exe\s*=\s*(?:::)?std\s*::\s*env\s*::\s*current_exe\s*\(\s*\)\s*\?\s*;"
@@ -185,6 +198,16 @@ NONWINDOWS_CORE_FILENAME_DECL = re.compile(
     r"const\s+CORE_EXECUTABLE_FILENAME\s*:\s*&str\s*=\s*\"wepld-core\"\s*;",
     re.MULTILINE,
 )
+DIAGNOSTIC_CHANNEL_CAPACITY_DECL = re.compile(
+    r"\bconst\s+DIAGNOSTIC_CHANNEL_CAPACITY\s*:\s*usize\s*=\s*16\s*;"
+)
+DIAGNOSTIC_READ_CHUNK_BYTES_DECL = re.compile(
+    r"\bconst\s+DIAGNOSTIC_READ_CHUNK_BYTES\s*:\s*usize\s*=\s*4_096\s*;"
+)
+MAX_RETAINED_DIAGNOSTIC_BYTES_DECL = re.compile(
+    r"\bconst\s+MAX_RETAINED_DIAGNOSTIC_BYTES\s*:\s*usize\s*=\s*"
+    r"DIAGNOSTIC_CHANNEL_CAPACITY\s*\*\s*DIAGNOSTIC_READ_CHUNK_BYTES\s*;"
+)
 CORE_EXECUTABLE_BINDING = re.compile(
     r"\blet\s+core_executable\s*=\s*resolve_owned_core_sibling\s*\(\s*\)\s*\?\s*;"
 )
@@ -198,6 +221,42 @@ OWNED_SPAWN_CHAIN = re.compile(
     r"\s*\.\s*stderr\s*\(\s*Stdio\s*::\s*piped\s*\(\s*\)\s*\)"
     r"\s*\.\s*spawn\s*\(\s*\)",
     re.DOTALL,
+)
+STDERR_TAKE = re.compile(
+    r"\blet\s+stderr\s*=\s*child\s*\.\s*stderr\s*\.\s*take\s*\(\s*\)"
+    r"\s*\.\s*ok_or\s*\(\s*CoreClientError\s*::\s*MissingChildStderr\s*\)\s*\?\s*;"
+)
+DIAGNOSTIC_CHANNEL = re.compile(
+    r"\blet\s*\(\s*diagnostic_tx\s*,\s*diagnostic_rx\s*\)\s*=\s*"
+    r"mpsc\s*::\s*sync_channel\s*\(\s*DIAGNOSTIC_CHANNEL_CAPACITY\s*\)\s*;"
+)
+DIAGNOSTIC_TRUNCATION_FLAG = re.compile(
+    r"\blet\s+diagnostics_truncated\s*=\s*Arc\s*::\s*new\s*\(\s*AtomicBool\s*::\s*new\s*\(\s*false\s*\)\s*\)\s*;"
+)
+STDERR_DRAIN_CALL = re.compile(
+    r"\blet\s+diagnostic_thread\s*=\s*spawn_stderr_drain\s*\(\s*"
+    r"stderr\s*,\s*diagnostic_tx\s*,\s*Arc\s*::\s*clone\s*\(\s*&diagnostics_truncated\s*\)\s*"
+    r"\)\s*;"
+)
+SPAWN_RESULT = re.compile(
+    r"Ok\s*\(\s*\(\s*child\s*,\s*input\s*,\s*output\s*,\s*diagnostic_rx\s*,\s*"
+    r"diagnostics_truncated\s*,\s*diagnostic_thread\s*\)\s*\)\s*$"
+)
+STDERR_THREAD_SPAWN = re.compile(r"\bthread\s*::\s*spawn\s*\(\s*move\s*\|\|\s*\{")
+STDERR_READ = re.compile(
+    r"\bstd\s*::\s*io\s*::\s*Read\s*::\s*read\s*\(\s*&mut\s+stderr\s*,\s*&mut\s+buffer\s*\)"
+)
+STDERR_BUFFER = re.compile(
+    r"\blet\s+mut\s+buffer\s*=\s*\[\s*0_u8\s*;\s*DIAGNOSTIC_READ_CHUNK_BYTES\s*\]\s*;"
+)
+DIAGNOSTIC_TRY_SEND = re.compile(
+    r"diagnostic_tx\s*\.\s*try_send\s*\(\s*buffer\s*\[\s*\.\.read\s*\]\s*\.\s*to_vec\s*\(\s*\)\s*\)"
+)
+TRUNCATION_STORE = re.compile(
+    r"diagnostics_truncated\s*\.\s*store\s*\(\s*true\s*,\s*Ordering\s*::\s*Release\s*\)"
+)
+MAX_DIAGNOSTIC_ASSERT = re.compile(
+    r"\bconst\s*:\s*\(\s*\)\s*=\s*assert!\s*\(\s*MAX_RETAINED_DIAGNOSTIC_BYTES\s*==\s*65_536\s*\)\s*;"
 )
 PATH_MUTATION = re.compile(
     r"\b(?:current_exe|core_parent|core_executable)\s*\.\s*"
@@ -331,7 +390,7 @@ def _reject_command_modifiers(relative: str, scrubbed: str) -> None:
 
 
 def _function_body(code: str, name: str) -> str:
-    match = re.search(rf"\bfn\s+{re.escape(name)}\s*\(\s*\)[^{{]*\{{", code)
+    match = re.search(rf"\bfn\s+{re.escape(name)}\s*\([^)]*\)[^{{]*\{{", code)
     if match is None:
         base.fail(f"S1-009 Desktop client missing required {name}() helper")
     start = match.end()
@@ -412,10 +471,41 @@ def _verify_owned_path_resolution(raw_client: str, client_code: str) -> None:
         )
 
 
+def _verify_bounded_stderr_drain(client_code: str) -> None:
+    if len(DIAGNOSTIC_CHANNEL_CAPACITY_DECL.findall(client_code)) != 1:
+        base.fail("S1-009 Desktop diagnostics channel capacity must be exactly 16")
+    if len(DIAGNOSTIC_READ_CHUNK_BYTES_DECL.findall(client_code)) != 1:
+        base.fail("S1-009 Desktop diagnostic read chunk must be exactly 4096 bytes")
+    if len(MAX_RETAINED_DIAGNOSTIC_BYTES_DECL.findall(client_code)) != 1:
+        base.fail(
+            "S1-009 Desktop max retained diagnostic bytes must derive from channel capacity * chunk bytes"
+        )
+    if len(MAX_DIAGNOSTIC_ASSERT.findall(client_code)) != 1:
+        base.fail("S1-009 Desktop retained diagnostic bound must assert exactly 65536 bytes")
+    if len(STDERR_DRAIN_SIGNATURE.findall(client_code)) != 1:
+        base.fail(
+            "S1-009 Desktop client must define exactly one canonical spawn_stderr_drain helper"
+        )
+
+    drain_body = _function_body(client_code, "spawn_stderr_drain")
+    if len(STDERR_THREAD_SPAWN.findall(drain_body)) != 1:
+        base.fail("S1-009 Desktop stderr drain must own exactly one thread::spawn(move || ...) worker")
+    if len(STDERR_BUFFER.findall(drain_body)) != 1:
+        base.fail("S1-009 Desktop stderr drain must use the bounded diagnostic read buffer")
+    if len(STDERR_READ.findall(drain_body)) != 1:
+        base.fail("S1-009 Desktop stderr drain must read only from the owned ChildStderr")
+    if len(DIAGNOSTIC_TRY_SEND.findall(drain_body)) != 1:
+        base.fail("S1-009 Desktop stderr drain must use nonblocking try_send into the bounded channel")
+    if len(TRUNCATION_STORE.findall(drain_body)) != 1:
+        base.fail("S1-009 Desktop stderr drain must make dropped diagnostics observable")
+    if re.search(r"\bdiagnostic_tx\s*\.\s*send\s*\(", drain_body):
+        base.fail("S1-009 Desktop stderr drain may not block on a slow diagnostic consumer")
+
+
 def _verify_launch_scope(client_code: str) -> None:
     if len(SPAWN_SIGNATURE.findall(client_code)) != 1:
         base.fail(
-            "S1-009 Desktop client must define exactly one no-argument spawn_owned_core() Result helper"
+            "S1-009 Desktop client must define exactly one canonical no-argument spawn_owned_core() Result helper"
         )
     spawn_body = _function_body(client_code, "spawn_owned_core")
     if len(CORE_EXECUTABLE_BINDING.findall(spawn_body)) != 1:
@@ -440,6 +530,18 @@ def _verify_launch_scope(client_code: str) -> None:
         base.fail(
             "S1-009 Desktop launch helper must pipe stdin/stdout/stderr and spawn exactly once from the owned Core sibling path"
         )
+    if len(STDERR_TAKE.findall(spawn_body)) != 1:
+        base.fail("S1-009 Desktop launch helper must take the piped ChildStderr exactly once")
+    if len(DIAGNOSTIC_CHANNEL.findall(spawn_body)) != 1:
+        base.fail("S1-009 Desktop launch helper must create exactly one bounded diagnostics sync_channel")
+    if len(DIAGNOSTIC_TRUNCATION_FLAG.findall(spawn_body)) != 1:
+        base.fail("S1-009 Desktop launch helper must create an observable diagnostic truncation flag")
+    if len(STDERR_DRAIN_CALL.findall(spawn_body)) != 1:
+        base.fail("S1-009 Desktop launch helper must immediately start the canonical stderr drain")
+    if SPAWN_RESULT.search(spawn_body.rstrip()) is None:
+        base.fail(
+            "S1-009 Desktop launch helper must return the diagnostics receiver, truncation flag, and drain handle to the lifecycle owner"
+        )
 
 
 def _verify_std_lifecycle_bindings(client_code: str) -> None:
@@ -447,8 +549,10 @@ def _verify_std_lifecycle_bindings(client_code: str) -> None:
         base.fail(
             "S1-009 Desktop client must import Child/ChildStderr/ChildStdin/ChildStdout/Command/Stdio exactly from std::process"
         )
-    if len(EXACT_MPSC_IMPORT.findall(client_code)) != 1:
-        base.fail("S1-009 Desktop client must import mpsc exactly from std::sync")
+    if len(EXACT_SYNC_IMPORT.findall(client_code)) != 1:
+        base.fail("S1-009 Desktop client must import Arc and mpsc exactly from std::sync")
+    if len(EXACT_ATOMIC_IMPORT.findall(client_code)) != 1:
+        base.fail("S1-009 Desktop client must import AtomicBool and Ordering exactly from std::sync::atomic")
     if len(EXACT_THREAD_IMPORT.findall(client_code)) != 1:
         base.fail("S1-009 Desktop client must import thread exactly from std")
     if PROTECTED_LIFECYCLE_DECL.search(client_code):
@@ -457,7 +561,8 @@ def _verify_std_lifecycle_bindings(client_code: str) -> None:
         base.fail("S1-009 Desktop client may not alias protected lifecycle imports")
 
     stripped_imports = EXACT_PROCESS_IMPORT.sub("", client_code)
-    stripped_imports = EXACT_MPSC_IMPORT.sub("", stripped_imports)
+    stripped_imports = EXACT_SYNC_IMPORT.sub("", stripped_imports)
+    stripped_imports = EXACT_ATOMIC_IMPORT.sub("", stripped_imports)
     stripped_imports = EXACT_THREAD_IMPORT.sub("", stripped_imports)
     if PROTECTED_IMPORT.search(stripped_imports):
         base.fail("S1-009 Desktop client may not add alternate protected lifecycle imports")
@@ -526,14 +631,18 @@ def verify_desktop_sources(view: base.RepositoryView) -> None:
 
     _verify_std_lifecycle_bindings(client_code)
     _verify_owned_path_resolution(raw_client, client_code)
+    _verify_bounded_stderr_drain(client_code)
     _verify_launch_scope(client_code)
 
     required_identifiers = {
+        "Arc",
+        "AtomicBool",
         "Child",
         "ChildStderr",
         "ChildStdin",
         "ChildStdout",
         "Command",
+        "Ordering",
         "Stdio",
         "thread",
         "mpsc",
@@ -677,18 +786,25 @@ pub use core_client::CoreClient;
 """
     safe_client = b"""#![forbid(unsafe_code)]
 use std::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, Stdio};
-use std::sync::mpsc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, mpsc};
 use std::thread;
 
 #[cfg(target_os = "windows")]
 const CORE_EXECUTABLE_FILENAME: &str = "wepld-core.exe";
 #[cfg(not(target_os = "windows"))]
 const CORE_EXECUTABLE_FILENAME: &str = "wepld-core";
+const DIAGNOSTIC_CHANNEL_CAPACITY: usize = 16;
+const DIAGNOSTIC_READ_CHUNK_BYTES: usize = 4_096;
+const MAX_RETAINED_DIAGNOSTIC_BYTES: usize =
+    DIAGNOSTIC_CHANNEL_CAPACITY * DIAGNOSTIC_READ_CHUNK_BYTES;
+const _: () = assert!(MAX_RETAINED_DIAGNOSTIC_BYTES == 65_536);
 
 #[derive(Debug)]
 enum CoreClientError {
     Io(std::io::Error),
     MissingExecutableParent,
+    MissingChildStderr,
 }
 
 impl From<std::io::Error> for CoreClientError {
@@ -707,7 +823,37 @@ fn resolve_owned_core_sibling() -> Result<std::path::PathBuf, CoreClientError> {
     Ok(core_parent.join(CORE_EXECUTABLE_FILENAME))
 }
 
-fn spawn_owned_core() -> Result<(Child, ChildStderr, ChildStdin, ChildStdout), CoreClientError> {
+fn spawn_stderr_drain(
+    mut stderr: ChildStderr,
+    diagnostic_tx: mpsc::SyncSender<Vec<u8>>,
+    diagnostics_truncated: Arc<AtomicBool>,
+) -> thread::JoinHandle<()> {
+    thread::spawn(move || {
+        let mut buffer = [0_u8; DIAGNOSTIC_READ_CHUNK_BYTES];
+        loop {
+            let read = match std::io::Read::read(&mut stderr, &mut buffer) {
+                Ok(0) => break,
+                Ok(read) => read,
+                Err(_) => break,
+            };
+            if diagnostic_tx.try_send(buffer[..read].to_vec()).is_err() {
+                diagnostics_truncated.store(true, Ordering::Release);
+            }
+        }
+    })
+}
+
+fn spawn_owned_core() -> Result<
+    (
+        Child,
+        ChildStdin,
+        ChildStdout,
+        mpsc::Receiver<Vec<u8>>,
+        Arc<AtomicBool>,
+        thread::JoinHandle<()>,
+    ),
+    CoreClientError,
+> {
     let core_executable = resolve_owned_core_sibling()?;
     let mut child = Command::new(core_executable.as_os_str())
         .stdin(Stdio::piped())
@@ -716,10 +862,25 @@ fn spawn_owned_core() -> Result<(Child, ChildStderr, ChildStdin, ChildStdout), C
         .spawn()?;
     let input = child.stdin.take().unwrap();
     let output = child.stdout.take().unwrap();
-    let stderr = child.stderr.take().unwrap();
-    let (_tx, _rx) = mpsc::channel::<()>();
-    thread::spawn(|| {});
-    Ok((child, stderr, input, output))
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or(CoreClientError::MissingChildStderr)?;
+    let (diagnostic_tx, diagnostic_rx) = mpsc::sync_channel(DIAGNOSTIC_CHANNEL_CAPACITY);
+    let diagnostics_truncated = Arc::new(AtomicBool::new(false));
+    let diagnostic_thread = spawn_stderr_drain(
+        stderr,
+        diagnostic_tx,
+        Arc::clone(&diagnostics_truncated),
+    );
+    Ok((
+        child,
+        input,
+        output,
+        diagnostic_rx,
+        diagnostics_truncated,
+        diagnostic_thread,
+    ))
 }
 """
     safe = {
@@ -818,7 +979,7 @@ fn spawn_owned_core() -> Result<(Child, ChildStderr, ChildStdin, ChildStdout), C
     )
     base.expect_failure_matching(
         "detached launch helper path parameter",
-        "S1-009 Desktop client must define exactly one no-argument spawn_owned_core() Result helper",
+        "S1-009 Desktop client must define exactly one canonical no-argument spawn_owned_core() Result helper",
         verify_desktop_sources,
         base.MemoryView(detached_launch_scope),
     )
@@ -881,6 +1042,54 @@ fn spawn_owned_core() -> Result<(Child, ChildStderr, ChildStdin, ChildStdout), C
         "S1-009 Desktop Windows Core filename must be cfg(target_os = windows)",
         verify_desktop_sources,
         base.MemoryView(wrong_cfg),
+    )
+
+    missing_drain = dict(safe)
+    missing_drain["apps/desktop/src-tauri/src/core_client.rs"] = safe_client.replace(
+        b"    let diagnostic_thread = spawn_stderr_drain(\n        stderr,\n        diagnostic_tx,\n        Arc::clone(&diagnostics_truncated),\n    );\n",
+        b"",
+    )
+    base.expect_failure_matching(
+        "missing stderr drain",
+        "S1-009 Desktop launch helper must immediately start the canonical stderr drain",
+        verify_desktop_sources,
+        base.MemoryView(missing_drain),
+    )
+
+    unbounded_diagnostics = dict(safe)
+    unbounded_diagnostics["apps/desktop/src-tauri/src/core_client.rs"] = safe_client.replace(
+        b"mpsc::sync_channel(DIAGNOSTIC_CHANNEL_CAPACITY)",
+        b"mpsc::channel()",
+    )
+    base.expect_failure_matching(
+        "unbounded diagnostic channel",
+        "S1-009 Desktop launch helper must create exactly one bounded diagnostics sync_channel",
+        verify_desktop_sources,
+        base.MemoryView(unbounded_diagnostics),
+    )
+
+    hidden_truncation = dict(safe)
+    hidden_truncation["apps/desktop/src-tauri/src/core_client.rs"] = safe_client.replace(
+        b"diagnostics_truncated.store(true, Ordering::Release);",
+        b"let _ = &diagnostics_truncated;",
+    )
+    base.expect_failure_matching(
+        "unobservable diagnostic truncation",
+        "S1-009 Desktop stderr drain must make dropped diagnostics observable",
+        verify_desktop_sources,
+        base.MemoryView(hidden_truncation),
+    )
+
+    dropped_observability = dict(safe)
+    dropped_observability["apps/desktop/src-tauri/src/core_client.rs"] = safe_client.replace(
+        b"        diagnostics_truncated,\n        diagnostic_thread,\n",
+        b"        Arc::new(AtomicBool::new(false)),\n        diagnostic_thread,\n",
+    )
+    base.expect_failure_matching(
+        "dropped diagnostic observability",
+        "S1-009 Desktop launch helper must return the diagnostics receiver, truncation flag, and drain handle to the lifecycle owner",
+        verify_desktop_sources,
+        base.MemoryView(dropped_observability),
     )
 
     tauri_escape = dict(safe)

@@ -149,6 +149,7 @@ S1_008_TEST_PROHIBITED_IDENTIFIERS = frozenset(
         "net",
         "tokio",
         "tauri",
+        "option_env",
         "TcpStream",
         "TcpListener",
         "UdpSocket",
@@ -161,6 +162,33 @@ S1_008_TEST_PROHIBITED_IDENTIFIERS = frozenset(
         "include_bytes",
         "include_str",
         "path",
+    }
+)
+
+S1_008_TEST_PROCESS_IMPORT = re.compile(
+    r"use\s+std\s*::\s*process\s*::\s*\{\s*Child\s*,\s*Command\s*,\s*Stdio\s*\}\s*;"
+)
+S1_008_TEST_OWNED_LAUNCH = re.compile(
+    r"Command\s*::\s*new\s*\(\s*env\s*!\s*\(\s*\)\s*\)"
+)
+S1_008_TEST_OWNED_LAUNCH_RAW = re.compile(
+    r'\ACommand\s*::\s*new\s*\(\s*env\s*!\s*\(\s*"CARGO_BIN_EXE_wepld-core"\s*\)\s*\)\Z'
+)
+S1_008_TEST_FORBIDDEN_COMMAND_MODIFIERS = frozenset(
+    {
+        "arg",
+        "args",
+        "envs",
+        "env_remove",
+        "env_clear",
+        "current_dir",
+        "uid",
+        "gid",
+        "groups",
+        "arg0",
+        "creation_flags",
+        "raw_arg",
+        "show_window",
     }
 )
 
@@ -495,9 +523,47 @@ def verify_process_sources(view: base.RepositoryView) -> None:
         S1_008_MAIN_PROHIBITED_IDENTIFIERS,
         "S1-008 Core main",
     )
+    test_path = "crates/core/tests/process_v1.rs"
+    test_code = code_by_path[test_path]
+    process_imports = list(S1_008_TEST_PROCESS_IMPORT.finditer(test_code))
+    owned_launches = list(S1_008_TEST_OWNED_LAUNCH.finditer(test_code))
+    if len(process_imports) != 1 or len(owned_launches) != 1:
+        base.fail(
+            "S1-008 process test must use exactly one std::process import "
+            "and one owned Core binary launcher"
+        )
+
+    raw_test_bytes = view.read_bytes(test_path, MAX_S1_008_SOURCE_BYTES)
+    try:
+        raw_test = raw_test_bytes.decode("utf-8", errors="strict")
+    except UnicodeError as exc:
+        base.fail(f"S1-008 Rust source is not UTF-8: {test_path}: {exc}")
+    owned_launch = owned_launches[0]
+    raw_owned_launch = raw_test[owned_launch.start() : owned_launch.end()]
+    if S1_008_TEST_OWNED_LAUNCH_RAW.fullmatch(raw_owned_launch) is None:
+        base.fail(
+            "S1-008 process test launcher must target exactly "
+            'env!("CARGO_BIN_EXE_wepld-core")'
+        )
+
+    scrubbed_test = S1_008_TEST_PROCESS_IMPORT.sub(" ", test_code, count=1)
+    scrubbed_test = S1_008_TEST_OWNED_LAUNCH.sub(" ", scrubbed_test, count=1)
+    remaining_identifiers = set(RUST_IDENTIFIER.findall(scrubbed_test))
+    escaped_process_authority = sorted(
+        remaining_identifiers
+        & (
+            {"process", "Command", "env", "option_env"}
+            | S1_008_TEST_FORBIDDEN_COMMAND_MODIFIERS
+        )
+    )
+    if escaped_process_authority:
+        base.fail(
+            "S1-008 process test escaped owned-binary launch boundary: "
+            + ", ".join(escaped_process_authority)
+        )
     _reject_identifiers(
-        "crates/core/tests/process_v1.rs",
-        code_by_path["crates/core/tests/process_v1.rs"],
+        test_path,
+        scrubbed_test,
         S1_008_TEST_PROHIBITED_IDENTIFIERS,
         "S1-008 process test",
     )
@@ -819,13 +885,78 @@ def selftest() -> None:
         ),
         "crates/core/tests/process_v1.rs": (
             b"#![forbid(unsafe_code)]\n"
-            b"use std::process::{Command, Stdio};\n"
+            b"use std::process::{Child, Command, Stdio};\n"
             b"use std::thread;\n"
-            b"fn probe() { let _ = (Command::new(\"x\"), Stdio::piped()); "
-            b"thread::yield_now(); }\n"
+            b"fn spawn_core() -> Child { "
+            b"Command::new(env!(\"CARGO_BIN_EXE_wepld-core\"))"
+            b".stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap() }\n"
+            b"fn probe() { let _ = spawn_core(); thread::yield_now(); }\n"
         ),
     }
     verify_process_sources(base.MemoryView(safe_process_sources))
+
+    process_arbitrary_command = dict(safe_process_sources)
+    process_arbitrary_command["crates/core/tests/process_v1.rs"] = (
+        b"#![forbid(unsafe_code)]\n"
+        b"use std::process::{Child, Command, Stdio};\n"
+        b"fn spawn_core() -> Child { "
+        b"Command::new(env!(\"CARGO_BIN_EXE_wepld-core\"))"
+        b".stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap() }\n"
+        b"fn escape() { let _ = Command::new(\"curl\"); }\n"
+    )
+    base.expect_failure_matching(
+        "arbitrary command in S1-008 process test",
+        "S1-008 process test must use exactly one std::process import and one owned Core binary launcher",
+        verify_process_sources,
+        base.MemoryView(process_arbitrary_command),
+    )
+
+    process_wrong_owned_target = dict(safe_process_sources)
+    process_wrong_owned_target["crates/core/tests/process_v1.rs"] = (
+        b"#![forbid(unsafe_code)]\n"
+        b"use std::process::{Child, Command, Stdio};\n"
+        b"fn spawn_core() -> Child { "
+        b"Command::new(env!(\"OTHER_BINARY\"))"
+        b".stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap() }\n"
+    )
+    base.expect_failure_matching(
+        "wrong owned binary environment target in S1-008 process test",
+        "S1-008 process test launcher must target exactly",
+        verify_process_sources,
+        base.MemoryView(process_wrong_owned_target),
+    )
+
+    process_argument_escape = dict(safe_process_sources)
+    process_argument_escape["crates/core/tests/process_v1.rs"] = (
+        b"#![forbid(unsafe_code)]\n"
+        b"use std::process::{Child, Command, Stdio};\n"
+        b"fn spawn_core() -> Child { "
+        b"Command::new(env!(\"CARGO_BIN_EXE_wepld-core\"))"
+        b".arg(\"--escape\").stdin(Stdio::piped()).stdout(Stdio::piped())"
+        b".spawn().unwrap() }\n"
+    )
+    base.expect_failure_matching(
+        "command argument escape in S1-008 process test",
+        "S1-008 process test escaped owned-binary launch boundary",
+        verify_process_sources,
+        base.MemoryView(process_argument_escape),
+    )
+
+    process_env_escape = dict(safe_process_sources)
+    process_env_escape["crates/core/tests/process_v1.rs"] = (
+        b"#![forbid(unsafe_code)]\n"
+        b"use std::process::{Child, Command, Stdio};\n"
+        b"fn spawn_core() -> Child { "
+        b"Command::new(env!(\"CARGO_BIN_EXE_wepld-core\"))"
+        b".stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap() }\n"
+        b"fn escape() { let _ = std::env::vars(); }\n"
+    )
+    base.expect_failure_matching(
+        "environment escape in S1-008 process test",
+        "S1-008 process test escaped owned-binary launch boundary",
+        verify_process_sources,
+        base.MemoryView(process_env_escape),
+    )
 
     process_network_effect = dict(safe_process_sources)
     process_network_effect["crates/core/src/main.rs"] = (

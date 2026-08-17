@@ -266,7 +266,7 @@ def validate_allowed_paths(paths: set[str], stage: str) -> None:
 
     missing = sorted(base.REQUIRED_PATHS - paths)
     if missing:
-        base.fail("required canonical path missing: " + ", ".join(missing))
+        base.fail("required canonical path missing: " + ", ".join(sorted(missing)))
 
     extra_root_src = sorted(
         path for path in paths if path.startswith("src/") and path != "src/.gitkeep"
@@ -799,7 +799,7 @@ fn spawn_owned_core() -> Result<(Child, ChildStderr, ChildStdin, ChildStdout), C
     filename_shadow = dict(safe)
     filename_shadow["apps/desktop/src-tauri/src/core_client.rs"] = safe_client.replace(
         b"Ok(core_parent.join(CORE_EXECUTABLE_FILENAME))",
-        b'let CORE_EXECUTABLE_FILENAME = "cmd.exe";\n    Ok(core_parent.join(CORE_EXECUTABLE_FILENAME))',
+        b'let CORE_EXECUTABLE_FILENAME = "other-program";\n    Ok(core_parent.join(CORE_EXECUTABLE_FILENAME))',
     )
     base.expect_failure_matching(
         "Core filename shadow",

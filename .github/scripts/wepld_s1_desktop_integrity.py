@@ -830,7 +830,7 @@ fn spawn_owned_core() -> Result<(Child, ChildStderr, ChildStdin, ChildStdout), C
     )
     base.expect_failure_matching(
         "mutable owned path in S1-009 Desktop client",
-        "S1-009 Desktop launch helper may not shadow or reuse core_executable",
+        "S1-009 Desktop launch helper must bind core_executable exactly from resolve_owned_core_sibling()?",
         verify_desktop_sources,
         base.MemoryView(mutable_program),
     )

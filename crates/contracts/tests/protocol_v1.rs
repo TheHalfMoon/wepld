@@ -224,6 +224,51 @@ fn oversized_encoded_payload_is_rejected_at_bound() {
     }
 }
 
+#[derive(Debug)]
+struct FailingSerialize;
+
+impl Serialize for FailingSerialize {
+    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        Err(serde::ser::Error::custom("forced serialization failure"))
+    }
+}
+
+struct ErrorReader {
+    kind: io::ErrorKind,
+}
+
+impl Read for ErrorReader {
+    fn read(&mut self, _buffer: &mut [u8]) -> io::Result<usize> {
+        Err(io::Error::from(self.kind))
+    }
+}
+
+#[test]
+fn frame_errors_retain_deterministic_classification() {
+    let expected_serialization_category = serde_json::to_vec(&FailingSerialize)
+        .expect_err("fixture must fail serialization")
+        .classify();
+    assert_eq!(
+        encode_frame(&FailingSerialize),
+        Err(FrameError::SerializationFailed {
+            category: expected_serialization_category,
+        })
+    );
+
+    let mut reader = ErrorReader {
+        kind: io::ErrorKind::PermissionDenied,
+    };
+    assert_eq!(
+        read_frame::<_, serde_json::Value>(&mut reader),
+        Err(FrameError::Io {
+            kind: io::ErrorKind::PermissionDenied,
+        })
+    );
+}
+
 struct PrefixProbe {
     prefix: [u8; LENGTH_PREFIX_BYTES],
     offset: usize,
@@ -288,15 +333,34 @@ fn framing_failures_are_deterministic() {
         Err(FrameError::TruncatedPayload { declared: 3 })
     );
 
-    let mut malformed_json = Cursor::new([1_u32.to_be_bytes().as_slice(), b"{"].concat());
+    let malformed_payload = b"{";
+    let malformed_category = serde_json::from_slice::<serde_json::Value>(malformed_payload)
+        .expect_err("fixture must be malformed JSON")
+        .classify();
+    let mut malformed_json =
+        Cursor::new([1_u32.to_be_bytes().as_slice(), malformed_payload.as_slice()].concat());
     assert_eq!(
         read_frame::<_, serde_json::Value>(&mut malformed_json),
-        Err(FrameError::InvalidJson)
+        Err(FrameError::InvalidJson {
+            category: malformed_category,
+        })
     );
 
-    let mut invalid_utf8 = Cursor::new([1_u32.to_be_bytes().as_slice(), &[0xff]].concat());
+    let invalid_utf8_payload = [0xff];
+    let invalid_utf8_category = serde_json::from_slice::<serde_json::Value>(&invalid_utf8_payload)
+        .expect_err("fixture must reject invalid UTF-8")
+        .classify();
+    let mut invalid_utf8 = Cursor::new(
+        [
+            1_u32.to_be_bytes().as_slice(),
+            invalid_utf8_payload.as_slice(),
+        ]
+        .concat(),
+    );
     assert_eq!(
         read_frame::<_, serde_json::Value>(&mut invalid_utf8),
-        Err(FrameError::InvalidJson)
+        Err(FrameError::InvalidJson {
+            category: invalid_utf8_category,
+        })
     );
 }

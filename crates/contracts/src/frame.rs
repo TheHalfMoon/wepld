@@ -1,4 +1,5 @@
 use serde::{Serialize, de::DeserializeOwned};
+use serde_json::error::Category as JsonErrorCategory;
 use std::io::{Error, ErrorKind, Read, Write};
 
 pub const LENGTH_PREFIX_BYTES: usize = 4;
@@ -11,9 +12,9 @@ pub enum FrameError {
     EmptyPayload,
     PayloadTooLarge { length: usize, max: usize },
     TruncatedPayload { declared: usize },
-    Io,
-    SerializationFailed,
-    InvalidJson,
+    Io { kind: ErrorKind },
+    SerializationFailed { category: JsonErrorCategory },
+    InvalidJson { category: JsonErrorCategory },
 }
 
 #[derive(Default)]
@@ -51,7 +52,9 @@ where
             max: MAX_PAYLOAD_BYTES,
         });
     }
-    serialization.map_err(|_| FrameError::SerializationFailed)?;
+    serialization.map_err(|error| FrameError::SerializationFailed {
+        category: error.classify(),
+    })?;
 
     if payload.bytes.is_empty() {
         return Err(FrameError::EmptyPayload);
@@ -78,7 +81,7 @@ where
         if error.kind() == ErrorKind::UnexpectedEof {
             return Err(FrameError::TruncatedPrefix);
         }
-        return Err(FrameError::Io);
+        return Err(FrameError::Io { kind: error.kind() });
     }
 
     let declared = u32::from_be_bytes(prefix) as usize;
@@ -97,8 +100,10 @@ where
         if error.kind() == ErrorKind::UnexpectedEof {
             return Err(FrameError::TruncatedPayload { declared });
         }
-        return Err(FrameError::Io);
+        return Err(FrameError::Io { kind: error.kind() });
     }
 
-    serde_json::from_slice(&payload).map_err(|_| FrameError::InvalidJson)
+    serde_json::from_slice(&payload).map_err(|error| FrameError::InvalidJson {
+        category: error.classify(),
+    })
 }

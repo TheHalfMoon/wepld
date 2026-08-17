@@ -2,7 +2,7 @@
 
 use std::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, mpsc};
+use std::sync::{Arc, Mutex, MutexGuard, mpsc};
 use std::thread;
 
 use wepld_contracts::CancelEnvelope;
@@ -84,14 +84,19 @@ pub enum InboundEnvelope {
     ProtocolError(ProtocolErrorEnvelope),
 }
 
+#[derive(Debug, Default)]
+struct LaunchIoState {
+    reader_terminated: bool,
+    inbound_overflowed: bool,
+    writer_failed: bool,
+}
+
 pub struct CoreClient {
     child: Child,
     writer_tx: Option<mpsc::SyncSender<Vec<u8>>>,
-    writer_failed: Arc<AtomicBool>,
     writer_thread: Option<thread::JoinHandle<()>>,
     inbound_rx: mpsc::Receiver<Result<ProtocolEnvelope, FrameError>>,
-    inbound_overflowed: Arc<AtomicBool>,
-    reader_terminated: Arc<AtomicBool>,
+    io_state: Arc<Mutex<LaunchIoState>>,
     protocol_thread: Option<thread::JoinHandle<()>>,
     diagnostic_rx: mpsc::Receiver<Vec<u8>>,
     diagnostics_truncated: Arc<AtomicBool>,
@@ -115,6 +120,19 @@ fn resolve_owned_core_sibling() -> Result<std::path::PathBuf, CoreClientError> {
         .parent()
         .ok_or(CoreClientError::MissingExecutableParent)?;
     Ok(core_parent.join(CORE_EXECUTABLE_FILENAME))
+}
+
+fn lock_io_state(state: &Mutex<LaunchIoState>) -> MutexGuard<'_, LaunchIoState> {
+    match state.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            let mut guard = poisoned.into_inner();
+            guard.reader_terminated = true;
+            guard.inbound_overflowed = true;
+            guard.writer_failed = true;
+            guard
+        }
+    }
 }
 
 fn spawn_stderr_drain(
@@ -184,68 +202,55 @@ fn spawn_owned_core() -> Result<
 fn spawn_protocol_writer(
     mut input: ChildStdin,
     ready: Arc<AtomicBool>,
-) -> (
-    mpsc::SyncSender<Vec<u8>>,
-    Arc<AtomicBool>,
-    thread::JoinHandle<()>,
-) {
+    io_state: Arc<Mutex<LaunchIoState>>,
+) -> (mpsc::SyncSender<Vec<u8>>, thread::JoinHandle<()>) {
     let (writer_tx, writer_rx) = mpsc::sync_channel::<Vec<u8>>(OUTBOUND_CHANNEL_CAPACITY);
-    let writer_failed = Arc::new(AtomicBool::new(false));
-    let failure_flag = Arc::clone(&writer_failed);
     let writer_thread = thread::spawn(move || {
         while let Ok(wire) = writer_rx.recv() {
             let write_result = std::io::Write::write_all(&mut input, &wire)
                 .and_then(|()| std::io::Write::flush(&mut input));
             if write_result.is_err() {
-                failure_flag.store(true, Ordering::Release);
+                let mut state = lock_io_state(&io_state);
+                state.writer_failed = true;
                 ready.store(false, Ordering::Release);
                 break;
             }
         }
     });
-    (writer_tx, writer_failed, writer_thread)
+    (writer_tx, writer_thread)
 }
 
-#[allow(clippy::type_complexity)]
 fn spawn_protocol_reader(
     mut output: ChildStdout,
     ready: Arc<AtomicBool>,
+    io_state: Arc<Mutex<LaunchIoState>>,
 ) -> (
     mpsc::Receiver<Result<ProtocolEnvelope, FrameError>>,
-    Arc<AtomicBool>,
-    Arc<AtomicBool>,
     thread::JoinHandle<()>,
 ) {
     let (inbound_tx, inbound_rx) = mpsc::sync_channel(INBOUND_CHANNEL_CAPACITY);
-    let inbound_overflowed = Arc::new(AtomicBool::new(false));
-    let overflow_flag = Arc::clone(&inbound_overflowed);
-    let reader_terminated = Arc::new(AtomicBool::new(false));
-    let terminal_flag = Arc::clone(&reader_terminated);
     let protocol_thread = thread::spawn(move || {
         loop {
             let inbound = read_frame::<_, ProtocolEnvelope>(&mut output);
             let terminal = inbound.is_err();
+            let mut state = lock_io_state(&io_state);
             if terminal {
-                terminal_flag.store(true, Ordering::Release);
+                state.reader_terminated = true;
                 ready.store(false, Ordering::Release);
             }
             if inbound_tx.try_send(inbound).is_err() {
-                overflow_flag.store(true, Ordering::Release);
-                terminal_flag.store(true, Ordering::Release);
+                state.inbound_overflowed = true;
+                state.reader_terminated = true;
                 ready.store(false, Ordering::Release);
                 break;
             }
+            drop(state);
             if terminal {
                 break;
             }
         }
     });
-    (
-        inbound_rx,
-        inbound_overflowed,
-        reader_terminated,
-        protocol_thread,
-    )
+    (inbound_rx, protocol_thread)
 }
 
 fn enqueue_wire(
@@ -253,6 +258,29 @@ fn enqueue_wire(
     wire: Vec<u8>,
 ) -> Result<(), mpsc::TrySendError<Vec<u8>>> {
     writer_tx.try_send(wire)
+}
+
+fn enqueue_wire_if_io_active(
+    io_state: &Mutex<LaunchIoState>,
+    writer_tx: &mpsc::SyncSender<Vec<u8>>,
+    wire: Vec<u8>,
+) -> Result<(), CoreClientError> {
+    let state = lock_io_state(io_state);
+    let result = if state.inbound_overflowed {
+        Err(CoreClientError::InboundOverflow)
+    } else if state.reader_terminated {
+        Err(CoreClientError::ReaderTerminated)
+    } else if state.writer_failed {
+        Err(CoreClientError::WriterFailed)
+    } else {
+        match enqueue_wire(writer_tx, wire) {
+            Ok(()) => Ok(()),
+            Err(mpsc::TrySendError::Full(_)) => Err(CoreClientError::OutboundOverflow),
+            Err(mpsc::TrySendError::Disconnected(_)) => Err(CoreClientError::WriterChannelClosed),
+        }
+    };
+    drop(state);
+    result
 }
 
 fn launch_id_of(envelope: &InboundEnvelope) -> u64 {
@@ -277,18 +305,17 @@ impl CoreClient {
         let (child, input, output, diagnostic_rx, diagnostics_truncated, diagnostic_thread) =
             spawn_owned_core()?;
         let ready = Arc::new(AtomicBool::new(false));
-        let (writer_tx, writer_failed, writer_thread) =
-            spawn_protocol_writer(input, Arc::clone(&ready));
-        let (inbound_rx, inbound_overflowed, reader_terminated, protocol_thread) =
-            spawn_protocol_reader(output, Arc::clone(&ready));
+        let io_state = Arc::new(Mutex::new(LaunchIoState::default()));
+        let (writer_tx, writer_thread) =
+            spawn_protocol_writer(input, Arc::clone(&ready), Arc::clone(&io_state));
+        let (inbound_rx, protocol_thread) =
+            spawn_protocol_reader(output, Arc::clone(&ready), Arc::clone(&io_state));
         Ok(Self {
             child,
             writer_tx: Some(writer_tx),
-            writer_failed,
             writer_thread: Some(writer_thread),
             inbound_rx,
-            inbound_overflowed,
-            reader_terminated,
+            io_state,
             protocol_thread: Some(protocol_thread),
             diagnostic_rx,
             diagnostics_truncated,
@@ -397,11 +424,18 @@ impl CoreClient {
 
     pub fn receive(&mut self) -> Result<InboundEnvelope, CoreClientError> {
         self.ensure_child_running()?;
-        if self.writer_failed.load(Ordering::Acquire) {
-            let error = self.stop_with_error(CoreClientError::WriterFailed);
-            Err(error)
-        } else if self.inbound_overflowed.load(Ordering::Acquire) {
-            let error = self.stop_with_error(CoreClientError::InboundOverflow);
+        let terminal_error = {
+            let state = lock_io_state(&self.io_state);
+            if state.writer_failed {
+                Some(CoreClientError::WriterFailed)
+            } else if state.inbound_overflowed {
+                Some(CoreClientError::InboundOverflow)
+            } else {
+                None
+            }
+        };
+        if let Some(error) = terminal_error {
+            let error = self.stop_with_error(error);
             Err(error)
         } else {
             match self.inbound_rx.recv_timeout(PROTOCOL_RESPONSE_TIMEOUT) {
@@ -428,17 +462,16 @@ impl CoreClient {
         let (child, input, output, diagnostic_rx, diagnostics_truncated, diagnostic_thread) =
             spawn_owned_core()?;
         let ready = Arc::new(AtomicBool::new(false));
-        let (writer_tx, writer_failed, writer_thread) =
-            spawn_protocol_writer(input, Arc::clone(&ready));
-        let (inbound_rx, inbound_overflowed, reader_terminated, protocol_thread) =
-            spawn_protocol_reader(output, Arc::clone(&ready));
+        let io_state = Arc::new(Mutex::new(LaunchIoState::default()));
+        let (writer_tx, writer_thread) =
+            spawn_protocol_writer(input, Arc::clone(&ready), Arc::clone(&io_state));
+        let (inbound_rx, protocol_thread) =
+            spawn_protocol_reader(output, Arc::clone(&ready), Arc::clone(&io_state));
         self.child = child;
         self.writer_tx = Some(writer_tx);
-        self.writer_failed = writer_failed;
         self.writer_thread = Some(writer_thread);
         self.inbound_rx = inbound_rx;
-        self.inbound_overflowed = inbound_overflowed;
-        self.reader_terminated = reader_terminated;
+        self.io_state = io_state;
         self.protocol_thread = Some(protocol_thread);
         self.diagnostic_rx = diagnostic_rx;
         self.diagnostics_truncated = diagnostics_truncated;
@@ -460,38 +493,25 @@ impl CoreClient {
 
     fn write_envelope(&mut self, envelope: &ProtocolEnvelope) -> Result<(), CoreClientError> {
         self.ensure_child_running()?;
-        if self.inbound_overflowed.load(Ordering::Acquire) {
-            let error = self.stop_with_error(CoreClientError::InboundOverflow);
-            Err(error)
-        } else if self.reader_terminated.load(Ordering::Acquire) {
-            let error = self.stop_with_error(CoreClientError::ReaderTerminated);
-            Err(error)
-        } else if self.writer_failed.load(Ordering::Acquire) {
-            let error = self.stop_with_error(CoreClientError::WriterFailed);
-            Err(error)
-        } else {
-            match encode_frame(envelope) {
-                Ok(wire) => match self.writer_tx.as_ref() {
-                    Some(writer_tx) => match enqueue_wire(writer_tx, wire) {
-                        Ok(()) => Ok(()),
-                        Err(mpsc::TrySendError::Full(_)) => {
-                            let error = self.stop_with_error(CoreClientError::OutboundOverflow);
-                            Err(error)
-                        }
-                        Err(mpsc::TrySendError::Disconnected(_)) => {
-                            let error = self.stop_with_error(CoreClientError::WriterChannelClosed);
-                            Err(error)
-                        }
-                    },
-                    None => {
-                        let error = self.stop_with_error(CoreClientError::WriterChannelClosed);
-                        Err(error)
-                    }
-                },
-                Err(error) => {
-                    let error = self.stop_with_error(CoreClientError::Frame(error));
-                    Err(error)
-                }
+        let wire = match encode_frame(envelope) {
+            Ok(wire) => wire,
+            Err(error) => {
+                let error = self.stop_with_error(CoreClientError::Frame(error));
+                return Err(error);
+            }
+        };
+        let writer_tx = match self.writer_tx.as_ref() {
+            Some(writer_tx) => writer_tx.clone(),
+            None => {
+                let error = self.stop_with_error(CoreClientError::WriterChannelClosed);
+                return Err(error);
+            }
+        };
+        match enqueue_wire_if_io_active(&self.io_state, &writer_tx, wire) {
+            Ok(()) => Ok(()),
+            Err(error) => {
+                let error = self.stop_with_error(error);
+                Err(error)
             }
         }
     }
@@ -531,13 +551,13 @@ impl CoreClient {
             });
             Err(error)
         } else {
-            self.ready.store(true, Ordering::Release);
-            if self.reader_terminated.load(Ordering::Acquire)
-                || self.inbound_overflowed.load(Ordering::Acquire)
-                || self.writer_failed.load(Ordering::Acquire)
-            {
+            let state = lock_io_state(&self.io_state);
+            if state.reader_terminated || state.inbound_overflowed || state.writer_failed {
                 self.ready.store(false, Ordering::Release);
+            } else {
+                self.ready.store(true, Ordering::Release);
             }
+            drop(state);
             Ok(inbound)
         }
     }
@@ -550,7 +570,11 @@ impl CoreClient {
     }
 
     fn stop_child(&mut self) -> Result<(), CoreClientError> {
-        self.ready.store(false, Ordering::Release);
+        {
+            let mut state = lock_io_state(&self.io_state);
+            state.reader_terminated = true;
+            self.ready.store(false, Ordering::Release);
+        }
         let _ = self.writer_tx.take();
         let termination = match self.child.try_wait() {
             Ok(Some(_)) => Ok(()),
@@ -629,6 +653,34 @@ mod tests {
         let error =
             enqueue_wire(&writer_tx, vec![2]).expect_err("full queue must reject immediately");
         assert!(matches!(error, mpsc::TrySendError::Full(_)));
+    }
+
+    #[test]
+    fn terminal_reader_transition_serializes_with_outbound_enqueue() {
+        let io_state = Arc::new(Mutex::new(LaunchIoState::default()));
+        let (writer_tx, writer_rx) = mpsc::sync_channel(1);
+        let mut state = lock_io_state(&io_state);
+        let worker_state = Arc::clone(&io_state);
+        let worker_tx = writer_tx.clone();
+        let (started_tx, started_rx) = mpsc::channel();
+        let enqueue_thread = thread::spawn(move || {
+            started_tx
+                .send(())
+                .expect("enqueue worker start signal must send");
+            enqueue_wire_if_io_active(&worker_state, &worker_tx, vec![1])
+        });
+        started_rx
+            .recv_timeout(PROTOCOL_RESPONSE_TIMEOUT)
+            .expect("enqueue worker must start");
+        state.reader_terminated = true;
+        drop(state);
+
+        let error = enqueue_thread
+            .join()
+            .expect("enqueue worker must not panic")
+            .expect_err("terminal reader transition must win before enqueue acceptance");
+        assert!(matches!(error, CoreClientError::ReaderTerminated));
+        assert!(matches!(writer_rx.try_recv(), Err(mpsc::TryRecvError::Empty)));
     }
 
     #[test]
@@ -727,7 +779,11 @@ mod tests {
         let _ = client.receive().expect("health response must arrive");
         assert!(client.is_ready());
 
-        client.reader_terminated.store(true, Ordering::Release);
+        {
+            let mut state = lock_io_state(&client.io_state);
+            state.reader_terminated = true;
+            client.ready.store(false, Ordering::Release);
+        }
         let error = client
             .send_version()
             .expect_err("terminal reader state must reject outbound command");
@@ -745,8 +801,11 @@ mod tests {
             other => panic!("health response frame must arrive, got {other:?}"),
         };
 
-        client.reader_terminated.store(true, Ordering::Release);
-        client.ready.store(false, Ordering::Release);
+        {
+            let mut state = lock_io_state(&client.io_state);
+            state.reader_terminated = true;
+            client.ready.store(false, Ordering::Release);
+        }
         let inbound = client
             .accept_inbound(envelope)
             .expect("queued valid response must remain acceptable");

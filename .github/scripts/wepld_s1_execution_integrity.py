@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Bounded S1 execution extension over the canonical acquisition integrity policy.
+"""Bounded S1 execution extension over the canonical acquisition policy.
 
-The privileged pull_request_target path still treats candidate Git objects as data only.
-Candidate Rust executes only in the separate token-minimal pull_request contracts gate.
+The privileged pull_request_target path always executes trusted-base policy and
+reads candidate Git objects as data only. Candidate Rust executes only in the
+separate token-minimal pull_request contracts workflow.
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ EXTENSION_CONTROLLED_PATHS = frozenset({POLICY_SCRIPT, CONTRACTS_WORKFLOW})
 
 PROTOCOL_STAGE = "S1_PROTOCOL_CONTRACTS_CANDIDATE"
 STATE_STAGE = "S1_HANDSHAKE_STATE_CANDIDATE"
+PROCESS_STAGE = "S1_CORE_PROCESS_CANDIDATE"
 
 S1_006_MARKER_PATHS = frozenset(
     {
@@ -30,7 +32,6 @@ S1_006_MARKER_PATHS = frozenset(
     }
 )
 S1_006_ALLOWED_PATHS = S1_006_MARKER_PATHS | {"crates/contracts/src/lib.rs"}
-
 S1_007_MARKER_PATHS = frozenset(
     {
         "crates/core/src/lib.rs",
@@ -40,6 +41,11 @@ S1_007_MARKER_PATHS = frozenset(
 )
 S1_007_ALLOWED_PATHS = S1_007_MARKER_PATHS
 
+# main.rs is already the frozen Stage-B skeleton. The integration test is the
+# structural marker that upgrades a candidate from pure state to S1-008.
+S1_008_MARKER_PATHS = frozenset({"crates/core/tests/process_v1.rs"})
+S1_008_ALLOWED_PATHS = S1_008_MARKER_PATHS | {"crates/core/src/main.rs"}
+
 S1_005_EVIDENCE_PATH = (
     "specs/001-desktop-rust-trusted-core-handshake/"
     "s1-005-component-admission-evidence.md"
@@ -48,8 +54,11 @@ S1_006_FROZEN_EVIDENCE_PATHS = frozenset(
     {"docs/governance/DEPENDENCY_REGISTER.md", S1_005_EVIDENCE_PATH}
 )
 S1_007_FROZEN_PROTOCOL_PATHS = S1_006_ALLOWED_PATHS
+S1_008_FROZEN_STATE_PATHS = S1_007_ALLOWED_PATHS
+
 MAX_S1_006_SOURCE_BYTES = 256_000
 MAX_S1_007_SOURCE_BYTES = 256_000
+MAX_S1_008_SOURCE_BYTES = 256_000
 
 EXPECTED_WORKFLOW_SHA256 = {
     ".github/workflows/foundation-integrity.yml": (
@@ -63,9 +72,6 @@ EXPECTED_WORKFLOW_SHA256 = {
     ),
 }
 
-# Defense-in-depth source-scope vocabulary. This is deliberately checked only
-# after comments and literals are stripped, and unsafe code is also rejected by
-# the Rust compiler in the separate unprivileged contracts workflow.
 PROHIBITED_EFFECT_IDENTIFIERS = frozenset(
     {
         "fs",
@@ -97,6 +103,133 @@ PROHIBITED_EFFECT_IDENTIFIERS = frozenset(
     }
 )
 S1_007_PROHIBITED_EFFECT_IDENTIFIERS = PROHIBITED_EFFECT_IDENTIFIERS | {"path"}
+
+# Core main may own inherited stdio and diagnostics stderr, but it may not mint
+# filesystem/network/process/env/thread/Tauri authority or write unframed text.
+# Inline/extern module introduction is prohibited so required external namespaces
+# cannot be shadowed or rebound inside the admitted one-file Core process root.
+S1_008_MAIN_PROHIBITED_IDENTIFIERS = frozenset(
+    {
+        "fs",
+        "net",
+        "process",
+        "env",
+        "thread",
+        "tokio",
+        "tauri",
+        "Command",
+        "TcpStream",
+        "TcpListener",
+        "UdpSocket",
+        "UnixStream",
+        "UnixListener",
+        "NamedPipe",
+        "File",
+        "OpenOptions",
+        "print",
+        "println",
+        "include",
+        "include_bytes",
+        "include_str",
+        "path",
+        "mod",
+        "extern",
+    }
+)
+S1_008_MAIN_OUTPUT_ESCAPE_IDENTIFIERS = frozenset(
+    {
+        "Write",
+        "write",
+        "write_all",
+        "write_vectored",
+        "write_all_vectored",
+        "write_fmt",
+        "writeln",
+        "flush",
+        "copy",
+        "_print",
+        "set_output_capture",
+        "BufWriter",
+        "LineWriter",
+    }
+)
+
+# The only direct stdout write authority admitted in Core main is this typed
+# framed helper. Leading `::` forces Rust 2018+ path resolution through the
+# extern prelude for both std and wepld_contracts, preventing local namespace
+# shadowing of the canonical codec or I/O implementation.
+S1_008_MAIN_FRAMED_OUTPUT_HELPER = re.compile(
+    r"""
+    fn\s+write_protocol_frame\s*\(
+        \s*stdout\s*:\s*&mut\s*::\s*std\s*::\s*io\s*::\s*StdoutLock\s*<\s*'_\s*>\s*,
+        \s*envelope\s*:\s*&\s*::\s*wepld_contracts\s*::\s*ProtocolEnvelope\s*,?\s*
+    \)
+    \s*->\s*Result\s*<\s*\(\s*\)\s*,\s*::\s*wepld_contracts\s*::\s*FrameError\s*>
+    \s*\{
+        \s*let\s+wire\s*=\s*::\s*wepld_contracts\s*::\s*encode_frame\s*\(\s*envelope\s*\)\s*\?\s*;
+        \s*::\s*std\s*::\s*io\s*::\s*Write\s*::\s*write_all\s*\(\s*stdout\s*,\s*&\s*wire\s*\)
+        \s*\.\s*map_err\s*\(\s*\|error\|\s*::\s*wepld_contracts\s*::\s*FrameError\s*::\s*Io\s*\{\s*kind\s*:\s*error\s*\.\s*kind\s*\(\s*\)\s*\}\s*\)\s*\?\s*;
+        \s*::\s*std\s*::\s*io\s*::\s*Write\s*::\s*flush\s*\(\s*stdout\s*\)
+        \s*\.\s*map_err\s*\(\s*\|error\|\s*::\s*wepld_contracts\s*::\s*FrameError\s*::\s*Io\s*\{\s*kind\s*:\s*error\s*\.\s*kind\s*\(\s*\)\s*\}\s*\)
+        \s*
+    \}
+    """,
+    re.VERBOSE | re.DOTALL,
+)
+
+# The process integration test may launch exactly the Cargo-built owned Core
+# binary and use Child/Stdio/thread test mechanics. It may not widen execution.
+S1_008_TEST_PROHIBITED_IDENTIFIERS = frozenset(
+    {
+        "fs",
+        "net",
+        "tokio",
+        "tauri",
+        "option_env",
+        "TcpStream",
+        "TcpListener",
+        "UdpSocket",
+        "UnixStream",
+        "UnixListener",
+        "NamedPipe",
+        "File",
+        "OpenOptions",
+        "include",
+        "include_bytes",
+        "include_str",
+        "path",
+    }
+)
+S1_008_TEST_PROCESS_IMPORT = re.compile(
+    r"use\s+std\s*::\s*process\s*::\s*\{\s*Child\s*,\s*Command\s*,\s*Stdio\s*\}\s*;"
+)
+# This matcher intentionally runs on source whose string contents were blanked
+# while preserving offsets. The same matched span is then validated in raw
+# source by S1_008_TEST_OWNED_LAUNCH_RAW.
+S1_008_TEST_OWNED_LAUNCH_SCRUBBED = re.compile(
+    r"Command\s*::\s*new\s*\(\s*env\s*!\s*\(\s*\)\s*\)"
+)
+S1_008_TEST_OWNED_LAUNCH_RAW = re.compile(
+    r'\ACommand\s*::\s*new\s*\(\s*env\s*!\s*\(\s*"CARGO_BIN_EXE_wepld-core"\s*\)\s*\)\Z'
+)
+S1_008_TEST_FORBIDDEN_COMMAND_MODIFIERS = frozenset(
+    {
+        "arg",
+        "args",
+        "envs",
+        "env_remove",
+        "env_clear",
+        "current_dir",
+        "uid",
+        "gid",
+        "groups",
+        "arg0",
+        "creation_flags",
+        "raw_arg",
+        "show_window",
+    }
+)
+
 FORBID_UNSAFE_ATTRIBUTE = re.compile(
     r"\A#!\s*\[\s*forbid\s*\(\s*unsafe_code\s*\)\s*\]"
 )
@@ -106,43 +239,60 @@ RAW_STRING_PREFIX = re.compile(r'(?:br|r)(#{0,255})"')
 
 
 def _require_component_inputs(paths: set[str], scope: str) -> None:
-    missing_component = base.STAGE_B_ALL_PATHS - paths
-    if missing_component:
+    missing = base.STAGE_B_ALL_PATHS - paths
+    if missing:
         base.fail(
             f"{scope} candidate is missing frozen component inputs: "
-            + ", ".join(sorted(missing_component))
+            + ", ".join(sorted(missing))
         )
-    if not any(
-        path.startswith(base.FROZEN_GLIB_VENDOR_PREFIX + "/") for path in paths
-    ):
+    if not any(path.startswith(base.FROZEN_GLIB_VENDOR_PREFIX + "/") for path in paths):
         base.fail(f"{scope} candidate is missing frozen glib vendor subtree")
 
 
+def _require_protocol_inputs(paths: set[str], scope: str) -> None:
+    missing = S1_006_MARKER_PATHS - paths
+    if missing:
+        base.fail(
+            f"{scope} candidate is missing canonical S1-006 protocol inputs: "
+            + ", ".join(sorted(missing))
+        )
+
+
+def _require_state_inputs(paths: set[str], scope: str) -> None:
+    missing = S1_007_MARKER_PATHS - paths
+    if missing:
+        base.fail(
+            f"{scope} candidate is missing canonical S1-007 state inputs: "
+            + ", ".join(sorted(missing))
+        )
+
+
 def classify_stage(paths: set[str]) -> str:
+    if paths & S1_008_MARKER_PATHS:
+        _require_state_inputs(paths, "S1-008 process")
+        _require_protocol_inputs(paths, "S1-008 process")
+        _require_component_inputs(paths, "S1-008 process")
+        return PROCESS_STAGE
+
     state_markers = paths & S1_007_MARKER_PATHS
     if state_markers:
-        missing_state = S1_007_MARKER_PATHS - paths
-        if missing_state:
+        missing = S1_007_MARKER_PATHS - paths
+        if missing:
             base.fail(
                 "partial S1-007 state candidate is prohibited; missing: "
-                + ", ".join(sorted(missing_state))
+                + ", ".join(sorted(missing))
             )
-        missing_protocol = S1_006_MARKER_PATHS - paths
-        if missing_protocol:
-            base.fail(
-                "S1-007 state candidate is missing canonical S1-006 protocol inputs: "
-                + ", ".join(sorted(missing_protocol))
-            )
+        _require_protocol_inputs(paths, "S1-007 state")
         _require_component_inputs(paths, "S1-007 state")
         return STATE_STAGE
 
     markers = paths & S1_006_MARKER_PATHS
     if markers:
-        missing_markers = S1_006_MARKER_PATHS - paths
-        if missing_markers:
+        missing = S1_006_MARKER_PATHS - paths
+        if missing:
             base.fail(
                 "partial S1-006 protocol candidate is prohibited; missing: "
-                + ", ".join(sorted(missing_markers))
+                + ", ".join(sorted(missing))
             )
         _require_component_inputs(paths, "S1-006 protocol")
         return PROTOCOL_STAGE
@@ -151,7 +301,7 @@ def classify_stage(paths: set[str]) -> str:
 
 
 def validate_allowed_paths(paths: set[str], stage: str) -> None:
-    if stage not in {PROTOCOL_STAGE, STATE_STAGE}:
+    if stage not in {PROTOCOL_STAGE, STATE_STAGE, PROCESS_STAGE}:
         base.validate_allowed_paths(paths - EXTENSION_CONTROLLED_PATHS, stage)
         return
 
@@ -159,8 +309,10 @@ def validate_allowed_paths(paths: set[str], stage: str) -> None:
     allowed |= EXTENSION_CONTROLLED_PATHS
     allowed |= base.STAGE_B_ALL_PATHS
     allowed |= S1_006_ALLOWED_PATHS
-    if stage == STATE_STAGE:
+    if stage in {STATE_STAGE, PROCESS_STAGE}:
         allowed |= S1_007_ALLOWED_PATHS
+    if stage == PROCESS_STAGE:
+        allowed |= S1_008_ALLOWED_PATHS
     allowed |= {
         path
         for path in paths
@@ -169,7 +321,11 @@ def validate_allowed_paths(paths: set[str], stage: str) -> None:
 
     unexpected = sorted(paths - allowed)
     if unexpected:
-        scope = "S1-007" if stage == STATE_STAGE else "S1-006"
+        scope = {
+            PROTOCOL_STAGE: "S1-006",
+            STATE_STAGE: "S1-007",
+            PROCESS_STAGE: "S1-008",
+        }[stage]
         base.fail(f"tracked path outside {scope} allowlist: " + ", ".join(unexpected))
 
     missing = sorted(base.REQUIRED_PATHS - paths)
@@ -208,13 +364,17 @@ def verify_extension_controlled_paths(
             base.fail(f"base-controlled S1 execution policy path changed: {relative}")
 
 
-def verify_protocol_component_base(
+def _verify_component_base(
     view: base.RepositoryView,
     paths: set[str],
+    *,
+    allow_core_main_change: bool,
 ) -> None:
     expected_text = dict(base.STAGE_B_TEXT)
     expected_text["Cargo.toml"] = base.ROOT_CARGO_COMPONENT
     expected_text.pop("crates/contracts/src/lib.rs")
+    if allow_core_main_change:
+        expected_text.pop("crates/core/src/main.rs")
 
     for relative, expected in expected_text.items():
         base.read_text_exact(view, relative, expected)
@@ -230,7 +390,7 @@ def _blank_non_newlines(text: str) -> str:
 
 
 def strip_rust_comments_and_strings(text: str) -> str:
-    """Blank Rust comments and string literals while preserving code/newlines."""
+    """Blank Rust comments and string literals while preserving code offsets."""
 
     out: list[str] = []
     i = 0
@@ -303,96 +463,163 @@ def strip_rust_comments_and_strings(text: str) -> str:
     return "".join(out)
 
 
+def _read_rust(
+    view: base.RepositoryView,
+    relative: str,
+    max_bytes: int,
+    scope: str,
+) -> tuple[str, str]:
+    data = view.read_bytes(relative, max_bytes)
+    try:
+        raw = data.decode("utf-8", errors="strict")
+    except UnicodeError as exc:
+        base.fail(f"{scope} Rust source is not UTF-8: {relative}: {exc}")
+    if "\x00" in raw:
+        base.fail(f"{scope} Rust source contains NUL: {relative}")
+    return raw, strip_rust_comments_and_strings(raw)
+
+
+def _require_forbid(code: str, relative: str, scope: str) -> None:
+    if FORBID_UNSAFE_ATTRIBUTE.match(code.lstrip()) is None:
+        base.fail(
+            f"{scope} crate/test root must begin with an actual "
+            f"#![forbid(unsafe_code)] attribute: {relative}"
+        )
+
+
+def _reject_identifiers(
+    relative: str,
+    code: str,
+    forbidden_identifiers: frozenset[str],
+    scope: str,
+) -> None:
+    if PATH_ATTRIBUTE.search(code):
+        base.fail(f"{scope} #[path] module indirection is prohibited: {relative}")
+    identifiers = set(RUST_IDENTIFIER.findall(code))
+    forbidden = sorted(identifiers & forbidden_identifiers)
+    if forbidden:
+        base.fail(
+            f"{scope} prohibited effect identifier(s) found in code: "
+            f"{relative}: {', '.join(forbidden)}"
+        )
+
+
 def verify_protocol_sources(view: base.RepositoryView) -> None:
     code_by_path: dict[str, str] = {}
     for relative in sorted(S1_006_ALLOWED_PATHS):
-        data = view.read_bytes(relative, MAX_S1_006_SOURCE_BYTES)
-        try:
-            text = data.decode("utf-8", errors="strict")
-        except UnicodeError as exc:
-            base.fail(f"S1-006 Rust source is not UTF-8: {relative}: {exc}")
-        if "\x00" in text:
-            base.fail(f"S1-006 Rust source contains NUL: {relative}")
-        code_by_path[relative] = strip_rust_comments_and_strings(text)
-
-    for required_forbid in (
-        "crates/contracts/src/lib.rs",
-        "crates/contracts/tests/protocol_v1.rs",
-    ):
-        code = code_by_path[required_forbid].lstrip()
-        if FORBID_UNSAFE_ATTRIBUTE.match(code) is None:
-            base.fail(
-                "S1-006 crate/test root must begin with an actual "
-                f"#![forbid(unsafe_code)] attribute: {required_forbid}"
-            )
-
+        _, code = _read_rust(view, relative, MAX_S1_006_SOURCE_BYTES, "S1-006")
+        code_by_path[relative] = code
+    _require_forbid(code_by_path["crates/contracts/src/lib.rs"], "crates/contracts/src/lib.rs", "S1-006")
+    _require_forbid(code_by_path["crates/contracts/tests/protocol_v1.rs"], "crates/contracts/tests/protocol_v1.rs", "S1-006")
     for relative, code in code_by_path.items():
-        identifiers = set(RUST_IDENTIFIER.findall(code))
-        forbidden = sorted(identifiers & PROHIBITED_EFFECT_IDENTIFIERS)
-        if forbidden:
-            base.fail(
-                "S1-006 prohibited effect identifier(s) found in code: "
-                f"{relative}: {', '.join(forbidden)}"
-            )
-        if PATH_ATTRIBUTE.search(code):
-            base.fail(f"S1-006 #[path] module indirection is prohibited: {relative}")
+        _reject_identifiers(relative, code, PROHIBITED_EFFECT_IDENTIFIERS, "S1-006")
 
 
 def verify_state_sources(view: base.RepositoryView) -> None:
     code_by_path: dict[str, str] = {}
     for relative in sorted(S1_007_ALLOWED_PATHS):
-        data = view.read_bytes(relative, MAX_S1_007_SOURCE_BYTES)
-        try:
-            text = data.decode("utf-8", errors="strict")
-        except UnicodeError as exc:
-            base.fail(f"S1-007 Rust source is not UTF-8: {relative}: {exc}")
-        if "\x00" in text:
-            base.fail(f"S1-007 Rust source contains NUL: {relative}")
-        code_by_path[relative] = strip_rust_comments_and_strings(text)
-
-    for required_forbid in (
-        "crates/core/src/lib.rs",
-        "crates/core/tests/state_v1.rs",
-    ):
-        code = code_by_path[required_forbid].lstrip()
-        if FORBID_UNSAFE_ATTRIBUTE.match(code) is None:
-            base.fail(
-                "S1-007 crate/test root must begin with an actual "
-                f"#![forbid(unsafe_code)] attribute: {required_forbid}"
-            )
-
+        _, code = _read_rust(view, relative, MAX_S1_007_SOURCE_BYTES, "S1-007")
+        code_by_path[relative] = code
+    _require_forbid(code_by_path["crates/core/src/lib.rs"], "crates/core/src/lib.rs", "S1-007")
+    _require_forbid(code_by_path["crates/core/tests/state_v1.rs"], "crates/core/tests/state_v1.rs", "S1-007")
     for relative, code in code_by_path.items():
-        if PATH_ATTRIBUTE.search(code):
-            base.fail(f"S1-007 #[path] module indirection is prohibited: {relative}")
-        identifiers = set(RUST_IDENTIFIER.findall(code))
-        forbidden = sorted(identifiers & S1_007_PROHIBITED_EFFECT_IDENTIFIERS)
-        if forbidden:
-            base.fail(
-                "S1-007 prohibited effect identifier(s) found in code: "
-                f"{relative}: {', '.join(forbidden)}"
-            )
+        _reject_identifiers(relative, code, S1_007_PROHIBITED_EFFECT_IDENTIFIERS, "S1-007")
 
 
-def freeze_s1_005_evidence(
-    candidate: base.RepositoryView,
-    policy_base: base.RepositoryView,
-) -> None:
+def verify_process_sources(view: base.RepositoryView) -> None:
+    main_path = "crates/core/src/main.rs"
+    test_path = "crates/core/tests/process_v1.rs"
+    _, main_code = _read_rust(view, main_path, MAX_S1_008_SOURCE_BYTES, "S1-008")
+    raw_test, test_code = _read_rust(view, test_path, MAX_S1_008_SOURCE_BYTES, "S1-008")
+
+    _require_forbid(main_code, main_path, "S1-008")
+    _require_forbid(test_code, test_path, "S1-008")
+    _reject_identifiers(
+        main_path,
+        main_code,
+        S1_008_MAIN_PROHIBITED_IDENTIFIERS,
+        "S1-008 Core main",
+    )
+
+    framed_helpers = list(S1_008_MAIN_FRAMED_OUTPUT_HELPER.finditer(main_code))
+    if len(framed_helpers) != 1:
+        base.fail(
+            "S1-008 Core main must contain exactly one canonical typed framed-output helper"
+        )
+    helper = framed_helpers[0]
+    scrubbed_main = (
+        main_code[: helper.start()]
+        + _blank_non_newlines(main_code[helper.start() : helper.end()])
+        + main_code[helper.end() :]
+    )
+    _reject_identifiers(
+        main_path,
+        scrubbed_main,
+        S1_008_MAIN_OUTPUT_ESCAPE_IDENTIFIERS,
+        "S1-008 Core main output",
+    )
+
+    process_imports = list(S1_008_TEST_PROCESS_IMPORT.finditer(test_code))
+    owned_launches = list(S1_008_TEST_OWNED_LAUNCH_SCRUBBED.finditer(test_code))
+    if len(process_imports) != 1 or len(owned_launches) != 1:
+        base.fail(
+            "S1-008 process test must use exactly one std::process import "
+            "and one owned Core binary launcher"
+        )
+
+    owned_launch = owned_launches[0]
+    raw_owned_launch = raw_test[owned_launch.start() : owned_launch.end()]
+    if S1_008_TEST_OWNED_LAUNCH_RAW.fullmatch(raw_owned_launch) is None:
+        base.fail(
+            "S1-008 process test launcher must target exactly "
+            'env!("CARGO_BIN_EXE_wepld-core")'
+        )
+
+    scrubbed_test = S1_008_TEST_PROCESS_IMPORT.sub(" ", test_code, count=1)
+    scrubbed_test = S1_008_TEST_OWNED_LAUNCH_SCRUBBED.sub(" ", scrubbed_test, count=1)
+    remaining = set(RUST_IDENTIFIER.findall(scrubbed_test))
+    escaped = sorted(
+        remaining
+        & (
+            {"process", "Command", "env", "option_env"}
+            | S1_008_TEST_FORBIDDEN_COMMAND_MODIFIERS
+        )
+    )
+    if escaped:
+        base.fail(
+            "S1-008 process test escaped owned-binary launch boundary: "
+            + ", ".join(escaped)
+        )
+    _reject_identifiers(
+        test_path,
+        scrubbed_test,
+        S1_008_TEST_PROHIBITED_IDENTIFIERS,
+        "S1-008 process test",
+    )
+
+
+def freeze_s1_005_evidence(candidate: base.RepositoryView, policy_base: base.RepositoryView) -> None:
     for relative in sorted(S1_006_FROZEN_EVIDENCE_PATHS):
-        candidate_bytes = candidate.read_bytes(relative, base.MAX_POLICY_FILE_BYTES)
-        base_bytes = policy_base.read_bytes(relative, base.MAX_POLICY_FILE_BYTES)
-        if candidate_bytes != base_bytes:
+        if candidate.read_bytes(relative, base.MAX_POLICY_FILE_BYTES) != policy_base.read_bytes(
+            relative, base.MAX_POLICY_FILE_BYTES
+        ):
             base.fail(f"S1 candidate changed frozen S1-005 evidence: {relative}")
 
 
-def freeze_s1_006_protocol(
-    candidate: base.RepositoryView,
-    policy_base: base.RepositoryView,
-) -> None:
+def freeze_s1_006_protocol(candidate: base.RepositoryView, policy_base: base.RepositoryView) -> None:
     for relative in sorted(S1_007_FROZEN_PROTOCOL_PATHS):
-        candidate_bytes = candidate.read_bytes(relative, MAX_S1_006_SOURCE_BYTES)
-        base_bytes = policy_base.read_bytes(relative, MAX_S1_006_SOURCE_BYTES)
-        if candidate_bytes != base_bytes:
-            base.fail(f"S1-007 candidate changed frozen S1-006 protocol: {relative}")
+        if candidate.read_bytes(relative, MAX_S1_006_SOURCE_BYTES) != policy_base.read_bytes(
+            relative, MAX_S1_006_SOURCE_BYTES
+        ):
+            base.fail(f"S1-007+ candidate changed frozen S1-006 protocol: {relative}")
+
+
+def freeze_s1_007_state(candidate: base.RepositoryView, policy_base: base.RepositoryView) -> None:
+    for relative in sorted(S1_008_FROZEN_STATE_PATHS):
+        if candidate.read_bytes(relative, MAX_S1_007_SOURCE_BYTES) != policy_base.read_bytes(
+            relative, MAX_S1_007_SOURCE_BYTES
+        ):
+            base.fail(f"S1-008 candidate changed frozen S1-007 state: {relative}")
 
 
 def verify_view(
@@ -412,11 +639,17 @@ def verify_view(
     base.verify_archive(view)
     verify_policy_workflows(view)
 
-    if stage in {PROTOCOL_STAGE, STATE_STAGE}:
-        verify_protocol_component_base(view, paths)
+    if stage in {PROTOCOL_STAGE, STATE_STAGE, PROCESS_STAGE}:
+        _verify_component_base(
+            view,
+            paths,
+            allow_core_main_change=(stage == PROCESS_STAGE),
+        )
         verify_protocol_sources(view)
-        if stage == STATE_STAGE:
+        if stage in {STATE_STAGE, PROCESS_STAGE}:
             verify_state_sources(view)
+        if stage == PROCESS_STAGE:
+            verify_process_sources(view)
     else:
         base.verify_frozen_glib_vendor(view, paths, stage)
         base.verify_stage_b_templates(view, stage)
@@ -438,17 +671,31 @@ def verify_view(
             base.fail(f"temporary repair workflow leaked into active tree: {path}")
 
     if policy_base is not None:
-        base.verify_base_path_preservation(
-            paths, base.validate_entries(policy_base.entries())
-        )
+        base.verify_base_path_preservation(paths, base.validate_entries(policy_base.entries()))
         base.compare_base_controlled(view, policy_base)
         verify_extension_controlled_paths(view, policy_base)
-        if stage in {PROTOCOL_STAGE, STATE_STAGE}:
+        if stage in {PROTOCOL_STAGE, STATE_STAGE, PROCESS_STAGE}:
             freeze_s1_005_evidence(view, policy_base)
-        if stage == STATE_STAGE:
+        if stage in {STATE_STAGE, PROCESS_STAGE}:
             freeze_s1_006_protocol(view, policy_base)
+        if stage == PROCESS_STAGE:
+            freeze_s1_007_state(view, policy_base)
 
     return stage
+
+
+def _framed_helper_fixture() -> bytes:
+    return b"""fn write_protocol_frame(
+    stdout: &mut ::std::io::StdoutLock<'_>,
+    envelope: &::wepld_contracts::ProtocolEnvelope,
+) -> Result<(), ::wepld_contracts::FrameError> {
+    let wire = ::wepld_contracts::encode_frame(envelope)?;
+    ::std::io::Write::write_all(stdout, &wire)
+        .map_err(|error| ::wepld_contracts::FrameError::Io { kind: error.kind() })?;
+    ::std::io::Write::flush(stdout)
+        .map_err(|error| ::wepld_contracts::FrameError::Io { kind: error.kind() })
+}
+"""
 
 
 def selftest() -> None:
@@ -461,194 +708,257 @@ def selftest() -> None:
         | {base.FROZEN_GLIB_VENDOR_PREFIX + "/src/variant_iter.rs"}
         | set(EXTENSION_CONTROLLED_PATHS)
     )
-    if classify_stage(component_paths) != base.COMPONENT_STAGE:
-        base.fail("S1 execution self-test: component stage compatibility failed")
-
     protocol_paths = component_paths | set(S1_006_MARKER_PATHS)
-    if classify_stage(protocol_paths) != PROTOCOL_STAGE:
-        base.fail("S1 execution self-test: protocol stage classification failed")
-    validate_allowed_paths(protocol_paths, PROTOCOL_STAGE)
-
-    one_marker = component_paths | {next(iter(S1_006_MARKER_PATHS))}
-    base.expect_failure_matching(
-        "partial S1-006 protocol stage",
-        "partial S1-006 protocol candidate is prohibited",
-        classify_stage,
-        one_marker,
-    )
-    base.expect_failure_matching(
-        "extra S1-006 Rust module",
-        "tracked path outside S1-006 allowlist",
-        validate_allowed_paths,
-        protocol_paths | {"crates/contracts/src/extra.rs"},
-        PROTOCOL_STAGE,
-    )
-
     state_paths = protocol_paths | set(S1_007_MARKER_PATHS)
+    process_paths = state_paths | set(S1_008_MARKER_PATHS)
+    if classify_stage(component_paths) != base.COMPONENT_STAGE:
+        base.fail("S1 self-test: component-stage compatibility failed")
+    if classify_stage(protocol_paths) != PROTOCOL_STAGE:
+        base.fail("S1 self-test: protocol-stage classification failed")
     if classify_stage(state_paths) != STATE_STAGE:
-        base.fail("S1 execution self-test: state stage classification failed")
-    validate_allowed_paths(state_paths, STATE_STAGE)
-
-    one_state_marker = protocol_paths | {next(iter(S1_007_MARKER_PATHS))}
+        base.fail("S1 self-test: state-stage classification failed")
+    if classify_stage(process_paths) != PROCESS_STAGE:
+        base.fail("S1 self-test: process-stage classification failed")
+    validate_allowed_paths(process_paths, PROCESS_STAGE)
     base.expect_failure_matching(
-        "partial S1-007 state stage",
-        "partial S1-007 state candidate is prohibited",
-        classify_stage,
-        one_state_marker,
-    )
-    base.expect_failure_matching(
-        "S1-007 missing S1-006 protocol",
-        "S1-007 state candidate is missing canonical S1-006 protocol inputs",
-        classify_stage,
-        component_paths | set(S1_007_MARKER_PATHS),
-    )
-    base.expect_failure_matching(
-        "extra S1-007 Rust module",
-        "tracked path outside S1-007 allowlist",
+        "extra S1-008 runtime module",
+        "tracked path outside S1-008 allowlist",
         validate_allowed_paths,
-        state_paths | {"crates/core/src/process.rs"},
-        STATE_STAGE,
+        process_paths | {"crates/core/src/process.rs"},
+        PROCESS_STAGE,
+    )
+    base.expect_failure_matching(
+        "S1-008 missing S1-007 state",
+        "S1-008 process candidate is missing canonical S1-007 state inputs",
+        classify_stage,
+        protocol_paths | set(S1_008_MARKER_PATHS),
     )
 
-    safe_sources = {
-        "crates/contracts/src/lib.rs": b"// policy comment\n#![forbid(unsafe_code)]\n",
-        "crates/contracts/src/frame.rs": (
-            b'const DOC: &str = "std::net::TcpStream include!(x)";\n'
-            b"// use std::{net::TcpStream};\n"
-            b"pub fn frame() {}\n"
-        ),
+    safe_protocol = {
+        "crates/contracts/src/lib.rs": b"#![forbid(unsafe_code)]\n",
+        "crates/contracts/src/frame.rs": b"pub fn frame() {}\n",
         "crates/contracts/src/protocol.rs": b"pub fn protocol() {}\n",
         "crates/contracts/tests/protocol_v1.rs": b"#![forbid(unsafe_code)]\n",
     }
-    verify_protocol_sources(base.MemoryView(safe_sources))
-
-    comment_only_forbid = dict(safe_sources)
-    comment_only_forbid["crates/contracts/src/lib.rs"] = (
-        b"// #![forbid(unsafe_code)]\npub fn not_forbidden() {}\n"
-    )
+    verify_protocol_sources(base.MemoryView(safe_protocol))
+    bad_protocol = dict(safe_protocol)
+    bad_protocol["crates/contracts/src/frame.rs"] = b"use std::net::TcpStream;\n"
     base.expect_failure_matching(
-        "comment-only forbid attribute",
-        "must begin with an actual #![forbid(unsafe_code)] attribute",
-        verify_protocol_sources,
-        base.MemoryView(comment_only_forbid),
-    )
-
-    grouped_network_effect = dict(safe_sources)
-    grouped_network_effect["crates/contracts/src/frame.rs"] = (
-        b"use std::{net::TcpStream};\npub fn frame() {}\n"
-    )
-    base.expect_failure_matching(
-        "grouped network effect in S1-006",
+        "network effect in S1-006",
         "S1-006 prohibited effect identifier(s) found in code",
         verify_protocol_sources,
-        base.MemoryView(grouped_network_effect),
+        base.MemoryView(bad_protocol),
     )
 
-    spaced_include = dict(safe_sources)
-    spaced_include["crates/contracts/src/protocol.rs"] = b'include ! ("other.rs");\n'
-    base.expect_failure_matching(
-        "spaced include macro in S1-006",
-        "S1-006 prohibited effect identifier(s) found in code",
-        verify_protocol_sources,
-        base.MemoryView(spaced_include),
-    )
-
-    path_indirection = dict(safe_sources)
-    path_indirection["crates/contracts/src/protocol.rs"] = (
-        b'#[path = "other.rs"]\nmod hidden;\n'
-    )
-    base.expect_failure_matching(
-        "path indirection in S1-006",
-        "S1-006 #[path] module indirection is prohibited",
-        verify_protocol_sources,
-        base.MemoryView(path_indirection),
-    )
-
-    unterminated_block_comment = dict(safe_sources)
-    unterminated_block_comment["crates/contracts/src/protocol.rs"] = (
-        b"/* unterminated block comment\nTcpStream\n"
-    )
-    base.expect_failure_matching(
-        "unterminated block comment in S1-006",
-        "unterminated block comment",
-        verify_protocol_sources,
-        base.MemoryView(unterminated_block_comment),
-    )
-
-    unterminated_raw_string = dict(safe_sources)
-    unterminated_raw_string["crates/contracts/src/protocol.rs"] = b'r#"unterminated\n'
-    base.expect_failure_matching(
-        "unterminated raw string in S1-006",
-        "unterminated raw string literal",
-        verify_protocol_sources,
-        base.MemoryView(unterminated_raw_string),
-    )
-
-    unterminated_string = dict(safe_sources)
-    unterminated_string["crates/contracts/src/protocol.rs"] = b'"unterminated\n'
-    base.expect_failure_matching(
-        "unterminated string in S1-006",
-        "unterminated string literal",
-        verify_protocol_sources,
-        base.MemoryView(unterminated_string),
-    )
-
-    safe_state_sources = {
+    safe_state = {
         "crates/core/src/lib.rs": b"#![forbid(unsafe_code)]\npub mod state;\n",
         "crates/core/src/state.rs": b"pub fn pure_state() {}\n",
         "crates/core/tests/state_v1.rs": b"#![forbid(unsafe_code)]\n",
     }
-    verify_state_sources(base.MemoryView(safe_state_sources))
-
-    state_process_effect = dict(safe_state_sources)
-    state_process_effect["crates/core/src/state.rs"] = (
-        b"use std::process::Command;\npub fn pure_state() {}\n"
-    )
+    verify_state_sources(base.MemoryView(safe_state))
+    bad_state = dict(safe_state)
+    bad_state["crates/core/src/state.rs"] = b"use std::process::Command;\n"
     base.expect_failure_matching(
         "process effect in S1-007",
         "S1-007 prohibited effect identifier(s) found in code",
         verify_state_sources,
-        base.MemoryView(state_process_effect),
+        base.MemoryView(bad_state),
     )
-
-    state_path_indirection = dict(safe_state_sources)
-    state_path_indirection["crates/core/src/state.rs"] = (
-        b'#[path = "other.rs"]\nmod hidden;\n'
-    )
-    base.expect_failure_matching(
-        "path indirection in S1-007",
-        "S1-007 #[path] module indirection is prohibited",
-        verify_state_sources,
-        base.MemoryView(state_path_indirection),
-    )
-
-    state_raw_path_indirection = dict(safe_state_sources)
-    state_raw_path_indirection["crates/core/src/state.rs"] = (
-        b'#[r#path = "other.rs"]\nmod hidden;\n'
-    )
-    base.expect_failure_matching(
-        "raw path indirection in S1-007",
-        "S1-007 #[path] module indirection is prohibited",
-        verify_state_sources,
-        base.MemoryView(state_raw_path_indirection),
-    )
-
-    state_cfg_attr_path_indirection = dict(safe_state_sources)
-    state_cfg_attr_path_indirection["crates/core/src/state.rs"] = (
+    cfg_path_state = dict(safe_state)
+    cfg_path_state["crates/core/src/state.rs"] = (
         b'#[cfg_attr(all(), path = "other.rs")]\nmod hidden;\n'
     )
     base.expect_failure_matching(
-        "cfg_attr path indirection in S1-007",
+        "cfg_attr path in S1-007",
         "S1-007 prohibited effect identifier(s) found in code",
         verify_state_sources,
-        base.MemoryView(state_cfg_attr_path_indirection),
+        base.MemoryView(cfg_path_state),
+    )
+
+    intended_launcher = 'Command::new(env!("CARGO_BIN_EXE_wepld-core"))'
+    stripped_launcher = strip_rust_comments_and_strings(intended_launcher)
+    structural = S1_008_TEST_OWNED_LAUNCH_SCRUBBED.fullmatch(stripped_launcher)
+    if structural is None:
+        base.fail("S1-008 self-test: scrubbed owned-binary launcher did not match")
+    if len(stripped_launcher) != len(intended_launcher):
+        base.fail("S1-008 self-test: launcher scrubbing changed offsets")
+    raw_span = intended_launcher[structural.start() : structural.end()]
+    if S1_008_TEST_OWNED_LAUNCH_RAW.fullmatch(raw_span) is None:
+        base.fail("S1-008 self-test: raw owned-binary launcher validation failed")
+
+    safe_main = (
+        b"#![forbid(unsafe_code)]\n"
+        + _framed_helper_fixture()
+        + b"fn main() { let _ = (::std::io::stdin(), ::std::io::stdout(), ::std::io::stderr()); eprintln!(\"diag\"); }\n"
+    )
+    safe_test = (
+        b"#![forbid(unsafe_code)]\n"
+        b"use std::process::{Child, Command, Stdio};\n"
+        b"use std::thread;\n"
+        b"fn spawn_core() -> Child { "
+        b"Command::new(env!(\"CARGO_BIN_EXE_wepld-core\"))"
+        b".stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap() }\n"
+        b"fn probe() { let _ = spawn_core(); thread::yield_now(); }\n"
+    )
+    safe_process = {
+        "crates/core/src/main.rs": safe_main,
+        "crates/core/tests/process_v1.rs": safe_test,
+    }
+    verify_process_sources(base.MemoryView(safe_process))
+
+    shadow_contracts = dict(safe_process)
+    shadow_contracts["crates/core/src/main.rs"] = safe_main + (
+        b"mod wepld_contracts { pub struct ProtocolEnvelope; }\n"
+    )
+    base.expect_failure_matching(
+        "local contracts namespace shadow in S1-008 main",
+        "S1-008 Core main prohibited effect identifier(s) found in code",
+        verify_process_sources,
+        base.MemoryView(shadow_contracts),
+    )
+
+    shadow_std = dict(safe_process)
+    shadow_std["crates/core/src/main.rs"] = safe_main + b"mod std { pub mod io {} }\n"
+    base.expect_failure_matching(
+        "local std namespace shadow in S1-008 main",
+        "S1-008 Core main prohibited effect identifier(s) found in code",
+        verify_process_sources,
+        base.MemoryView(shadow_std),
+    )
+
+    extern_rebind = dict(safe_process)
+    extern_rebind["crates/core/src/main.rs"] = safe_main + (
+        b"extern crate self as alternate_contracts;\n"
+    )
+    base.expect_failure_matching(
+        "extern namespace rebinding in S1-008 main",
+        "S1-008 Core main prohibited effect identifier(s) found in code",
+        verify_process_sources,
+        base.MemoryView(extern_rebind),
+    )
+
+    arbitrary_command = dict(safe_process)
+    arbitrary_command["crates/core/tests/process_v1.rs"] = safe_test + (
+        b"fn escape() { let _ = Command::new(\"curl\"); }\n"
+    )
+    base.expect_failure_matching(
+        "arbitrary command in S1-008 test",
+        "S1-008 process test escaped owned-binary launch boundary",
+        verify_process_sources,
+        base.MemoryView(arbitrary_command),
+    )
+
+    wrong_target = dict(safe_process)
+    wrong_target["crates/core/tests/process_v1.rs"] = safe_test.replace(
+        b"CARGO_BIN_EXE_wepld-core", b"OTHER_BINARY"
+    )
+    base.expect_failure_matching(
+        "wrong owned binary target",
+        "S1-008 process test launcher must target exactly",
+        verify_process_sources,
+        base.MemoryView(wrong_target),
+    )
+
+    arg_escape = dict(safe_process)
+    arg_escape["crates/core/tests/process_v1.rs"] = safe_test.replace(
+        b".stdin(Stdio::piped())", b".arg(\"--escape\").stdin(Stdio::piped())"
+    )
+    base.expect_failure_matching(
+        "argument escape in S1-008 test",
+        "S1-008 process test escaped owned-binary launch boundary",
+        verify_process_sources,
+        base.MemoryView(arg_escape),
+    )
+
+    env_escape = dict(safe_process)
+    env_escape["crates/core/tests/process_v1.rs"] = safe_test + (
+        b"fn escape() { let _ = std::env::vars(); }\n"
+    )
+    base.expect_failure_matching(
+        "environment escape in S1-008 test",
+        "S1-008 process test escaped owned-binary launch boundary",
+        verify_process_sources,
+        base.MemoryView(env_escape),
+    )
+
+    main_network = dict(safe_process)
+    main_network["crates/core/src/main.rs"] = safe_main + b"fn escape() { let _ = ::std::net::TcpStream::connect(\"127.0.0.1:1\"); }\n"
+    base.expect_failure_matching(
+        "network in S1-008 main",
+        "S1-008 Core main prohibited effect identifier(s) found in code",
+        verify_process_sources,
+        base.MemoryView(main_network),
+    )
+
+    nested_process = dict(safe_process)
+    nested_process["crates/core/src/main.rs"] = safe_main + b"fn escape() { let _ = ::std::process::Command::new(\"x\"); }\n"
+    base.expect_failure_matching(
+        "nested process in S1-008 main",
+        "S1-008 Core main prohibited effect identifier(s) found in code",
+        verify_process_sources,
+        base.MemoryView(nested_process),
+    )
+
+    println_escape = dict(safe_process)
+    println_escape["crates/core/src/main.rs"] = safe_main + b"fn escape() { println!(\"raw\"); }\n"
+    base.expect_failure_matching(
+        "println stdout escape in S1-008 main",
+        "S1-008 Core main prohibited effect identifier(s) found in code",
+        verify_process_sources,
+        base.MemoryView(println_escape),
+    )
+
+    write_escape = dict(safe_process)
+    write_escape["crates/core/src/main.rs"] = safe_main + (
+        b"fn escape() { let mut output = ::std::io::stdout(); "
+        b"let _ = ::std::io::Write::write_all(&mut output, b\"raw\"); }\n"
+    )
+    base.expect_failure_matching(
+        "direct write_all stdout escape in S1-008 main",
+        "S1-008 Core main output prohibited effect identifier(s) found in code",
+        verify_process_sources,
+        base.MemoryView(write_escape),
+    )
+
+    copy_escape = dict(safe_process)
+    copy_escape["crates/core/src/main.rs"] = safe_main + (
+        b"fn escape() { let mut input = &b\"raw\"[..]; let mut output = ::std::io::stdout(); "
+        b"let _ = ::std::io::copy(&mut input, &mut output); }\n"
+    )
+    base.expect_failure_matching(
+        "io copy stdout escape in S1-008 main",
+        "S1-008 Core main output prohibited effect identifier(s) found in code",
+        verify_process_sources,
+        base.MemoryView(copy_escape),
+    )
+
+    test_network = dict(safe_process)
+    test_network["crates/core/tests/process_v1.rs"] = safe_test + (
+        b"fn escape() { let _ = std::net::TcpStream::connect(\"127.0.0.1:1\"); }\n"
+    )
+    base.expect_failure_matching(
+        "network in S1-008 test",
+        "S1-008 process test prohibited effect identifier(s) found in code",
+        verify_process_sources,
+        base.MemoryView(test_network),
+    )
+
+    cfg_path_main = dict(safe_process)
+    cfg_path_main["crates/core/src/main.rs"] = safe_main + (
+        b'#[cfg_attr(all(), path = "other.rs")]\nmod hidden;\n'
+    )
+    base.expect_failure_matching(
+        "cfg_attr path in S1-008 main",
+        "S1-008 Core main prohibited effect identifier(s) found in code",
+        verify_process_sources,
+        base.MemoryView(cfg_path_main),
     )
 
     print("wepld S1 execution integrity policy self-tests: PASS")
 
 
 def print_success(stage: str, mode: str) -> None:
-    if stage not in {PROTOCOL_STAGE, STATE_STAGE}:
+    if stage not in {PROTOCOL_STAGE, STATE_STAGE, PROCESS_STAGE}:
         base.print_success(stage, mode)
         return
 
@@ -662,7 +972,9 @@ def print_success(stage: str, mode: str) -> None:
     print("source_acquisition_check=PASS")
     print("runtime_dependency_admission=EXACT_S1_GRAPH")
     print("cubic_provider_effective_state=NOT_PROVEN_SAFE_BY_REPOSITORY_POLICY")
-    if stage == STATE_STAGE:
+    if stage == PROCESS_STAGE:
+        print("product_implementation_authorized=S1_008_ONLY")
+    elif stage == STATE_STAGE:
         print("product_implementation_authorized=S1_007_ONLY")
     else:
         print("product_implementation_authorized=S1_006_ONLY")

@@ -128,13 +128,21 @@ LITERAL_COMMAND_NEW = re.compile(
 )
 EXACT_PROCESS_IMPORT = re.compile(
     r"\buse\s+std\s*::\s*process\s*::\s*\{\s*"
-    r"Child\s*,\s*ChildStdin\s*,\s*ChildStdout\s*,\s*Command\s*,\s*Stdio\s*"
+    r"Child\s*,\s*ChildStderr\s*,\s*ChildStdin\s*,\s*ChildStdout\s*,\s*Command\s*,\s*Stdio\s*"
     r"\}\s*;"
 )
 EXACT_MPSC_IMPORT = re.compile(r"\buse\s+std\s*::\s*sync\s*::\s*mpsc\s*;")
 EXACT_THREAD_IMPORT = re.compile(r"\buse\s+std\s*::\s*thread\s*;")
-PROTECTED_PROCESS_TYPE_DECL = re.compile(
-    r"\b(?:struct|enum|union|trait|type|mod)\s+(Command|Stdio)\b"
+PROTECTED_LIFECYCLE_DECL = re.compile(
+    r"\b(?:struct|enum|union|trait|type|mod)\s+"
+    r"(Command|Stdio|Child|ChildStderr|ChildStdin|ChildStdout|mpsc|thread)\b"
+)
+PROTECTED_IMPORT_ALIAS = re.compile(
+    r"\bas\s+(Command|Stdio|Child|ChildStderr|ChildStdin|ChildStdout|mpsc|thread)\b"
+)
+PROTECTED_IMPORT = re.compile(
+    r"\buse\b[^;]*\b(Command|Stdio|Child|ChildStderr|ChildStdin|ChildStdout|mpsc|thread)\b[^;]*;",
+    re.DOTALL,
 )
 STD_ENV_MEMBER = re.compile(
     r"(?:::)?std\s*::\s*env\s*::\s*([A-Za-z_][A-Za-z0-9_]*)"
@@ -146,11 +154,20 @@ SHELL_OR_PATH_TEXT = re.compile(
     r"/bin/(?:sh|bash|zsh)|(?:^|[^A-Za-z])sh\s+-c)"
 )
 CURRENT_EXE = re.compile(r"(?:::)?std\s*::\s*env\s*::\s*current_exe\s*\(")
+RESOLVER_SIGNATURE = re.compile(
+    r"\bfn\s+resolve_owned_core_sibling\s*\(\s*\)\s*->\s*"
+    r"Result\s*<\s*std\s*::\s*path\s*::\s*PathBuf\s*,\s*CoreClientError\s*>\s*\{"
+)
+SPAWN_SIGNATURE = re.compile(
+    r"\bfn\s+spawn_owned_core\s*\(\s*\)\s*->\s*"
+    r"Result\s*<[^\{;]*CoreClientError[^\{;]*>\s*\{"
+)
 CURRENT_EXE_BINDING = re.compile(
-    r"\blet\s+current_exe\s*=\s*(?:::)?std\s*::\s*env\s*::\s*current_exe\s*\(\s*\)"
+    r"\blet\s+current_exe\s*=\s*(?:::)?std\s*::\s*env\s*::\s*current_exe\s*\(\s*\)\s*\?\s*;"
 )
 CORE_PARENT_BINDING = re.compile(
     r"\blet\s+core_parent\s*=\s*current_exe\s*\.\s*parent\s*\(\s*\)"
+    r"\s*\.\s*ok_or\s*\(\s*CoreClientError\s*::\s*MissingExecutableParent\s*\)\s*\?\s*;"
 )
 CORE_PARENT_JOIN = re.compile(
     r"\bcore_parent\s*\.\s*join\s*\(\s*CORE_EXECUTABLE_FILENAME\s*\)"
@@ -169,7 +186,7 @@ NONWINDOWS_CORE_FILENAME_DECL = re.compile(
     re.MULTILINE,
 )
 CORE_EXECUTABLE_BINDING = re.compile(
-    r"\blet\s+core_executable\s*=\s*resolve_owned_core_sibling\s*\(\s*\)"
+    r"\blet\s+core_executable\s*=\s*resolve_owned_core_sibling\s*\(\s*\)\s*\?\s*;"
 )
 OWNED_COMMAND_NEW = re.compile(
     r"\bCommand\s*::\s*new\s*\(\s*core_executable\s*\.\s*as_os_str\s*\(\s*\)\s*\)"
@@ -347,6 +364,8 @@ def _verify_owned_path_resolution(raw_client: str, client_code: str) -> None:
         base.fail(
             "S1-009 Desktop non-Windows Core filename must be cfg(not(target_os = windows)) wepld-core"
         )
+    if re.search(r"\blet\s+(?:mut\s+)?CORE_EXECUTABLE_FILENAME\b", client_code):
+        base.fail("S1-009 Desktop client may not shadow CORE_EXECUTABLE_FILENAME")
 
     env_members = STD_ENV_MEMBER.findall(client_code)
     if env_members != ["current_exe"]:
@@ -356,56 +375,93 @@ def _verify_owned_path_resolution(raw_client: str, client_code: str) -> None:
     if ENV_IMPORT.search(client_code) or STD_ALIAS.search(client_code):
         base.fail("S1-009 Desktop client may not alias/import std::env or std")
 
+    if len(RESOLVER_SIGNATURE.findall(client_code)) != 1:
+        base.fail(
+            "S1-009 Desktop client must define exactly one canonical resolve_owned_core_sibling() -> Result<PathBuf, CoreClientError> helper"
+        )
     resolver_body = _function_body(client_code, "resolve_owned_core_sibling")
     if len(CURRENT_EXE_BINDING.findall(resolver_body)) != 1:
         base.fail(
-            "S1-009 Desktop resolver must bind current_exe exactly once from std::env::current_exe"
+            "S1-009 Desktop resolver must bind current_exe exactly from std::env::current_exe()?"
         )
     if len(CORE_PARENT_BINDING.findall(resolver_body)) != 1:
         base.fail(
-            "S1-009 Desktop resolver must bind core_parent exactly once from current_exe.parent()"
+            "S1-009 Desktop resolver must derive core_parent exactly from current_exe.parent()"
         )
-    joins = CORE_PARENT_JOIN.findall(resolver_body)
-    if len(joins) != 1:
+    if len(CORE_PARENT_JOIN.findall(resolver_body)) != 1:
         base.fail(
-            "S1-009 Desktop resolver must derive exactly one Core path from "
-            "core_parent.join(CORE_EXECUTABLE_FILENAME)"
+            "S1-009 Desktop resolver must derive exactly one Core path from core_parent.join(CORE_EXECUTABLE_FILENAME)"
         )
-    if re.search(r"\breturn\b", resolver_body):
-        base.fail("S1-009 Desktop resolver may not use early return path substitution")
+    if len(re.findall(r"\bcurrent_exe\b", resolver_body)) != 3:
+        base.fail("S1-009 Desktop resolver may not shadow or reuse current_exe")
+    if len(re.findall(r"\bcore_parent\b", resolver_body)) != 2:
+        base.fail("S1-009 Desktop resolver may not shadow or reuse core_parent")
+    if len(re.findall(r"\bCORE_EXECUTABLE_FILENAME\b", resolver_body)) != 1:
+        base.fail("S1-009 Desktop resolver may not shadow or reuse CORE_EXECUTABLE_FILENAME")
+    if re.search(r"\blet\s+mut\s+(?:current_exe|core_parent)\b", resolver_body):
+        base.fail("S1-009 Desktop resolver path bindings must remain immutable")
+    if PATH_MUTATION.search(resolver_body):
+        base.fail("S1-009 Desktop resolver may not mutate the owned executable path")
     tail = resolver_body.rstrip()
     if re.search(
-        r"(?:Ok\s*\(\s*)?core_parent\s*\.\s*join\s*\(\s*CORE_EXECUTABLE_FILENAME\s*\)\s*\)?\s*$",
+        r"Ok\s*\(\s*core_parent\s*\.\s*join\s*\(\s*CORE_EXECUTABLE_FILENAME\s*\)\s*\)\s*$",
         tail,
     ) is None:
         base.fail(
-            "S1-009 Desktop resolver final value must be the owned Core sibling path"
+            "S1-009 Desktop resolver final value must be Ok(the owned Core sibling path)"
         )
 
-    bindings = re.findall(r"\blet\s+(?:mut\s+)?core_executable\s*=", client_code)
-    if len(bindings) != 1 or "let mut core_executable" in client_code:
+
+def _verify_launch_scope(client_code: str) -> None:
+    if len(SPAWN_SIGNATURE.findall(client_code)) != 1:
         base.fail(
-            "S1-009 Desktop client must bind immutable core_executable exactly once"
+            "S1-009 Desktop client must define exactly one no-argument spawn_owned_core() Result helper"
         )
-    if CORE_EXECUTABLE_BINDING.search(client_code) is None:
+    spawn_body = _function_body(client_code, "spawn_owned_core")
+    if len(CORE_EXECUTABLE_BINDING.findall(spawn_body)) != 1:
         base.fail(
-            "S1-009 Desktop client must bind core_executable from resolve_owned_core_sibling()"
+            "S1-009 Desktop launch helper must bind core_executable exactly from resolve_owned_core_sibling()?"
         )
-    if PATH_MUTATION.search(client_code):
-        base.fail("S1-009 Desktop owned executable path may not be mutated after derivation")
+    if len(re.findall(r"\bresolve_owned_core_sibling\b", spawn_body)) != 1:
+        base.fail(
+            "S1-009 Desktop launch helper may not shadow or reuse resolve_owned_core_sibling"
+        )
+    if len(re.findall(r"\bcore_executable\b", spawn_body)) != 2:
+        base.fail("S1-009 Desktop launch helper may not shadow or reuse core_executable")
+    if re.search(r"\blet\s+mut\s+core_executable\b", spawn_body):
+        base.fail("S1-009 Desktop owned executable binding must remain immutable")
+    if PATH_MUTATION.search(spawn_body):
+        base.fail("S1-009 Desktop owned executable path may not be mutated before launch")
+    if len(OWNED_COMMAND_NEW.findall(spawn_body)) != 1:
+        base.fail(
+            "S1-009 Desktop launch helper must consume the owned Core sibling path exactly once"
+        )
+    if len(OWNED_SPAWN_CHAIN.findall(spawn_body)) != 1:
+        base.fail(
+            "S1-009 Desktop launch helper must pipe stdin/stdout/stderr and spawn exactly once from the owned Core sibling path"
+        )
 
 
 def _verify_std_lifecycle_bindings(client_code: str) -> None:
     if len(EXACT_PROCESS_IMPORT.findall(client_code)) != 1:
         base.fail(
-            "S1-009 Desktop client must import Child/ChildStdin/ChildStdout/Command/Stdio exactly from std::process"
+            "S1-009 Desktop client must import Child/ChildStderr/ChildStdin/ChildStdout/Command/Stdio exactly from std::process"
         )
     if len(EXACT_MPSC_IMPORT.findall(client_code)) != 1:
         base.fail("S1-009 Desktop client must import mpsc exactly from std::sync")
     if len(EXACT_THREAD_IMPORT.findall(client_code)) != 1:
         base.fail("S1-009 Desktop client must import thread exactly from std")
-    if PROTECTED_PROCESS_TYPE_DECL.search(client_code):
-        base.fail("S1-009 Desktop client may not shadow protected Command/Stdio types")
+    if PROTECTED_LIFECYCLE_DECL.search(client_code):
+        base.fail("S1-009 Desktop client may not shadow protected lifecycle types/modules")
+    if PROTECTED_IMPORT_ALIAS.search(client_code):
+        base.fail("S1-009 Desktop client may not alias protected lifecycle imports")
+
+    stripped_imports = EXACT_PROCESS_IMPORT.sub("", client_code)
+    stripped_imports = EXACT_MPSC_IMPORT.sub("", stripped_imports)
+    stripped_imports = EXACT_THREAD_IMPORT.sub("", stripped_imports)
+    if PROTECTED_IMPORT.search(stripped_imports):
+        base.fail("S1-009 Desktop client may not add alternate protected lifecycle imports")
+
     if len(re.findall(r"\bCommand\b", client_code)) != 2:
         base.fail(
             "S1-009 Desktop client must reference Command only in the canonical std import and owned launch site"
@@ -459,31 +515,22 @@ def verify_desktop_sources(view: base.RepositoryView) -> None:
             "S1-009 Desktop client must contain exactly one owned Core Command::new launch site"
         )
 
-    raw_client_text = raw_client
-    if LITERAL_COMMAND_NEW.search(raw_client_text):
+    if LITERAL_COMMAND_NEW.search(raw_client):
         base.fail("S1-009 Desktop client may not launch a string-literal command")
     if COMMAND_NEW_REFERENCE.search(client_code):
         base.fail("S1-009 Desktop client may not rebind Command::new as a function value")
     if COMMAND_ALIAS.search(client_code) or COMMAND_TYPE_ALIAS.search(client_code):
         base.fail("S1-009 Desktop client may not alias/rebind std::process::Command")
-    if SHELL_OR_PATH_TEXT.search(raw_client_text):
+    if SHELL_OR_PATH_TEXT.search(raw_client):
         base.fail("S1-009 Desktop client contains shell/PATH launch material")
 
     _verify_std_lifecycle_bindings(client_code)
-    _verify_owned_path_resolution(raw_client_text, client_code)
-
-    if OWNED_COMMAND_NEW.search(client_code) is None:
-        base.fail(
-            "S1-009 Desktop launch must consume the immutable owned Core sibling path"
-        )
-    if len(OWNED_SPAWN_CHAIN.findall(client_code)) != 1:
-        base.fail(
-            "S1-009 Desktop launch must pipe stdin/stdout/stderr and spawn exactly once "
-            "from the owned Core sibling path"
-        )
+    _verify_owned_path_resolution(raw_client, client_code)
+    _verify_launch_scope(client_code)
 
     required_identifiers = {
         "Child",
+        "ChildStderr",
         "ChildStdin",
         "ChildStdout",
         "Command",
@@ -629,7 +676,7 @@ mod core_client;
 pub use core_client::CoreClient;
 """
     safe_client = b"""#![forbid(unsafe_code)]
-use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::mpsc;
 use std::thread;
 
@@ -638,27 +685,41 @@ const CORE_EXECUTABLE_FILENAME: &str = "wepld-core.exe";
 #[cfg(not(target_os = "windows"))]
 const CORE_EXECUTABLE_FILENAME: &str = "wepld-core";
 
-pub struct CoreClient;
-
-fn resolve_owned_core_sibling() -> std::path::PathBuf {
-    let current_exe = std::env::current_exe().unwrap();
-    let core_parent = current_exe.parent().unwrap();
-    core_parent.join(CORE_EXECUTABLE_FILENAME)
+#[derive(Debug)]
+enum CoreClientError {
+    Io(std::io::Error),
+    MissingExecutableParent,
 }
 
-fn spawn_owned() -> (Child, ChildStdin, ChildStdout) {
-    let core_executable = resolve_owned_core_sibling();
+impl From<std::io::Error> for CoreClientError {
+    fn from(error: std::io::Error) -> Self {
+        Self::Io(error)
+    }
+}
+
+pub struct CoreClient;
+
+fn resolve_owned_core_sibling() -> Result<std::path::PathBuf, CoreClientError> {
+    let current_exe = std::env::current_exe()?;
+    let core_parent = current_exe
+        .parent()
+        .ok_or(CoreClientError::MissingExecutableParent)?;
+    Ok(core_parent.join(CORE_EXECUTABLE_FILENAME))
+}
+
+fn spawn_owned_core() -> Result<(Child, ChildStderr, ChildStdin, ChildStdout), CoreClientError> {
+    let core_executable = resolve_owned_core_sibling()?;
     let mut child = Command::new(core_executable.as_os_str())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
+        .spawn()?;
     let input = child.stdin.take().unwrap();
     let output = child.stdout.take().unwrap();
+    let stderr = child.stderr.take().unwrap();
     let (_tx, _rx) = mpsc::channel::<()>();
     thread::spawn(|| {});
-    (child, input, output)
+    Ok((child, stderr, input, output))
 }
 """
     safe = {
@@ -723,26 +784,53 @@ fn spawn_owned() -> (Child, ChildStdin, ChildStdout) {
         base.MemoryView(environment_alias),
     )
 
-    arbitrary_program = dict(safe)
-    arbitrary_program["apps/desktop/src-tauri/src/core_client.rs"] = safe_client.replace(
-        b"let core_executable = resolve_owned_core_sibling();",
-        b'let core_executable = std::path::PathBuf::from("other-program");',
+    transformed_current_exe = dict(safe)
+    transformed_current_exe["apps/desktop/src-tauri/src/core_client.rs"] = safe_client.replace(
+        b"let current_exe = std::env::current_exe()?;",
+        b'let current_exe = std::env::current_exe()?.join("escape");',
     )
     base.expect_failure_matching(
-        "detached Command path in S1-009 Desktop client",
-        "S1-009 Desktop client must bind core_executable from resolve_owned_core_sibling()",
+        "transformed current_exe path",
+        "S1-009 Desktop resolver must bind current_exe exactly from std::env::current_exe()?",
         verify_desktop_sources,
-        base.MemoryView(arbitrary_program),
+        base.MemoryView(transformed_current_exe),
+    )
+
+    filename_shadow = dict(safe)
+    filename_shadow["apps/desktop/src-tauri/src/core_client.rs"] = safe_client.replace(
+        b"Ok(core_parent.join(CORE_EXECUTABLE_FILENAME))",
+        b'let CORE_EXECUTABLE_FILENAME = "cmd.exe";\n    Ok(core_parent.join(CORE_EXECUTABLE_FILENAME))',
+    )
+    base.expect_failure_matching(
+        "Core filename shadow",
+        "S1-009 Desktop client may not shadow CORE_EXECUTABLE_FILENAME",
+        verify_desktop_sources,
+        base.MemoryView(filename_shadow),
+    )
+
+    detached_launch_scope = dict(safe)
+    detached_launch_scope["apps/desktop/src-tauri/src/core_client.rs"] = safe_client.replace(
+        b"fn spawn_owned_core()",
+        b"fn spawn_owned_core(core_executable: std::path::PathBuf)",
+    ).replace(
+        b"    let core_executable = resolve_owned_core_sibling()?;\n",
+        b"",
+    )
+    base.expect_failure_matching(
+        "detached launch helper path parameter",
+        "S1-009 Desktop client must define exactly one no-argument spawn_owned_core() Result helper",
+        verify_desktop_sources,
+        base.MemoryView(detached_launch_scope),
     )
 
     mutable_program = dict(safe)
     mutable_program["apps/desktop/src-tauri/src/core_client.rs"] = safe_client.replace(
-        b"let core_executable = resolve_owned_core_sibling();",
-        b"let mut core_executable = resolve_owned_core_sibling();\n    core_executable.pop();",
+        b"let core_executable = resolve_owned_core_sibling()?;",
+        b"let mut core_executable = resolve_owned_core_sibling()?;\n    core_executable.pop();",
     )
     base.expect_failure_matching(
         "mutable owned path in S1-009 Desktop client",
-        "S1-009 Desktop client must bind immutable core_executable exactly once",
+        "S1-009 Desktop launch helper may not shadow or reuse core_executable",
         verify_desktop_sources,
         base.MemoryView(mutable_program),
     )
@@ -767,9 +855,20 @@ fn spawn_owned() -> (Child, ChildStdin, ChildStdout) {
     )
     base.expect_failure_matching(
         "Command shadow in S1-009 Desktop client",
-        "S1-009 Desktop client may not shadow protected Command/Stdio types",
+        "S1-009 Desktop client may not shadow protected lifecycle types/modules",
         verify_desktop_sources,
         base.MemoryView(command_shadow),
+    )
+
+    alternate_thread_import = dict(safe)
+    alternate_thread_import["apps/desktop/src-tauri/src/core_client.rs"] = safe_client + (
+        b"use crate::fake as thread;\n"
+    )
+    base.expect_failure_matching(
+        "alternate protected lifecycle import",
+        "S1-009 Desktop client may not alias protected lifecycle imports",
+        verify_desktop_sources,
+        base.MemoryView(alternate_thread_import),
     )
 
     wrong_cfg = dict(safe)

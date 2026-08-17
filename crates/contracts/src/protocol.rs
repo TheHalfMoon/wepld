@@ -1,7 +1,10 @@
 use serde::de;
 use serde::{Deserialize, Deserializer, Serialize};
+use std::fmt;
 
 pub const PROTOCOL_VERSION_V1: u8 = 1;
+pub const MAX_CAPABILITY_ITEMS: usize = 64;
+pub const MAX_PROTOCOL_ERROR_TEXT_BYTES: usize = 1_024;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(transparent)]
@@ -29,6 +32,25 @@ impl<'de> Deserialize<'de> for ProtocolVersion {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProtocolBudgetError {
+    CapabilityItemsTooMany { length: usize, max: usize },
+    ProtocolErrorTextTooLong { bytes: usize, max: usize },
+}
+
+impl fmt::Display for ProtocolBudgetError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::CapabilityItemsTooMany { length, max } => {
+                write!(formatter, "capability item count {length} exceeds maximum {max}")
+            }
+            Self::ProtocolErrorTextTooLong { bytes, max } => {
+                write!(formatter, "protocol error text length {bytes} exceeds maximum {max} bytes")
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Principal {
@@ -43,6 +65,103 @@ pub enum Capability {
     Capabilities,
     HealthObservation,
     Cancellation,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(transparent)]
+pub struct CapabilityList(Vec<Capability>);
+
+impl CapabilityList {
+    pub fn as_slice(&self) -> &[Capability] {
+        &self.0
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn into_vec(self) -> Vec<Capability> {
+        self.0
+    }
+}
+
+impl TryFrom<Vec<Capability>> for CapabilityList {
+    type Error = ProtocolBudgetError;
+
+    fn try_from(capabilities: Vec<Capability>) -> Result<Self, Self::Error> {
+        if capabilities.len() > MAX_CAPABILITY_ITEMS {
+            return Err(ProtocolBudgetError::CapabilityItemsTooMany {
+                length: capabilities.len(),
+                max: MAX_CAPABILITY_ITEMS,
+            });
+        }
+        Ok(Self(capabilities))
+    }
+}
+
+impl<'de> Deserialize<'de> for CapabilityList {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let capabilities = Vec::<Capability>::deserialize(deserializer)?;
+        Self::try_from(capabilities).map_err(de::Error::custom)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(transparent)]
+pub struct ProtocolErrorText(String);
+
+impl ProtocolErrorText {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    pub fn bytes_len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn into_string(self) -> String {
+        self.0
+    }
+}
+
+impl TryFrom<String> for ProtocolErrorText {
+    type Error = ProtocolBudgetError;
+
+    fn try_from(message: String) -> Result<Self, Self::Error> {
+        let bytes = message.len();
+        if bytes > MAX_PROTOCOL_ERROR_TEXT_BYTES {
+            return Err(ProtocolBudgetError::ProtocolErrorTextTooLong {
+                bytes,
+                max: MAX_PROTOCOL_ERROR_TEXT_BYTES,
+            });
+        }
+        Ok(Self(message))
+    }
+}
+
+impl TryFrom<&str> for ProtocolErrorText {
+    type Error = ProtocolBudgetError;
+
+    fn try_from(message: &str) -> Result<Self, Self::Error> {
+        Self::try_from(message.to_owned())
+    }
+}
+
+impl<'de> Deserialize<'de> for ProtocolErrorText {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let message = String::deserialize(deserializer)?;
+        Self::try_from(message).map_err(de::Error::custom)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -122,7 +241,7 @@ pub struct VersionResponsePayload {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CapabilitiesResponsePayload {
-    pub capabilities: Vec<Capability>,
+    pub capabilities: CapabilityList,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -191,7 +310,7 @@ pub enum ProtocolErrorCode {
 #[serde(deny_unknown_fields)]
 pub struct ProtocolErrorPayload {
     pub code: ProtocolErrorCode,
-    pub message: String,
+    pub message: ProtocolErrorText,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

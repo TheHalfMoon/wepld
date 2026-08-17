@@ -20,6 +20,8 @@ fn protocol_v1_constants_are_frozen() {
     assert_eq!(LENGTH_PREFIX_BYTES, 4);
     assert_eq!(MAX_PAYLOAD_BYTES, 65_536);
     assert_eq!(MAX_WIRE_FRAME_BYTES, 65_540);
+    assert_eq!(MAX_CAPABILITY_ITEMS, 64);
+    assert_eq!(MAX_PROTOCOL_ERROR_TEXT_BYTES, 1_024);
 }
 
 #[test]
@@ -89,13 +91,14 @@ fn all_envelope_families_round_trip() {
             launch_id: 7,
             request_id: 13,
             payload: CapabilitiesResponsePayload {
-                capabilities: vec![
+                capabilities: CapabilityList::try_from(vec![
                     Capability::Health,
                     Capability::Version,
                     Capability::Capabilities,
                     Capability::HealthObservation,
                     Capability::Cancellation,
-                ],
+                ])
+                .expect("fixture capabilities must fit protocol budget"),
             },
         })),
         ProtocolEnvelope::Response(ResponseEnvelope::ObserveHealth(ResponseFields {
@@ -138,7 +141,8 @@ fn all_envelope_families_round_trip() {
             request_id: Some(16),
             payload: ProtocolErrorPayload {
                 code: ProtocolErrorCode::MalformedMessage,
-                message: "malformed message".to_owned(),
+                message: ProtocolErrorText::try_from("malformed message")
+                    .expect("fixture error text must fit protocol budget"),
             },
         }),
     ];
@@ -166,6 +170,91 @@ fn unknown_and_malformed_protocol_fields_fail_closed() {
     for case in cases {
         assert!(serde_json::from_str::<ProtocolEnvelope>(case).is_err());
     }
+}
+
+fn capabilities_response_value(count: usize) -> serde_json::Value {
+    serde_json::json!({
+        "protocol_version": 1,
+        "kind": "response",
+        "principal": "desktop_host",
+        "launch_id": 7,
+        "request_id": 13,
+        "operation": "capabilities",
+        "payload": {
+            "capabilities": vec!["health"; count],
+        },
+    })
+}
+
+fn protocol_error_value(message: String) -> serde_json::Value {
+    serde_json::json!({
+        "protocol_version": 1,
+        "kind": "protocol_error",
+        "principal": "desktop_host",
+        "launch_id": 7,
+        "request_id": 16,
+        "payload": {
+            "code": "malformed_message",
+            "message": message,
+        },
+    })
+}
+
+#[test]
+fn protocol_capability_budget_accepts_max_and_rejects_first_over_limit() {
+    let max_capabilities = vec![Capability::Health; MAX_CAPABILITY_ITEMS];
+    let bounded = CapabilityList::try_from(max_capabilities)
+        .expect("exact capability item budget must be accepted");
+    assert_eq!(bounded.len(), MAX_CAPABILITY_ITEMS);
+    assert_eq!(bounded.as_slice().len(), MAX_CAPABILITY_ITEMS);
+
+    assert_eq!(
+        CapabilityList::try_from(vec![Capability::Health; MAX_CAPABILITY_ITEMS + 1]),
+        Err(ProtocolBudgetError::CapabilityItemsTooMany {
+            length: MAX_CAPABILITY_ITEMS + 1,
+            max: MAX_CAPABILITY_ITEMS,
+        })
+    );
+
+    let accepted: ProtocolEnvelope = serde_json::from_value(capabilities_response_value(
+        MAX_CAPABILITY_ITEMS,
+    ))
+    .expect("exact capability item budget must deserialize");
+    encode_frame(&accepted).expect("exact capability item budget must encode");
+
+    assert!(
+        serde_json::from_value::<ProtocolEnvelope>(capabilities_response_value(
+            MAX_CAPABILITY_ITEMS + 1,
+        ))
+        .is_err()
+    );
+}
+
+#[test]
+fn protocol_error_text_budget_uses_utf8_bytes_and_rejects_first_over_limit() {
+    let exact = "é".repeat(MAX_PROTOCOL_ERROR_TEXT_BYTES / "é".len());
+    assert_eq!(exact.len(), MAX_PROTOCOL_ERROR_TEXT_BYTES);
+    let first_over = format!("{exact}a");
+    assert_eq!(first_over.len(), MAX_PROTOCOL_ERROR_TEXT_BYTES + 1);
+
+    let bounded = ProtocolErrorText::try_from(exact.clone())
+        .expect("exact UTF-8 byte budget must be accepted");
+    assert_eq!(bounded.bytes_len(), MAX_PROTOCOL_ERROR_TEXT_BYTES);
+    assert_eq!(bounded.as_str().len(), MAX_PROTOCOL_ERROR_TEXT_BYTES);
+
+    assert_eq!(
+        ProtocolErrorText::try_from(first_over.clone()),
+        Err(ProtocolBudgetError::ProtocolErrorTextTooLong {
+            bytes: MAX_PROTOCOL_ERROR_TEXT_BYTES + 1,
+            max: MAX_PROTOCOL_ERROR_TEXT_BYTES,
+        })
+    );
+
+    let accepted: ProtocolEnvelope = serde_json::from_value(protocol_error_value(exact))
+        .expect("exact UTF-8 byte budget must deserialize");
+    encode_frame(&accepted).expect("exact UTF-8 byte budget must encode");
+
+    assert!(serde_json::from_value::<ProtocolEnvelope>(protocol_error_value(first_over)).is_err());
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

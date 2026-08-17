@@ -254,7 +254,7 @@ fn desktop_inbound_protocol_error_kind_is_rejected() {
     let inbound = ProtocolEnvelope::ProtocolError(ProtocolErrorEnvelope {
         protocol_version: ProtocolVersion::V1,
         principal: Principal::DesktopHost,
-        launch_id: Some(LAUNCH_ID),
+        launch_id: LAUNCH_ID,
         request_id: Some(1),
         payload: ProtocolErrorPayload {
             code: ProtocolErrorCode::MalformedMessage,

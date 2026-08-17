@@ -55,6 +55,7 @@ pub enum CoreClientError {
     ChildTerminationTimeout,
     InboundChannelClosed,
     InboundOverflow,
+    ReaderTerminated,
     OutboundOverflow,
     WriterChannelClosed,
     WriterFailed,
@@ -90,6 +91,7 @@ pub struct CoreClient {
     writer_thread: Option<thread::JoinHandle<()>>,
     inbound_rx: mpsc::Receiver<Result<ProtocolEnvelope, FrameError>>,
     inbound_overflowed: Arc<AtomicBool>,
+    reader_terminated: Arc<AtomicBool>,
     protocol_thread: Option<thread::JoinHandle<()>>,
     diagnostic_rx: mpsc::Receiver<Vec<u8>>,
     diagnostics_truncated: Arc<AtomicBool>,
@@ -210,28 +212,39 @@ fn spawn_protocol_reader(
 ) -> (
     mpsc::Receiver<Result<ProtocolEnvelope, FrameError>>,
     Arc<AtomicBool>,
+    Arc<AtomicBool>,
     thread::JoinHandle<()>,
 ) {
     let (inbound_tx, inbound_rx) = mpsc::sync_channel(INBOUND_CHANNEL_CAPACITY);
     let inbound_overflowed = Arc::new(AtomicBool::new(false));
     let overflow_flag = Arc::clone(&inbound_overflowed);
+    let reader_terminated = Arc::new(AtomicBool::new(false));
+    let terminal_flag = Arc::clone(&reader_terminated);
     let protocol_thread = thread::spawn(move || {
         loop {
             let inbound = read_frame::<_, ProtocolEnvelope>(&mut output);
             let terminal = inbound.is_err();
             if terminal {
+                terminal_flag.store(true, Ordering::Release);
                 ready.store(false, Ordering::Release);
             }
             if inbound_tx.try_send(inbound).is_err() {
                 overflow_flag.store(true, Ordering::Release);
+                terminal_flag.store(true, Ordering::Release);
                 ready.store(false, Ordering::Release);
+                break;
             }
             if terminal {
                 break;
             }
         }
     });
-    (inbound_rx, inbound_overflowed, protocol_thread)
+    (
+        inbound_rx,
+        inbound_overflowed,
+        reader_terminated,
+        protocol_thread,
+    )
 }
 
 fn enqueue_wire(
@@ -265,7 +278,7 @@ impl CoreClient {
         let ready = Arc::new(AtomicBool::new(false));
         let (writer_tx, writer_failed, writer_thread) =
             spawn_protocol_writer(input, Arc::clone(&ready));
-        let (inbound_rx, inbound_overflowed, protocol_thread) =
+        let (inbound_rx, inbound_overflowed, reader_terminated, protocol_thread) =
             spawn_protocol_reader(output, Arc::clone(&ready));
         Ok(Self {
             child,
@@ -274,6 +287,7 @@ impl CoreClient {
             writer_thread: Some(writer_thread),
             inbound_rx,
             inbound_overflowed,
+            reader_terminated,
             protocol_thread: Some(protocol_thread),
             diagnostic_rx,
             diagnostics_truncated,
@@ -415,7 +429,7 @@ impl CoreClient {
         let ready = Arc::new(AtomicBool::new(false));
         let (writer_tx, writer_failed, writer_thread) =
             spawn_protocol_writer(input, Arc::clone(&ready));
-        let (inbound_rx, inbound_overflowed, protocol_thread) =
+        let (inbound_rx, inbound_overflowed, reader_terminated, protocol_thread) =
             spawn_protocol_reader(output, Arc::clone(&ready));
         self.child = child;
         self.writer_tx = Some(writer_tx);
@@ -423,6 +437,7 @@ impl CoreClient {
         self.writer_thread = Some(writer_thread);
         self.inbound_rx = inbound_rx;
         self.inbound_overflowed = inbound_overflowed;
+        self.reader_terminated = reader_terminated;
         self.protocol_thread = Some(protocol_thread);
         self.diagnostic_rx = diagnostic_rx;
         self.diagnostics_truncated = diagnostics_truncated;
@@ -444,7 +459,13 @@ impl CoreClient {
 
     fn write_envelope(&mut self, envelope: &ProtocolEnvelope) -> Result<(), CoreClientError> {
         self.ensure_child_running()?;
-        if self.writer_failed.load(Ordering::Acquire) {
+        if self.inbound_overflowed.load(Ordering::Acquire) {
+            let error = self.stop_with_error(CoreClientError::InboundOverflow);
+            Err(error)
+        } else if self.reader_terminated.load(Ordering::Acquire) {
+            let error = self.stop_with_error(CoreClientError::ReaderTerminated);
+            Err(error)
+        } else if self.writer_failed.load(Ordering::Acquire) {
             let error = self.stop_with_error(CoreClientError::WriterFailed);
             Err(error)
         } else {
@@ -545,7 +566,10 @@ impl CoreClient {
                     }
                     outcome
                 }
-                Err(error) => Err(CoreClientError::Io(error)),
+                Err(error) => match self.child.try_wait() {
+                    Ok(Some(_)) => Ok(()),
+                    Ok(None) | Err(_) => Err(CoreClientError::Io(error)),
+                },
             },
             Err(error) => Err(CoreClientError::Io(error)),
         };
@@ -679,6 +703,22 @@ mod tests {
         while client.is_ready() && std::time::Instant::now() < readiness_deadline {
             thread::sleep(CHILD_TERMINATION_POLL_INTERVAL);
         }
+        assert!(!client.is_ready());
+    }
+
+    #[test]
+    fn terminal_protocol_reader_state_rejects_new_outbound_commands() {
+        let mut client = CoreClient::start().expect("owned Core must start");
+        let _ = client.send_health().expect("health request must enqueue");
+        let _ = client.receive().expect("health response must arrive");
+        assert!(client.is_ready());
+
+        client.reader_terminated.store(true, Ordering::Release);
+        let error = client
+            .send_version()
+            .expect_err("terminal reader state must reject outbound command");
+
+        assert!(matches!(error, CoreClientError::ReaderTerminated));
         assert!(!client.is_ready());
     }
 

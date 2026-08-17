@@ -34,7 +34,8 @@ fn golden_health_request_round_trips() {
         "payload": {}
     }"#;
 
-    let decoded: ProtocolEnvelope = serde_json::from_str(fixture).expect("golden fixture must decode");
+    let decoded: ProtocolEnvelope =
+        serde_json::from_str(fixture).expect("golden fixture must decode");
     assert_eq!(decoded, health_request());
 
     let expected: serde_json::Value = serde_json::from_str(fixture).expect("fixture must be JSON");
@@ -175,7 +176,9 @@ fn exact_max_payload_is_accepted() {
     let empty = SizedPayload {
         data: String::new(),
     };
-    let overhead = serde_json::to_vec(&empty).expect("empty fixture must encode").len();
+    let overhead = serde_json::to_vec(&empty)
+        .expect("empty fixture must encode")
+        .len();
     let value = SizedPayload {
         data: "a".repeat(MAX_PAYLOAD_BYTES - overhead),
     };

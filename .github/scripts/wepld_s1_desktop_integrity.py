@@ -656,8 +656,8 @@ fn spawn_owned() -> (Child, ChildStdin, ChildStdout) {
     )
 
     argument_escape = dict(safe)
-    argument_escape["apps/desktop/src-tauri/src/core_client.rs"] = safe_client.replace(
-        b".stdin(Stdio::piped())", b'.arg("--escape").stdin(Stdio::piped())'
+    argument_escape["apps/desktop/src-tauri/src/core_client.rs"] = safe_client + (
+        b'fn forbidden_modifier(command: &mut Command) { command.arg("--escape"); }\n'
     )
     base.expect_failure_matching(
         "argument escape in S1-009 Desktop client",

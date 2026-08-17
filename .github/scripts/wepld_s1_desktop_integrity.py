@@ -21,6 +21,12 @@ IMPL_SCRIPT = ".github/scripts/wepld_s1_desktop_integrity_impl.py"
 EXPECTED_IMPL_GIT_BLOB_SHA1 = "ff2b21630c98ba9f001b45554e95116889e83141"
 MAX_BASELINE_ANCESTRY_COMMITS = 512
 MAX_BASELINE_PARENTS_PER_COMMIT = 16
+MAX_GIT_OBJECT_READ_ATTEMPTS = 3
+TRANSIENT_GITHUB_HTTP_ERRORS = (
+    "HTTP Error 502:",
+    "HTTP Error 503:",
+    "HTTP Error 504:",
+)
 
 
 def _git_blob_sha1(data: bytes) -> str:
@@ -72,6 +78,13 @@ def _compare_url(comparison_sha: str) -> str:
     )
 
 
+def _commit_url(commit_sha: str) -> str:
+    return (
+        f"https://api.github.com/repos/{foundation.REPOSITORY}/git/commits/"
+        f"{commit_sha.lower()}"
+    )
+
+
 def _is_compare_transport_failure(
     exc: foundation.PolicyError,
     comparison_sha: str,
@@ -79,6 +92,34 @@ def _is_compare_transport_failure(
     return str(exc).startswith(
         f"GitHub API request failed for {_compare_url(comparison_sha)}:"
     )
+
+
+def _is_transient_git_object_failure(
+    exc: foundation.PolicyError,
+    commit_sha: str,
+) -> bool:
+    text = str(exc)
+    prefix = f"GitHub API request failed for {_commit_url(commit_sha)}:"
+    return text.startswith(prefix) and any(
+        marker in text for marker in TRANSIENT_GITHUB_HTTP_ERRORS
+    )
+
+
+def _read_commit_object_with_bounded_retry(
+    client: foundation.GitHubClient,
+    commit_sha: str,
+) -> object:
+    last_error: foundation.PolicyError | None = None
+    for _attempt in range(MAX_GIT_OBJECT_READ_ATTEMPTS):
+        try:
+            return client.json(_commit_url(commit_sha))
+        except foundation.PolicyError as exc:
+            if not _is_transient_git_object_failure(exc, commit_sha):
+                raise
+            last_error = exc
+    if last_error is None:
+        foundation.fail("bounded Git object read retry exhausted without an error")
+    raise last_error
 
 
 def _verify_baseline_ancestry_by_parent_walk(
@@ -102,9 +143,9 @@ def _verify_baseline_ancestry_by_parent_walk(
             )
         visited.add(current)
 
-        commit = client.json(
-            f"https://api.github.com/repos/{foundation.REPOSITORY}/git/commits/{current}"
-        )
+        commit = _read_commit_object_with_bounded_retry(client, current)
+        if not isinstance(commit, dict):
+            foundation.fail("baseline ancestry commit payload is malformed")
         foundation.require_object_identity(
             "baseline ancestry commit", current, commit.get("sha")
         )
@@ -157,7 +198,7 @@ def selftest_runner() -> None:
 
     direct = foundation.StubGitHubClient(
         {
-            f"https://api.github.com/repos/{foundation.REPOSITORY}/git/commits/{descendant}": {
+            _commit_url(descendant): {
                 "sha": descendant,
                 "parents": [{"sha": target}],
             }
@@ -167,7 +208,7 @@ def selftest_runner() -> None:
 
     missing = foundation.StubGitHubClient(
         {
-            f"https://api.github.com/repos/{foundation.REPOSITORY}/git/commits/{root}": {
+            _commit_url(root): {
                 "sha": root,
                 "parents": [],
             }
@@ -183,7 +224,7 @@ def selftest_runner() -> None:
 
     malformed = foundation.StubGitHubClient(
         {
-            f"https://api.github.com/repos/{foundation.REPOSITORY}/git/commits/{descendant}": {
+            _commit_url(descendant): {
                 "sha": descendant,
                 "parents": [{"sha": "not-a-sha"}],
             }
@@ -199,7 +240,7 @@ def selftest_runner() -> None:
 
     self_parent = foundation.StubGitHubClient(
         {
-            f"https://api.github.com/repos/{foundation.REPOSITORY}/git/commits/{descendant}": {
+            _commit_url(descendant): {
                 "sha": descendant,
                 "parents": [{"sha": descendant}],
             }
@@ -230,6 +271,36 @@ def selftest_runner() -> None:
     )
     if _is_compare_transport_failure(unrelated, descendant):
         foundation.fail("runner self-test: unrelated GitHub API failure triggered fallback")
+
+    transient = foundation.PolicyError(
+        f"GitHub API request failed for {_commit_url(descendant)}: "
+        "HTTP Error 504: Gateway Timeout"
+    )
+    if not _is_transient_git_object_failure(transient, descendant):
+        foundation.fail("runner self-test: transient Git object failure was not recognized")
+    permanent = foundation.PolicyError(
+        f"GitHub API request failed for {_commit_url(descendant)}: "
+        "HTTP Error 404: Not Found"
+    )
+    if _is_transient_git_object_failure(permanent, descendant):
+        foundation.fail("runner self-test: permanent Git object failure triggered retry")
+
+    class FlakyGitHubClient:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def json(self, url: str) -> object:
+            self.calls += 1
+            if self.calls < 2:
+                raise foundation.PolicyError(
+                    f"GitHub API request failed for {url}: HTTP Error 504: Gateway Timeout"
+                )
+            return {"sha": descendant, "parents": [{"sha": target}]}
+
+    flaky = FlakyGitHubClient()
+    _verify_baseline_ancestry_by_parent_walk(flaky, descendant)  # type: ignore[arg-type]
+    if flaky.calls != 2:
+        foundation.fail("runner self-test: transient Git object read was not retried exactly once")
 
     _install_desktop_path_attribute()
     path_cases = (

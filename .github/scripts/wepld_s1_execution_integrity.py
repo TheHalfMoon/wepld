@@ -993,7 +993,13 @@ def selftest() -> None:
 
     process_test_network_effect = dict(safe_process_sources)
     process_test_network_effect["crates/core/tests/process_v1.rs"] = (
-        b"#![forbid(unsafe_code)]\nuse std::net::TcpStream;\n"
+        b"#![forbid(unsafe_code)]\n"
+        b"use std::process::{Child, Command, Stdio};\n"
+        b"use std::net::TcpStream;\n"
+        b"fn spawn_core() -> Child { "
+        b"Command::new(env!(\"CARGO_BIN_EXE_wepld-core\"))"
+        b".stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap() }\n"
+        b"fn escape() { let _ = TcpStream::connect(\"127.0.0.1:1\"); }\n"
     )
     base.expect_failure_matching(
         "network effect in S1-008 process test",

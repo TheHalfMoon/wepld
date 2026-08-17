@@ -8,11 +8,15 @@ on:
       - "Cargo.toml"
       - "Cargo.lock"
       - "rust-toolchain.toml"
+      - "apps/desktop/src-tauri/build.rs"
+      - "apps/desktop/src-tauri/tauri.conf.json"
       - "apps/desktop/src-tauri/src/**"
+      - "apps/desktop/ui/**"
       - "crates/contracts/**"
       - "crates/core/**"
       - ".github/scripts/wepld_s1_execution_integrity.py"
       - ".github/scripts/wepld_s1_desktop_integrity.py"
+      - ".github/scripts/wepld_s1_shell_integrity.py"
       - ".github/workflows/s1-contracts.yml"
 
 permissions: {}
@@ -109,6 +113,18 @@ jobs:
           if ($actualRustc -ne $expected) { throw "rustc version mismatch: expected=$expected actual=$actualRustc" }
           if ($actualCargo -ne $expected) { throw "cargo version mismatch: expected=$expected actual=$actualCargo" }
 
+      - name: Stage owned Core for Desktop tests and Tauri externalBin
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          cargo build --locked --package wepld-core
+          $deps = Join-Path $PWD "target\debug\deps"
+          New-Item -ItemType Directory -Force -Path $deps | Out-Null
+          Copy-Item -Force "target\debug\wepld-core.exe" (Join-Path $deps "wepld-core.exe")
+          $sidecars = Join-Path $PWD "apps\desktop\src-tauri\binaries"
+          New-Item -ItemType Directory -Force -Path $sidecars | Out-Null
+          Copy-Item -Force "target\debug\wepld-core.exe" (Join-Path $sidecars "wepld-core-x86_64-pc-windows-msvc.exe")
+
       - name: Format Desktop host
         shell: pwsh
         run: |
@@ -120,15 +136,6 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           cargo clippy --locked --package wepld-desktop --all-targets -- -D warnings -F unsafe-code
-
-      - name: Build owned Core test sibling
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          cargo build --locked --package wepld-core
-          $deps = Join-Path $PWD "target\debug\deps"
-          New-Item -ItemType Directory -Force -Path $deps | Out-Null
-          Copy-Item -Force "target\debug\wepld-core.exe" (Join-Path $deps "wepld-core.exe")
 
       - name: Test Desktop host
         shell: pwsh

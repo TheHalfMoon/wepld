@@ -906,7 +906,7 @@ def selftest() -> None:
     )
     base.expect_failure_matching(
         "arbitrary command in S1-008 process test",
-        "S1-008 process test must use exactly one std::process import and one owned Core binary launcher",
+        "S1-008 process test escaped owned-binary launch boundary",
         verify_process_sources,
         base.MemoryView(process_arbitrary_command),
     )

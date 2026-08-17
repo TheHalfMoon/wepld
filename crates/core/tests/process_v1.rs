@@ -3,7 +3,7 @@
 use std::io::Write;
 use std::process::{Child, Command, Stdio};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use wepld_contracts::{
     CancelEnvelope, CancellationOutcome, CapabilitiesRequestPayload, Capability,
     HealthRequestPayload, HealthStatus, MAX_PAYLOAD_BYTES, ObserveHealthRequestPayload, Principal,
@@ -13,6 +13,8 @@ use wepld_contracts::{
 };
 
 const LAUNCH_ID: u64 = 71;
+const PROCESS_EXIT_TIMEOUT: Duration = Duration::from_secs(5);
+const PROCESS_POLL_INTERVAL: Duration = Duration::from_millis(5);
 
 fn spawn_core() -> Child {
     Command::new(env!("CARGO_BIN_EXE_wepld-core"))
@@ -74,15 +76,18 @@ fn receive(child: &mut Child) -> ProtocolEnvelope {
 }
 
 fn wait_for_exit(child: &mut Child) -> bool {
-    for _ in 0..200 {
+    let deadline = Instant::now() + PROCESS_EXIT_TIMEOUT;
+    loop {
         if let Some(status) = child.try_wait().expect("child status must be readable") {
             return status.success();
         }
-        thread::sleep(Duration::from_millis(5));
+        if Instant::now() >= deadline {
+            child.kill().expect("timed-out child must be killable");
+            let _ = child.wait();
+            panic!("Core did not terminate within the bounded test window");
+        }
+        thread::sleep(PROCESS_POLL_INTERVAL);
     }
-    child.kill().expect("timed-out child must be killable");
-    let _ = child.wait();
-    panic!("Core did not terminate within the bounded test window");
 }
 
 fn close_input_and_wait(child: &mut Child) -> bool {

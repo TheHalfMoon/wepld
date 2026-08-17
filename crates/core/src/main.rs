@@ -1,21 +1,30 @@
 #![forbid(unsafe_code)]
 
-#[derive(Debug)]
 enum CoreProcessError {
-    Frame,
-    State,
+    Frame(::wepld_contracts::FrameError),
+    State(::wepld_core::StateError),
     UnexpectedInboundKind,
 }
 
+impl ::std::fmt::Debug for CoreProcessError {
+    fn fmt(&self, formatter: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match self {
+            Self::Frame(error) => formatter.debug_tuple("Frame").field(error).finish(),
+            Self::State(error) => formatter.debug_tuple("State").field(error).finish(),
+            Self::UnexpectedInboundKind => formatter.debug_tuple("UnexpectedInboundKind").finish(),
+        }
+    }
+}
+
 impl From<::wepld_contracts::FrameError> for CoreProcessError {
-    fn from(_: ::wepld_contracts::FrameError) -> Self {
-        Self::Frame
+    fn from(error: ::wepld_contracts::FrameError) -> Self {
+        Self::Frame(error)
     }
 }
 
 impl From<::wepld_core::StateError> for CoreProcessError {
-    fn from(_: ::wepld_core::StateError) -> Self {
-        Self::State
+    fn from(error: ::wepld_core::StateError) -> Self {
+        Self::State(error)
     }
 }
 

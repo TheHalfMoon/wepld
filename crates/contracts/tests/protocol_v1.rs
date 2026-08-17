@@ -44,6 +44,23 @@ fn golden_health_request_round_trips() {
 }
 
 #[test]
+fn golden_cancel_and_protocol_error_fixtures_round_trip() {
+    let fixtures = [
+        r#"{"protocol_version":1,"kind":"cancel","principal":"desktop_host","launch_id":7,"request_id":15,"target_request_id":14}"#,
+        r#"{"protocol_version":1,"kind":"protocol_error","principal":"desktop_host","launch_id":7,"request_id":16,"payload":{"code":"malformed_message","message":"bad frame"}}"#,
+    ];
+
+    for fixture in fixtures {
+        let decoded: ProtocolEnvelope =
+            serde_json::from_str(fixture).expect("golden fixture must decode");
+        let expected: serde_json::Value =
+            serde_json::from_str(fixture).expect("fixture must be JSON");
+        let encoded = serde_json::to_value(&decoded).expect("typed envelope must encode");
+        assert_eq!(encoded, expected);
+    }
+}
+
+#[test]
 fn all_envelope_families_round_trip() {
     let envelopes = vec![
         health_request(),
@@ -158,8 +175,10 @@ struct SizedPayload {
 }
 
 #[test]
-fn frame_round_trips_deterministic_payload_sizes() {
-    for size in [0_usize, 1, 7, 255, 1_024, 8_192] {
+fn frame_round_trips_property_style_size_corpus() {
+    for size in [
+        0_usize, 1, 2, 3, 7, 31, 255, 256, 1_023, 1_024, 4_095, 8_192, 32_768, 60_000,
+    ] {
         let value = SizedPayload {
             data: "a".repeat(size),
         };
@@ -188,6 +207,21 @@ fn exact_max_payload_is_accepted() {
     let mut cursor = Cursor::new(wire);
     let decoded: SizedPayload = read_frame(&mut cursor).expect("exact max payload must decode");
     assert_eq!(decoded, value);
+}
+
+#[test]
+fn oversized_encoded_payload_is_rejected_at_bound() {
+    let value = SizedPayload {
+        data: "a".repeat(MAX_PAYLOAD_BYTES),
+    };
+
+    match encode_frame(&value) {
+        Err(FrameError::PayloadTooLarge { length, max }) => {
+            assert!(length > MAX_PAYLOAD_BYTES);
+            assert_eq!(max, MAX_PAYLOAD_BYTES);
+        }
+        other => panic!("expected payload-too-large error, got {other:?}"),
+    }
 }
 
 struct PrefixProbe {
@@ -227,7 +261,7 @@ fn oversized_declared_length_rejects_before_body_read() {
     assert_eq!(
         result,
         Err(FrameError::PayloadTooLarge {
-            declared: MAX_PAYLOAD_BYTES + 1,
+            length: MAX_PAYLOAD_BYTES + 1,
             max: MAX_PAYLOAD_BYTES,
         })
     );

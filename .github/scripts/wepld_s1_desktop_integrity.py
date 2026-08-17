@@ -256,7 +256,7 @@ TRUNCATION_STORE = re.compile(
     r"diagnostics_truncated\s*\.\s*store\s*\(\s*true\s*,\s*Ordering\s*::\s*Release\s*\)"
 )
 MAX_DIAGNOSTIC_ASSERT = re.compile(
-    r"\bconst\s*:\s*\(\s*\)\s*=\s*assert!\s*\(\s*MAX_RETAINED_DIAGNOSTIC_BYTES\s*==\s*65_536\s*\)\s*;"
+    r"\bconst\s+_\s*:\s*\(\s*\)\s*=\s*assert!\s*\(\s*MAX_RETAINED_DIAGNOSTIC_BYTES\s*==\s*65_536\s*\)\s*;"
 )
 PATH_MUTATION = re.compile(
     r"\b(?:current_exe|core_parent|core_executable)\s*\.\s*"

@@ -34,6 +34,7 @@ const MAX_RETAINED_DIAGNOSTIC_BYTES: usize =
 const _: () = assert!(MAX_RETAINED_DIAGNOSTIC_BYTES == 65_536);
 
 const INBOUND_CHANNEL_CAPACITY: usize = 32;
+const OUTBOUND_CHANNEL_CAPACITY: usize = 32;
 const PROTOCOL_RESPONSE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 const CHILD_TERMINATION_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 const CHILD_TERMINATION_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(5);
@@ -54,6 +55,9 @@ pub enum CoreClientError {
     ChildTerminationTimeout,
     InboundChannelClosed,
     InboundOverflow,
+    OutboundOverflow,
+    WriterChannelClosed,
+    WriterFailed,
     UnexpectedInboundKind,
     StaleLaunch { expected: u64, actual: u64 },
     CommandIdExhausted,
@@ -81,7 +85,9 @@ pub enum InboundEnvelope {
 
 pub struct CoreClient {
     child: Child,
-    input: ChildStdin,
+    writer_tx: Option<mpsc::SyncSender<Vec<u8>>>,
+    writer_failed: Arc<AtomicBool>,
+    writer_thread: Option<thread::JoinHandle<()>>,
     inbound_rx: mpsc::Receiver<Result<ProtocolEnvelope, FrameError>>,
     inbound_overflowed: Arc<AtomicBool>,
     protocol_thread: Option<thread::JoinHandle<()>>,
@@ -173,6 +179,31 @@ fn spawn_owned_core() -> Result<
     ))
 }
 
+fn spawn_protocol_writer(
+    mut input: ChildStdin,
+    ready: Arc<AtomicBool>,
+) -> (
+    mpsc::SyncSender<Vec<u8>>,
+    Arc<AtomicBool>,
+    thread::JoinHandle<()>,
+) {
+    let (writer_tx, writer_rx) = mpsc::sync_channel(OUTBOUND_CHANNEL_CAPACITY);
+    let writer_failed = Arc::new(AtomicBool::new(false));
+    let failure_flag = Arc::clone(&writer_failed);
+    let writer_thread = thread::spawn(move || {
+        while let Ok(wire) = writer_rx.recv() {
+            let write_result = std::io::Write::write_all(&mut input, &wire)
+                .and_then(|()| std::io::Write::flush(&mut input));
+            if write_result.is_err() {
+                failure_flag.store(true, Ordering::Release);
+                ready.store(false, Ordering::Release);
+                break;
+            }
+        }
+    });
+    (writer_tx, writer_failed, writer_thread)
+}
+
 fn spawn_protocol_reader(
     mut output: ChildStdout,
     ready: Arc<AtomicBool>,
@@ -203,6 +234,13 @@ fn spawn_protocol_reader(
     (inbound_rx, inbound_overflowed, protocol_thread)
 }
 
+fn enqueue_wire(
+    writer_tx: &mpsc::SyncSender<Vec<u8>>,
+    wire: Vec<u8>,
+) -> Result<(), mpsc::TrySendError<Vec<u8>>> {
+    writer_tx.try_send(wire)
+}
+
 fn launch_id_of(envelope: &InboundEnvelope) -> u64 {
     match envelope {
         InboundEnvelope::Response(response) => match response {
@@ -225,11 +263,15 @@ impl CoreClient {
         let (child, input, output, diagnostic_rx, diagnostics_truncated, diagnostic_thread) =
             spawn_owned_core()?;
         let ready = Arc::new(AtomicBool::new(false));
+        let (writer_tx, writer_failed, writer_thread) =
+            spawn_protocol_writer(input, Arc::clone(&ready));
         let (inbound_rx, inbound_overflowed, protocol_thread) =
             spawn_protocol_reader(output, Arc::clone(&ready));
         Ok(Self {
             child,
-            input,
+            writer_tx: Some(writer_tx),
+            writer_failed,
+            writer_thread: Some(writer_thread),
             inbound_rx,
             inbound_overflowed,
             protocol_thread: Some(protocol_thread),
@@ -340,7 +382,10 @@ impl CoreClient {
 
     pub fn receive(&mut self) -> Result<InboundEnvelope, CoreClientError> {
         self.ensure_child_running()?;
-        if self.inbound_overflowed.load(Ordering::Acquire) {
+        if self.writer_failed.load(Ordering::Acquire) {
+            let error = self.stop_with_error(CoreClientError::WriterFailed);
+            Err(error)
+        } else if self.inbound_overflowed.load(Ordering::Acquire) {
             let error = self.stop_with_error(CoreClientError::InboundOverflow);
             Err(error)
         } else {
@@ -368,10 +413,14 @@ impl CoreClient {
         let (child, input, output, diagnostic_rx, diagnostics_truncated, diagnostic_thread) =
             spawn_owned_core()?;
         let ready = Arc::new(AtomicBool::new(false));
+        let (writer_tx, writer_failed, writer_thread) =
+            spawn_protocol_writer(input, Arc::clone(&ready));
         let (inbound_rx, inbound_overflowed, protocol_thread) =
             spawn_protocol_reader(output, Arc::clone(&ready));
         self.child = child;
-        self.input = input;
+        self.writer_tx = Some(writer_tx);
+        self.writer_failed = writer_failed;
+        self.writer_thread = Some(writer_thread);
         self.inbound_rx = inbound_rx;
         self.inbound_overflowed = inbound_overflowed;
         self.protocol_thread = Some(protocol_thread);
@@ -395,21 +444,33 @@ impl CoreClient {
 
     fn write_envelope(&mut self, envelope: &ProtocolEnvelope) -> Result<(), CoreClientError> {
         self.ensure_child_running()?;
-        match encode_frame(envelope) {
-            Ok(wire) => {
-                let write_result = std::io::Write::write_all(&mut self.input, &wire)
-                    .and_then(|()| std::io::Write::flush(&mut self.input));
-                match write_result {
-                    Ok(()) => Ok(()),
-                    Err(error) => {
-                        let error = self.stop_with_error(CoreClientError::Io(error));
+        if self.writer_failed.load(Ordering::Acquire) {
+            let error = self.stop_with_error(CoreClientError::WriterFailed);
+            Err(error)
+        } else {
+            match encode_frame(envelope) {
+                Ok(wire) => match self.writer_tx.as_ref() {
+                    Some(writer_tx) => match enqueue_wire(writer_tx, wire) {
+                        Ok(()) => Ok(()),
+                        Err(mpsc::TrySendError::Full(_)) => {
+                            let error = self.stop_with_error(CoreClientError::OutboundOverflow);
+                            Err(error)
+                        }
+                        Err(mpsc::TrySendError::Disconnected(_)) => {
+                            let error =
+                                self.stop_with_error(CoreClientError::WriterChannelClosed);
+                            Err(error)
+                        }
+                    },
+                    None => {
+                        let error = self.stop_with_error(CoreClientError::WriterChannelClosed);
                         Err(error)
                     }
+                },
+                Err(error) => {
+                    let error = self.stop_with_error(CoreClientError::Frame(error));
+                    Err(error)
                 }
-            }
-            Err(error) => {
-                let error = self.stop_with_error(CoreClientError::Frame(error));
-                Err(error)
             }
         }
     }
@@ -463,6 +524,7 @@ impl CoreClient {
 
     fn stop_child(&mut self) -> Result<(), CoreClientError> {
         self.ready.store(false, Ordering::Release);
+        let _ = self.writer_tx.take();
         let termination = match self.child.try_wait() {
             Ok(Some(_)) => Ok(()),
             Ok(None) => {
@@ -486,6 +548,7 @@ impl CoreClient {
             }
             Err(error) => Err(CoreClientError::Io(error)),
         };
+        let _ = self.writer_thread.take();
         let _ = self.protocol_thread.take();
         let _ = self.diagnostic_thread.take();
         termination
@@ -513,11 +576,19 @@ mod tests {
     }
 
     #[test]
+    fn outbound_enqueue_is_bounded_and_nonblocking() {
+        let (writer_tx, _writer_rx) = mpsc::sync_channel(1);
+        enqueue_wire(&writer_tx, vec![1]).expect("first frame must fit bounded queue");
+        let error = enqueue_wire(&writer_tx, vec![2]).expect_err("full queue must reject immediately");
+        assert!(matches!(error, mpsc::TrySendError::Full(_)));
+    }
+
+    #[test]
     fn owned_core_health_round_trip_binds_internal_identity() {
         let mut client = CoreClient::start().expect("owned Core must start");
         assert!(!client.is_ready());
 
-        let request_id = client.send_health().expect("health request must write");
+        let request_id = client.send_health().expect("health request must enqueue");
         assert_eq!(request_id, INITIAL_COMMAND_ID);
 
         let response = health_response(client.receive().expect("health response must arrive"));
@@ -533,13 +604,13 @@ mod tests {
     fn command_ids_follow_serialized_write_order() {
         let mut client = CoreClient::start().expect("owned Core must start");
 
-        let first = client.send_health().expect("first command must write");
+        let first = client.send_health().expect("first command must enqueue");
         let _ = client.receive().expect("first response must arrive");
-        let second = client.send_version().expect("second command must write");
+        let second = client.send_version().expect("second command must enqueue");
         let _ = client.receive().expect("second response must arrive");
         let third = client
             .send_capabilities()
-            .expect("third command must write");
+            .expect("third command must enqueue");
         let _ = client.receive().expect("third response must arrive");
 
         assert_eq!((first, second, third), (1, 2, 3));
@@ -548,7 +619,7 @@ mod tests {
     #[test]
     fn explicit_restart_changes_launch_and_invalidates_readiness() {
         let mut client = CoreClient::start().expect("owned Core must start");
-        let _ = client.send_health().expect("health request must write");
+        let _ = client.send_health().expect("health request must enqueue");
         let _ = client.receive().expect("health response must arrive");
         let prior_launch = client.launch_id();
         assert!(client.is_ready());
@@ -559,7 +630,7 @@ mod tests {
         assert!(!client.is_ready());
         let first_after_restart = client
             .send_health()
-            .expect("new launch health request must write");
+            .expect("new launch health request must enqueue");
         assert_eq!(first_after_restart, INITIAL_COMMAND_ID);
         let response = health_response(
             client
@@ -572,7 +643,7 @@ mod tests {
     #[test]
     fn child_exit_invalidates_readiness_without_followup_protocol_call() {
         let mut client = CoreClient::start().expect("owned Core must start");
-        let _ = client.send_health().expect("health request must write");
+        let _ = client.send_health().expect("health request must enqueue");
         let _ = client.receive().expect("health response must arrive");
         assert!(client.is_ready());
 
@@ -618,7 +689,7 @@ mod tests {
         let mut client = CoreClient::start().expect("owned Core must start");
         let observation_id = client
             .send_observe_health()
-            .expect("observation command must write");
+            .expect("observation command must enqueue");
         let observation = client.receive().expect("observation response must arrive");
         assert!(matches!(
             observation,
@@ -627,7 +698,7 @@ mod tests {
 
         let cancel_id = client
             .send_cancel(observation_id)
-            .expect("cancel command must write");
+            .expect("cancel command must enqueue");
         assert_eq!(cancel_id, observation_id + 1);
         let cancel = client.receive().expect("cancel response must arrive");
         assert!(matches!(

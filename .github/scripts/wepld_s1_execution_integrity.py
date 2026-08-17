@@ -96,10 +96,11 @@ PROHIBITED_EFFECT_IDENTIFIERS = frozenset(
         "include_str",
     }
 )
+S1_007_PROHIBITED_EFFECT_IDENTIFIERS = PROHIBITED_EFFECT_IDENTIFIERS | {"path"}
 FORBID_UNSAFE_ATTRIBUTE = re.compile(
     r"\A#!\s*\[\s*forbid\s*\(\s*unsafe_code\s*\)\s*\]"
 )
-PATH_ATTRIBUTE = re.compile(r"#\s*\[\s*path\b")
+PATH_ATTRIBUTE = re.compile(r"#\s*\[\s*(?:r#)?path\b")
 RUST_IDENTIFIER = re.compile(r"(?:r#)?([A-Za-z_][A-Za-z0-9_]*)")
 RAW_STRING_PREFIX = re.compile(r'(?:br|r)(#{0,255})"')
 
@@ -361,15 +362,15 @@ def verify_state_sources(view: base.RepositoryView) -> None:
             )
 
     for relative, code in code_by_path.items():
+        if PATH_ATTRIBUTE.search(code):
+            base.fail(f"S1-007 #[path] module indirection is prohibited: {relative}")
         identifiers = set(RUST_IDENTIFIER.findall(code))
-        forbidden = sorted(identifiers & PROHIBITED_EFFECT_IDENTIFIERS)
+        forbidden = sorted(identifiers & S1_007_PROHIBITED_EFFECT_IDENTIFIERS)
         if forbidden:
             base.fail(
                 "S1-007 prohibited effect identifier(s) found in code: "
                 f"{relative}: {', '.join(forbidden)}"
             )
-        if PATH_ATTRIBUTE.search(code):
-            base.fail(f"S1-007 #[path] module indirection is prohibited: {relative}")
 
 
 def freeze_s1_005_evidence(
@@ -619,6 +620,28 @@ def selftest() -> None:
         "S1-007 #[path] module indirection is prohibited",
         verify_state_sources,
         base.MemoryView(state_path_indirection),
+    )
+
+    state_raw_path_indirection = dict(safe_state_sources)
+    state_raw_path_indirection["crates/core/src/state.rs"] = (
+        b'#[r#path = "other.rs"]\nmod hidden;\n'
+    )
+    base.expect_failure_matching(
+        "raw path indirection in S1-007",
+        "S1-007 #[path] module indirection is prohibited",
+        verify_state_sources,
+        base.MemoryView(state_raw_path_indirection),
+    )
+
+    state_cfg_attr_path_indirection = dict(safe_state_sources)
+    state_cfg_attr_path_indirection["crates/core/src/state.rs"] = (
+        b'#[cfg_attr(all(), path = "other.rs")]\nmod hidden;\n'
+    )
+    base.expect_failure_matching(
+        "cfg_attr path indirection in S1-007",
+        "S1-007 prohibited effect identifier(s) found in code",
+        verify_state_sources,
+        base.MemoryView(state_cfg_attr_path_indirection),
     )
 
     print("wepld S1 execution integrity policy self-tests: PASS")

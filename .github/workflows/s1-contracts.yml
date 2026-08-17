@@ -19,6 +19,7 @@ on:
       - ".github/scripts/wepld_s1_shell_integrity.py"
       - ".github/scripts/wepld_s1_shell_integrity_v2.py"
       - ".github/scripts/wepld_s1_shell_integrity_v3.py"
+      - ".github/scripts/wepld_s1_shell_integrity_v4.py"
       - ".github/workflows/s1-contracts.yml"
 
 permissions: {}

@@ -254,7 +254,7 @@ await (invoke)("core_cancel_observation", { requestId: 1 });
     ).encode()
     base.expect_failure_matching(
         "missing observation status projection",
-        "frozen status-projection presentation template",
+        "frozen non-navigating static presentation template",
         _verify_frontend,
         base.MemoryView(missing_observation_status),
     )

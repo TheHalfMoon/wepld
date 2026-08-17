@@ -571,6 +571,13 @@ impl CoreClient {
                             }
                         }
                     }
+                    if matches!(&outcome, Err(CoreClientError::ChildTerminationTimeout)) {
+                        outcome = match self.child.try_wait() {
+                            Ok(Some(_)) => Ok(()),
+                            Ok(None) => Err(CoreClientError::ChildTerminationTimeout),
+                            Err(error) => Err(CoreClientError::Io(error)),
+                        };
+                    }
                     outcome
                 }
                 Err(error) => match self.child.try_wait() {

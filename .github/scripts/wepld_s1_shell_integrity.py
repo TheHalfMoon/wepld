@@ -183,9 +183,6 @@ EXPECTED_HTML_TOKENS = (
 )
 EXPECTED_JS_BOOTSTRAP = "window.__TAURI__.core"
 
-# This bootstrap advances only the controlled workflow bytes and installs this
-# runner into the protected policy surface. All earlier source/dependency/product
-# policy remains frozen.
 prior.EXTENSION_CONTROLLED_PATHS = frozenset(
     set(prior.EXTENSION_CONTROLLED_PATHS) | {POLICY_SCRIPT}
 )
@@ -267,10 +264,7 @@ def verify_policy_files(view: base.RepositoryView) -> None:
     prior.verify_policy_files(view)
 
 
-def _verify_shell_component_base(
-    view: base.RepositoryView,
-    paths: set[str],
-) -> None:
+def _verify_shell_component_base(view: base.RepositoryView, paths: set[str]) -> None:
     expected_text = dict(base.STAGE_B_TEXT)
     expected_text["Cargo.toml"] = base.ROOT_CARGO_COMPONENT
     expected_text.pop("crates/contracts/src/lib.rs")
@@ -286,12 +280,7 @@ def _verify_shell_component_base(
     base.verify_frozen_glib_vendor(view, paths, base.COMPONENT_STAGE)
 
 
-def _read_utf8(
-    view: base.RepositoryView,
-    relative: str,
-    limit: int,
-    scope: str,
-) -> str:
+def _read_utf8(view: base.RepositoryView, relative: str, limit: int, scope: str) -> str:
     data = view.read_bytes(relative, limit)
     try:
         text = data.decode("utf-8", errors="strict")
@@ -310,9 +299,7 @@ def verify_shell_config(view: base.RepositoryView) -> None:
     except json.JSONDecodeError as exc:
         base.fail(f"S1-010 Tauri config is invalid JSON: {exc}")
     if config != EXPECTED_TAURI_CONFIG:
-        base.fail(
-            "S1-010 Tauri config must equal the frozen minimal local-static/externalBin template"
-        )
+        base.fail("S1-010 Tauri config must equal the frozen minimal local-static/externalBin template")
 
 
 def verify_build_script(view: base.RepositoryView) -> None:
@@ -324,19 +311,14 @@ def verify_build_script(view: base.RepositoryView) -> None:
 
 def verify_shell_rust(view: base.RepositoryView) -> None:
     relative = "apps/desktop/src-tauri/src/main.rs"
-    raw, code = prior.prior._read_rust(
-        view, relative, MAX_S1_010_RUST_BYTES, "S1-010 Tauri main"
-    )
+    raw, code = prior.prior._read_rust(view, relative, MAX_S1_010_RUST_BYTES, "S1-010 Tauri main")
     prior.prior._require_forbid(raw, relative, "S1-010")
     if desktop_runner.DESKTOP_PATH_ATTRIBUTE.search(code):
         base.fail("S1-010 Tauri main #[path]/cfg_attr path indirection is prohibited")
     identifiers = set(prior.prior.RUST_IDENTIFIER.findall(code))
     forbidden = sorted(identifiers & SHELL_RUST_PROHIBITED_IDENTIFIERS)
     if forbidden:
-        base.fail(
-            "S1-010 Tauri main prohibited effect identifier(s): "
-            + ", ".join(forbidden)
-        )
+        base.fail("S1-010 Tauri main prohibited effect identifier(s): " + ", ".join(forbidden))
     if FORBIDDEN_RUST_TEXT.search(raw):
         base.fail("S1-010 Tauri main contains prohibited plugin/network/shell material")
     if MODULE_DECL.search(code):
@@ -353,17 +335,11 @@ def verify_shell_rust(view: base.RepositoryView) -> None:
 
     commands = TAURI_COMMAND_FN.findall(code)
     if set(commands) != REQUIRED_COMMANDS or len(commands) != len(REQUIRED_COMMANDS):
-        base.fail(
-            "S1-010 Tauri main command surface must be exactly: "
-            + ", ".join(sorted(REQUIRED_COMMANDS))
-        )
+        base.fail("S1-010 Tauri main command surface must be exactly: " + ", ".join(sorted(REQUIRED_COMMANDS)))
     handlers = GENERATE_HANDLER.findall(code)
     if len(handlers) != 1:
         base.fail("S1-010 Tauri main must define exactly one generate_handler list")
-    handler_names = {
-        match.group(0)
-        for match in re.finditer(r"[A-Za-z_][A-Za-z0-9_]*", handlers[0])
-    }
+    handler_names = {match.group(0) for match in re.finditer(r"[A-Za-z_][A-Za-z0-9_]*", handlers[0])}
     if handler_names != REQUIRED_COMMANDS:
         base.fail("S1-010 generate_handler must expose exactly the six S1 commands")
 
@@ -376,20 +352,11 @@ def verify_shell_rust(view: base.RepositoryView) -> None:
 
 
 def verify_frontend(view: base.RepositoryView) -> None:
-    html = _read_utf8(
-        view, "apps/desktop/ui/index.html", MAX_S1_010_HTML_BYTES, "S1-010 HTML"
-    )
-    js = _read_utf8(
-        view, "apps/desktop/ui/app.js", MAX_S1_010_JS_BYTES, "S1-010 JavaScript"
-    )
-    css = _read_utf8(
-        view, "apps/desktop/ui/style.css", MAX_S1_010_CSS_BYTES, "S1-010 CSS"
-    )
+    html = _read_utf8(view, "apps/desktop/ui/index.html", MAX_S1_010_HTML_BYTES, "S1-010 HTML")
+    js = _read_utf8(view, "apps/desktop/ui/app.js", MAX_S1_010_JS_BYTES, "S1-010 JavaScript")
+    css = _read_utf8(view, "apps/desktop/ui/style.css", MAX_S1_010_CSS_BYTES, "S1-010 CSS")
 
-    for relative, text in (
-        ("apps/desktop/ui/index.html", html),
-        ("apps/desktop/ui/app.js", js),
-    ):
+    for relative, text in (("apps/desktop/ui/index.html", html), ("apps/desktop/ui/app.js", js)):
         if FORBIDDEN_FRONTEND_TEXT.search(text):
             base.fail(f"S1-010 static frontend contains prohibited dynamic/network material: {relative}")
 
@@ -406,19 +373,13 @@ def verify_frontend(view: base.RepositoryView) -> None:
 
     missing_tokens = [token for token in EXPECTED_HTML_TOKENS if token not in html]
     if missing_tokens:
-        base.fail(
-            "S1-010 HTML missing required static/accessibility token(s): "
-            + ", ".join(missing_tokens)
-        )
+        base.fail("S1-010 HTML missing required static/accessibility token(s): " + ", ".join(missing_tokens))
 
     if EXPECTED_JS_BOOTSTRAP not in js:
         base.fail("S1-010 JavaScript must use only the Tauri global core invoke bridge")
     calls = INVOKE_CALL.findall(js)
     if set(calls) != REQUIRED_COMMANDS:
-        base.fail(
-            "S1-010 JavaScript invoke surface must call exactly: "
-            + ", ".join(sorted(REQUIRED_COMMANDS))
-        )
+        base.fail("S1-010 JavaScript invoke surface must call exactly: " + ", ".join(sorted(REQUIRED_COMMANDS)))
 
 
 def verify_shell_sources(view: base.RepositoryView) -> None:
@@ -428,33 +389,20 @@ def verify_shell_sources(view: base.RepositoryView) -> None:
     verify_frontend(view)
 
 
-def freeze_s1_009_desktop(
-    candidate: base.RepositoryView,
-    policy_base: base.RepositoryView,
-) -> None:
+def freeze_s1_009_desktop(candidate: base.RepositoryView, policy_base: base.RepositoryView) -> None:
     for relative in sorted(S1_010_FROZEN_DESKTOP_PATHS):
-        if candidate.read_bytes(relative, prior.MAX_S1_009_SOURCE_BYTES) != policy_base.read_bytes(
-            relative, prior.MAX_S1_009_SOURCE_BYTES
-        ):
+        if candidate.read_bytes(relative, prior.MAX_S1_009_SOURCE_BYTES) != policy_base.read_bytes(relative, prior.MAX_S1_009_SOURCE_BYTES):
             base.fail(f"S1-010 candidate changed frozen S1-009 Desktop lifecycle: {relative}")
 
 
-def verify_view(
-    view: base.RepositoryView,
-    *,
-    policy_base: base.RepositoryView | None = None,
-) -> str:
+def verify_view(view: base.RepositoryView, *, policy_base: base.RepositoryView | None = None) -> str:
     paths = base.validate_entries(view.entries())
     stage = classify_stage(paths)
 
-    # Until S1-010 marker files are present, preserve the complete canonical
-    # S1-009 verifier behavior while recognizing this new controlled script and
-    # the newly pinned workflow bytes.
     if stage != SHELL_STAGE:
         return prior.verify_view(view, policy_base=policy_base)
 
     validate_allowed_paths(paths, stage)
-
     if view.read_bytes("src/.gitkeep", 1):
         base.fail("src/.gitkeep must be empty")
 
@@ -476,9 +424,7 @@ def verify_view(
         base.fail("duplicate canonical security-review policy detected")
 
     if policy_base is not None:
-        base.verify_base_path_preservation(
-            paths, base.validate_entries(policy_base.entries())
-        )
+        base.verify_base_path_preservation(paths, base.validate_entries(policy_base.entries()))
         base.compare_base_controlled(view, policy_base)
         prior.verify_extension_controlled_paths(view, policy_base)
         prior.prior.freeze_s1_005_evidence(view, policy_base)
@@ -513,60 +459,22 @@ fn core_observe_health(_state: tauri::State<'_, AppState>) -> Result<u64, String
 fn core_cancel_observation(_state: tauri::State<'_, AppState>, _request_id: u64) -> Result<String, String> { Ok(String::new()) }
 
 fn main() {
-    let state = AppState {
-        core: Mutex::new(CoreClient::start().ok()),
-    };
+    let state = AppState { core: Mutex::new(CoreClient::start().ok()) };
     tauri::Builder::default()
         .manage(state)
-        .invoke_handler(tauri::generate_handler![
-            core_ready,
-            core_health,
-            core_version,
-            core_capabilities,
-            core_observe_health,
-            core_cancel_observation
-        ])
+        .invoke_handler(tauri::generate_handler![core_ready, core_health, core_version, core_capabilities, core_observe_health, core_cancel_observation])
         .run(tauri::generate_context!())
         .expect("Tauri runtime failed");
 }
 """
     html = b"""<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>WePLD</title>
-  <link rel="stylesheet" href="./style.css">
-</head>
-<body>
-  <main>
-    <h1>WePLD</h1>
-    <section role="status" aria-live="polite">
-      <p id="core-readiness"></p>
-      <p id="core-health"></p>
-      <p id="core-version"></p>
-      <p id="core-capabilities"></p>
-    </section>
-    <button id="observation-start" type="button">Start observation</button>
-    <button id="observation-cancel" type="button">Cancel observation</button>
-  </main>
-  <script src="./app.js" defer></script>
-</body>
-</html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>WePLD</title><link rel="stylesheet" href="./style.css"></head>
+<body><main><h1>WePLD</h1><section role="status" aria-live="polite"><p id="core-readiness"></p><p id="core-health"></p><p id="core-version"></p><p id="core-capabilities"></p></section><button id="observation-start" type="button">Start observation</button><button id="observation-cancel" type="button">Cancel observation</button></main><script src="./app.js" defer></script></body></html>
 """
     js = b"""const { invoke } = window.__TAURI__.core;
-async function refresh() {
-  await invoke("core_ready");
-  await invoke("core_health");
-  await invoke("core_version");
-  await invoke("core_capabilities");
-}
-document.getElementById("observation-start").addEventListener("click", async () => {
-  await invoke("core_observe_health");
-});
-document.getElementById("observation-cancel").addEventListener("click", async () => {
-  await invoke("core_cancel_observation", { requestId: 1 });
-});
+async function refresh() { await invoke("core_ready"); await invoke("core_health"); await invoke("core_version"); await invoke("core_capabilities"); }
+document.getElementById("observation-start").addEventListener("click", async () => { await invoke("core_observe_health"); });
+document.getElementById("observation-cancel").addEventListener("click", async () => { await invoke("core_cancel_observation", { requestId: 1 }); });
 refresh();
 """
     css = b"""html { font-family: system-ui, sans-serif; }
@@ -589,12 +497,7 @@ def selftest() -> None:
     desktop_runner.selftest_runner()
 
     base_paths = set(base.REQUIRED_PATHS) | {"README.md", "src/.gitkeep"}
-    component_paths = (
-        base_paths
-        | set(base.STAGE_B_ALL_PATHS)
-        | {base.FROZEN_GLIB_VENDOR_PREFIX + "/src/variant_iter.rs"}
-        | set(prior.EXTENSION_CONTROLLED_PATHS)
-    )
+    component_paths = base_paths | set(base.STAGE_B_ALL_PATHS) | {base.FROZEN_GLIB_VENDOR_PREFIX + "/src/variant_iter.rs"} | set(prior.EXTENSION_CONTROLLED_PATHS)
     protocol_paths = component_paths | set(prior.prior.S1_006_MARKER_PATHS)
     state_paths = protocol_paths | set(prior.prior.S1_007_MARKER_PATHS)
     process_paths = state_paths | set(prior.prior.S1_008_MARKER_PATHS)
@@ -604,38 +507,14 @@ def selftest() -> None:
     if classify_stage(desktop_paths) != prior.DESKTOP_STAGE:
         base.fail("S1-010 self-test: prior Desktop stage compatibility failed")
     validate_allowed_paths(desktop_paths, prior.DESKTOP_STAGE)
-
     if classify_stage(shell_paths) != SHELL_STAGE:
         base.fail("S1-010 self-test: shell-stage classification failed")
     validate_allowed_paths(shell_paths, SHELL_STAGE)
 
-    base.expect_failure_matching(
-        "partial S1-010 shell candidate",
-        "partial S1-010 Tauri shell candidate is prohibited",
-        classify_stage,
-        desktop_paths | {"apps/desktop/src-tauri/tauri.conf.json"},
-    )
-    base.expect_failure_matching(
-        "tracked sidecar binary",
-        "tracked path outside S1-010 allowlist",
-        validate_allowed_paths,
-        shell_paths | {"apps/desktop/src-tauri/binaries/wepld-core-x86_64-pc-windows-msvc.exe"},
-        SHELL_STAGE,
-    )
-    base.expect_failure_matching(
-        "frontend package manager",
-        "tracked path outside S1-010 allowlist",
-        validate_allowed_paths,
-        shell_paths | {"apps/desktop/package.json"},
-        SHELL_STAGE,
-    )
-    base.expect_failure_matching(
-        "capability expansion",
-        "tracked path outside S1-010 allowlist",
-        validate_allowed_paths,
-        shell_paths | {"apps/desktop/src-tauri/capabilities/default.json"},
-        SHELL_STAGE,
-    )
+    base.expect_failure_matching("partial S1-010 shell candidate", "partial S1-010 Tauri shell candidate is prohibited", classify_stage, desktop_paths | {"apps/desktop/src-tauri/tauri.conf.json"})
+    base.expect_failure_matching("tracked sidecar binary", "tracked path outside S1-010 allowlist", validate_allowed_paths, shell_paths | {"apps/desktop/src-tauri/binaries/wepld-core-x86_64-pc-windows-msvc.exe"}, SHELL_STAGE)
+    base.expect_failure_matching("frontend package manager", "tracked path outside S1-010 allowlist", validate_allowed_paths, shell_paths | {"apps/desktop/package.json"}, SHELL_STAGE)
+    base.expect_failure_matching("capability expansion", "tracked path outside S1-010 allowlist", validate_allowed_paths, shell_paths | {"apps/desktop/src-tauri/capabilities/default.json"}, SHELL_STAGE)
 
     safe = _safe_shell_fixture()
     fixture = base.MemoryView(safe)
@@ -645,74 +524,30 @@ def selftest() -> None:
     verify_frontend(fixture)
 
     bad_build = dict(safe)
-    bad_build["apps/desktop/src-tauri/build.rs"] = (
-        b"#![forbid(unsafe_code)]\nfn main() { println!(\"cargo:rustc-env=ESCAPE=1\"); tauri_build::build(); }\n"
-    )
-    base.expect_failure_matching(
-        "build-script effect expansion",
-        "S1-010 build.rs must be exactly",
-        verify_build_script,
-        base.MemoryView(bad_build),
-    )
+    bad_build["apps/desktop/src-tauri/build.rs"] = b"#![forbid(unsafe_code)]\nfn main() { println!(\"cargo:rustc-env=ESCAPE=1\"); tauri_build::build(); }\n"
+    base.expect_failure_matching("build-script effect expansion", "S1-010 build.rs must be exactly", verify_build_script, base.MemoryView(bad_build))
 
     bad_config = dict(safe)
     config = dict(EXPECTED_TAURI_CONFIG)
     config["plugins"] = {"shell": {}}
-    bad_config["apps/desktop/src-tauri/tauri.conf.json"] = (
-        json.dumps(config, indent=2) + "\n"
-    ).encode()
-    base.expect_failure_matching(
-        "shell plugin config",
-        "frozen minimal local-static/externalBin template",
-        verify_shell_config,
-        base.MemoryView(bad_config),
-    )
+    bad_config["apps/desktop/src-tauri/tauri.conf.json"] = (json.dumps(config, indent=2) + "\n").encode()
+    base.expect_failure_matching("shell plugin config", "frozen minimal local-static/externalBin template", verify_shell_config, base.MemoryView(bad_config))
 
     remote_ui = dict(safe)
-    remote_ui["apps/desktop/ui/app.js"] = (
-        safe["apps/desktop/ui/app.js"] + b'fetch("https://example.invalid");\n'
-    )
-    base.expect_failure_matching(
-        "frontend network escape",
-        "prohibited dynamic/network material",
-        verify_frontend,
-        base.MemoryView(remote_ui),
-    )
+    remote_ui["apps/desktop/ui/app.js"] = safe["apps/desktop/ui/app.js"] + b'fetch("https://example.invalid");\n'
+    base.expect_failure_matching("frontend network escape", "prohibited dynamic/network material", verify_frontend, base.MemoryView(remote_ui))
 
     dynamic_ui = dict(safe)
-    dynamic_ui["apps/desktop/ui/app.js"] = (
-        safe["apps/desktop/ui/app.js"] + b'document.body.innerHTML = "<p>escape</p>";\n'
-    )
-    base.expect_failure_matching(
-        "frontend innerHTML escape",
-        "prohibited dynamic/network material",
-        verify_frontend,
-        base.MemoryView(dynamic_ui),
-    )
+    dynamic_ui["apps/desktop/ui/app.js"] = safe["apps/desktop/ui/app.js"] + b'document.body.innerHTML = "<p>escape</p>";\n'
+    base.expect_failure_matching("frontend innerHTML escape", "prohibited dynamic/network material", verify_frontend, base.MemoryView(dynamic_ui))
 
     process_escape = dict(safe)
-    process_escape["apps/desktop/src-tauri/src/main.rs"] = (
-        safe["apps/desktop/src-tauri/src/main.rs"]
-        + b"fn escape() { let _ = std::process::Command::new(\"cmd.exe\"); }\n"
-    )
-    base.expect_failure_matching(
-        "Tauri main nested process",
-        "S1-010 Tauri main prohibited effect identifier",
-        verify_shell_rust,
-        base.MemoryView(process_escape),
-    )
+    process_escape["apps/desktop/src-tauri/src/main.rs"] = safe["apps/desktop/src-tauri/src/main.rs"] + b"fn escape() { let _ = std::process::Command::new(\"cmd.exe\"); }\n"
+    base.expect_failure_matching("Tauri main nested process", "S1-010 Tauri main prohibited effect identifier", verify_shell_rust, base.MemoryView(process_escape))
 
     extra_command = dict(safe)
-    extra_command["apps/desktop/src-tauri/src/main.rs"] = (
-        safe["apps/desktop/src-tauri/src/main.rs"]
-        + b"#[tauri::command]\nfn arbitrary() {}\n"
-    )
-    base.expect_failure_matching(
-        "extra Tauri command",
-        "command surface must be exactly",
-        verify_shell_rust,
-        base.MemoryView(extra_command),
-    )
+    extra_command["apps/desktop/src-tauri/src/main.rs"] = safe["apps/desktop/src-tauri/src/main.rs"] + b"#[tauri::command]\nfn arbitrary() {}\n"
+    base.expect_failure_matching("extra Tauri command", "command surface must be exactly", verify_shell_rust, base.MemoryView(extra_command))
 
     print("wepld S1 Tauri shell integrity policy self-tests: PASS")
 
@@ -721,7 +556,6 @@ def print_success(stage: str, mode: str) -> None:
     if stage != SHELL_STAGE:
         prior.print_success(stage, mode)
         return
-
     print("wepld integrity verification: PASS")
     print(f"mode={mode}")
     print(f"stage={stage}")
@@ -738,12 +572,11 @@ def print_success(stage: str, mode: str) -> None:
 def main(argv: list[str]) -> int:
     args = base.parse_args(argv)
     try:
-        desktop_runner._install_desktop_path_attribute()
-
         if args.command == "selftest":
             selftest()
             return 0
 
+        desktop_runner._install_desktop_path_attribute()
         token = os.environ.get(args.github_token_env) or None
         client = base.GitHubClient(token)
 

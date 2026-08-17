@@ -6,10 +6,10 @@ use std::thread;
 use std::time::Duration;
 use wepld_contracts::{
     CancelEnvelope, CancellationOutcome, CapabilitiesRequestPayload, Capability,
-    HealthRequestPayload, HealthStatus, ObserveHealthRequestPayload, Principal, ProtocolEnvelope,
-    ProtocolErrorCode, ProtocolErrorEnvelope, ProtocolErrorPayload, ProtocolErrorText,
-    ProtocolVersion, RequestEnvelope, RequestFields, ResponseEnvelope, VersionRequestPayload,
-    MAX_PAYLOAD_BYTES, encode_frame, read_frame,
+    HealthRequestPayload, HealthStatus, MAX_PAYLOAD_BYTES, ObserveHealthRequestPayload, Principal,
+    ProtocolEnvelope, ProtocolErrorCode, ProtocolErrorEnvelope, ProtocolErrorPayload,
+    ProtocolErrorText, ProtocolVersion, RequestEnvelope, RequestFields, ResponseEnvelope,
+    VersionRequestPayload, encode_frame, read_frame,
 };
 
 const LAUNCH_ID: u64 = 71;

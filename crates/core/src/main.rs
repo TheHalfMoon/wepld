@@ -24,14 +24,10 @@ fn write_protocol_frame(
     envelope: &::wepld_contracts::ProtocolEnvelope,
 ) -> Result<(), ::wepld_contracts::FrameError> {
     let wire = ::wepld_contracts::encode_frame(envelope)?;
-    ::std::io::Write::write_all(stdout, &wire).map_err(|error| {
-        ::wepld_contracts::FrameError::Io {
-            kind: error.kind(),
-        }
-    })?;
-    ::std::io::Write::flush(stdout).map_err(|error| ::wepld_contracts::FrameError::Io {
-        kind: error.kind(),
-    })
+    ::std::io::Write::write_all(stdout, &wire)
+        .map_err(|error| ::wepld_contracts::FrameError::Io { kind: error.kind() })?;
+    ::std::io::Write::flush(stdout)
+        .map_err(|error| ::wepld_contracts::FrameError::Io { kind: error.kind() })
 }
 
 fn core_state(launch_id: u64) -> ::wepld_core::HandshakeState {
@@ -43,13 +39,8 @@ fn core_state(launch_id: u64) -> ::wepld_core::HandshakeState {
         ::wepld_contracts::Capability::Cancellation,
     ])
     .expect("S1 capability set must remain within the frozen protocol budget");
-    let profile =
-        ::wepld_core::CoreProfile::new("0.0.0", "s1-008-core-process", capabilities);
-    ::wepld_core::HandshakeState::new(
-        launch_id,
-        profile,
-        ::wepld_contracts::HealthStatus::Healthy,
-    )
+    let profile = ::wepld_core::CoreProfile::new("0.0.0", "s1-008-core-process", capabilities);
+    ::wepld_core::HandshakeState::new(launch_id, profile, ::wepld_contracts::HealthStatus::Healthy)
 }
 
 fn request_launch_id(request: &::wepld_contracts::RequestEnvelope) -> u64 {

@@ -141,10 +141,12 @@ impl<'de> Deserialize<'de> for CapabilityList {
                 }
 
                 if sequence.next_element::<de::IgnoredAny>()?.is_some() {
-                    return Err(de::Error::custom(ProtocolBudgetError::CapabilityItemsTooMany {
-                        length: MAX_CAPABILITY_ITEMS + 1,
-                        max: MAX_CAPABILITY_ITEMS,
-                    }));
+                    return Err(de::Error::custom(
+                        ProtocolBudgetError::CapabilityItemsTooMany {
+                            length: MAX_CAPABILITY_ITEMS + 1,
+                            max: MAX_CAPABILITY_ITEMS,
+                        },
+                    ));
                 }
 
                 Ok(CapabilityList(capabilities))

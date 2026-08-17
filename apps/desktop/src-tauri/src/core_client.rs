@@ -457,8 +457,7 @@ impl CoreClient {
                             Err(error)
                         }
                         Err(mpsc::TrySendError::Disconnected(_)) => {
-                            let error =
-                                self.stop_with_error(CoreClientError::WriterChannelClosed);
+                            let error = self.stop_with_error(CoreClientError::WriterChannelClosed);
                             Err(error)
                         }
                     },
@@ -579,7 +578,8 @@ mod tests {
     fn outbound_enqueue_is_bounded_and_nonblocking() {
         let (writer_tx, _writer_rx) = mpsc::sync_channel(1);
         enqueue_wire(&writer_tx, vec![1]).expect("first frame must fit bounded queue");
-        let error = enqueue_wire(&writer_tx, vec![2]).expect_err("full queue must reject immediately");
+        let error =
+            enqueue_wire(&writer_tx, vec![2]).expect_err("full queue must reject immediately");
         assert!(matches!(error, mpsc::TrySendError::Full(_)));
     }
 

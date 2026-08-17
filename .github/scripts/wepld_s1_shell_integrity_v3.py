@@ -2,9 +2,10 @@
 """Final hardening wrapper for the bounded S1-010 Tauri shell admission policy.
 
 This wrapper binds the exact prior v2 shell-admission runner before import, then
-freezes the future app.js bytes so comments, aliases, indirect calls, apply/bind
-forms, or any other executable JavaScript variation cannot bypass the intended
-six-command/request-identity projection.
+freezes the future HTML and app.js bytes. The exact presentation both closes
+comment/alias/indirect-invoke bypasses and requires the S1-010 UI to project
+Core readiness, health, version, capabilities, and cancellable observation
+state without adding network, filesystem, shell, or dynamic-HTML authority.
 
 This file authorizes one future stage only. It does not implement S1-010.
 """
@@ -27,11 +28,55 @@ EXPECTED_WORKFLOW_SHA256 = {
     ".github/workflows/s1-contracts.yml": "a55826887801083d3aee0c24524094ea61154d883f1bf318111ae39aadec40e7",
 }
 
+EXPECTED_HTML = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>WePLD</title><link rel="stylesheet" href="./style.css"></head>
+<body><main><h1>WePLD</h1><section role="status" aria-live="polite"><p id="core-readiness"></p><p id="core-health"></p><p id="core-version"></p><p id="core-capabilities"></p><p id="observation-status">Observation idle</p></section><button id="observation-start" type="button">Start observation</button><button id="observation-cancel" type="button">Cancel observation</button></main><script src="./app.js" defer></script></body></html>
+"""
+
 EXPECTED_JS = """const { invoke } = window.__TAURI__.core;
+const readinessStatus = document.getElementById("core-readiness");
+const healthStatus = document.getElementById("core-health");
+const versionStatus = document.getElementById("core-version");
+const capabilitiesStatus = document.getElementById("core-capabilities");
+const observationStatus = document.getElementById("observation-status");
 let observationRequestId = null;
-async function refresh() { await invoke("core_ready"); await invoke("core_health"); await invoke("core_version"); await invoke("core_capabilities"); }
-document.getElementById("observation-start").addEventListener("click", async () => { observationRequestId = await invoke("core_observe_health"); });
-document.getElementById("observation-cancel").addEventListener("click", async () => { if (observationRequestId === null) return; await invoke("core_cancel_observation", { requestId: observationRequestId }); observationRequestId = null; });
+
+async function refresh() {
+  try {
+    readinessStatus.textContent = `Ready: ${String(await invoke("core_ready"))}`;
+    healthStatus.textContent = `Health: ${String(await invoke("core_health"))}`;
+    versionStatus.textContent = `Version: ${String(await invoke("core_version"))}`;
+    const capabilities = await invoke("core_capabilities");
+    capabilitiesStatus.textContent = `Capabilities: ${Array.isArray(capabilities) ? capabilities.join(", ") : String(capabilities)}`;
+  } catch (_error) {
+    readinessStatus.textContent = "Ready: unavailable";
+    healthStatus.textContent = "Health: unavailable";
+    versionStatus.textContent = "Version: unavailable";
+    capabilitiesStatus.textContent = "Capabilities: unavailable";
+  }
+}
+
+document.getElementById("observation-start").addEventListener("click", async () => {
+  try {
+    observationRequestId = await invoke("core_observe_health");
+    observationStatus.textContent = "Observation active";
+  } catch (_error) {
+    observationRequestId = null;
+    observationStatus.textContent = "Observation unavailable";
+  }
+});
+
+document.getElementById("observation-cancel").addEventListener("click", async () => {
+  if (observationRequestId === null) return;
+  try {
+    await invoke("core_cancel_observation", { requestId: observationRequestId });
+    observationRequestId = null;
+    observationStatus.textContent = "Observation cancelled";
+  } catch (_error) {
+    observationStatus.textContent = "Cancellation failed";
+  }
+});
+
 refresh();
 """
 
@@ -74,6 +119,16 @@ def _verify_policy_files(view: base.RepositoryView) -> None:
 
 def _verify_frontend(view: base.RepositoryView) -> None:
     v2._verify_frontend(view)
+    html = v2.shell._read_utf8(
+        view,
+        "apps/desktop/ui/index.html",
+        v2.shell.MAX_S1_010_HTML_BYTES,
+        "S1-010 HTML",
+    )
+    if html != EXPECTED_HTML:
+        base.fail(
+            "S1-010 HTML must equal the frozen status-projection presentation template"
+        )
     js = v2.shell._read_utf8(
         view,
         "apps/desktop/ui/app.js",
@@ -82,7 +137,7 @@ def _verify_frontend(view: base.RepositoryView) -> None:
     )
     if js != EXPECTED_JS:
         base.fail(
-            "S1-010 JavaScript must equal the frozen direct-invoke/request-identity template"
+            "S1-010 JavaScript must equal the frozen direct-invoke/status-projection/request-identity template"
         )
 
 
@@ -93,6 +148,7 @@ def _install_v3_policy() -> None:
 
     v2._install_v2_policy()
 
+    v2.EXPECTED_HTML = EXPECTED_HTML
     v2.EXPECTED_WORKFLOW_SHA256 = EXPECTED_WORKFLOW_SHA256
     v2.shell.EXPECTED_WORKFLOW_SHA256 = EXPECTED_WORKFLOW_SHA256
     v2.shell.prior.EXPECTED_WORKFLOW_SHA256 = EXPECTED_WORKFLOW_SHA256
@@ -111,13 +167,14 @@ def _install_v3_policy() -> None:
 
 def _safe_v3_fixture() -> dict[str, bytes]:
     safe = v2._safe_v2_fixture()
+    safe["apps/desktop/ui/index.html"] = EXPECTED_HTML.encode()
     safe["apps/desktop/ui/app.js"] = EXPECTED_JS.encode()
     return safe
 
 
 def selftest() -> None:
     # Preserve inherited expected rejection reasons first, then install the
-    # exact-JavaScript hardening layer for the new tests and runtime verifier.
+    # exact-presentation hardening layer for the new tests and runtime verifier.
     v2.selftest()
     _install_v3_policy()
 
@@ -145,7 +202,7 @@ await (invoke)("core_cancel_observation", { requestId: 1 });
 """
     base.expect_failure_matching(
         "comment plus indirect invoke bypass",
-        "frozen direct-invoke/request-identity template",
+        "frozen direct-invoke/status-projection/request-identity template",
         _verify_frontend,
         base.MemoryView(comment_indirect),
     )
@@ -156,25 +213,53 @@ await (invoke)("core_cancel_observation", { requestId: 1 });
     ).encode()
     base.expect_failure_matching(
         "JavaScript comment mutation",
-        "frozen direct-invoke/request-identity template",
+        "frozen direct-invoke/status-projection/request-identity template",
         _verify_frontend,
         base.MemoryView(harmless_comment),
     )
 
     alias_invoke = dict(safe)
     alias_invoke["apps/desktop/ui/app.js"] = EXPECTED_JS.replace(
-        'await invoke("core_health");',
-        '// await invoke("core_health"); const callCore = invoke; await callCore("core_health");',
+        '    healthStatus.textContent = `Health: ${String(await invoke("core_health"))}`;',
+        '    // await invoke("core_health");\n'
+        '    const callCore = invoke;\n'
+        '    healthStatus.textContent = `Health: ${String(await callCore("core_health"))}`;',
         1,
     ).encode()
     base.expect_failure_matching(
         "JavaScript invoke alias",
-        "frozen direct-invoke/request-identity template",
+        "frozen direct-invoke/status-projection/request-identity template",
         _verify_frontend,
         base.MemoryView(alias_invoke),
     )
 
-    print("wepld S1 Tauri shell exact-JavaScript policy self-tests: PASS")
+    discarded_projection = dict(safe)
+    discarded_projection["apps/desktop/ui/app.js"] = EXPECTED_JS.replace(
+        '    readinessStatus.textContent = `Ready: ${String(await invoke("core_ready"))}`;',
+        '    await invoke("core_ready");',
+        1,
+    ).encode()
+    base.expect_failure_matching(
+        "discarded readiness projection",
+        "frozen direct-invoke/status-projection/request-identity template",
+        _verify_frontend,
+        base.MemoryView(discarded_projection),
+    )
+
+    missing_observation_status = dict(safe)
+    missing_observation_status["apps/desktop/ui/index.html"] = EXPECTED_HTML.replace(
+        '<p id="observation-status">Observation idle</p>',
+        "",
+        1,
+    ).encode()
+    base.expect_failure_matching(
+        "missing observation status projection",
+        "frozen status-projection presentation template",
+        _verify_frontend,
+        base.MemoryView(missing_observation_status),
+    )
+
+    print("wepld S1 Tauri shell exact-presentation policy self-tests: PASS")
 
 
 def main(argv: list[str]) -> int:

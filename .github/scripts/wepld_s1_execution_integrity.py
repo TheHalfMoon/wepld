@@ -106,6 +106,8 @@ S1_007_PROHIBITED_EFFECT_IDENTIFIERS = PROHIBITED_EFFECT_IDENTIFIERS | {"path"}
 
 # Core main may own inherited stdio and diagnostics stderr, but it may not mint
 # filesystem/network/process/env/thread/Tauri authority or write unframed text.
+# Inline/extern module introduction is prohibited so required external namespaces
+# cannot be shadowed or rebound inside the admitted one-file Core process root.
 S1_008_MAIN_PROHIBITED_IDENTIFIERS = frozenset(
     {
         "fs",
@@ -130,6 +132,8 @@ S1_008_MAIN_PROHIBITED_IDENTIFIERS = frozenset(
         "include_bytes",
         "include_str",
         "path",
+        "mod",
+        "extern",
     }
 )
 S1_008_MAIN_OUTPUT_ESCAPE_IDENTIFIERS = frozenset(
@@ -151,22 +155,22 @@ S1_008_MAIN_OUTPUT_ESCAPE_IDENTIFIERS = frozenset(
 )
 
 # The only direct stdout write authority admitted in Core main is this typed
-# framed helper. It encodes a ProtocolEnvelope with the frozen S1-006 codec,
-# writes those exact bytes, and flushes. The matched helper is scrubbed before
-# searching for any second/direct output authority.
+# framed helper. Leading `::` forces Rust 2018+ path resolution through the
+# extern prelude for both std and wepld_contracts, preventing local namespace
+# shadowing of the canonical codec or I/O implementation.
 S1_008_MAIN_FRAMED_OUTPUT_HELPER = re.compile(
     r"""
     fn\s+write_protocol_frame\s*\(
-        \s*stdout\s*:\s*&mut\s+std\s*::\s*io\s*::\s*StdoutLock\s*<\s*'_\s*>\s*,
-        \s*envelope\s*:\s*&\s*wepld_contracts\s*::\s*ProtocolEnvelope\s*,?\s*
+        \s*stdout\s*:\s*&mut\s*::\s*std\s*::\s*io\s*::\s*StdoutLock\s*<\s*'_\s*>\s*,
+        \s*envelope\s*:\s*&\s*::\s*wepld_contracts\s*::\s*ProtocolEnvelope\s*,?\s*
     \)
-    \s*->\s*Result\s*<\s*\(\s*\)\s*,\s*wepld_contracts\s*::\s*FrameError\s*>
+    \s*->\s*Result\s*<\s*\(\s*\)\s*,\s*::\s*wepld_contracts\s*::\s*FrameError\s*>
     \s*\{
-        \s*let\s+wire\s*=\s*wepld_contracts\s*::\s*encode_frame\s*\(\s*envelope\s*\)\s*\?\s*;
-        \s*std\s*::\s*io\s*::\s*Write\s*::\s*write_all\s*\(\s*stdout\s*,\s*&\s*wire\s*\)
-        \s*\.\s*map_err\s*\(\s*\|error\|\s*wepld_contracts\s*::\s*FrameError\s*::\s*Io\s*\{\s*kind\s*:\s*error\s*\.\s*kind\s*\(\s*\)\s*\}\s*\)\s*\?\s*;
-        \s*std\s*::\s*io\s*::\s*Write\s*::\s*flush\s*\(\s*stdout\s*\)
-        \s*\.\s*map_err\s*\(\s*\|error\|\s*wepld_contracts\s*::\s*FrameError\s*::\s*Io\s*\{\s*kind\s*:\s*error\s*\.\s*kind\s*\(\s*\)\s*\}\s*\)
+        \s*let\s+wire\s*=\s*::\s*wepld_contracts\s*::\s*encode_frame\s*\(\s*envelope\s*\)\s*\?\s*;
+        \s*::\s*std\s*::\s*io\s*::\s*Write\s*::\s*write_all\s*\(\s*stdout\s*,\s*&\s*wire\s*\)
+        \s*\.\s*map_err\s*\(\s*\|error\|\s*::\s*wepld_contracts\s*::\s*FrameError\s*::\s*Io\s*\{\s*kind\s*:\s*error\s*\.\s*kind\s*\(\s*\)\s*\}\s*\)\s*\?\s*;
+        \s*::\s*std\s*::\s*io\s*::\s*Write\s*::\s*flush\s*\(\s*stdout\s*\)
+        \s*\.\s*map_err\s*\(\s*\|error\|\s*::\s*wepld_contracts\s*::\s*FrameError\s*::\s*Io\s*\{\s*kind\s*:\s*error\s*\.\s*kind\s*\(\s*\)\s*\}\s*\)
         \s*
     \}
     """,
@@ -682,14 +686,14 @@ def verify_view(
 
 def _framed_helper_fixture() -> bytes:
     return b"""fn write_protocol_frame(
-    stdout: &mut std::io::StdoutLock<'_>,
-    envelope: &wepld_contracts::ProtocolEnvelope,
-) -> Result<(), wepld_contracts::FrameError> {
-    let wire = wepld_contracts::encode_frame(envelope)?;
-    std::io::Write::write_all(stdout, &wire)
-        .map_err(|error| wepld_contracts::FrameError::Io { kind: error.kind() })?;
-    std::io::Write::flush(stdout)
-        .map_err(|error| wepld_contracts::FrameError::Io { kind: error.kind() })
+    stdout: &mut ::std::io::StdoutLock<'_>,
+    envelope: &::wepld_contracts::ProtocolEnvelope,
+) -> Result<(), ::wepld_contracts::FrameError> {
+    let wire = ::wepld_contracts::encode_frame(envelope)?;
+    ::std::io::Write::write_all(stdout, &wire)
+        .map_err(|error| ::wepld_contracts::FrameError::Io { kind: error.kind() })?;
+    ::std::io::Write::flush(stdout)
+        .map_err(|error| ::wepld_contracts::FrameError::Io { kind: error.kind() })
 }
 """
 
@@ -785,7 +789,7 @@ def selftest() -> None:
     safe_main = (
         b"#![forbid(unsafe_code)]\n"
         + _framed_helper_fixture()
-        + b"fn main() { let _ = (std::io::stdin(), std::io::stdout(), std::io::stderr()); eprintln!(\"diag\"); }\n"
+        + b"fn main() { let _ = (::std::io::stdin(), ::std::io::stdout(), ::std::io::stderr()); eprintln!(\"diag\"); }\n"
     )
     safe_test = (
         b"#![forbid(unsafe_code)]\n"
@@ -801,6 +805,37 @@ def selftest() -> None:
         "crates/core/tests/process_v1.rs": safe_test,
     }
     verify_process_sources(base.MemoryView(safe_process))
+
+    shadow_contracts = dict(safe_process)
+    shadow_contracts["crates/core/src/main.rs"] = safe_main + (
+        b"mod wepld_contracts { pub struct ProtocolEnvelope; }\n"
+    )
+    base.expect_failure_matching(
+        "local contracts namespace shadow in S1-008 main",
+        "S1-008 Core main prohibited effect identifier(s) found in code",
+        verify_process_sources,
+        base.MemoryView(shadow_contracts),
+    )
+
+    shadow_std = dict(safe_process)
+    shadow_std["crates/core/src/main.rs"] = safe_main + b"mod std { pub mod io {} }\n"
+    base.expect_failure_matching(
+        "local std namespace shadow in S1-008 main",
+        "S1-008 Core main prohibited effect identifier(s) found in code",
+        verify_process_sources,
+        base.MemoryView(shadow_std),
+    )
+
+    extern_rebind = dict(safe_process)
+    extern_rebind["crates/core/src/main.rs"] = safe_main + (
+        b"extern crate self as alternate_contracts;\n"
+    )
+    base.expect_failure_matching(
+        "extern namespace rebinding in S1-008 main",
+        "S1-008 Core main prohibited effect identifier(s) found in code",
+        verify_process_sources,
+        base.MemoryView(extern_rebind),
+    )
 
     arbitrary_command = dict(safe_process)
     arbitrary_command["crates/core/tests/process_v1.rs"] = safe_test + (
@@ -847,7 +882,7 @@ def selftest() -> None:
     )
 
     main_network = dict(safe_process)
-    main_network["crates/core/src/main.rs"] = safe_main + b"fn escape() { let _ = std::net::TcpStream::connect(\"127.0.0.1:1\"); }\n"
+    main_network["crates/core/src/main.rs"] = safe_main + b"fn escape() { let _ = ::std::net::TcpStream::connect(\"127.0.0.1:1\"); }\n"
     base.expect_failure_matching(
         "network in S1-008 main",
         "S1-008 Core main prohibited effect identifier(s) found in code",
@@ -856,7 +891,7 @@ def selftest() -> None:
     )
 
     nested_process = dict(safe_process)
-    nested_process["crates/core/src/main.rs"] = safe_main + b"fn escape() { let _ = std::process::Command::new(\"x\"); }\n"
+    nested_process["crates/core/src/main.rs"] = safe_main + b"fn escape() { let _ = ::std::process::Command::new(\"x\"); }\n"
     base.expect_failure_matching(
         "nested process in S1-008 main",
         "S1-008 Core main prohibited effect identifier(s) found in code",
@@ -875,8 +910,8 @@ def selftest() -> None:
 
     write_escape = dict(safe_process)
     write_escape["crates/core/src/main.rs"] = safe_main + (
-        b"fn escape() { let mut output = std::io::stdout(); "
-        b"let _ = std::io::Write::write_all(&mut output, b\"raw\"); }\n"
+        b"fn escape() { let mut output = ::std::io::stdout(); "
+        b"let _ = ::std::io::Write::write_all(&mut output, b\"raw\"); }\n"
     )
     base.expect_failure_matching(
         "direct write_all stdout escape in S1-008 main",
@@ -887,8 +922,8 @@ def selftest() -> None:
 
     copy_escape = dict(safe_process)
     copy_escape["crates/core/src/main.rs"] = safe_main + (
-        b"fn escape() { let mut input = &b\"raw\"[..]; let mut output = std::io::stdout(); "
-        b"let _ = std::io::copy(&mut input, &mut output); }\n"
+        b"fn escape() { let mut input = &b\"raw\"[..]; let mut output = ::std::io::stdout(); "
+        b"let _ = ::std::io::copy(&mut input, &mut output); }\n"
     )
     base.expect_failure_matching(
         "io copy stdout escape in S1-008 main",

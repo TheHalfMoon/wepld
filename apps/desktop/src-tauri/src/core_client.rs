@@ -187,8 +187,7 @@ fn spawn_protocol_writer(
     Arc<AtomicBool>,
     thread::JoinHandle<()>,
 ) {
-    let (writer_tx, writer_rx) =
-        mpsc::sync_channel::<Vec<u8>>(OUTBOUND_CHANNEL_CAPACITY);
+    let (writer_tx, writer_rx) = mpsc::sync_channel::<Vec<u8>>(OUTBOUND_CHANNEL_CAPACITY);
     let writer_failed = Arc::new(AtomicBool::new(false));
     let failure_flag = Arc::clone(&writer_failed);
     let writer_thread = thread::spawn(move || {

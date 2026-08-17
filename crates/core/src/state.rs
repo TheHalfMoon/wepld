@@ -153,7 +153,7 @@ impl fmt::Display for StateError {
 
 impl std::error::Error for StateError {}
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct HandshakeState {
     launch_id: u64,
     highest_accepted_command_id: Option<u64>,

@@ -126,6 +126,16 @@ COMMAND_TYPE_ALIAS = re.compile(
 LITERAL_COMMAND_NEW = re.compile(
     r"\bCommand\s*::\s*new\s*\(\s*(?:b|r|br|rb)?[#]*[\"']"
 )
+EXACT_PROCESS_IMPORT = re.compile(
+    r"\buse\s+std\s*::\s*process\s*::\s*\{\s*"
+    r"Child\s*,\s*ChildStdin\s*,\s*ChildStdout\s*,\s*Command\s*,\s*Stdio\s*"
+    r"\}\s*;"
+)
+EXACT_MPSC_IMPORT = re.compile(r"\buse\s+std\s*::\s*sync\s*::\s*mpsc\s*;")
+EXACT_THREAD_IMPORT = re.compile(r"\buse\s+std\s*::\s*thread\s*;")
+PROTECTED_PROCESS_TYPE_DECL = re.compile(
+    r"\b(?:struct|enum|union|trait|type|mod)\s+(Command|Stdio)\b"
+)
 STD_ENV_MEMBER = re.compile(
     r"(?:::)?std\s*::\s*env\s*::\s*([A-Za-z_][A-Za-z0-9_]*)"
 )
@@ -136,10 +146,6 @@ SHELL_OR_PATH_TEXT = re.compile(
     r"/bin/(?:sh|bash|zsh)|(?:^|[^A-Za-z])sh\s+-c)"
 )
 CURRENT_EXE = re.compile(r"(?:::)?std\s*::\s*env\s*::\s*current_exe\s*\(")
-RESOLVER_DECL = re.compile(
-    r"\bfn\s+resolve_owned_core_sibling\s*\(\s*\)[^{]*\{",
-    re.MULTILINE,
-)
 CURRENT_EXE_BINDING = re.compile(
     r"\blet\s+current_exe\s*=\s*(?:::)?std\s*::\s*env\s*::\s*current_exe\s*\(\s*\)"
 )
@@ -150,7 +156,17 @@ CORE_PARENT_JOIN = re.compile(
     r"\bcore_parent\s*\.\s*join\s*\(\s*CORE_EXECUTABLE_FILENAME\s*\)"
 )
 CORE_FILENAME_DECL = re.compile(
-    r"\b(const|static)\s+CORE_EXECUTABLE_FILENAME\s*:\s*&str\s*=\s*\"([^\"]+)\"\s*;"
+    r"\b(?:const|static)\s+CORE_EXECUTABLE_FILENAME\s*:\s*&str\s*=\s*\"([^\"]+)\"\s*;"
+)
+WINDOWS_CORE_FILENAME_DECL = re.compile(
+    r"#\s*\[\s*cfg\s*\(\s*target_os\s*=\s*\"windows\"\s*\)\s*\]\s*"
+    r"const\s+CORE_EXECUTABLE_FILENAME\s*:\s*&str\s*=\s*\"wepld-core\.exe\"\s*;",
+    re.MULTILINE,
+)
+NONWINDOWS_CORE_FILENAME_DECL = re.compile(
+    r"#\s*\[\s*cfg\s*\(\s*not\s*\(\s*target_os\s*=\s*\"windows\"\s*\)\s*\)\s*\]\s*"
+    r"const\s+CORE_EXECUTABLE_FILENAME\s*:\s*&str\s*=\s*\"wepld-core\"\s*;",
+    re.MULTILINE,
 )
 CORE_EXECUTABLE_BINDING = re.compile(
     r"\blet\s+core_executable\s*=\s*resolve_owned_core_sibling\s*\(\s*\)"
@@ -319,17 +335,17 @@ def _function_body(code: str, name: str) -> str:
 
 def _verify_owned_path_resolution(raw_client: str, client_code: str) -> None:
     declarations = CORE_FILENAME_DECL.findall(raw_client)
-    if len(declarations) != 2:
+    if declarations != ["wepld-core.exe", "wepld-core"]:
         base.fail(
-            "S1-009 Desktop client must define exactly two cfg-gated "
-            "CORE_EXECUTABLE_FILENAME constants"
+            "S1-009 Desktop Core filename declarations must be exactly the Windows and non-Windows canonical sibling names"
         )
-    kinds = [kind for kind, _value in declarations]
-    values = [value for _kind, value in declarations]
-    if kinds != ["const", "const"] or set(values) != {"wepld-core", "wepld-core.exe"}:
+    if len(WINDOWS_CORE_FILENAME_DECL.findall(raw_client)) != 1:
         base.fail(
-            "S1-009 Desktop Core filename constants must be exactly "
-            "wepld-core and wepld-core.exe"
+            "S1-009 Desktop Windows Core filename must be cfg(target_os = windows) wepld-core.exe"
+        )
+    if len(NONWINDOWS_CORE_FILENAME_DECL.findall(raw_client)) != 1:
+        base.fail(
+            "S1-009 Desktop non-Windows Core filename must be cfg(not(target_os = windows)) wepld-core"
         )
 
     env_members = STD_ENV_MEMBER.findall(client_code)
@@ -366,9 +382,7 @@ def _verify_owned_path_resolution(raw_client: str, client_code: str) -> None:
             "S1-009 Desktop resolver final value must be the owned Core sibling path"
         )
 
-    bindings = re.findall(
-        r"\blet\s+(?:mut\s+)?core_executable\s*=", client_code
-    )
+    bindings = re.findall(r"\blet\s+(?:mut\s+)?core_executable\s*=", client_code)
     if len(bindings) != 1 or "let mut core_executable" in client_code:
         base.fail(
             "S1-009 Desktop client must bind immutable core_executable exactly once"
@@ -379,6 +393,27 @@ def _verify_owned_path_resolution(raw_client: str, client_code: str) -> None:
         )
     if PATH_MUTATION.search(client_code):
         base.fail("S1-009 Desktop owned executable path may not be mutated after derivation")
+
+
+def _verify_std_lifecycle_bindings(client_code: str) -> None:
+    if len(EXACT_PROCESS_IMPORT.findall(client_code)) != 1:
+        base.fail(
+            "S1-009 Desktop client must import Child/ChildStdin/ChildStdout/Command/Stdio exactly from std::process"
+        )
+    if len(EXACT_MPSC_IMPORT.findall(client_code)) != 1:
+        base.fail("S1-009 Desktop client must import mpsc exactly from std::sync")
+    if len(EXACT_THREAD_IMPORT.findall(client_code)) != 1:
+        base.fail("S1-009 Desktop client must import thread exactly from std")
+    if PROTECTED_PROCESS_TYPE_DECL.search(client_code):
+        base.fail("S1-009 Desktop client may not shadow protected Command/Stdio types")
+    if len(re.findall(r"\bCommand\b", client_code)) != 2:
+        base.fail(
+            "S1-009 Desktop client must reference Command only in the canonical std import and owned launch site"
+        )
+    if len(re.findall(r"\bStdio\b", client_code)) != 4:
+        base.fail(
+            "S1-009 Desktop client must reference Stdio only in the canonical std import and three piped streams"
+        )
 
 
 def verify_desktop_sources(view: base.RepositoryView) -> None:
@@ -411,6 +446,8 @@ def verify_desktop_sources(view: base.RepositoryView) -> None:
                 "S1-009 Desktop client may declare only one #[cfg(test)] mod tests module"
             )
 
+    _reject_command_modifiers(client_path, client_code)
+
     if CURRENT_EXE.search(client_code) is None:
         base.fail(
             "S1-009 Desktop client must resolve the owned Core sibling from std::env::current_exe"
@@ -432,6 +469,7 @@ def verify_desktop_sources(view: base.RepositoryView) -> None:
     if SHELL_OR_PATH_TEXT.search(raw_client_text):
         base.fail("S1-009 Desktop client contains shell/PATH launch material")
 
+    _verify_std_lifecycle_bindings(client_code)
     _verify_owned_path_resolution(raw_client_text, client_code)
 
     if OWNED_COMMAND_NEW.search(client_code) is None:
@@ -443,8 +481,6 @@ def verify_desktop_sources(view: base.RepositoryView) -> None:
             "S1-009 Desktop launch must pipe stdin/stdout/stderr and spawn exactly once "
             "from the owned Core sibling path"
         )
-
-    _reject_command_modifiers(client_path, client_code)
 
     required_identifiers = {
         "Child",
@@ -536,9 +572,7 @@ def verify_view(
             base.fail(f"temporary repair workflow leaked into active tree: {path}")
 
     if policy_base is not None:
-        base.verify_base_path_preservation(
-            paths, base.validate_entries(policy_base.entries())
-        )
+        base.verify_base_path_preservation(paths, base.validate_entries(policy_base.entries()))
         base.compare_base_controlled(view, policy_base)
         verify_extension_controlled_paths(view, policy_base)
         if stage in product_stages:
@@ -727,6 +761,29 @@ fn spawn_owned() -> (Child, ChildStdin, ChildStdout) {
         base.MemoryView(command_alias),
     )
 
+    command_shadow = dict(safe)
+    command_shadow["apps/desktop/src-tauri/src/core_client.rs"] = safe_client + (
+        b"fn shadow() { struct Command; let _ = core::mem::size_of::<Command>(); }\n"
+    )
+    base.expect_failure_matching(
+        "Command shadow in S1-009 Desktop client",
+        "S1-009 Desktop client may not shadow protected Command/Stdio types",
+        verify_desktop_sources,
+        base.MemoryView(command_shadow),
+    )
+
+    wrong_cfg = dict(safe)
+    wrong_cfg["apps/desktop/src-tauri/src/core_client.rs"] = safe_client.replace(
+        b'#[cfg(target_os = "windows")]\nconst CORE_EXECUTABLE_FILENAME: &str = "wepld-core.exe";',
+        b'#[cfg(unix)]\nconst CORE_EXECUTABLE_FILENAME: &str = "wepld-core.exe";',
+    )
+    base.expect_failure_matching(
+        "wrong Windows Core filename cfg",
+        "S1-009 Desktop Windows Core filename must be cfg(target_os = windows)",
+        verify_desktop_sources,
+        base.MemoryView(wrong_cfg),
+    )
+
     tauri_escape = dict(safe)
     tauri_escape["apps/desktop/src-tauri/src/core_client.rs"] = safe_client + (
         b"fn escape() { let _ = tauri::Builder::default(); }\n"
@@ -793,9 +850,7 @@ def main(argv: list[str]) -> int:
         policy_base = base.LocalRepositoryView(Path(args.policy_root))
         candidate = base.RemoteRepositoryView(args.repository, args.sha, client)
         stage = verify_view(candidate, policy_base=policy_base)
-        base.verify_remote_baseline(
-            client, base.require_comparison_sha(args.pr_base_sha)
-        )
+        base.verify_remote_baseline(client, base.require_comparison_sha(args.pr_base_sha))
         print_success(stage, "REMOTE_CANDIDATE_DATA_ONLY")
         return 0
 

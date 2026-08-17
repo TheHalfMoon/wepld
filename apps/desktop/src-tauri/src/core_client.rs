@@ -497,9 +497,7 @@ impl CoreClient {
         match encode_frame(envelope) {
             Ok(wire) => {
                 let enqueue_result = match self.writer_tx.as_ref() {
-                    Some(writer_tx) => {
-                        enqueue_wire_if_io_active(&self.io_state, writer_tx, wire)
-                    }
+                    Some(writer_tx) => enqueue_wire_if_io_active(&self.io_state, writer_tx, wire),
                     None => Err(CoreClientError::WriterChannelClosed),
                 };
                 match enqueue_result {
@@ -681,7 +679,10 @@ mod tests {
             .expect("enqueue worker must not panic")
             .expect_err("terminal reader transition must win before enqueue acceptance");
         assert!(matches!(error, CoreClientError::ReaderTerminated));
-        assert!(matches!(writer_rx.try_recv(), Err(mpsc::TryRecvError::Empty)));
+        assert!(matches!(
+            writer_rx.try_recv(),
+            Err(mpsc::TryRecvError::Empty)
+        ));
     }
 
     #[test]

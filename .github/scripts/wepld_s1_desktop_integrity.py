@@ -101,7 +101,10 @@ def _verify_baseline_ancestry_by_parent_walk(
         if len(parents) > MAX_BASELINE_PARENTS_PER_COMMIT:
             foundation.fail("baseline ancestry commit exceeds bounded parent fanout")
 
-        for parent in parents:
+        # GitHub orders merge parents with the prior base first. Push in reverse
+        # so the LIFO stack follows canonical first-parent history before side
+        # branches while retaining complete backtracking over every parent.
+        for parent in reversed(parents):
             if not isinstance(parent, dict):
                 foundation.fail("baseline ancestry parent payload is malformed")
             parent_sha = parent.get("sha")

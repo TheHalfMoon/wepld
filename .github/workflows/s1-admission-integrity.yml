@@ -31,7 +31,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python .github/scripts/wepld_s1_shell_integrity_v4.py selftest
+          python .github/scripts/wepld_s1_shell_integrity_v5.py selftest
 
       - name: Inspect candidate Git objects as data only
         shell: bash
@@ -42,7 +42,7 @@ jobs:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
-          python .github/scripts/wepld_s1_shell_integrity_v4.py verify-remote \
+          python .github/scripts/wepld_s1_shell_integrity_v5.py verify-remote \
             --repository "$CANDIDATE_REPOSITORY" \
             --sha "$CANDIDATE_SHA" \
             --policy-root . \

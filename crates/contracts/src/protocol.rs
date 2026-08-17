@@ -42,10 +42,16 @@ impl fmt::Display for ProtocolBudgetError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::CapabilityItemsTooMany { length, max } => {
-                write!(formatter, "capability item count {length} exceeds maximum {max}")
+                write!(
+                    formatter,
+                    "capability item count {length} exceeds maximum {max}"
+                )
             }
             Self::ProtocolErrorTextTooLong { bytes, max } => {
-                write!(formatter, "protocol error text length {bytes} exceeds maximum {max} bytes")
+                write!(
+                    formatter,
+                    "protocol error text length {bytes} exceeds maximum {max} bytes"
+                )
             }
         }
     }

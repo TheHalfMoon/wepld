@@ -216,10 +216,9 @@ fn protocol_capability_budget_accepts_max_and_rejects_first_over_limit() {
         })
     );
 
-    let accepted: ProtocolEnvelope = serde_json::from_value(capabilities_response_value(
-        MAX_CAPABILITY_ITEMS,
-    ))
-    .expect("exact capability item budget must deserialize");
+    let accepted: ProtocolEnvelope =
+        serde_json::from_value(capabilities_response_value(MAX_CAPABILITY_ITEMS))
+            .expect("exact capability item budget must deserialize");
     encode_frame(&accepted).expect("exact capability item budget must encode");
 
     assert!(

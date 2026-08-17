@@ -73,6 +73,7 @@ DESKTOP_CLIENT_PROHIBITED_IDENTIFIERS = frozenset(
     {
         "fs",
         "net",
+        "os",
         "tokio",
         "tauri",
         "File",
@@ -83,10 +84,19 @@ DESKTOP_CLIENT_PROHIBITED_IDENTIFIERS = frozenset(
         "UnixStream",
         "UnixListener",
         "NamedPipe",
+        "canonicalize",
+        "read_link",
+        "metadata",
+        "symlink_metadata",
+        "exists",
+        "try_exists",
+        "is_file",
+        "is_dir",
         "include",
         "include_bytes",
         "include_str",
         "extern",
+        "return",
     }
 )
 
@@ -108,19 +118,58 @@ DESKTOP_FORBIDDEN_COMMAND_MODIFIERS = (
 )
 
 COMMAND_NEW = re.compile(r"\bCommand\s*::\s*new\s*\(")
+COMMAND_NEW_REFERENCE = re.compile(r"\bCommand\s*::\s*new\b(?!\s*\()")
+COMMAND_ALIAS = re.compile(r"\bCommand\s+as\s+[A-Za-z_][A-Za-z0-9_]*")
+COMMAND_TYPE_ALIAS = re.compile(
+    r"\btype\s+[A-Za-z_][A-Za-z0-9_]*\s*=\s*(?:(?:::)?std\s*::\s*process\s*::\s*)?Command\b"
+)
 LITERAL_COMMAND_NEW = re.compile(
     r"\bCommand\s*::\s*new\s*\(\s*(?:b|r|br|rb)?[#]*[\"']"
 )
-ENV_ESCAPE = re.compile(
-    r"(?:::)?std\s*::\s*env\s*::\s*"
-    r"(?:var|var_os|vars|vars_os|set_var|remove_var|args|args_os|"
-    r"current_dir|set_current_dir|temp_dir|home_dir)\b"
+STD_ENV_MEMBER = re.compile(
+    r"(?:::)?std\s*::\s*env\s*::\s*([A-Za-z_][A-Za-z0-9_]*)"
 )
+ENV_IMPORT = re.compile(r"\buse\b[^;]*\benv\b[^;]*;", re.DOTALL)
+STD_ALIAS = re.compile(r"\buse\s+(?:::)?std\s+as\s+[A-Za-z_][A-Za-z0-9_]*")
 SHELL_OR_PATH_TEXT = re.compile(
     r"(?i)(?:\"PATH\"|\"COMSPEC\"|cmd\.exe|powershell(?:\.exe)?|"
     r"/bin/(?:sh|bash|zsh)|(?:^|[^A-Za-z])sh\s+-c)"
 )
 CURRENT_EXE = re.compile(r"(?:::)?std\s*::\s*env\s*::\s*current_exe\s*\(")
+RESOLVER_DECL = re.compile(
+    r"\bfn\s+resolve_owned_core_sibling\s*\(\s*\)[^{]*\{",
+    re.MULTILINE,
+)
+CURRENT_EXE_BINDING = re.compile(
+    r"\blet\s+current_exe\s*=\s*(?:::)?std\s*::\s*env\s*::\s*current_exe\s*\(\s*\)"
+)
+CORE_PARENT_BINDING = re.compile(
+    r"\blet\s+core_parent\s*=\s*current_exe\s*\.\s*parent\s*\(\s*\)"
+)
+CORE_PARENT_JOIN = re.compile(
+    r"\bcore_parent\s*\.\s*join\s*\(\s*CORE_EXECUTABLE_FILENAME\s*\)"
+)
+CORE_FILENAME_DECL = re.compile(
+    r"\b(const|static)\s+CORE_EXECUTABLE_FILENAME\s*:\s*&str\s*=\s*\"([^\"]+)\"\s*;"
+)
+CORE_EXECUTABLE_BINDING = re.compile(
+    r"\blet\s+core_executable\s*=\s*resolve_owned_core_sibling\s*\(\s*\)"
+)
+OWNED_COMMAND_NEW = re.compile(
+    r"\bCommand\s*::\s*new\s*\(\s*core_executable\s*\.\s*as_os_str\s*\(\s*\)\s*\)"
+)
+OWNED_SPAWN_CHAIN = re.compile(
+    r"\bCommand\s*::\s*new\s*\(\s*core_executable\s*\.\s*as_os_str\s*\(\s*\)\s*\)"
+    r"\s*\.\s*stdin\s*\(\s*Stdio\s*::\s*piped\s*\(\s*\)\s*\)"
+    r"\s*\.\s*stdout\s*\(\s*Stdio\s*::\s*piped\s*\(\s*\)\s*\)"
+    r"\s*\.\s*stderr\s*\(\s*Stdio\s*::\s*piped\s*\(\s*\)\s*\)"
+    r"\s*\.\s*spawn\s*\(\s*\)",
+    re.DOTALL,
+)
+PATH_MUTATION = re.compile(
+    r"\b(?:current_exe|core_parent|core_executable)\s*\.\s*"
+    r"(?:push|pop|set_file_name|set_extension|as_mut_os_string|clear)\s*\("
+)
 TEST_MODULE = re.compile(
     r"#\s*\[\s*cfg\s*\(\s*test\s*\)\s*\]\s*mod\s+tests\s*\{",
     re.MULTILINE,
@@ -248,6 +297,90 @@ def _reject_command_modifiers(relative: str, scrubbed: str) -> None:
         )
 
 
+def _function_body(code: str, name: str) -> str:
+    match = re.search(rf"\bfn\s+{re.escape(name)}\s*\(\s*\)[^{{]*\{{", code)
+    if match is None:
+        base.fail(f"S1-009 Desktop client missing required {name}() helper")
+    start = match.end()
+    depth = 1
+    index = start
+    while index < len(code):
+        char = code[index]
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return code[start:index]
+        index += 1
+    base.fail(f"S1-009 Desktop client has unterminated {name}() helper")
+    raise AssertionError("unreachable")
+
+
+def _verify_owned_path_resolution(raw_client: str, client_code: str) -> None:
+    declarations = CORE_FILENAME_DECL.findall(raw_client)
+    if len(declarations) != 2:
+        base.fail(
+            "S1-009 Desktop client must define exactly two cfg-gated "
+            "CORE_EXECUTABLE_FILENAME constants"
+        )
+    kinds = [kind for kind, _value in declarations]
+    values = [value for _kind, value in declarations]
+    if kinds != ["const", "const"] or set(values) != {"wepld-core", "wepld-core.exe"}:
+        base.fail(
+            "S1-009 Desktop Core filename constants must be exactly "
+            "wepld-core and wepld-core.exe"
+        )
+
+    env_members = STD_ENV_MEMBER.findall(client_code)
+    if env_members != ["current_exe"]:
+        base.fail(
+            "S1-009 Desktop client std::env access must be exactly one current_exe call"
+        )
+    if ENV_IMPORT.search(client_code) or STD_ALIAS.search(client_code):
+        base.fail("S1-009 Desktop client may not alias/import std::env or std")
+
+    resolver_body = _function_body(client_code, "resolve_owned_core_sibling")
+    if len(CURRENT_EXE_BINDING.findall(resolver_body)) != 1:
+        base.fail(
+            "S1-009 Desktop resolver must bind current_exe exactly once from std::env::current_exe"
+        )
+    if len(CORE_PARENT_BINDING.findall(resolver_body)) != 1:
+        base.fail(
+            "S1-009 Desktop resolver must bind core_parent exactly once from current_exe.parent()"
+        )
+    joins = CORE_PARENT_JOIN.findall(resolver_body)
+    if len(joins) != 1:
+        base.fail(
+            "S1-009 Desktop resolver must derive exactly one Core path from "
+            "core_parent.join(CORE_EXECUTABLE_FILENAME)"
+        )
+    if re.search(r"\breturn\b", resolver_body):
+        base.fail("S1-009 Desktop resolver may not use early return path substitution")
+    tail = resolver_body.rstrip()
+    if re.search(
+        r"(?:Ok\s*\(\s*)?core_parent\s*\.\s*join\s*\(\s*CORE_EXECUTABLE_FILENAME\s*\)\s*\)?\s*$",
+        tail,
+    ) is None:
+        base.fail(
+            "S1-009 Desktop resolver final value must be the owned Core sibling path"
+        )
+
+    bindings = re.findall(
+        r"\blet\s+(?:mut\s+)?core_executable\s*=", client_code
+    )
+    if len(bindings) != 1 or "let mut core_executable" in client_code:
+        base.fail(
+            "S1-009 Desktop client must bind immutable core_executable exactly once"
+        )
+    if CORE_EXECUTABLE_BINDING.search(client_code) is None:
+        base.fail(
+            "S1-009 Desktop client must bind core_executable from resolve_owned_core_sibling()"
+        )
+    if PATH_MUTATION.search(client_code):
+        base.fail("S1-009 Desktop owned executable path may not be mutated after derivation")
+
+
 def verify_desktop_sources(view: base.RepositoryView) -> None:
     lib_path = "apps/desktop/src-tauri/src/lib.rs"
     client_path = "apps/desktop/src-tauri/src/core_client.rs"
@@ -292,12 +425,24 @@ def verify_desktop_sources(view: base.RepositoryView) -> None:
     raw_client_text = raw_client
     if LITERAL_COMMAND_NEW.search(raw_client_text):
         base.fail("S1-009 Desktop client may not launch a string-literal command")
-    if ENV_ESCAPE.search(client_code):
-        base.fail(
-            "S1-009 Desktop client environment access is limited to std::env::current_exe"
-        )
+    if COMMAND_NEW_REFERENCE.search(client_code):
+        base.fail("S1-009 Desktop client may not rebind Command::new as a function value")
+    if COMMAND_ALIAS.search(client_code) or COMMAND_TYPE_ALIAS.search(client_code):
+        base.fail("S1-009 Desktop client may not alias/rebind std::process::Command")
     if SHELL_OR_PATH_TEXT.search(raw_client_text):
         base.fail("S1-009 Desktop client contains shell/PATH launch material")
+
+    _verify_owned_path_resolution(raw_client_text, client_code)
+
+    if OWNED_COMMAND_NEW.search(client_code) is None:
+        base.fail(
+            "S1-009 Desktop launch must consume the immutable owned Core sibling path"
+        )
+    if len(OWNED_SPAWN_CHAIN.findall(client_code)) != 1:
+        base.fail(
+            "S1-009 Desktop launch must pipe stdin/stdout/stderr and spawn exactly once "
+            "from the owned Core sibling path"
+        )
 
     _reject_command_modifiers(client_path, client_code)
 
@@ -454,15 +599,22 @@ use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::mpsc;
 use std::thread;
 
+#[cfg(target_os = "windows")]
+const CORE_EXECUTABLE_FILENAME: &str = "wepld-core.exe";
+#[cfg(not(target_os = "windows"))]
+const CORE_EXECUTABLE_FILENAME: &str = "wepld-core";
+
 pub struct CoreClient;
 
-fn resolve() -> std::path::PathBuf {
-    std::env::current_exe().unwrap().parent().unwrap().join("wepld-core.exe")
+fn resolve_owned_core_sibling() -> std::path::PathBuf {
+    let current_exe = std::env::current_exe().unwrap();
+    let core_parent = current_exe.parent().unwrap();
+    core_parent.join(CORE_EXECUTABLE_FILENAME)
 }
 
 fn spawn_owned() -> (Child, ChildStdin, ChildStdout) {
-    let executable = resolve();
-    let mut child = Command::new(executable.as_os_str())
+    let core_executable = resolve_owned_core_sibling();
+    let mut child = Command::new(core_executable.as_os_str())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -494,7 +646,7 @@ fn spawn_owned() -> (Child, ChildStdin, ChildStdout) {
 
     literal_command = dict(safe)
     literal_command["apps/desktop/src-tauri/src/core_client.rs"] = safe_client.replace(
-        b"Command::new(executable.as_os_str())", b'Command::new("cmd.exe")'
+        b"Command::new(core_executable.as_os_str())", b'Command::new("cmd.exe")'
     )
     base.expect_failure_matching(
         "literal command in S1-009 Desktop client",
@@ -520,9 +672,59 @@ fn spawn_owned() -> (Child, ChildStdin, ChildStdout) {
     )
     base.expect_failure_matching(
         "environment escape in S1-009 Desktop client",
-        "S1-009 Desktop client environment access is limited",
+        "S1-009 Desktop client std::env access must be exactly one current_exe call",
         verify_desktop_sources,
         base.MemoryView(environment_escape),
+    )
+
+    environment_alias = dict(safe)
+    environment_alias["apps/desktop/src-tauri/src/core_client.rs"] = safe_client + (
+        b"use std::env as host_env;\n"
+        b'fn escape() { let _ = host_env::var("HOME"); }\n'
+    )
+    base.expect_failure_matching(
+        "environment alias escape in S1-009 Desktop client",
+        "S1-009 Desktop client may not alias/import std::env or std",
+        verify_desktop_sources,
+        base.MemoryView(environment_alias),
+    )
+
+    arbitrary_program = dict(safe)
+    arbitrary_program["apps/desktop/src-tauri/src/core_client.rs"] = safe_client.replace(
+        b"let core_executable = resolve_owned_core_sibling();",
+        b'let core_executable = std::path::PathBuf::from("other-program");',
+    )
+    base.expect_failure_matching(
+        "detached Command path in S1-009 Desktop client",
+        "S1-009 Desktop client must bind core_executable from resolve_owned_core_sibling()",
+        verify_desktop_sources,
+        base.MemoryView(arbitrary_program),
+    )
+
+    mutable_program = dict(safe)
+    mutable_program["apps/desktop/src-tauri/src/core_client.rs"] = safe_client.replace(
+        b"let core_executable = resolve_owned_core_sibling();",
+        b"let mut core_executable = resolve_owned_core_sibling();\n    core_executable.pop();",
+    )
+    base.expect_failure_matching(
+        "mutable owned path in S1-009 Desktop client",
+        "S1-009 Desktop client must bind immutable core_executable exactly once",
+        verify_desktop_sources,
+        base.MemoryView(mutable_program),
+    )
+
+    command_alias = dict(safe)
+    command_alias["apps/desktop/src-tauri/src/core_client.rs"] = safe_client.replace(
+        b"Command, Stdio", b"Command as Runner, Stdio"
+    ).replace(
+        b"Command::new(core_executable.as_os_str())",
+        b"Runner::new(core_executable.as_os_str())",
+    )
+    base.expect_failure_matching(
+        "Command alias escape in S1-009 Desktop client",
+        "S1-009 Desktop client must contain exactly one owned Core Command::new launch site",
+        verify_desktop_sources,
+        base.MemoryView(command_alias),
     )
 
     tauri_escape = dict(safe)

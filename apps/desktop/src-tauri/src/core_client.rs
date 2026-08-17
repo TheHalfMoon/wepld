@@ -532,6 +532,12 @@ impl CoreClient {
             Err(error)
         } else {
             self.ready.store(true, Ordering::Release);
+            if self.reader_terminated.load(Ordering::Acquire)
+                || self.inbound_overflowed.load(Ordering::Acquire)
+                || self.writer_failed.load(Ordering::Acquire)
+            {
+                self.ready.store(false, Ordering::Release);
+            }
             Ok(inbound)
         }
     }
@@ -720,6 +726,28 @@ mod tests {
             .expect_err("terminal reader state must reject outbound command");
 
         assert!(matches!(error, CoreClientError::ReaderTerminated));
+        assert!(!client.is_ready());
+    }
+
+    #[test]
+    fn queued_inbound_cannot_reassert_readiness_after_reader_termination() {
+        let mut client = CoreClient::start().expect("owned Core must start");
+        let _ = client.send_health().expect("health request must enqueue");
+        let envelope = match client.inbound_rx.recv_timeout(PROTOCOL_RESPONSE_TIMEOUT) {
+            Ok(Ok(envelope)) => envelope,
+            other => panic!("health response frame must arrive, got {other:?}"),
+        };
+
+        client.reader_terminated.store(true, Ordering::Release);
+        client.ready.store(false, Ordering::Release);
+        let inbound = client
+            .accept_inbound(envelope)
+            .expect("queued valid response must remain acceptable");
+
+        assert!(matches!(
+            inbound,
+            InboundEnvelope::Response(ResponseEnvelope::Health(_))
+        ));
         assert!(!client.is_ready());
     }
 

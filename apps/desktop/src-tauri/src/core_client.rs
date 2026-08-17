@@ -87,7 +87,7 @@ pub struct CoreClient {
     diagnostic_thread: Option<thread::JoinHandle<()>>,
     launch_id: u64,
     next_command_id: u64,
-    ready: bool,
+    ready: Arc<AtomicBool>,
 }
 
 fn fresh_launch_id() -> Result<u64, CoreClientError> {
@@ -172,6 +172,7 @@ fn spawn_owned_core() -> Result<
 
 fn spawn_protocol_reader(
     mut output: ChildStdout,
+    ready: Arc<AtomicBool>,
 ) -> (
     mpsc::Receiver<Result<ProtocolEnvelope, FrameError>>,
     Arc<AtomicBool>,
@@ -184,8 +185,12 @@ fn spawn_protocol_reader(
         loop {
             let inbound = read_frame::<_, ProtocolEnvelope>(&mut output);
             let terminal = inbound.is_err();
+            if terminal {
+                ready.store(false, Ordering::Release);
+            }
             if inbound_tx.try_send(inbound).is_err() {
                 overflow_flag.store(true, Ordering::Release);
+                ready.store(false, Ordering::Release);
             }
             if terminal {
                 break;
@@ -216,7 +221,9 @@ impl CoreClient {
         let launch_id = fresh_launch_id()?;
         let (child, input, output, diagnostic_rx, diagnostics_truncated, diagnostic_thread) =
             spawn_owned_core()?;
-        let (inbound_rx, inbound_overflowed, protocol_thread) = spawn_protocol_reader(output);
+        let ready = Arc::new(AtomicBool::new(false));
+        let (inbound_rx, inbound_overflowed, protocol_thread) =
+            spawn_protocol_reader(output, Arc::clone(&ready));
         Ok(Self {
             child,
             input,
@@ -228,7 +235,7 @@ impl CoreClient {
             diagnostic_thread: Some(diagnostic_thread),
             launch_id,
             next_command_id: INITIAL_COMMAND_ID,
-            ready: false,
+            ready,
         })
     }
 
@@ -237,7 +244,7 @@ impl CoreClient {
     }
 
     pub fn is_ready(&self) -> bool {
-        self.ready
+        self.ready.load(Ordering::Acquire)
     }
 
     pub fn diagnostics_truncated(&self) -> bool {
@@ -331,24 +338,20 @@ impl CoreClient {
     pub fn receive(&mut self) -> Result<InboundEnvelope, CoreClientError> {
         self.ensure_child_running()?;
         if self.inbound_overflowed.load(Ordering::Acquire) {
-            self.ready = false;
             self.stop_child();
             Err(CoreClientError::InboundOverflow)
         } else {
             match self.inbound_rx.recv_timeout(PROTOCOL_RESPONSE_TIMEOUT) {
                 Ok(Ok(envelope)) => self.accept_inbound(envelope),
                 Ok(Err(error)) => {
-                    self.ready = false;
                     self.stop_child();
                     Err(CoreClientError::Frame(error))
                 }
                 Err(mpsc::RecvTimeoutError::Timeout) => {
-                    self.ready = false;
                     self.stop_child();
                     Err(CoreClientError::ProtocolTimeout)
                 }
                 Err(mpsc::RecvTimeoutError::Disconnected) => {
-                    self.ready = false;
                     self.stop_child();
                     Err(CoreClientError::InboundChannelClosed)
                 }
@@ -357,12 +360,12 @@ impl CoreClient {
     }
 
     pub fn restart(&mut self) -> Result<(), CoreClientError> {
-        self.ready = false;
         self.stop_child();
         let launch_id = fresh_launch_id()?;
         let (child, input, output, diagnostic_rx, diagnostics_truncated, diagnostic_thread) =
             spawn_owned_core()?;
-        let (inbound_rx, inbound_overflowed, protocol_thread) = spawn_protocol_reader(output);
+        let (inbound_rx, inbound_overflowed, protocol_thread) =
+            spawn_protocol_reader(output, Arc::clone(&self.ready));
         self.child = child;
         self.input = input;
         self.inbound_rx = inbound_rx;
@@ -387,27 +390,36 @@ impl CoreClient {
 
     fn write_envelope(&mut self, envelope: &ProtocolEnvelope) -> Result<(), CoreClientError> {
         self.ensure_child_running()?;
-        let wire = encode_frame(envelope)?;
-        let write_result = std::io::Write::write_all(&mut self.input, &wire)
-            .and_then(|()| std::io::Write::flush(&mut self.input));
-        match write_result {
-            Ok(()) => Ok(()),
+        match encode_frame(envelope) {
+            Ok(wire) => {
+                let write_result = std::io::Write::write_all(&mut self.input, &wire)
+                    .and_then(|()| std::io::Write::flush(&mut self.input));
+                match write_result {
+                    Ok(()) => Ok(()),
+                    Err(error) => {
+                        self.stop_child();
+                        Err(CoreClientError::Io(error))
+                    }
+                }
+            }
             Err(error) => {
-                self.ready = false;
                 self.stop_child();
-                Err(CoreClientError::Io(error))
+                Err(CoreClientError::Frame(error))
             }
         }
     }
 
     fn ensure_child_running(&mut self) -> Result<(), CoreClientError> {
-        match self.child.try_wait()? {
-            Some(_) => {
-                self.ready = false;
+        match self.child.try_wait() {
+            Ok(Some(_)) => {
                 self.stop_child();
                 Err(CoreClientError::ChildExited)
             }
-            None => Ok(()),
+            Ok(None) => Ok(()),
+            Err(error) => {
+                self.stop_child();
+                Err(CoreClientError::Io(error))
+            }
         }
     }
 
@@ -420,26 +432,25 @@ impl CoreClient {
             ProtocolEnvelope::Event(event) => InboundEnvelope::Event(event),
             ProtocolEnvelope::ProtocolError(error) => InboundEnvelope::ProtocolError(error),
             ProtocolEnvelope::Request(_) | ProtocolEnvelope::Cancel(_) => {
-                self.ready = false;
                 self.stop_child();
                 Err(CoreClientError::UnexpectedInboundKind)?
             }
         };
         let actual = launch_id_of(&inbound);
         if actual != self.launch_id {
-            self.ready = false;
             self.stop_child();
             Err(CoreClientError::StaleLaunch {
                 expected: self.launch_id,
                 actual,
             })
         } else {
-            self.ready = true;
+            self.ready.store(true, Ordering::Release);
             Ok(inbound)
         }
     }
 
     fn stop_child(&mut self) {
+        self.ready.store(false, Ordering::Release);
         let _ = self.child.kill();
         let _ = self.child.wait();
         if let Some(protocol_thread) = self.protocol_thread.take() {
@@ -453,7 +464,6 @@ impl CoreClient {
 
 impl Drop for CoreClient {
     fn drop(&mut self) {
-        self.ready = false;
         self.stop_child();
     }
 }
@@ -527,6 +537,23 @@ mod tests {
                 .expect("new launch health response must arrive"),
         );
         assert_eq!(response.launch_id, client.launch_id());
+    }
+
+    #[test]
+    fn child_exit_invalidates_readiness_without_followup_protocol_call() {
+        let mut client = CoreClient::start().expect("owned Core must start");
+        let _ = client.send_health().expect("health request must write");
+        let _ = client.receive().expect("health response must arrive");
+        assert!(client.is_ready());
+
+        client.child.kill().expect("owned Core must accept termination");
+        client.child.wait().expect("owned Core must exit");
+
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
+        while client.is_ready() && std::time::Instant::now() < deadline {
+            thread::sleep(std::time::Duration::from_millis(5));
+        }
+        assert!(!client.is_ready());
     }
 
     #[test]

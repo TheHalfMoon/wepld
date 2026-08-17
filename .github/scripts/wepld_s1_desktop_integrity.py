@@ -59,7 +59,10 @@ DESKTOP_PATH_ATTRIBUTE = re.compile(
     r"#\s*\[\s*(?:(?:r#)?path\b|cfg_attr\s*\([^\]]*?\b(?:r#)?path\s*=)",
     re.DOTALL,
 )
-impl.prior.PATH_ATTRIBUTE = DESKTOP_PATH_ATTRIBUTE
+
+
+def _install_desktop_path_attribute() -> None:
+    impl.prior.PATH_ATTRIBUTE = DESKTOP_PATH_ATTRIBUTE
 
 
 def _compare_url(comparison_sha: str) -> str:
@@ -228,6 +231,7 @@ def selftest_runner() -> None:
     if _is_compare_transport_failure(unrelated, descendant):
         foundation.fail("runner self-test: unrelated GitHub API failure triggered fallback")
 
+    _install_desktop_path_attribute()
     path_cases = (
         '#[path = "escape.rs"]',
         '#[r#path = "escape.rs"]',
@@ -257,6 +261,7 @@ def main(argv: list[str]) -> int:
 
         token = os.environ.get(args.github_token_env) or None
         client = foundation.GitHubClient(token)
+        _install_desktop_path_attribute()
 
         if args.command == "verify-local":
             view = foundation.LocalRepositoryView(Path(args.root))

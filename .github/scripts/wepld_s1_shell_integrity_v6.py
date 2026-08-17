@@ -35,6 +35,14 @@ ALLOWED_MACRO_INVOCATIONS = frozenset(
         "tauri::generate_context",
     }
 )
+EXPECTED_MAIN_DOT_MEMBERS = (
+    "ok",
+    "manage",
+    "invoke_handler",
+    "run",
+    "expect",
+)
+DOT_MEMBER = re.compile(r"\.\s*((?:r#)?[A-Za-z_][A-Za-z0-9_]*)\b")
 MACRO_INVOCATION = re.compile(
     r"(?<![#A-Za-z0-9_])"
     r"((?:::)?(?:r#)?[A-Za-z_][A-Za-z0-9_]*"
@@ -118,6 +126,19 @@ def _verify_shell_rust(view: base.RepositoryView) -> None:
         base.fail(
             "S1-010 Tauri main missing required frozen macro invocation(s): "
             + ", ".join(missing)
+        )
+
+    main_body = v5._function_body(code, "main")
+    dot_members = tuple(
+        re.sub(r"^r#", "", match.group(1))
+        for match in DOT_MEMBER.finditer(main_body)
+    )
+    if dot_members != EXPECTED_MAIN_DOT_MEMBERS:
+        base.fail(
+            "S1-010 Tauri main dot-member surface must be exactly "
+            + ", ".join(EXPECTED_MAIN_DOT_MEMBERS)
+            + "; actual="
+            + ", ".join(dot_members)
         )
 
 
@@ -216,7 +237,37 @@ macro_rules! access_tauri {
         base.MemoryView(aliased_macro),
     )
 
-    print("wepld S1 Tauri shell macro-surface hardening policy self-tests: PASS")
+    builder_setup = dict(safe)
+    builder_setup["apps/desktop/src-tauri/src/main.rs"] = safe[
+        "apps/desktop/src-tauri/src/main.rs"
+    ].replace(
+        b"tauri::Builder::default()\n        .manage(state)",
+        b"tauri::Builder::default()\n        .setup(|_app| Ok(()))\n        .manage(state)",
+        1,
+    )
+    base.expect_failure_matching(
+        "extra Tauri Builder setup hook",
+        "dot-member surface must be exactly",
+        _verify_shell_rust,
+        base.MemoryView(builder_setup),
+    )
+
+    builder_event_hook = dict(safe)
+    builder_event_hook["apps/desktop/src-tauri/src/main.rs"] = safe[
+        "apps/desktop/src-tauri/src/main.rs"
+    ].replace(
+        b"tauri::Builder::default()\n        .manage(state)",
+        b"tauri::Builder::default()\n        .on_window_event(|_, _| {})\n        .manage(state)",
+        1,
+    )
+    base.expect_failure_matching(
+        "extra Tauri Builder event hook",
+        "dot-member surface must be exactly",
+        _verify_shell_rust,
+        base.MemoryView(builder_event_hook),
+    )
+
+    print("wepld S1 Tauri shell macro/main-surface hardening policy self-tests: PASS")
 
 
 def main(argv: list[str]) -> int:

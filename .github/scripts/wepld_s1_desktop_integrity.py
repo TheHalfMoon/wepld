@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -50,6 +51,15 @@ impl.EXTENSION_CONTROLLED_PATHS = frozenset(
 impl.prior.EXTENSION_CONTROLLED_PATHS = frozenset(
     set(impl.prior.EXTENSION_CONTROLLED_PATHS) | {IMPL_SCRIPT}
 )
+
+# Harden path-indirection detection for the S1-009 runner without mutating the
+# frozen prior-stage policy bytes. This rejects both direct #[path = ...] and
+# cfg_attr(..., path = ...) / cfg_attr(..., r#path = ...) forms.
+DESKTOP_PATH_ATTRIBUTE = re.compile(
+    r"#\s*\[\s*(?:(?:r#)?path\b|cfg_attr\s*\([^\]]*?\b(?:r#)?path\s*=)",
+    re.DOTALL,
+)
+impl.prior.PATH_ATTRIBUTE = DESKTOP_PATH_ATTRIBUTE
 
 
 def _compare_url(comparison_sha: str) -> str:
@@ -217,6 +227,23 @@ def selftest_runner() -> None:
     )
     if _is_compare_transport_failure(unrelated, descendant):
         foundation.fail("runner self-test: unrelated GitHub API failure triggered fallback")
+
+    path_cases = (
+        '#[path = "escape.rs"]',
+        '#[r#path = "escape.rs"]',
+        '#[cfg_attr(target_os = "windows", path = "escape.rs")]',
+        '#[cfg_attr(any(), r#path = "escape.rs")]',
+        '#[cfg_attr(\n    target_os = "windows",\n    path = "escape.rs",\n)]',
+    )
+    for case in path_cases:
+        if DESKTOP_PATH_ATTRIBUTE.search(case) is None:
+            foundation.fail(
+                "runner self-test: Desktop path-indirection detector missed prohibited attribute"
+            )
+    if DESKTOP_PATH_ATTRIBUTE.search('#[cfg_attr(test, allow(dead_code))]') is not None:
+        foundation.fail(
+            "runner self-test: Desktop path-indirection detector rejected benign cfg_attr"
+        )
 
 
 def main(argv: list[str]) -> int:

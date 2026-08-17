@@ -85,6 +85,13 @@ def _commit_url(commit_sha: str) -> str:
     )
 
 
+def _commit_list_url(commit_sha: str) -> str:
+    return (
+        f"https://api.github.com/repos/{foundation.REPOSITORY}/commits"
+        f"?sha={commit_sha.lower()}&per_page=1"
+    )
+
+
 def _is_compare_transport_failure(
     exc: foundation.PolicyError,
     comparison_sha: str,
@@ -94,32 +101,63 @@ def _is_compare_transport_failure(
     )
 
 
+def _is_transient_api_failure(
+    exc: foundation.PolicyError,
+    url: str,
+) -> bool:
+    text = str(exc)
+    prefix = f"GitHub API request failed for {url}:"
+    return text.startswith(prefix) and any(
+        marker in text for marker in TRANSIENT_GITHUB_HTTP_ERRORS
+    )
+
+
 def _is_transient_git_object_failure(
     exc: foundation.PolicyError,
     commit_sha: str,
 ) -> bool:
-    text = str(exc)
-    prefix = f"GitHub API request failed for {_commit_url(commit_sha)}:"
-    return text.startswith(prefix) and any(
-        marker in text for marker in TRANSIENT_GITHUB_HTTP_ERRORS
-    )
+    return _is_transient_api_failure(exc, _commit_url(commit_sha))
+
+
+def _read_url_with_bounded_retry(
+    client: foundation.GitHubClient,
+    url: str,
+) -> object:
+    last_error: foundation.PolicyError | None = None
+    for _attempt in range(MAX_GIT_OBJECT_READ_ATTEMPTS):
+        try:
+            return client.json(url)
+        except foundation.PolicyError as exc:
+            if not _is_transient_api_failure(exc, url):
+                raise
+            last_error = exc
+    if last_error is None:
+        foundation.fail("bounded GitHub API retry exhausted without an error")
+    raise last_error
 
 
 def _read_commit_object_with_bounded_retry(
     client: foundation.GitHubClient,
     commit_sha: str,
 ) -> object:
-    last_error: foundation.PolicyError | None = None
-    for _attempt in range(MAX_GIT_OBJECT_READ_ATTEMPTS):
-        try:
-            return client.json(_commit_url(commit_sha))
-        except foundation.PolicyError as exc:
-            if not _is_transient_git_object_failure(exc, commit_sha):
-                raise
-            last_error = exc
-    if last_error is None:
-        foundation.fail("bounded Git object read retry exhausted without an error")
-    raise last_error
+    primary_url = _commit_url(commit_sha)
+    try:
+        return _read_url_with_bounded_retry(client, primary_url)
+    except foundation.PolicyError as exc:
+        if not _is_transient_api_failure(exc, primary_url):
+            raise
+
+    # Only after the exact Git-object route exhausts bounded 502/503/504 retries,
+    # query the lighter commits-list route for exactly one item beginning at the
+    # same immutable SHA. Identity and parent validation still occur below.
+    secondary_url = _commit_list_url(commit_sha)
+    payload = _read_url_with_bounded_retry(client, secondary_url)
+    if not isinstance(payload, list) or len(payload) != 1:
+        foundation.fail("secondary baseline commit metadata payload must contain exactly one item")
+    commit = payload[0]
+    if not isinstance(commit, dict):
+        foundation.fail("secondary baseline commit metadata item is malformed")
+    return commit
 
 
 def _verify_baseline_ancestry_by_parent_walk(
@@ -301,6 +339,47 @@ def selftest_runner() -> None:
     _verify_baseline_ancestry_by_parent_walk(flaky, descendant)  # type: ignore[arg-type]
     if flaky.calls != 2:
         foundation.fail("runner self-test: transient Git object read was not retried exactly once")
+
+    class SecondaryRouteGitHubClient:
+        def __init__(self) -> None:
+            self.primary_calls = 0
+            self.secondary_calls = 0
+
+        def json(self, url: str) -> object:
+            if url == _commit_url(descendant):
+                self.primary_calls += 1
+                raise foundation.PolicyError(
+                    f"GitHub API request failed for {url}: HTTP Error 504: Gateway Timeout"
+                )
+            if url == _commit_list_url(descendant):
+                self.secondary_calls += 1
+                return [{"sha": descendant, "parents": [{"sha": target}]}]
+            raise foundation.PolicyError(f"unexpected self-test URL: {url}")
+
+    secondary = SecondaryRouteGitHubClient()
+    _verify_baseline_ancestry_by_parent_walk(secondary, descendant)  # type: ignore[arg-type]
+    if secondary.primary_calls != MAX_GIT_OBJECT_READ_ATTEMPTS:
+        foundation.fail("runner self-test: primary Git object route did not exhaust bounded retries")
+    if secondary.secondary_calls != 1:
+        foundation.fail("runner self-test: secondary commit metadata route was not used exactly once")
+
+    class MalformedSecondaryGitHubClient:
+        def json(self, url: str) -> object:
+            if url == _commit_url(descendant):
+                raise foundation.PolicyError(
+                    f"GitHub API request failed for {url}: HTTP Error 504: Gateway Timeout"
+                )
+            if url == _commit_list_url(descendant):
+                return []
+            raise foundation.PolicyError(f"unexpected self-test URL: {url}")
+
+    foundation.expect_failure_matching(
+        "malformed secondary baseline payload",
+        "secondary baseline commit metadata payload must contain exactly one item",
+        _verify_baseline_ancestry_by_parent_walk,
+        MalformedSecondaryGitHubClient(),  # type: ignore[arg-type]
+        descendant,
+    )
 
     _install_desktop_path_attribute()
     path_cases = (

@@ -157,11 +157,8 @@ fn spawn_owned_core() -> Result<
         .ok_or(CoreClientError::MissingChildStderr)?;
     let (diagnostic_tx, diagnostic_rx) = mpsc::sync_channel(DIAGNOSTIC_CHANNEL_CAPACITY);
     let diagnostics_truncated = Arc::new(AtomicBool::new(false));
-    let diagnostic_thread = spawn_stderr_drain(
-        stderr,
-        diagnostic_tx,
-        Arc::clone(&diagnostics_truncated),
-    );
+    let diagnostic_thread =
+        spawn_stderr_drain(stderr, diagnostic_tx, Arc::clone(&diagnostics_truncated));
     Ok((
         child,
         input,
@@ -216,14 +213,8 @@ fn launch_id_of(envelope: &InboundEnvelope) -> u64 {
 impl CoreClient {
     pub fn start() -> Result<Self, CoreClientError> {
         let launch_id = fresh_launch_id()?;
-        let (
-            child,
-            input,
-            output,
-            diagnostic_rx,
-            diagnostics_truncated,
-            diagnostic_thread,
-        ) = spawn_owned_core()?;
+        let (child, input, output, diagnostic_rx, diagnostics_truncated, diagnostic_thread) =
+            spawn_owned_core()?;
         let (inbound_rx, inbound_overflowed, protocol_thread) = spawn_protocol_reader(output);
         Ok(Self {
             child,
@@ -368,14 +359,8 @@ impl CoreClient {
         self.ready = false;
         self.stop_child();
         let launch_id = fresh_launch_id()?;
-        let (
-            child,
-            input,
-            output,
-            diagnostic_rx,
-            diagnostics_truncated,
-            diagnostic_thread,
-        ) = spawn_owned_core()?;
+        let (child, input, output, diagnostic_rx, diagnostics_truncated, diagnostic_thread) =
+            spawn_owned_core()?;
         let (inbound_rx, inbound_overflowed, protocol_thread) = spawn_protocol_reader(output);
         self.child = child;
         self.input = input;
@@ -561,9 +546,7 @@ mod tests {
         let observation_id = client
             .send_observe_health()
             .expect("observation command must write");
-        let observation = client
-            .receive()
-            .expect("observation response must arrive");
+        let observation = client.receive().expect("observation response must arrive");
         assert!(matches!(
             observation,
             InboundEnvelope::Response(ResponseEnvelope::ObserveHealth(_))

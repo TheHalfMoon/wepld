@@ -20,6 +20,8 @@ CONTRACTS_WORKFLOW = ".github/workflows/s1-contracts.yml"
 EXTENSION_CONTROLLED_PATHS = frozenset({POLICY_SCRIPT, CONTRACTS_WORKFLOW})
 
 PROTOCOL_STAGE = "S1_PROTOCOL_CONTRACTS_CANDIDATE"
+STATE_STAGE = "S1_HANDSHAKE_STATE_CANDIDATE"
+
 S1_006_MARKER_PATHS = frozenset(
     {
         "crates/contracts/src/frame.rs",
@@ -28,6 +30,16 @@ S1_006_MARKER_PATHS = frozenset(
     }
 )
 S1_006_ALLOWED_PATHS = S1_006_MARKER_PATHS | {"crates/contracts/src/lib.rs"}
+
+S1_007_MARKER_PATHS = frozenset(
+    {
+        "crates/core/src/lib.rs",
+        "crates/core/src/state.rs",
+        "crates/core/tests/state_v1.rs",
+    }
+)
+S1_007_ALLOWED_PATHS = S1_007_MARKER_PATHS
+
 S1_005_EVIDENCE_PATH = (
     "specs/001-desktop-rust-trusted-core-handshake/"
     "s1-005-component-admission-evidence.md"
@@ -35,7 +47,9 @@ S1_005_EVIDENCE_PATH = (
 S1_006_FROZEN_EVIDENCE_PATHS = frozenset(
     {"docs/governance/DEPENDENCY_REGISTER.md", S1_005_EVIDENCE_PATH}
 )
+S1_007_FROZEN_PROTOCOL_PATHS = S1_006_ALLOWED_PATHS
 MAX_S1_006_SOURCE_BYTES = 256_000
+MAX_S1_007_SOURCE_BYTES = 256_000
 
 EXPECTED_WORKFLOW_SHA256 = {
     ".github/workflows/foundation-integrity.yml": (
@@ -45,7 +59,7 @@ EXPECTED_WORKFLOW_SHA256 = {
         "d3c34c3cfdee9849ca94ede21ea9d20df5d8fe68cabea1e620fe853e029a9e71"
     ),
     CONTRACTS_WORKFLOW: (
-        "059b6178d3d6b045ed24715f7eff938f88967c55a5478d1b254c5723a9c8051e"
+        "039603ff6e84430f1f12a4d2f2732adb73ec4878f0d2a9c1495daa1ac997c7e6"
     ),
 }
 
@@ -82,15 +96,46 @@ PROHIBITED_EFFECT_IDENTIFIERS = frozenset(
         "include_str",
     }
 )
+S1_007_PROHIBITED_EFFECT_IDENTIFIERS = PROHIBITED_EFFECT_IDENTIFIERS | {"path"}
 FORBID_UNSAFE_ATTRIBUTE = re.compile(
     r"\A#!\s*\[\s*forbid\s*\(\s*unsafe_code\s*\)\s*\]"
 )
-PATH_ATTRIBUTE = re.compile(r"#\s*\[\s*path\b")
+PATH_ATTRIBUTE = re.compile(r"#\s*\[\s*(?:r#)?path\b")
 RUST_IDENTIFIER = re.compile(r"(?:r#)?([A-Za-z_][A-Za-z0-9_]*)")
 RAW_STRING_PREFIX = re.compile(r'(?:br|r)(#{0,255})"')
 
 
+def _require_component_inputs(paths: set[str], scope: str) -> None:
+    missing_component = base.STAGE_B_ALL_PATHS - paths
+    if missing_component:
+        base.fail(
+            f"{scope} candidate is missing frozen component inputs: "
+            + ", ".join(sorted(missing_component))
+        )
+    if not any(
+        path.startswith(base.FROZEN_GLIB_VENDOR_PREFIX + "/") for path in paths
+    ):
+        base.fail(f"{scope} candidate is missing frozen glib vendor subtree")
+
+
 def classify_stage(paths: set[str]) -> str:
+    state_markers = paths & S1_007_MARKER_PATHS
+    if state_markers:
+        missing_state = S1_007_MARKER_PATHS - paths
+        if missing_state:
+            base.fail(
+                "partial S1-007 state candidate is prohibited; missing: "
+                + ", ".join(sorted(missing_state))
+            )
+        missing_protocol = S1_006_MARKER_PATHS - paths
+        if missing_protocol:
+            base.fail(
+                "S1-007 state candidate is missing canonical S1-006 protocol inputs: "
+                + ", ".join(sorted(missing_protocol))
+            )
+        _require_component_inputs(paths, "S1-007 state")
+        return STATE_STAGE
+
     markers = paths & S1_006_MARKER_PATHS
     if markers:
         missing_markers = S1_006_MARKER_PATHS - paths
@@ -99,23 +144,14 @@ def classify_stage(paths: set[str]) -> str:
                 "partial S1-006 protocol candidate is prohibited; missing: "
                 + ", ".join(sorted(missing_markers))
             )
-        missing_component = base.STAGE_B_ALL_PATHS - paths
-        if missing_component:
-            base.fail(
-                "S1-006 protocol candidate is missing frozen component inputs: "
-                + ", ".join(sorted(missing_component))
-            )
-        if not any(
-            path.startswith(base.FROZEN_GLIB_VENDOR_PREFIX + "/") for path in paths
-        ):
-            base.fail("S1-006 protocol candidate is missing frozen glib vendor subtree")
+        _require_component_inputs(paths, "S1-006 protocol")
         return PROTOCOL_STAGE
 
     return base.classify_stage(paths - EXTENSION_CONTROLLED_PATHS)
 
 
 def validate_allowed_paths(paths: set[str], stage: str) -> None:
-    if stage != PROTOCOL_STAGE:
+    if stage not in {PROTOCOL_STAGE, STATE_STAGE}:
         base.validate_allowed_paths(paths - EXTENSION_CONTROLLED_PATHS, stage)
         return
 
@@ -123,6 +159,8 @@ def validate_allowed_paths(paths: set[str], stage: str) -> None:
     allowed |= EXTENSION_CONTROLLED_PATHS
     allowed |= base.STAGE_B_ALL_PATHS
     allowed |= S1_006_ALLOWED_PATHS
+    if stage == STATE_STAGE:
+        allowed |= S1_007_ALLOWED_PATHS
     allowed |= {
         path
         for path in paths
@@ -131,7 +169,8 @@ def validate_allowed_paths(paths: set[str], stage: str) -> None:
 
     unexpected = sorted(paths - allowed)
     if unexpected:
-        base.fail("tracked path outside S1-006 allowlist: " + ", ".join(unexpected))
+        scope = "S1-007" if stage == STATE_STAGE else "S1-006"
+        base.fail(f"tracked path outside {scope} allowlist: " + ", ".join(unexpected))
 
     missing = sorted(base.REQUIRED_PATHS - paths)
     if missing:
@@ -299,6 +338,41 @@ def verify_protocol_sources(view: base.RepositoryView) -> None:
             base.fail(f"S1-006 #[path] module indirection is prohibited: {relative}")
 
 
+def verify_state_sources(view: base.RepositoryView) -> None:
+    code_by_path: dict[str, str] = {}
+    for relative in sorted(S1_007_ALLOWED_PATHS):
+        data = view.read_bytes(relative, MAX_S1_007_SOURCE_BYTES)
+        try:
+            text = data.decode("utf-8", errors="strict")
+        except UnicodeError as exc:
+            base.fail(f"S1-007 Rust source is not UTF-8: {relative}: {exc}")
+        if "\x00" in text:
+            base.fail(f"S1-007 Rust source contains NUL: {relative}")
+        code_by_path[relative] = strip_rust_comments_and_strings(text)
+
+    for required_forbid in (
+        "crates/core/src/lib.rs",
+        "crates/core/tests/state_v1.rs",
+    ):
+        code = code_by_path[required_forbid].lstrip()
+        if FORBID_UNSAFE_ATTRIBUTE.match(code) is None:
+            base.fail(
+                "S1-007 crate/test root must begin with an actual "
+                f"#![forbid(unsafe_code)] attribute: {required_forbid}"
+            )
+
+    for relative, code in code_by_path.items():
+        if PATH_ATTRIBUTE.search(code):
+            base.fail(f"S1-007 #[path] module indirection is prohibited: {relative}")
+        identifiers = set(RUST_IDENTIFIER.findall(code))
+        forbidden = sorted(identifiers & S1_007_PROHIBITED_EFFECT_IDENTIFIERS)
+        if forbidden:
+            base.fail(
+                "S1-007 prohibited effect identifier(s) found in code: "
+                f"{relative}: {', '.join(forbidden)}"
+            )
+
+
 def freeze_s1_005_evidence(
     candidate: base.RepositoryView,
     policy_base: base.RepositoryView,
@@ -307,7 +381,18 @@ def freeze_s1_005_evidence(
         candidate_bytes = candidate.read_bytes(relative, base.MAX_POLICY_FILE_BYTES)
         base_bytes = policy_base.read_bytes(relative, base.MAX_POLICY_FILE_BYTES)
         if candidate_bytes != base_bytes:
-            base.fail(f"S1-006 candidate changed frozen S1-005 evidence: {relative}")
+            base.fail(f"S1 candidate changed frozen S1-005 evidence: {relative}")
+
+
+def freeze_s1_006_protocol(
+    candidate: base.RepositoryView,
+    policy_base: base.RepositoryView,
+) -> None:
+    for relative in sorted(S1_007_FROZEN_PROTOCOL_PATHS):
+        candidate_bytes = candidate.read_bytes(relative, MAX_S1_006_SOURCE_BYTES)
+        base_bytes = policy_base.read_bytes(relative, MAX_S1_006_SOURCE_BYTES)
+        if candidate_bytes != base_bytes:
+            base.fail(f"S1-007 candidate changed frozen S1-006 protocol: {relative}")
 
 
 def verify_view(
@@ -327,9 +412,11 @@ def verify_view(
     base.verify_archive(view)
     verify_policy_workflows(view)
 
-    if stage == PROTOCOL_STAGE:
+    if stage in {PROTOCOL_STAGE, STATE_STAGE}:
         verify_protocol_component_base(view, paths)
         verify_protocol_sources(view)
+        if stage == STATE_STAGE:
+            verify_state_sources(view)
     else:
         base.verify_frozen_glib_vendor(view, paths, stage)
         base.verify_stage_b_templates(view, stage)
@@ -356,8 +443,10 @@ def verify_view(
         )
         base.compare_base_controlled(view, policy_base)
         verify_extension_controlled_paths(view, policy_base)
-        if stage == PROTOCOL_STAGE:
+        if stage in {PROTOCOL_STAGE, STATE_STAGE}:
             freeze_s1_005_evidence(view, policy_base)
+        if stage == STATE_STAGE:
+            freeze_s1_006_protocol(view, policy_base)
 
     return stage
 
@@ -393,6 +482,32 @@ def selftest() -> None:
         validate_allowed_paths,
         protocol_paths | {"crates/contracts/src/extra.rs"},
         PROTOCOL_STAGE,
+    )
+
+    state_paths = protocol_paths | set(S1_007_MARKER_PATHS)
+    if classify_stage(state_paths) != STATE_STAGE:
+        base.fail("S1 execution self-test: state stage classification failed")
+    validate_allowed_paths(state_paths, STATE_STAGE)
+
+    one_state_marker = protocol_paths | {next(iter(S1_007_MARKER_PATHS))}
+    base.expect_failure_matching(
+        "partial S1-007 state stage",
+        "partial S1-007 state candidate is prohibited",
+        classify_stage,
+        one_state_marker,
+    )
+    base.expect_failure_matching(
+        "S1-007 missing S1-006 protocol",
+        "S1-007 state candidate is missing canonical S1-006 protocol inputs",
+        classify_stage,
+        component_paths | set(S1_007_MARKER_PATHS),
+    )
+    base.expect_failure_matching(
+        "extra S1-007 Rust module",
+        "tracked path outside S1-007 allowlist",
+        validate_allowed_paths,
+        state_paths | {"crates/core/src/process.rs"},
+        STATE_STAGE,
     )
 
     safe_sources = {
@@ -478,11 +593,62 @@ def selftest() -> None:
         base.MemoryView(unterminated_string),
     )
 
+    safe_state_sources = {
+        "crates/core/src/lib.rs": b"#![forbid(unsafe_code)]\npub mod state;\n",
+        "crates/core/src/state.rs": b"pub fn pure_state() {}\n",
+        "crates/core/tests/state_v1.rs": b"#![forbid(unsafe_code)]\n",
+    }
+    verify_state_sources(base.MemoryView(safe_state_sources))
+
+    state_process_effect = dict(safe_state_sources)
+    state_process_effect["crates/core/src/state.rs"] = (
+        b"use std::process::Command;\npub fn pure_state() {}\n"
+    )
+    base.expect_failure_matching(
+        "process effect in S1-007",
+        "S1-007 prohibited effect identifier(s) found in code",
+        verify_state_sources,
+        base.MemoryView(state_process_effect),
+    )
+
+    state_path_indirection = dict(safe_state_sources)
+    state_path_indirection["crates/core/src/state.rs"] = (
+        b'#[path = "other.rs"]\nmod hidden;\n'
+    )
+    base.expect_failure_matching(
+        "path indirection in S1-007",
+        "S1-007 #[path] module indirection is prohibited",
+        verify_state_sources,
+        base.MemoryView(state_path_indirection),
+    )
+
+    state_raw_path_indirection = dict(safe_state_sources)
+    state_raw_path_indirection["crates/core/src/state.rs"] = (
+        b'#[r#path = "other.rs"]\nmod hidden;\n'
+    )
+    base.expect_failure_matching(
+        "raw path indirection in S1-007",
+        "S1-007 #[path] module indirection is prohibited",
+        verify_state_sources,
+        base.MemoryView(state_raw_path_indirection),
+    )
+
+    state_cfg_attr_path_indirection = dict(safe_state_sources)
+    state_cfg_attr_path_indirection["crates/core/src/state.rs"] = (
+        b'#[cfg_attr(all(), path = "other.rs")]\nmod hidden;\n'
+    )
+    base.expect_failure_matching(
+        "cfg_attr path indirection in S1-007",
+        "S1-007 prohibited effect identifier(s) found in code",
+        verify_state_sources,
+        base.MemoryView(state_cfg_attr_path_indirection),
+    )
+
     print("wepld S1 execution integrity policy self-tests: PASS")
 
 
 def print_success(stage: str, mode: str) -> None:
-    if stage != PROTOCOL_STAGE:
+    if stage not in {PROTOCOL_STAGE, STATE_STAGE}:
         base.print_success(stage, mode)
         return
 
@@ -496,7 +662,10 @@ def print_success(stage: str, mode: str) -> None:
     print("source_acquisition_check=PASS")
     print("runtime_dependency_admission=EXACT_S1_GRAPH")
     print("cubic_provider_effective_state=NOT_PROVEN_SAFE_BY_REPOSITORY_POLICY")
-    print("product_implementation_authorized=S1_006_ONLY")
+    if stage == STATE_STAGE:
+        print("product_implementation_authorized=S1_007_ONLY")
+    else:
+        print("product_implementation_authorized=S1_006_ONLY")
 
 
 def main(argv: list[str]) -> int:

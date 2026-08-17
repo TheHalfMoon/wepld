@@ -36,8 +36,7 @@ const _: () = assert!(MAX_RETAINED_DIAGNOSTIC_BYTES == 65_536);
 const INBOUND_CHANNEL_CAPACITY: usize = 32;
 const PROTOCOL_RESPONSE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 const CHILD_TERMINATION_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
-const CHILD_TERMINATION_POLL_INTERVAL: std::time::Duration =
-    std::time::Duration::from_millis(5);
+const CHILD_TERMINATION_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(5);
 const INITIAL_COMMAND_ID: u64 = 1;
 
 static NEXT_LAUNCH_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
@@ -584,7 +583,11 @@ mod tests {
         let exit_deadline = std::time::Instant::now() + CHILD_TERMINATION_TIMEOUT;
         let mut exited = false;
         while !exited && std::time::Instant::now() < exit_deadline {
-            match client.child.try_wait().expect("owned Core status must remain readable") {
+            match client
+                .child
+                .try_wait()
+                .expect("owned Core status must remain readable")
+            {
                 Some(_) => exited = true,
                 None => thread::sleep(CHILD_TERMINATION_POLL_INTERVAL),
             }

@@ -715,8 +715,10 @@ def selftest() -> None:
         base.fail("S1 self-test: component-stage compatibility failed")
     if classify_stage(protocol_paths) != PROTOCOL_STAGE:
         base.fail("S1 self-test: protocol-stage classification failed")
+    validate_allowed_paths(protocol_paths, PROTOCOL_STAGE)
     if classify_stage(state_paths) != STATE_STAGE:
         base.fail("S1 self-test: state-stage classification failed")
+    validate_allowed_paths(state_paths, STATE_STAGE)
     if classify_stage(process_paths) != PROCESS_STAGE:
         base.fail("S1 self-test: process-stage classification failed")
     validate_allowed_paths(process_paths, PROCESS_STAGE)

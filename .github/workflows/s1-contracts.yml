@@ -8,9 +8,11 @@ on:
       - "Cargo.toml"
       - "Cargo.lock"
       - "rust-toolchain.toml"
+      - "apps/desktop/src-tauri/src/**"
       - "crates/contracts/**"
       - "crates/core/**"
       - ".github/scripts/wepld_s1_execution_integrity.py"
+      - ".github/scripts/wepld_s1_desktop_integrity.py"
       - ".github/workflows/s1-contracts.yml"
 
 permissions: {}
@@ -64,20 +66,72 @@ jobs:
           set -euo pipefail
           cargo test --locked --package wepld-contracts --all-targets
 
-      - name: Format pure Core state
+      - name: Format Core
         shell: bash
         run: |
           set -euo pipefail
           cargo fmt --package wepld-core -- --check
 
-      - name: Clippy pure Core state
+      - name: Clippy Core
         shell: bash
         run: |
           set -euo pipefail
           cargo clippy --locked --package wepld-core --all-targets -- -D warnings -F unsafe-code
 
-      - name: Test pure Core state
+      - name: Test Core
         shell: bash
         run: |
           set -euo pipefail
           cargo test --locked --package wepld-core --all-targets
+
+  desktop-host:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          lfs: false
+          submodules: false
+
+      - name: Verify pinned Rust toolchain
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $expected = python -c "import tomllib; print(tomllib.load(open('rust-toolchain.toml','rb'))['toolchain']['channel'])"
+          rustc --version --verbose
+          cargo --version --verbose
+          $actualRustc = (rustc --version).Split()[1]
+          $actualCargo = (cargo --version).Split()[1]
+          if ($actualRustc -ne $expected) { throw "rustc version mismatch: expected=$expected actual=$actualRustc" }
+          if ($actualCargo -ne $expected) { throw "cargo version mismatch: expected=$expected actual=$actualCargo" }
+
+      - name: Format Desktop host
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          cargo fmt --package wepld-desktop -- --check
+
+      - name: Clippy Desktop host
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          cargo clippy --locked --package wepld-desktop --all-targets -- -D warnings -F unsafe-code
+
+      - name: Build owned Core test sibling
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          cargo build --locked --package wepld-core
+          $deps = Join-Path $PWD "target\debug\deps"
+          New-Item -ItemType Directory -Force -Path $deps | Out-Null
+          Copy-Item -Force "target\debug\wepld-core.exe" (Join-Path $deps "wepld-core.exe")
+
+      - name: Test Desktop host
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          cargo test --locked --package wepld-desktop --all-targets

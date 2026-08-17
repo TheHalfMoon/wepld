@@ -206,6 +206,7 @@ fn spawn_protocol_writer(
     (writer_tx, writer_failed, writer_thread)
 }
 
+#[allow(clippy::type_complexity)]
 fn spawn_protocol_reader(
     mut output: ChildStdout,
     ready: Arc<AtomicBool>,

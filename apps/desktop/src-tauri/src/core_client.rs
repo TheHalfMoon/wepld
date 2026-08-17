@@ -526,25 +526,27 @@ impl CoreClient {
         let _ = self.writer_tx.take();
         let termination = match self.child.try_wait() {
             Ok(Some(_)) => Ok(()),
-            Ok(None) => {
-                let _ = self.child.kill();
-                let deadline = std::time::Instant::now() + CHILD_TERMINATION_TIMEOUT;
-                let mut outcome = Err(CoreClientError::ChildTerminationTimeout);
-                while std::time::Instant::now() < deadline {
-                    match self.child.try_wait() {
-                        Ok(Some(_)) => {
-                            outcome = Ok(());
-                            break;
-                        }
-                        Ok(None) => thread::sleep(CHILD_TERMINATION_POLL_INTERVAL),
-                        Err(error) => {
-                            outcome = Err(CoreClientError::Io(error));
-                            break;
+            Ok(None) => match self.child.kill() {
+                Ok(()) => {
+                    let deadline = std::time::Instant::now() + CHILD_TERMINATION_TIMEOUT;
+                    let mut outcome = Err(CoreClientError::ChildTerminationTimeout);
+                    while std::time::Instant::now() < deadline {
+                        match self.child.try_wait() {
+                            Ok(Some(_)) => {
+                                outcome = Ok(());
+                                break;
+                            }
+                            Ok(None) => thread::sleep(CHILD_TERMINATION_POLL_INTERVAL),
+                            Err(error) => {
+                                outcome = Err(CoreClientError::Io(error));
+                                break;
+                            }
                         }
                     }
+                    outcome
                 }
-                outcome
-            }
+                Err(error) => Err(CoreClientError::Io(error)),
+            },
             Err(error) => Err(CoreClientError::Io(error)),
         };
         let _ = self.writer_thread.take();
@@ -556,7 +558,15 @@ impl CoreClient {
 
 impl Drop for CoreClient {
     fn drop(&mut self) {
-        let _ = self.stop_child();
+        let core_pid = self.child.id();
+        if let Err(error) = self.stop_child() {
+            eprintln!(
+                "wepld Desktop Core cleanup failed: launch_id={} pid={} error={error:?} diagnostics_truncated={}",
+                self.launch_id,
+                core_pid,
+                self.diagnostics_truncated()
+            );
+        }
     }
 }
 

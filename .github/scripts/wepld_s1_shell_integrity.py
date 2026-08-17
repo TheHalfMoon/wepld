@@ -109,6 +109,7 @@ SHELL_RUST_PROHIBITED_IDENTIFIERS = frozenset(
         "fs",
         "net",
         "process",
+        "env",
         "Command",
         "File",
         "OpenOptions",
@@ -125,6 +126,16 @@ SHELL_RUST_PROHIBITED_IDENTIFIERS = frozenset(
         "include_str",
         "extern",
         "path",
+        "loop",
+        "while",
+        "for",
+        "impl",
+        "trait",
+        "wepld_contracts",
+        "restart",
+        "launch_id",
+        "drain_diagnostics",
+        "diagnostics_truncated",
     }
 )
 
@@ -138,10 +149,18 @@ REQUIRED_COMMANDS = frozenset(
         "core_cancel_observation",
     }
 )
+ALLOWED_FUNCTIONS = REQUIRED_COMMANDS | {"main"}
+ALLOWED_TAURI_QUALIFIED = frozenset(
+    {"command", "State", "Builder", "generate_handler", "generate_context"}
+)
+
 TAURI_COMMAND_FN = re.compile(
     r"#\s*\[\s*tauri\s*::\s*command\s*\]\s*"
     r"(?:pub\s+)?fn\s+([A-Za-z_][A-Za-z0-9_]*)\s*\("
 )
+RUST_FN = re.compile(r"\b(?:pub\s+)?fn\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(")
+TAURI_QUALIFIED = re.compile(r"\btauri\s*::\s*([A-Za-z_][A-Za-z0-9_]*)")
+USE_TAURI = re.compile(r"\buse\s+tauri\b")
 GENERATE_HANDLER = re.compile(
     r"tauri\s*::\s*generate_handler!\s*\[([^\]]*)\]",
     re.DOTALL,
@@ -159,9 +178,8 @@ FORBIDDEN_FRONTEND_TEXT = re.compile(
     r"window\.location|document\.location|innerHTML\s*=|"
     r"import\s*\(|<iframe\b|<object\b|<embed\b)"
 )
-INVOKE_CALL = re.compile(
-    r"\binvoke\s*\(\s*[\"']([a-z][a-z0-9_]*)[\"']"
-)
+INVOKE_CALL = re.compile(r"\binvoke\s*\(\s*[\"']([a-z][a-z0-9_]*)[\"']")
+ANY_INVOKE_CALL = re.compile(r"\binvoke\s*\(")
 REMOTE_OR_ABSOLUTE_ASSET = re.compile(
     r"(?i)(?:src|href)\s*=\s*[\"'](?:[a-z][a-z0-9+.-]*:|//|/)"
 )
@@ -183,6 +201,9 @@ EXPECTED_HTML_TOKENS = (
 )
 EXPECTED_JS_BOOTSTRAP = "window.__TAURI__.core"
 
+# The bootstrap advances only these controlled workflow bytes and installs this
+# runner into the protected extension surface. Earlier product/source policy is
+# still frozen by the inherited verifiers and trusted-base comparisons.
 prior.EXTENSION_CONTROLLED_PATHS = frozenset(
     set(prior.EXTENSION_CONTROLLED_PATHS) | {POLICY_SCRIPT}
 )
@@ -299,7 +320,9 @@ def verify_shell_config(view: base.RepositoryView) -> None:
     except json.JSONDecodeError as exc:
         base.fail(f"S1-010 Tauri config is invalid JSON: {exc}")
     if config != EXPECTED_TAURI_CONFIG:
-        base.fail("S1-010 Tauri config must equal the frozen minimal local-static/externalBin template")
+        base.fail(
+            "S1-010 Tauri config must equal the frozen minimal local-static/externalBin template"
+        )
 
 
 def verify_build_script(view: base.RepositoryView) -> None:
@@ -311,18 +334,40 @@ def verify_build_script(view: base.RepositoryView) -> None:
 
 def verify_shell_rust(view: base.RepositoryView) -> None:
     relative = "apps/desktop/src-tauri/src/main.rs"
-    raw, code = prior.prior._read_rust(view, relative, MAX_S1_010_RUST_BYTES, "S1-010 Tauri main")
+    raw, code = prior.prior._read_rust(
+        view, relative, MAX_S1_010_RUST_BYTES, "S1-010 Tauri main"
+    )
     prior.prior._require_forbid(raw, relative, "S1-010")
     if desktop_runner.DESKTOP_PATH_ATTRIBUTE.search(code):
         base.fail("S1-010 Tauri main #[path]/cfg_attr path indirection is prohibited")
+
     identifiers = set(prior.prior.RUST_IDENTIFIER.findall(code))
     forbidden = sorted(identifiers & SHELL_RUST_PROHIBITED_IDENTIFIERS)
     if forbidden:
-        base.fail("S1-010 Tauri main prohibited effect identifier(s): " + ", ".join(forbidden))
+        base.fail(
+            "S1-010 Tauri main prohibited effect identifier(s): "
+            + ", ".join(forbidden)
+        )
     if FORBIDDEN_RUST_TEXT.search(raw):
         base.fail("S1-010 Tauri main contains prohibited plugin/network/shell material")
     if MODULE_DECL.search(code):
         base.fail("S1-010 Tauri main may not introduce local modules")
+    if USE_TAURI.search(code):
+        base.fail("S1-010 Tauri main may not alias/import the Tauri crate")
+
+    tauri_names = set(TAURI_QUALIFIED.findall(code))
+    unexpected_tauri = sorted(tauri_names - ALLOWED_TAURI_QUALIFIED)
+    if unexpected_tauri:
+        base.fail(
+            "S1-010 Tauri main may use only the frozen Tauri API primitives; unexpected: "
+            + ", ".join(unexpected_tauri)
+        )
+
+    functions = RUST_FN.findall(code)
+    if set(functions) != ALLOWED_FUNCTIONS or len(functions) != len(ALLOWED_FUNCTIONS):
+        base.fail(
+            "S1-010 Tauri main functions must be exactly main plus the six frozen commands"
+        )
 
     if len(re.findall(r"\btauri\s*::\s*Builder\s*::\s*default\s*\(", code)) != 1:
         base.fail("S1-010 Tauri main must construct exactly one tauri::Builder::default()")
@@ -330,16 +375,27 @@ def verify_shell_rust(view: base.RepositoryView) -> None:
         base.fail("S1-010 Tauri main must install exactly one bounded app state")
     if len(re.findall(r"\.\s*invoke_handler\s*\(", code)) != 1:
         base.fail("S1-010 Tauri main must expose exactly one invoke handler")
-    if len(re.findall(r"\.\s*run\s*\(\s*tauri\s*::\s*generate_context!\s*\(\s*\)\s*\)", code)) != 1:
+    if len(
+        re.findall(
+            r"\.\s*run\s*\(\s*tauri\s*::\s*generate_context!\s*\(\s*\)\s*\)",
+            code,
+        )
+    ) != 1:
         base.fail("S1-010 Tauri main must run only the generated local Tauri context")
 
     commands = TAURI_COMMAND_FN.findall(code)
     if set(commands) != REQUIRED_COMMANDS or len(commands) != len(REQUIRED_COMMANDS):
-        base.fail("S1-010 Tauri main command surface must be exactly: " + ", ".join(sorted(REQUIRED_COMMANDS)))
+        base.fail(
+            "S1-010 Tauri main command surface must be exactly: "
+            + ", ".join(sorted(REQUIRED_COMMANDS))
+        )
     handlers = GENERATE_HANDLER.findall(code)
     if len(handlers) != 1:
         base.fail("S1-010 Tauri main must define exactly one generate_handler list")
-    handler_names = {match.group(0) for match in re.finditer(r"[A-Za-z_][A-Za-z0-9_]*", handlers[0])}
+    handler_names = {
+        match.group(0)
+        for match in re.finditer(r"[A-Za-z_][A-Za-z0-9_]*", handlers[0])
+    }
     if handler_names != REQUIRED_COMMANDS:
         base.fail("S1-010 generate_handler must expose exactly the six S1 commands")
 
@@ -352,13 +408,24 @@ def verify_shell_rust(view: base.RepositoryView) -> None:
 
 
 def verify_frontend(view: base.RepositoryView) -> None:
-    html = _read_utf8(view, "apps/desktop/ui/index.html", MAX_S1_010_HTML_BYTES, "S1-010 HTML")
-    js = _read_utf8(view, "apps/desktop/ui/app.js", MAX_S1_010_JS_BYTES, "S1-010 JavaScript")
-    css = _read_utf8(view, "apps/desktop/ui/style.css", MAX_S1_010_CSS_BYTES, "S1-010 CSS")
+    html = _read_utf8(
+        view, "apps/desktop/ui/index.html", MAX_S1_010_HTML_BYTES, "S1-010 HTML"
+    )
+    js = _read_utf8(
+        view, "apps/desktop/ui/app.js", MAX_S1_010_JS_BYTES, "S1-010 JavaScript"
+    )
+    css = _read_utf8(
+        view, "apps/desktop/ui/style.css", MAX_S1_010_CSS_BYTES, "S1-010 CSS"
+    )
 
-    for relative, text in (("apps/desktop/ui/index.html", html), ("apps/desktop/ui/app.js", js)):
+    for relative, text in (
+        ("apps/desktop/ui/index.html", html),
+        ("apps/desktop/ui/app.js", js),
+    ):
         if FORBIDDEN_FRONTEND_TEXT.search(text):
-            base.fail(f"S1-010 static frontend contains prohibited dynamic/network material: {relative}")
+            base.fail(
+                f"S1-010 static frontend contains prohibited dynamic/network material: {relative}"
+            )
 
     if REMOTE_OR_ABSOLUTE_ASSET.search(html):
         base.fail("S1-010 HTML assets must be local relative files only")
@@ -373,13 +440,22 @@ def verify_frontend(view: base.RepositoryView) -> None:
 
     missing_tokens = [token for token in EXPECTED_HTML_TOKENS if token not in html]
     if missing_tokens:
-        base.fail("S1-010 HTML missing required static/accessibility token(s): " + ", ".join(missing_tokens))
+        base.fail(
+            "S1-010 HTML missing required static/accessibility token(s): "
+            + ", ".join(missing_tokens)
+        )
 
-    if EXPECTED_JS_BOOTSTRAP not in js:
-        base.fail("S1-010 JavaScript must use only the Tauri global core invoke bridge")
+    if js.count(EXPECTED_JS_BOOTSTRAP) != 1 or js.count("__TAURI__") != 1:
+        base.fail("S1-010 JavaScript may expose only window.__TAURI__.core")
     calls = INVOKE_CALL.findall(js)
-    if set(calls) != REQUIRED_COMMANDS:
-        base.fail("S1-010 JavaScript invoke surface must call exactly: " + ", ".join(sorted(REQUIRED_COMMANDS)))
+    all_invoke_count = len(ANY_INVOKE_CALL.findall(js))
+    if all_invoke_count != len(calls):
+        base.fail("S1-010 JavaScript invoke calls must all use literal frozen command names")
+    if set(calls) != REQUIRED_COMMANDS or len(calls) != len(REQUIRED_COMMANDS):
+        base.fail(
+            "S1-010 JavaScript invoke surface must call each frozen command exactly once: "
+            + ", ".join(sorted(REQUIRED_COMMANDS))
+        )
 
 
 def verify_shell_sources(view: base.RepositoryView) -> None:
@@ -389,16 +465,28 @@ def verify_shell_sources(view: base.RepositoryView) -> None:
     verify_frontend(view)
 
 
-def freeze_s1_009_desktop(candidate: base.RepositoryView, policy_base: base.RepositoryView) -> None:
+def freeze_s1_009_desktop(
+    candidate: base.RepositoryView,
+    policy_base: base.RepositoryView,
+) -> None:
     for relative in sorted(S1_010_FROZEN_DESKTOP_PATHS):
-        if candidate.read_bytes(relative, prior.MAX_S1_009_SOURCE_BYTES) != policy_base.read_bytes(relative, prior.MAX_S1_009_SOURCE_BYTES):
+        if candidate.read_bytes(relative, prior.MAX_S1_009_SOURCE_BYTES) != policy_base.read_bytes(
+            relative, prior.MAX_S1_009_SOURCE_BYTES
+        ):
             base.fail(f"S1-010 candidate changed frozen S1-009 Desktop lifecycle: {relative}")
 
 
-def verify_view(view: base.RepositoryView, *, policy_base: base.RepositoryView | None = None) -> str:
+def verify_view(
+    view: base.RepositoryView,
+    *,
+    policy_base: base.RepositoryView | None = None,
+) -> str:
     paths = base.validate_entries(view.entries())
     stage = classify_stage(paths)
 
+    # The bootstrap tree has no S1-010 product marker. Preserve full S1-009
+    # verification while recognizing only this new controlled policy script and
+    # exact workflow-byte advance.
     if stage != SHELL_STAGE:
         return prior.verify_view(view, policy_base=policy_base)
 
@@ -424,7 +512,9 @@ def verify_view(view: base.RepositoryView, *, policy_base: base.RepositoryView |
         base.fail("duplicate canonical security-review policy detected")
 
     if policy_base is not None:
-        base.verify_base_path_preservation(paths, base.validate_entries(policy_base.entries()))
+        base.verify_base_path_preservation(
+            paths, base.validate_entries(policy_base.entries())
+        )
         base.compare_base_controlled(view, policy_base)
         prior.verify_extension_controlled_paths(view, policy_base)
         prior.prior.freeze_s1_005_evidence(view, policy_base)
@@ -484,7 +574,9 @@ button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 """
     return {
         "apps/desktop/src-tauri/build.rs": EXPECTED_BUILD_RS.encode(),
-        "apps/desktop/src-tauri/tauri.conf.json": (json.dumps(EXPECTED_TAURI_CONFIG, indent=2) + "\n").encode(),
+        "apps/desktop/src-tauri/tauri.conf.json": (
+            json.dumps(EXPECTED_TAURI_CONFIG, indent=2) + "\n"
+        ).encode(),
         "apps/desktop/src-tauri/src/main.rs": main,
         "apps/desktop/ui/index.html": html,
         "apps/desktop/ui/app.js": js,
@@ -493,11 +585,18 @@ button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 
 
 def selftest() -> None:
+    # Run inherited tests before installing the stricter S1-010 path detector so
+    # their expected rejection reasons remain stable.
     prior.selftest()
     desktop_runner.selftest_runner()
 
     base_paths = set(base.REQUIRED_PATHS) | {"README.md", "src/.gitkeep"}
-    component_paths = base_paths | set(base.STAGE_B_ALL_PATHS) | {base.FROZEN_GLIB_VENDOR_PREFIX + "/src/variant_iter.rs"} | set(prior.EXTENSION_CONTROLLED_PATHS)
+    component_paths = (
+        base_paths
+        | set(base.STAGE_B_ALL_PATHS)
+        | {base.FROZEN_GLIB_VENDOR_PREFIX + "/src/variant_iter.rs"}
+        | set(prior.EXTENSION_CONTROLLED_PATHS)
+    )
     protocol_paths = component_paths | set(prior.prior.S1_006_MARKER_PATHS)
     state_paths = protocol_paths | set(prior.prior.S1_007_MARKER_PATHS)
     process_paths = state_paths | set(prior.prior.S1_008_MARKER_PATHS)
@@ -511,10 +610,34 @@ def selftest() -> None:
         base.fail("S1-010 self-test: shell-stage classification failed")
     validate_allowed_paths(shell_paths, SHELL_STAGE)
 
-    base.expect_failure_matching("partial S1-010 shell candidate", "partial S1-010 Tauri shell candidate is prohibited", classify_stage, desktop_paths | {"apps/desktop/src-tauri/tauri.conf.json"})
-    base.expect_failure_matching("tracked sidecar binary", "tracked path outside S1-010 allowlist", validate_allowed_paths, shell_paths | {"apps/desktop/src-tauri/binaries/wepld-core-x86_64-pc-windows-msvc.exe"}, SHELL_STAGE)
-    base.expect_failure_matching("frontend package manager", "tracked path outside S1-010 allowlist", validate_allowed_paths, shell_paths | {"apps/desktop/package.json"}, SHELL_STAGE)
-    base.expect_failure_matching("capability expansion", "tracked path outside S1-010 allowlist", validate_allowed_paths, shell_paths | {"apps/desktop/src-tauri/capabilities/default.json"}, SHELL_STAGE)
+    base.expect_failure_matching(
+        "partial S1-010 shell candidate",
+        "partial S1-010 Tauri shell candidate is prohibited",
+        classify_stage,
+        desktop_paths | {"apps/desktop/src-tauri/tauri.conf.json"},
+    )
+    base.expect_failure_matching(
+        "tracked sidecar binary",
+        "tracked path outside S1-010 allowlist",
+        validate_allowed_paths,
+        shell_paths
+        | {"apps/desktop/src-tauri/binaries/wepld-core-x86_64-pc-windows-msvc.exe"},
+        SHELL_STAGE,
+    )
+    base.expect_failure_matching(
+        "frontend package manager",
+        "tracked path outside S1-010 allowlist",
+        validate_allowed_paths,
+        shell_paths | {"apps/desktop/package.json"},
+        SHELL_STAGE,
+    )
+    base.expect_failure_matching(
+        "capability expansion",
+        "tracked path outside S1-010 allowlist",
+        validate_allowed_paths,
+        shell_paths | {"apps/desktop/src-tauri/capabilities/default.json"},
+        SHELL_STAGE,
+    )
 
     safe = _safe_shell_fixture()
     fixture = base.MemoryView(safe)
@@ -524,30 +647,121 @@ def selftest() -> None:
     verify_frontend(fixture)
 
     bad_build = dict(safe)
-    bad_build["apps/desktop/src-tauri/build.rs"] = b"#![forbid(unsafe_code)]\nfn main() { println!(\"cargo:rustc-env=ESCAPE=1\"); tauri_build::build(); }\n"
-    base.expect_failure_matching("build-script effect expansion", "S1-010 build.rs must be exactly", verify_build_script, base.MemoryView(bad_build))
+    bad_build["apps/desktop/src-tauri/build.rs"] = (
+        b"#![forbid(unsafe_code)]\nfn main() { println!(\"cargo:rustc-env=ESCAPE=1\"); tauri_build::build(); }\n"
+    )
+    base.expect_failure_matching(
+        "build-script effect expansion",
+        "S1-010 build.rs must be exactly",
+        verify_build_script,
+        base.MemoryView(bad_build),
+    )
 
     bad_config = dict(safe)
     config = dict(EXPECTED_TAURI_CONFIG)
     config["plugins"] = {"shell": {}}
-    bad_config["apps/desktop/src-tauri/tauri.conf.json"] = (json.dumps(config, indent=2) + "\n").encode()
-    base.expect_failure_matching("shell plugin config", "frozen minimal local-static/externalBin template", verify_shell_config, base.MemoryView(bad_config))
+    bad_config["apps/desktop/src-tauri/tauri.conf.json"] = (
+        json.dumps(config, indent=2) + "\n"
+    ).encode()
+    base.expect_failure_matching(
+        "shell plugin config",
+        "frozen minimal local-static/externalBin template",
+        verify_shell_config,
+        base.MemoryView(bad_config),
+    )
 
     remote_ui = dict(safe)
-    remote_ui["apps/desktop/ui/app.js"] = safe["apps/desktop/ui/app.js"] + b'fetch("https://example.invalid");\n'
-    base.expect_failure_matching("frontend network escape", "prohibited dynamic/network material", verify_frontend, base.MemoryView(remote_ui))
+    remote_ui["apps/desktop/ui/app.js"] = (
+        safe["apps/desktop/ui/app.js"] + b'fetch("https://example.invalid");\n'
+    )
+    base.expect_failure_matching(
+        "frontend network escape",
+        "prohibited dynamic/network material",
+        verify_frontend,
+        base.MemoryView(remote_ui),
+    )
 
     dynamic_ui = dict(safe)
-    dynamic_ui["apps/desktop/ui/app.js"] = safe["apps/desktop/ui/app.js"] + b'document.body.innerHTML = "<p>escape</p>";\n'
-    base.expect_failure_matching("frontend innerHTML escape", "prohibited dynamic/network material", verify_frontend, base.MemoryView(dynamic_ui))
+    dynamic_ui["apps/desktop/ui/app.js"] = (
+        safe["apps/desktop/ui/app.js"]
+        + b'document.body.innerHTML = "<p>escape</p>";\n'
+    )
+    base.expect_failure_matching(
+        "frontend innerHTML escape",
+        "prohibited dynamic/network material",
+        verify_frontend,
+        base.MemoryView(dynamic_ui),
+    )
+
+    dynamic_invoke = dict(safe)
+    dynamic_invoke["apps/desktop/ui/app.js"] = (
+        safe["apps/desktop/ui/app.js"]
+        + b'const extraCommand = "core_health"; invoke(extraCommand);\n'
+    )
+    base.expect_failure_matching(
+        "dynamic invoke escape",
+        "invoke calls must all use literal frozen command names",
+        verify_frontend,
+        base.MemoryView(dynamic_invoke),
+    )
+
+    tauri_global_escape = dict(safe)
+    tauri_global_escape["apps/desktop/ui/app.js"] = (
+        safe["apps/desktop/ui/app.js"] + b"void window.__TAURI__.event;\n"
+    )
+    base.expect_failure_matching(
+        "Tauri global escape",
+        "may expose only window.__TAURI__.core",
+        verify_frontend,
+        base.MemoryView(tauri_global_escape),
+    )
 
     process_escape = dict(safe)
-    process_escape["apps/desktop/src-tauri/src/main.rs"] = safe["apps/desktop/src-tauri/src/main.rs"] + b"fn escape() { let _ = std::process::Command::new(\"cmd.exe\"); }\n"
-    base.expect_failure_matching("Tauri main nested process", "S1-010 Tauri main prohibited effect identifier", verify_shell_rust, base.MemoryView(process_escape))
+    process_escape["apps/desktop/src-tauri/src/main.rs"] = (
+        safe["apps/desktop/src-tauri/src/main.rs"]
+        + b"fn escape() { let _ = std::process::Command::new(\"cmd.exe\"); }\n"
+    )
+    base.expect_failure_matching(
+        "Tauri main nested process",
+        "S1-010 Tauri main prohibited effect identifier",
+        verify_shell_rust,
+        base.MemoryView(process_escape),
+    )
+
+    tauri_api_escape = dict(safe)
+    tauri_api_escape["apps/desktop/src-tauri/src/main.rs"] = (
+        safe["apps/desktop/src-tauri/src/main.rs"]
+        + b"fn escape(_app: tauri::AppHandle) {}\n"
+    )
+    base.expect_failure_matching(
+        "extra Tauri API",
+        "may use only the frozen Tauri API primitives",
+        verify_shell_rust,
+        base.MemoryView(tauri_api_escape),
+    )
+
+    helper_escape = dict(safe)
+    helper_escape["apps/desktop/src-tauri/src/main.rs"] = (
+        safe["apps/desktop/src-tauri/src/main.rs"] + b"fn helper() {}\n"
+    )
+    base.expect_failure_matching(
+        "extra helper function",
+        "functions must be exactly main plus the six frozen commands",
+        verify_shell_rust,
+        base.MemoryView(helper_escape),
+    )
 
     extra_command = dict(safe)
-    extra_command["apps/desktop/src-tauri/src/main.rs"] = safe["apps/desktop/src-tauri/src/main.rs"] + b"#[tauri::command]\nfn arbitrary() {}\n"
-    base.expect_failure_matching("extra Tauri command", "command surface must be exactly", verify_shell_rust, base.MemoryView(extra_command))
+    extra_command["apps/desktop/src-tauri/src/main.rs"] = (
+        safe["apps/desktop/src-tauri/src/main.rs"]
+        + b"#[tauri::command]\nfn arbitrary() {}\n"
+    )
+    base.expect_failure_matching(
+        "extra Tauri command",
+        "functions must be exactly main plus the six frozen commands",
+        verify_shell_rust,
+        base.MemoryView(extra_command),
+    )
 
     print("wepld S1 Tauri shell integrity policy self-tests: PASS")
 
@@ -556,6 +770,7 @@ def print_success(stage: str, mode: str) -> None:
     if stage != SHELL_STAGE:
         prior.print_success(stage, mode)
         return
+
     print("wepld integrity verification: PASS")
     print(f"mode={mode}")
     print(f"stage={stage}")

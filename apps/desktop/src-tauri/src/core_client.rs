@@ -493,24 +493,24 @@ impl CoreClient {
 
     fn write_envelope(&mut self, envelope: &ProtocolEnvelope) -> Result<(), CoreClientError> {
         self.ensure_child_running()?;
-        let wire = match encode_frame(envelope) {
-            Ok(wire) => wire,
+        match encode_frame(envelope) {
+            Ok(wire) => {
+                let enqueue_result = match self.writer_tx.as_ref() {
+                    Some(writer_tx) => {
+                        enqueue_wire_if_io_active(&self.io_state, writer_tx, wire)
+                    }
+                    None => Err(CoreClientError::WriterChannelClosed),
+                };
+                match enqueue_result {
+                    Ok(()) => Ok(()),
+                    Err(error) => {
+                        let error = self.stop_with_error(error);
+                        Err(error)
+                    }
+                }
+            }
             Err(error) => {
                 let error = self.stop_with_error(CoreClientError::Frame(error));
-                return Err(error);
-            }
-        };
-        let writer_tx = match self.writer_tx.as_ref() {
-            Some(writer_tx) => writer_tx.clone(),
-            None => {
-                let error = self.stop_with_error(CoreClientError::WriterChannelClosed);
-                return Err(error);
-            }
-        };
-        match enqueue_wire_if_io_active(&self.io_state, &writer_tx, wire) {
-            Ok(()) => Ok(()),
-            Err(error) => {
-                let error = self.stop_with_error(error);
                 Err(error)
             }
         }

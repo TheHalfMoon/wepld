@@ -546,7 +546,10 @@ mod tests {
         let _ = client.receive().expect("health response must arrive");
         assert!(client.is_ready());
 
-        client.child.kill().expect("owned Core must accept termination");
+        client
+            .child
+            .kill()
+            .expect("owned Core must accept termination");
         client.child.wait().expect("owned Core must exit");
 
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);

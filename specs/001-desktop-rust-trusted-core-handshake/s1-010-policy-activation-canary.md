@@ -12,6 +12,7 @@ DEPENDENCY_CHANGES = NONE
 RUNTIME_DEPENDENCY_ADMISSION = EXACT_S1_GRAPH
 SOURCE_ACQUISITION_CHECK = PASS
 S1_011_PLUS = NOT_STARTED
+EVIDENCE_RETRIGGER = SYNCHRONIZE_CANARY_ONLY
 ```
 
 This docs-only candidate exists solely to prove that the S1-010 shell admission policy merged by PR #23 is active from trusted canonical `main` and can inspect candidate Git objects as data without executing candidate code in the privileged `pull_request_target` path.

@@ -11,6 +11,7 @@ on:
       - "apps/desktop/src-tauri/build.rs"
       - "apps/desktop/src-tauri/tauri.conf.json"
       - "apps/desktop/src-tauri/src/**"
+      - "apps/desktop/src-tauri/icons/icon.ico"
       - "apps/desktop/ui/**"
       - "crates/contracts/**"
       - "crates/core/**"
@@ -25,6 +26,7 @@ on:
       - ".github/scripts/wepld_s1_shell_integrity_v7.py"
       - ".github/scripts/wepld_s1_shell_integrity_v8.py"
       - ".github/scripts/wepld_s1_shell_integrity_v9.py"
+      - ".github/scripts/wepld_s1_shell_integrity_v10.py"
       - ".github/workflows/s1-contracts.yml"
 
 permissions: {}

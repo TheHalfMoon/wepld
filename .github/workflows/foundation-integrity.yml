@@ -26,13 +26,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python .github/scripts/wepld_s1_desktop_integrity.py selftest
+          python .github/scripts/wepld_s1_shell_integrity_v9.py selftest
 
-      # The checked-out policy must never be the sole owner of its own expected
-      # digests, so both events also verify the separately governed immutable
-      # baseline. The request is unauthenticated on purpose: the repository and
-      # the baseline object are public, and no GITHUB_TOKEN may reach the policy
-      # script.
       - name: Verify exact checked-out tree against the immutable baseline
         shell: bash
         env:
@@ -43,7 +38,7 @@ jobs:
             echo 'immutable baseline comparison SHA could not be established' >&2
             exit 1
           fi
-          python .github/scripts/wepld_s1_desktop_integrity.py verify-local \
+          python .github/scripts/wepld_s1_shell_integrity_v9.py verify-local \
             --root . \
             --remote-baseline \
             --pr-base-sha "$WEPLD_COMPARISON_SHA"

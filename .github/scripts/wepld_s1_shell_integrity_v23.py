@@ -30,12 +30,18 @@ CANONICAL_REPOSITORY = "TheHalfMoon/wepld"
 EXPECTED_WORKFLOW_SHA256 = {
     ".github/workflows/foundation-integrity.yml": "7a1fca2b32ffa843f596dab608f580d2f32a226f9867f7081be45516791e7219",
     ".github/workflows/s1-admission-integrity.yml": "efb01f78dace2db331fa4bedcad3ed46e0a60e3f5ad1ff7d6c60cc820247453f",
-    ".github/workflows/s1-contracts.yml": "d0b6cd82688e0e4538b31413b6fccd65629c89d043dc9e122342fb543fc0cc1f",
+    ".github/workflows/s1-contracts.yml": "ba915a7780c23ea2d27a1dc73a351835a5043b94244b8ea710fa92458352f17b",
 }
 
 TAURI_SOURCE_COMMIT = "7cd71369c00978a3783b6ae3e9972358abbe4ae6"
 TAURI_CLI_VERSION = "2.11.4"
 PLATFORM_WORKFLOW = ".github/workflows/s1-contracts.yml"
+BOOTSTRAP_BASE_CONTROLLED_WORKFLOWS = frozenset(
+    {
+        ".github/workflows/foundation-integrity.yml",
+        ".github/workflows/s1-admission-integrity.yml",
+    }
+)
 S1_012_QUALIFICATION_AUTHORIZED = "YES"
 S1_013_PLUS = "NOT_STARTED"
 
@@ -64,6 +70,8 @@ def _bind_prior_v22_runner_before_import() -> None:
 
 _bind_prior_v22_runner_before_import()
 import wepld_s1_shell_integrity_v22 as v22  # noqa: E402
+
+PRIOR_V22_WORKFLOW_SHA256 = dict(v22.EXPECTED_WORKFLOW_SHA256)
 
 v21 = v22.v21
 v20 = v22.v20
@@ -99,6 +107,78 @@ def _verify_policy_files(view: base.RepositoryView) -> None:
     v22._verify_policy_files(view)
 
 
+
+def _sha256(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def _compare_base_controlled_v23(
+    candidate: base.RepositoryView,
+    policy_base: base.RepositoryView,
+) -> None:
+    """Permit only the two exact workflow transitions required by this bootstrap."""
+    for relative in sorted(base.BASE_CONTROLLED_PATHS):
+        candidate_bytes = candidate.read_bytes(relative, base.MAX_POLICY_FILE_BYTES)
+        base_bytes = policy_base.read_bytes(relative, base.MAX_POLICY_FILE_BYTES)
+
+        if relative in BOOTSTRAP_BASE_CONTROLLED_WORKFLOWS:
+            expected_candidate = EXPECTED_WORKFLOW_SHA256[relative]
+            expected_base = PRIOR_V22_WORKFLOW_SHA256[relative]
+            actual_candidate = _sha256(candidate_bytes)
+            actual_base = _sha256(base_bytes)
+            if actual_candidate != expected_candidate:
+                base.fail(
+                    "S1-012 bootstrap workflow candidate drifted: "
+                    f"{relative}: expected={expected_candidate} actual={actual_candidate}"
+                )
+            if actual_base != expected_base:
+                base.fail(
+                    "S1-012 bootstrap trusted-base workflow drifted: "
+                    f"{relative}: expected={expected_base} actual={actual_base}"
+                )
+            continue
+
+        if candidate_bytes != base_bytes:
+            base.fail(f"base-controlled policy/governance path changed: {relative}")
+
+
+def _verify_extension_controlled_paths_v23(
+    candidate: base.RepositoryView,
+    policy_base: base.RepositoryView,
+) -> None:
+    """Permit only this wrapper plus the exact s1-contracts workflow transition."""
+    execution = shell.prior.prior
+    for relative in sorted(execution.EXTENSION_CONTROLLED_PATHS):
+        if relative == POLICY_SCRIPT:
+            if policy_base.tree_identity(relative) is not None:
+                base.fail("S1-012 bootstrap policy wrapper unexpectedly exists in trusted base")
+            if candidate.tree_identity(relative) is None:
+                base.fail("S1-012 bootstrap policy wrapper is missing from candidate")
+            continue
+
+        candidate_bytes = candidate.read_bytes(relative, base.MAX_POLICY_FILE_BYTES)
+        base_bytes = policy_base.read_bytes(relative, base.MAX_POLICY_FILE_BYTES)
+
+        if relative == PLATFORM_WORKFLOW:
+            expected_candidate = EXPECTED_WORKFLOW_SHA256[relative]
+            expected_base = PRIOR_V22_WORKFLOW_SHA256[relative]
+            actual_candidate = _sha256(candidate_bytes)
+            actual_base = _sha256(base_bytes)
+            if actual_candidate != expected_candidate:
+                base.fail(
+                    "S1-012 platform workflow candidate drifted: "
+                    f"expected={expected_candidate} actual={actual_candidate}"
+                )
+            if actual_base != expected_base:
+                base.fail(
+                    "S1-012 platform workflow trusted base drifted: "
+                    f"expected={expected_base} actual={actual_base}"
+                )
+            continue
+
+        if candidate_bytes != base_bytes:
+            base.fail(f"base-controlled S1 execution policy path changed: {relative}")
+
 def _print_success(stage: str, mode: str) -> None:
     if _PRIOR_PRINT_SUCCESS is None:
         base.fail("S1-012 prior success printer is not installed")
@@ -120,6 +200,14 @@ def _install_v23_policy() -> None:
 
     v22._install_v22_policy()
     _PRIOR_PRINT_SUCCESS = shell.print_success
+
+    # The bootstrap candidate may advance only the exact workflow bytes pinned
+    # above. Preserve strict equality for every other base/extension-controlled
+    # path while projecting the trusted base through canonical v22 identities.
+    base.compare_base_controlled = _compare_base_controlled_v23
+    shell.prior.prior.verify_extension_controlled_paths = (
+        _verify_extension_controlled_paths_v23
+    )
 
     for module in (
         v22,
@@ -182,8 +270,7 @@ def _selftest_platform_workflow_binding() -> None:
         b"2\\.11\\.4",
         b"cargo tauri build --ci --bundles nsis",
         b"WINDOWS_RUNTIME_CONTAINMENT_CLAIM=NONE",
-        b"LINUX_RUNTIME_CONTAINMENT_CLAIM=NONE",
-        b"MACOS_RUNTIME_CONTAINMENT_CLAIM=NONE",
+        b"${RUNNER_OS^^}_RUNTIME_CONTAINMENT_CLAIM=NONE",
     )
     missing = [token.decode("utf-8") for token in required if token not in workflow]
     if missing:

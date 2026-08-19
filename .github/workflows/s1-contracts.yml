@@ -2,424 +2,39 @@ name: s1-contracts
 
 on:
   pull_request:
-    branches:
-      - main
+    branches: [main]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
       - "rust-toolchain.toml"
-      - "apps/desktop/src-tauri/Cargo.toml"
-      - "apps/desktop/src-tauri/build.rs"
-      - "apps/desktop/src-tauri/tauri.conf.json"
-      - "apps/desktop/src-tauri/src/**"
-      - "apps/desktop/src-tauri/icons/icon.ico"
-      - "apps/desktop/ui/**"
+      - "apps/desktop/**"
       - "crates/contracts/**"
       - "crates/core/**"
       - "third_party/glib-0.18.5-wepld1/**"
-      - ".github/scripts/wepld_s1_execution_integrity.py"
-      - ".github/scripts/wepld_s1_desktop_integrity.py"
-      - ".github/scripts/wepld_s1_desktop_integrity_impl.py"
-      - ".github/scripts/wepld_s1_shell_integrity.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v2.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v3.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v4.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v5.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v6.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v7.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v8.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v9.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v10.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v11.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v12.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v13.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v14.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v15.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v16.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v17.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v18.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v19.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v20.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v21.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v22.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v23.py"
+      - ".github/scripts/wepld_s1_*.py"
       - ".github/workflows/s1-contracts.yml"
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
       - "rust-toolchain.toml"
-      - "apps/desktop/src-tauri/Cargo.toml"
-      - "apps/desktop/src-tauri/build.rs"
-      - "apps/desktop/src-tauri/tauri.conf.json"
-      - "apps/desktop/src-tauri/src/**"
-      - "apps/desktop/src-tauri/icons/icon.ico"
-      - "apps/desktop/ui/**"
+      - "apps/desktop/**"
       - "crates/contracts/**"
       - "crates/core/**"
       - "third_party/glib-0.18.5-wepld1/**"
-      - ".github/scripts/wepld_s1_execution_integrity.py"
-      - ".github/scripts/wepld_s1_desktop_integrity.py"
-      - ".github/scripts/wepld_s1_desktop_integrity_impl.py"
-      - ".github/scripts/wepld_s1_shell_integrity.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v2.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v3.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v4.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v5.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v6.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v7.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v8.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v9.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v10.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v11.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v12.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v13.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v14.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v15.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v16.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v17.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v18.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v19.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v20.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v21.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v22.py"
-      - ".github/scripts/wepld_s1_shell_integrity_v23.py"
+      - ".github/scripts/wepld_s1_*.py"
       - ".github/workflows/s1-contracts.yml"
 
 permissions: {}
 
 jobs:
-  contracts-linux:
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - name: Checkout exact revision
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: false
-          fetch-depth: 1
-          lfs: false
-          submodules: false
-
-      - name: Verify clean checkout and pinned Rust toolchain
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -z "$(git status --porcelain)"
-          expected="$(python - <<'PY'
-          import tomllib
-          with open("rust-toolchain.toml", "rb") as fh:
-              print(tomllib.load(fh)["toolchain"]["channel"])
-          PY
-          )"
-          rustc --version --verbose
-          cargo --version --verbose
-          actual_rustc="$(rustc --version | awk '{print $2}')"
-          actual_cargo="$(cargo --version | awk '{print $2}')"
-          test "$actual_rustc" = "$expected"
-          test "$actual_cargo" = "$expected"
-
-      - name: Install pinned Tauri Linux build prerequisites
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev \
-            librsvg2-dev \
-            libssl-dev
-          dpkg-query -W \
-            -f='${Package}=${Version}\n' \
-            libgtk-3-dev libwebkit2gtk-4.1-dev librsvg2-dev libssl-dev
-
-      - name: Format contracts and Core
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo fmt --package wepld-contracts -- --check
-          cargo fmt --package wepld-core -- --check
-
-      - name: Clippy contracts and Core
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo clippy --locked --package wepld-contracts --all-targets -- -D warnings -F unsafe-code
-          cargo clippy --locked --package wepld-core --all-targets -- -D warnings -F unsafe-code
-
-      - name: Test Linux protocol and Core suites
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo test --locked --package wepld-contracts --all-targets
-          cargo test --locked --package wepld-core --all-targets
-
-      - name: Compile Linux Desktop host without runtime claim
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo build --locked --package wepld-core
-          host="$(rustc -vV | awk '/^host:/ {print $2}')"
-          test -n "$host"
-          mkdir -p apps/desktop/src-tauri/binaries
-          cp target/debug/wepld-core "apps/desktop/src-tauri/binaries/wepld-core-$host"
-          cargo check --locked --package wepld-desktop --all-targets
-          {
-            echo "LINUX_HOST_TRIPLE=$host"
-            echo "LINUX_COMPILE=PASS"
-            echo "LINUX_PROTOCOL_CONTRACT_TESTS=PASS"
-            echo "LINUX_RUNTIME_CONTAINMENT_CLAIM=NONE"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-  desktop-windows:
-    runs-on: windows-latest
-    timeout-minutes: 55
-    steps:
-      - name: Checkout exact revision
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: false
-          fetch-depth: 1
-          lfs: false
-          submodules: false
-
-      - name: Verify clean checkout and pinned Rust toolchain
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          if ((git status --porcelain).Length -ne 0) { throw "checkout is not clean" }
-          $expected = python -c "import tomllib; print(tomllib.load(open('rust-toolchain.toml','rb'))['toolchain']['channel'])"
-          rustc --version --verbose
-          cargo --version --verbose
-          $actualRustc = (rustc --version).Split()[1]
-          $actualCargo = (cargo --version).Split()[1]
-          if ($actualRustc -ne $expected) { throw "rustc version mismatch: expected=$expected actual=$actualRustc" }
-          if ($actualCargo -ne $expected) { throw "cargo version mismatch: expected=$expected actual=$actualCargo" }
-          $host = ((rustc -vV | Select-String '^host:').Line -split ':', 2)[1].Trim()
-          if ($host -ne "x86_64-pc-windows-msvc") { throw "unexpected Windows host triple: $host" }
-          "WINDOWS_HOST_TRIPLE=$host" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-
-      - name: Stage owned Core for Desktop tests
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          cargo build --locked --package wepld-core
-          $deps = Join-Path $PWD "target\debug\deps"
-          New-Item -ItemType Directory -Force -Path $deps | Out-Null
-          Copy-Item -Force "target\debug\wepld-core.exe" (Join-Path $deps "wepld-core.exe")
-
-      - name: Format and Clippy Windows Desktop host
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          cargo fmt --package wepld-desktop -- --check
-          cargo clippy --locked --package wepld-desktop --all-targets -- -D warnings -F unsafe-code
-
-      - name: Run Windows typed round-trip event cancel and failure suite
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          cargo test --locked --package wepld-desktop --all-targets
-          @(
-            "WINDOWS_TYPED_ROUNDTRIP_EVENT_CANCEL_FAILURE_SUITE=PASS"
-            "WINDOWS_CORE_CRASH_RESTART_TEST=PASS"
-            "WINDOWS_BINARY_MISSING_MISMATCH_TEST=PASS"
-            "WINDOWS_DESKTOP_OWNED_CHILD_CLEANUP_TEST=PASS"
-          ) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-
-      - name: Build release Core and stage exact Tauri externalBin source
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          cargo build --locked --release --package wepld-core
-          $sidecars = Join-Path $PWD "apps\desktop\src-tauri\binaries"
-          New-Item -ItemType Directory -Force -Path $sidecars | Out-Null
-          $sourceSidecar = Join-Path $sidecars "wepld-core-x86_64-pc-windows-msvc.exe"
-          Copy-Item -Force "target\release\wepld-core.exe" $sourceSidecar
-          $coreHash = (Get-FileHash -Algorithm SHA256 "target\release\wepld-core.exe").Hash.ToLowerInvariant()
-          "WEPLD_RELEASE_CORE_SHA256=$coreHash" | Out-File -FilePath $env:GITHUB_ENV -Append
-          "WINDOWS_RELEASE_CORE_SHA256=$coreHash" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-
-      - name: Install exact admitted-source Tauri CLI build tool
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $cliRoot = Join-Path $env:RUNNER_TEMP "wepld-tauri-cli"
-          cargo install --git https://github.com/tauri-apps/tauri `
-            --rev 7cd71369c00978a3783b6ae3e9972358abbe4ae6 `
-            --locked `
-            --root $cliRoot `
-            tauri-cli
-          $cliBin = Join-Path $cliRoot "bin"
-          $env:PATH = "$cliBin;$env:PATH"
-          $version = cargo tauri --version
-          if ($version -notmatch '2\.11\.4') { throw "unexpected Tauri CLI version: $version" }
-          $cliBin | Out-File -FilePath $env:GITHUB_PATH -Append
-          @(
-            "TAURI_SOURCE_COMMIT=7cd71369c00978a3783b6ae3e9972358abbe4ae6"
-            "TAURI_CLI=2.11.4"
-            "TAURI_CLI_ROLE=CI_BUILD_TOOL_ONLY"
-          ) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-
-      - name: Build Windows NSIS package
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          Push-Location "apps\desktop"
-          try {
-            cargo tauri build --ci --bundles nsis
-          } finally {
-            Pop-Location
-          }
-          $installers = @(Get-ChildItem -Path "target\release\bundle\nsis" -Filter "*.exe" -File)
-          if ($installers.Count -ne 1) { throw "expected exactly one NSIS installer, observed=$($installers.Count)" }
-          "WEPLD_NSIS_INSTALLER=$($installers[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
-          "WINDOWS_NSIS_PACKAGE=PASS" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-
-      - name: Install package and prove exact sibling identity
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $installer = $env:WEPLD_NSIS_INSTALLER
-          if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) { throw "NSIS installer missing: $installer" }
-          $install = Start-Process -FilePath $installer -ArgumentList "/S" -Wait -PassThru
-          if ($install.ExitCode -ne 0) { throw "NSIS silent install failed: exit=$($install.ExitCode)" }
-
-          $installDir = Join-Path $env:LOCALAPPDATA "WePLD"
-          $corePath = Join-Path $installDir "wepld-core.exe"
-          if (-not (Test-Path -LiteralPath $corePath -PathType Leaf)) { throw "packaged Core sibling missing: $corePath" }
-
-          $installedCoreHash = (Get-FileHash -Algorithm SHA256 $corePath).Hash.ToLowerInvariant()
-          if ($installedCoreHash -ne $env:WEPLD_RELEASE_CORE_SHA256) {
-            throw "packaged Core identity mismatch: expected=$env:WEPLD_RELEASE_CORE_SHA256 actual=$installedCoreHash"
-          }
-
-          $apps = @(
-            Get-ChildItem -LiteralPath $installDir -Filter "*.exe" -File |
-              Where-Object { $_.Name -notin @("wepld-core.exe", "uninstall.exe") }
-          )
-          if ($apps.Count -ne 1) { throw "expected exactly one installed Desktop executable, observed=$($apps.Count)" }
-          $desktopPath = $apps[0].FullName
-
-          "WEPLD_INSTALL_DIR=$installDir" | Out-File -FilePath $env:GITHUB_ENV -Append
-          "WEPLD_INSTALLED_CORE=$corePath" | Out-File -FilePath $env:GITHUB_ENV -Append
-          "WEPLD_INSTALLED_DESKTOP=$desktopPath" | Out-File -FilePath $env:GITHUB_ENV -Append
-          @(
-            "WINDOWS_PACKAGED_CORE_SIBLING=PASS"
-            "WINDOWS_PACKAGED_CORE_HASH_MATCH=PASS"
-            "WINDOWS_INSTALLED_DESKTOP=$desktopPath"
-            "WINDOWS_INSTALLED_CORE=$corePath"
-          ) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-
-      - name: Launch installed Desktop and observe owned packaged Core
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $desktop = Start-Process -FilePath $env:WEPLD_INSTALLED_DESKTOP -PassThru
-          try {
-            $deadline = (Get-Date).AddSeconds(20)
-            $child = $null
-            do {
-              $child = Get-CimInstance Win32_Process -Filter "ParentProcessId = $($desktop.Id)" |
-                Where-Object {
-                  $_.Name -eq "wepld-core.exe" -and
-                  $_.ExecutablePath -eq $env:WEPLD_INSTALLED_CORE
-                } |
-                Select-Object -First 1
-              if ($null -eq $child) { Start-Sleep -Milliseconds 250 }
-            } while ($null -eq $child -and (Get-Date) -lt $deadline)
-
-            if ($null -eq $child) { throw "installed Desktop did not launch exact packaged Core sibling" }
-            "WINDOWS_PACKAGED_CORE_PARENT_PID=$($desktop.Id)" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-            "WINDOWS_PACKAGED_CORE_PID=$($child.ProcessId)" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-            "WINDOWS_PACKAGED_RUNTIME_LAUNCH=PASS" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-            "WINDOWS_RUNTIME_CONTAINMENT_CLAIM=NONE" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-
-            Start-Sleep -Seconds 2
-            $gracefulRequested = $desktop.CloseMainWindow()
-            if ($gracefulRequested) {
-              if (-not $desktop.WaitForExit(10000)) {
-                throw "Desktop accepted graceful-close request but did not exit within bounded window"
-              }
-              $childStillAlive = Get-Process -Id $child.ProcessId -ErrorAction SilentlyContinue
-              if ($null -ne $childStillAlive) {
-                throw "packaged Core survived verified graceful Desktop exit"
-              }
-              "WINDOWS_DESKTOP_EXIT_CHILD_BEHAVIOR=GRACEFUL_EXIT_CLEANUP_PASS" |
-                Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-            } else {
-              "WINDOWS_DESKTOP_EXIT_CHILD_BEHAVIOR=GRACEFUL_CLOSE_NOT_AVAILABLE_ON_RUNNER" |
-                Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-            }
-          } finally {
-            if (-not $desktop.HasExited) { Stop-Process -Id $desktop.Id -Force -ErrorAction SilentlyContinue }
-            Get-Process -Name "wepld-core" -ErrorAction SilentlyContinue |
-              Stop-Process -Force -ErrorAction SilentlyContinue
-          }
-
-      - name: Exercise packaged missing and identity-mismatch cases
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $corePath = $env:WEPLD_INSTALLED_CORE
-          $backupPath = "$corePath.wepld-qualified"
-          Move-Item -Force $corePath $backupPath
-          try {
-            $missingDesktop = Start-Process -FilePath $env:WEPLD_INSTALLED_DESKTOP -PassThru
-            try {
-              Start-Sleep -Seconds 3
-              if ($missingDesktop.HasExited) { throw "Desktop exited instead of remaining fail-closed with missing Core" }
-              $child = Get-CimInstance Win32_Process -Filter "ParentProcessId = $($missingDesktop.Id)" |
-                Where-Object { $_.Name -eq "wepld-core.exe" }
-              if ($null -ne $child) { throw "missing packaged Core case unexpectedly produced a Core child" }
-            } finally {
-              if (-not $missingDesktop.HasExited) { Stop-Process -Id $missingDesktop.Id -Force -ErrorAction SilentlyContinue }
-            }
-            "WINDOWS_PACKAGED_PATH_MISSING_CASE=FAIL_CLOSED_PASS" |
-              Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-
-            Copy-Item -Force "$env:WINDIR\System32\where.exe" $corePath
-            $mismatchHash = (Get-FileHash -Algorithm SHA256 $corePath).Hash.ToLowerInvariant()
-            if ($mismatchHash -eq $env:WEPLD_RELEASE_CORE_SHA256) { throw "mismatch fixture unexpectedly matches qualified Core hash" }
-
-            $mismatchDesktop = Start-Process -FilePath $env:WEPLD_INSTALLED_DESKTOP -PassThru
-            try {
-              Start-Sleep -Seconds 3
-              if ($mismatchDesktop.HasExited) { throw "Desktop exited instead of remaining fail-closed with mismatched Core" }
-              $liveMismatch = Get-CimInstance Win32_Process -Filter "ParentProcessId = $($mismatchDesktop.Id)" |
-                Where-Object { $_.Name -eq "wepld-core.exe" }
-              if ($null -ne $liveMismatch) { throw "mismatched packaged Core remained live as if qualified" }
-            } finally {
-              if (-not $mismatchDesktop.HasExited) { Stop-Process -Id $mismatchDesktop.Id -Force -ErrorAction SilentlyContinue }
-              Get-Process -Name "wepld-core" -ErrorAction SilentlyContinue |
-                Stop-Process -Force -ErrorAction SilentlyContinue
-            }
-            "WINDOWS_PACKAGED_IDENTITY_MISMATCH_CASE=FAIL_CLOSED_PASS" |
-              Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
-          } finally {
-            Remove-Item -Force $corePath -ErrorAction SilentlyContinue
-            Move-Item -Force $backupPath $corePath
-          }
-
-      - name: Cleanup installed package
-        if: always()
-        shell: pwsh
-        run: |
-          Get-Process -Name "wepld-desktop","wepld-core" -ErrorAction SilentlyContinue |
-            Stop-Process -Force -ErrorAction SilentlyContinue
-          if ($env:WEPLD_INSTALL_DIR -and (Test-Path -LiteralPath $env:WEPLD_INSTALL_DIR)) {
-            $uninstaller = Join-Path $env:WEPLD_INSTALL_DIR "uninstall.exe"
-            if (Test-Path -LiteralPath $uninstaller -PathType Leaf) {
-              Start-Process -FilePath $uninstaller -ArgumentList "/S" -Wait | Out-Null
-            }
-          }
-
-  secondary-macos:
-    runs-on: macos-latest
+  secondary-platform:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
       - name: Checkout exact revision
@@ -436,39 +51,211 @@ jobs:
         run: |
           set -euo pipefail
           test -z "$(git status --porcelain)"
-          expected="$(python - <<'PY'
-          import tomllib
-          with open("rust-toolchain.toml", "rb") as fh:
-              print(tomllib.load(fh)["toolchain"]["channel"])
-          PY
-          )"
+          expected="$(python -c 'import tomllib; print(tomllib.load(open("rust-toolchain.toml","rb"))["toolchain"]["channel"])')"
           rustc --version --verbose
           cargo --version --verbose
-          actual_rustc="$(rustc --version | awk '{print $2}')"
-          actual_cargo="$(cargo --version | awk '{print $2}')"
-          test "$actual_rustc" = "$expected"
-          test "$actual_cargo" = "$expected"
+          test "$(rustc --version | awk '{print $2}')" = "$expected"
+          test "$(cargo --version | awk '{print $2}')" = "$expected"
 
-      - name: Test macOS protocol and Core suites
+      - name: Install Linux Desktop build prerequisites
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libgtk-3-dev libwebkit2gtk-4.1-dev librsvg2-dev libssl-dev
+          dpkg-query -W -f='${Package}=${Version}\n' libgtk-3-dev libwebkit2gtk-4.1-dev librsvg2-dev libssl-dev
+
+      - name: Format and Clippy contracts/Core on Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt --package wepld-contracts -- --check
+          cargo fmt --package wepld-core -- --check
+          cargo clippy --locked --package wepld-contracts --all-targets -- -D warnings -F unsafe-code
+          cargo clippy --locked --package wepld-core --all-targets -- -D warnings -F unsafe-code
+
+      - name: Test protocol and Core suites
         shell: bash
         run: |
           set -euo pipefail
           cargo test --locked --package wepld-contracts --all-targets
           cargo test --locked --package wepld-core --all-targets
 
-      - name: Compile macOS Desktop host without runtime claim
+      - name: Compile Desktop host without runtime claim
         shell: bash
         run: |
           set -euo pipefail
           cargo build --locked --package wepld-core
           host="$(rustc -vV | awk '/^host:/ {print $2}')"
           test -n "$host"
-          mkdir -p apps/desktop/src-tauri/binaries
+          mkdir -p apps/desktop/src-tauri/binaries apps/desktop/src-tauri/icons
           cp target/debug/wepld-core "apps/desktop/src-tauri/binaries/wepld-core-$host"
+          python - <<'PY'
+          from pathlib import Path
+          import struct, zlib
+          w = h = 32
+          raw = b"".join(b"\0" + bytes((57,89,77,255))*w for _ in range(h))
+          def chunk(k, p):
+              b = k + p
+              return struct.pack(">I", len(p)) + b + struct.pack(">I", zlib.crc32(b) & 0xffffffff)
+          png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w,h,8,6,0,0,0)) + chunk(b"IDAT", zlib.compress(raw,9)) + chunk(b"IEND", b"")
+          Path("apps/desktop/src-tauri/icons/icon.png").write_bytes(png)
+          PY
           cargo check --locked --package wepld-desktop --all-targets
           {
-            echo "MACOS_HOST_TRIPLE=$host"
-            echo "MACOS_COMPILE=PASS"
-            echo "MACOS_PROTOCOL_CONTRACT_TESTS=PASS"
-            echo "MACOS_RUNTIME_CONTAINMENT_CLAIM=NONE"
+            echo "${RUNNER_OS^^}_HOST_TRIPLE=$host"
+            echo "${RUNNER_OS^^}_COMPILE=PASS"
+            echo "${RUNNER_OS^^}_PROTOCOL_CONTRACT_TESTS=PASS"
+            echo "${RUNNER_OS^^}_RUNTIME_CONTAINMENT_CLAIM=NONE"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  desktop-windows:
+    runs-on: windows-latest
+    timeout-minutes: 55
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          lfs: false
+          submodules: false
+
+      - name: Verify clean checkout and pinned x86_64 MSVC toolchain
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ((git status --porcelain).Length -ne 0) { throw 'checkout is not clean' }
+          $expected = python -c "import tomllib; print(tomllib.load(open('rust-toolchain.toml','rb'))['toolchain']['channel'])"
+          rustc --version --verbose
+          cargo --version --verbose
+          if ((rustc --version).Split()[1] -ne $expected) { throw 'rustc version mismatch' }
+          if ((cargo --version).Split()[1] -ne $expected) { throw 'cargo version mismatch' }
+          $hostTriple = ((rustc -vV | Select-String '^host:').Line -split ':',2)[1].Trim()
+          if ($hostTriple -ne 'x86_64-pc-windows-msvc') { throw "unexpected Windows host triple: $hostTriple" }
+          "WINDOWS_HOST_TRIPLE=$hostTriple" | Out-File $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Run Windows Desktop adversarial qualification suite
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          cargo build --locked --package wepld-core
+          New-Item -ItemType Directory -Force target\debug\deps | Out-Null
+          Copy-Item -Force target\debug\wepld-core.exe target\debug\deps\wepld-core.exe
+          cargo fmt --package wepld-desktop -- --check
+          cargo clippy --locked --package wepld-desktop --all-targets -- -D warnings -F unsafe-code
+          cargo test --locked --package wepld-desktop --all-targets
+          @(
+            'WINDOWS_TYPED_ROUNDTRIP_EVENT_CANCEL_FAILURE_SUITE=PASS'
+            'WINDOWS_CORE_CRASH_RESTART_TEST=PASS'
+            'WINDOWS_BINARY_MISSING_MISMATCH_TEST=PASS'
+            'WINDOWS_DESKTOP_OWNED_CHILD_CLEANUP_TEST=PASS'
+          ) | Out-File $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Stage release Core and technical icon fixture
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          cargo build --locked --release --package wepld-core
+          New-Item -ItemType Directory -Force apps\desktop\src-tauri\binaries,apps\desktop\src-tauri\icons | Out-Null
+          Copy-Item -Force target\release\wepld-core.exe apps\desktop\src-tauri\binaries\wepld-core-x86_64-pc-windows-msvc.exe
+          python -c "from pathlib import Path; import struct,zlib; w=h=32; raw=b''.join(b'\\0'+bytes((57,89,77,255))*w for _ in range(h)); c=lambda k,p: struct.pack('>I',len(p))+k+p+struct.pack('>I',zlib.crc32(k+p)&0xffffffff); Path('apps/desktop/src-tauri/icons/icon.png').write_bytes(b'\\x89PNG\\r\\n\\x1a\\n'+c(b'IHDR',struct.pack('>IIBBBBB',w,h,8,6,0,0,0))+c(b'IDAT',zlib.compress(raw,9))+c(b'IEND',b''))"
+          $hash = (Get-FileHash target\release\wepld-core.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          "WEPLD_RELEASE_CORE_SHA256=$hash" | Out-File $env:GITHUB_ENV -Append
+          "WINDOWS_RELEASE_CORE_SHA256=$hash" | Out-File $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Install exact admitted-source Tauri CLI build tool
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:RUNNER_TEMP 'wepld-tauri-cli'
+          cargo install --git https://github.com/tauri-apps/tauri --rev 7cd71369c00978a3783b6ae3e9972358abbe4ae6 --locked --root $root tauri-cli
+          $bin = Join-Path $root 'bin'
+          $env:PATH = "$bin;$env:PATH"
+          if ((cargo tauri --version) -notmatch '2\.11\.4') { throw 'unexpected Tauri CLI version' }
+          $bin | Out-File $env:GITHUB_PATH -Append
+          @(
+            'TAURI_SOURCE_COMMIT=7cd71369c00978a3783b6ae3e9972358abbe4ae6'
+            'TAURI_CLI=2.11.4'
+            'TAURI_CLI_ROLE=CI_BUILD_TOOL_ONLY'
+          ) | Out-File $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Build and install Windows NSIS package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Push-Location apps\desktop
+          try { cargo tauri build --ci --bundles nsis } finally { Pop-Location }
+          $installer = @(Get-ChildItem target\release\bundle\nsis\*.exe)
+          if ($installer.Count -ne 1) { throw "expected one NSIS installer, observed=$($installer.Count)" }
+          $p = Start-Process $installer[0].FullName -ArgumentList '/S' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "NSIS install failed: $($p.ExitCode)" }
+          $dir = Join-Path $env:LOCALAPPDATA 'WePLD'
+          $core = Join-Path $dir 'wepld-core.exe'
+          if (-not (Test-Path $core -PathType Leaf)) { throw "packaged Core missing: $core" }
+          $hash = (Get-FileHash $core -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne $env:WEPLD_RELEASE_CORE_SHA256) { throw 'packaged Core hash mismatch' }
+          $desktop = @(Get-ChildItem $dir\*.exe | Where-Object { $_.Name -notin @('wepld-core.exe','uninstall.exe') })
+          if ($desktop.Count -ne 1) { throw "expected one Desktop executable, observed=$($desktop.Count)" }
+          "WEPLD_INSTALL_DIR=$dir" | Out-File $env:GITHUB_ENV -Append
+          "WEPLD_INSTALLED_CORE=$core" | Out-File $env:GITHUB_ENV -Append
+          "WEPLD_INSTALLED_DESKTOP=$($desktop[0].FullName)" | Out-File $env:GITHUB_ENV -Append
+          @('WINDOWS_NSIS_PACKAGE=PASS','WINDOWS_PACKAGED_CORE_SIBLING=PASS','WINDOWS_PACKAGED_CORE_HASH_MATCH=PASS') | Out-File $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Prove packaged launch and mismatch behavior
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          function Stop-WePLD($p) {
+            if ($null -ne $p -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+            Get-Process -Name 'wepld-core' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          }
+          $desktop = Start-Process $env:WEPLD_INSTALLED_DESKTOP -PassThru
+          try {
+            $deadline = (Get-Date).AddSeconds(20); $child = $null
+            do {
+              $child = Get-CimInstance Win32_Process -Filter "ParentProcessId = $($desktop.Id)" | Where-Object { $_.Name -eq 'wepld-core.exe' -and $_.ExecutablePath -eq $env:WEPLD_INSTALLED_CORE } | Select-Object -First 1
+              if ($null -eq $child) { Start-Sleep -Milliseconds 250 }
+            } while ($null -eq $child -and (Get-Date) -lt $deadline)
+            if ($null -eq $child) { throw 'Desktop did not launch exact packaged Core sibling' }
+            @('WINDOWS_PACKAGED_RUNTIME_LAUNCH=PASS','WINDOWS_RUNTIME_CONTAINMENT_CLAIM=NONE') | Out-File $env:GITHUB_STEP_SUMMARY -Append
+            if ($desktop.CloseMainWindow() -and $desktop.WaitForExit(10000)) {
+              if (Get-Process -Id $child.ProcessId -ErrorAction SilentlyContinue) { throw 'Core survived graceful Desktop exit' }
+              'WINDOWS_DESKTOP_EXIT_CHILD_BEHAVIOR=GRACEFUL_EXIT_CLEANUP_PASS' | Out-File $env:GITHUB_STEP_SUMMARY -Append
+            } else {
+              'WINDOWS_DESKTOP_EXIT_CHILD_BEHAVIOR=GRACEFUL_CLOSE_NOT_AVAILABLE_ON_RUNNER' | Out-File $env:GITHUB_STEP_SUMMARY -Append
+            }
+          } finally { Stop-WePLD $desktop }
+
+          $core = $env:WEPLD_INSTALLED_CORE; $backup = "$core.qualified"; Move-Item $core $backup -Force
+          try {
+            $missing = Start-Process $env:WEPLD_INSTALLED_DESKTOP -PassThru; Start-Sleep 3
+            if ($missing.HasExited) { throw 'Desktop exited in missing-Core case' }
+            if (Get-CimInstance Win32_Process -Filter "ParentProcessId = $($missing.Id)" | Where-Object Name -eq 'wepld-core.exe') { throw 'missing-Core case produced Core child' }
+            Stop-WePLD $missing
+            'WINDOWS_PACKAGED_PATH_MISSING_CASE=FAIL_CLOSED_PASS' | Out-File $env:GITHUB_STEP_SUMMARY -Append
+
+            Copy-Item "$env:WINDIR\System32\where.exe" $core -Force
+            $bad = Start-Process $env:WEPLD_INSTALLED_DESKTOP -PassThru; Start-Sleep 3
+            if ($bad.HasExited) { throw 'Desktop exited in mismatched-Core case' }
+            if (Get-CimInstance Win32_Process -Filter "ParentProcessId = $($bad.Id)" | Where-Object Name -eq 'wepld-core.exe') { throw 'mismatched Core remained live' }
+            Stop-WePLD $bad
+            'WINDOWS_PACKAGED_IDENTITY_MISMATCH_CASE=FAIL_CLOSED_PASS' | Out-File $env:GITHUB_STEP_SUMMARY -Append
+          } finally {
+            Stop-WePLD $null
+            Remove-Item $core -Force -ErrorAction SilentlyContinue
+            Move-Item $backup $core -Force
+          }
+
+      - name: Cleanup installed package
+        if: always()
+        shell: pwsh
+        run: |
+          Get-Process -Name 'wepld-desktop','wepld-core' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          if ($env:WEPLD_INSTALL_DIR) {
+            $u = Join-Path $env:WEPLD_INSTALL_DIR 'uninstall.exe'
+            if (Test-Path $u) { Start-Process $u -ArgumentList '/S' -Wait | Out-Null }
+          }

@@ -44,6 +44,14 @@ BOOTSTRAP_BASE_CONTROLLED_WORKFLOWS = frozenset(
 )
 S1_012_QUALIFICATION_AUTHORIZED = "YES"
 S1_013_PLUS = "NOT_STARTED"
+BOOTSTRAP_DELTA_PATHS = frozenset(
+    {
+        POLICY_SCRIPT,
+        ".github/workflows/foundation-integrity.yml",
+        ".github/workflows/s1-admission-integrity.yml",
+        PLATFORM_WORKFLOW,
+    }
+)
 
 _INSTALLED = False
 _PRIOR_PRINT_SUCCESS = None
@@ -94,6 +102,7 @@ v4 = v22.v4
 v3 = v22.v3
 v2 = v22.v2
 shell = v22.shell
+PRIOR_V19_REQUIRE_EXACT_DELTA = v19._require_exact_delta
 
 
 def _verify_policy_files(view: base.RepositoryView) -> None:
@@ -107,9 +116,36 @@ def _verify_policy_files(view: base.RepositoryView) -> None:
     v22._verify_policy_files(view)
 
 
-
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def _changed_paths(
+    candidate: base.RepositoryView,
+    policy_base: base.RepositoryView,
+) -> set[str]:
+    candidate_entries = {entry.path: entry.mode for entry in candidate.entries()}
+    base_entries = {entry.path: entry.mode for entry in policy_base.entries()}
+
+    changed: set[str] = set(candidate_entries) ^ set(base_entries)
+    for relative in set(candidate_entries) & set(base_entries):
+        if candidate_entries[relative] != base_entries[relative]:
+            changed.add(relative)
+            continue
+        if candidate.tree_identity(relative) != policy_base.tree_identity(relative):
+            changed.add(relative)
+    return changed
+
+
+def _require_exact_delta_v23(
+    candidate: base.RepositoryView,
+    policy_base: base.RepositoryView,
+) -> None:
+    """Admit only the exact four-path policy bootstrap or prior S1-011 delta."""
+    changed = _changed_paths(candidate, policy_base)
+    if changed == set(BOOTSTRAP_DELTA_PATHS):
+        return
+    PRIOR_V19_REQUIRE_EXACT_DELTA(candidate, policy_base)
 
 
 def _compare_base_controlled_v23(
@@ -201,6 +237,7 @@ def _verify_desktop_extension_controlled_paths_v23(
         shell.prior.EXTENSION_CONTROLLED_PATHS,
     )
 
+
 def _print_success(stage: str, mode: str) -> None:
     if _PRIOR_PRINT_SUCCESS is None:
         base.fail("S1-012 prior success printer is not installed")
@@ -227,6 +264,7 @@ def _install_v23_policy() -> None:
     # above. Preserve strict equality for every other base/extension-controlled
     # path while projecting the trusted base through canonical v22 identities.
     base.compare_base_controlled = _compare_base_controlled_v23
+    v19._require_exact_delta = _require_exact_delta_v23
     shell.prior.verify_extension_controlled_paths = (
         _verify_desktop_extension_controlled_paths_v23
     )

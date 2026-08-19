@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
-"""Require trusted-base templates for local S1-011 candidate qualification.
+"""Repair S1-011 trusted-base qualification without widening product scope.
 
 Canonical v19 freezes the reviewed S1-011 Rust templates and correctly uses the
-trusted PR base in the privileged verify-remote path. Its local candidate
-self-check, however, calls verify_view without a policy_base and therefore falls
-back to candidate-view template bytes.
+trusted PR base in the privileged verify-remote path. Two qualification edges
+need tightening before an S1-011 candidate can be accepted:
 
-v20 preserves all v1-v19 behavior and changes only that qualification edge:
-when the local checked-out tree contains an S1-011 candidate, the verifier must
-load the exact comparison SHA from canonical GitHub as the trusted policy base
-before S1-011 can be authorized. Policy/bootstrap candidates without S1-011
-markers retain the existing candidate self-check semantics.
+1. local candidate self-checks must not treat candidate-view template bytes as
+   the trusted S1-011 policy source; and
+2. RemoteRepositoryView.tree_identity() must expose blob identities as well as
+   subtree identities so v19's exact trusted-base three-path delta compares the
+   same Git object identity on remote candidates and local policy bases.
 
-No product/runtime/dependency/UI bytes or S1-012+ authority are added.
+v20 preserves all v1-v19 behavior and repairs only those admission mechanics.
+Policy/bootstrap candidates without S1-011 markers retain the existing local
+self-check semantics. No product/runtime/dependency/UI bytes or S1-012+ authority
+are added.
 """
 
 from __future__ import annotations
@@ -90,6 +92,35 @@ def _verify_policy_files(view: base.RepositoryView) -> None:
     v19._verify_policy_files(view)
 
 
+def _remote_tree_identity(
+    view: base.RemoteRepositoryView,
+    relative: str,
+) -> str | None:
+    """Return the Git object identity for either a remote blob or subtree.
+
+    LocalRepositoryView uses `git rev-parse HEAD:<path>`, which returns a blob
+    SHA for files and a tree SHA for directories. Canonical RemoteRepositoryView
+    stored both identities while loading the recursive tree, but its
+    tree_identity() accessor exposed only `_trees`. v19's exact-delta comparison
+    therefore saw every common candidate file as changed when the candidate was
+    remote and the trusted base was local. Expose the already-validated blob SHA
+    first, then the subtree SHA, preserving `None` for an absent path.
+    """
+    blob = view._blobs.get(relative)
+    if blob is not None:
+        blob_sha, _declared_size = blob
+        if not base.OBJECT_SHA_RE.fullmatch(blob_sha):
+            base.fail(f"candidate blob SHA is malformed: {relative}")
+        return blob_sha.lower()
+
+    tree_sha = view._trees.get(relative)
+    if tree_sha is not None:
+        if not base.OBJECT_SHA_RE.fullmatch(tree_sha):
+            base.fail(f"candidate subtree SHA is malformed: {relative}")
+        return tree_sha.lower()
+    return None
+
+
 def _is_s1_011_candidate(view: base.RepositoryView) -> bool:
     paths = base.validate_entries(view.entries())
     return v19._has_s1_011_markers(view, paths)
@@ -114,6 +145,10 @@ def _install_v20_policy() -> None:
         return
 
     v19._install_v19_policy()
+
+    # Repair the generic remote object-identity accessor before either the
+    # local trusted-base path or privileged verify-remote path compares deltas.
+    base.RemoteRepositoryView.tree_identity = _remote_tree_identity
 
     for module in (
         v19,
@@ -151,9 +186,31 @@ def _install_v20_policy() -> None:
     _INSTALLED = True
 
 
+def _selftest_remote_blob_identity() -> None:
+    remote = object.__new__(base.RemoteRepositoryView)
+    remote._blobs = {"file.txt": ("a" * 40, 7)}
+    remote._trees = {"dir": "b" * 40}
+
+    if remote.tree_identity("file.txt") != "a" * 40:
+        base.fail("remote blob identity accessor self-test failed")
+    if remote.tree_identity("dir") != "b" * 40:
+        base.fail("remote subtree identity accessor self-test failed")
+    if remote.tree_identity("missing") is not None:
+        base.fail("remote absent-path identity accessor self-test failed")
+
+    remote._blobs["bad.txt"] = ("not-a-sha", 1)
+    base.expect_failure_matching(
+        "malformed remote blob identity accessor",
+        "candidate blob SHA is malformed",
+        remote.tree_identity,
+        "bad.txt",
+    )
+
+
 def selftest() -> None:
     v19.selftest()
     _install_v20_policy()
+    _selftest_remote_blob_identity()
 
     marker_fixture = base.MemoryView(
         {
@@ -172,7 +229,7 @@ def selftest() -> None:
         marker_fixture,
     )
 
-    print("wepld S1-011 trusted-base local qualification policy self-tests: PASS")
+    print("wepld S1-011 trusted-base qualification policy self-tests: PASS")
 
 
 def _verify_local(argv: list[str]) -> int:

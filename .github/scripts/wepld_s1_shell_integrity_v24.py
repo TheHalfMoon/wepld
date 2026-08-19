@@ -421,7 +421,7 @@ def _selftest_ledger_transition() -> None:
         post_candidate[LEDGER_PATH] = b"later-ledger-drift"
         base.expect_failure_matching(
             "v24 ledger refreezes after reconciliation",
-            "S1-011 trusted-base delta must be exactly",
+            "ledger reconciliation trusted base drifted",
             _require_exact_delta_v24,
             base.MemoryView(post_candidate, trees={LEDGER_PATH: "3" * 40}),
             base.MemoryView(post_base, trees=reconciled_trees),

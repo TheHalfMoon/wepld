@@ -208,10 +208,60 @@ def _selftest_remote_blob_identity() -> None:
     )
 
 
+def _selftest_exact_delta_remote_blob_identities() -> None:
+    """Exercise the exact v19 delta gate that failed on PR #33 admission #147."""
+    unchanged_path = "docs/unchanged.txt"
+    unchanged_sha = "1" * 40
+    changed_core_sha = "2" * 40
+    core_test_sha = "3" * 40
+    desktop_test_sha = "4" * 40
+
+    trusted = base.MemoryView(
+        {
+            unchanged_path: b"same\n",
+            v19.CORE_CLIENT_PATH: b"canonical core client\n",
+        },
+        trees={
+            unchanged_path: unchanged_sha,
+            v19.CORE_CLIENT_PATH: v19.EXPECTED_CANONICAL_CORE_CLIENT_GIT_BLOB_SHA1,
+        },
+    )
+
+    candidate = object.__new__(base.RemoteRepositoryView)
+    candidate._entries = [
+        base.TrackedEntry(mode="100644", path=unchanged_path),
+        base.TrackedEntry(mode="100644", path=v19.CORE_CLIENT_PATH),
+        base.TrackedEntry(mode="100644", path=v19.CORE_ADVERSARIAL_TEST_PATH),
+        base.TrackedEntry(mode="100644", path=v19.DESKTOP_ADVERSARIAL_TEST_PATH),
+    ]
+    candidate._blobs = {
+        unchanged_path: (unchanged_sha, 5),
+        v19.CORE_CLIENT_PATH: (changed_core_sha, 1),
+        v19.CORE_ADVERSARIAL_TEST_PATH: (core_test_sha, 1),
+        v19.DESKTOP_ADVERSARIAL_TEST_PATH: (desktop_test_sha, 1),
+    }
+    candidate._trees = {}
+
+    # Like-for-like blob identities must leave only the frozen three-path S1-011
+    # surface changed.
+    v19._require_exact_delta(candidate, trusted)
+
+    # An unrelated fourth file change must still fail closed.
+    candidate._blobs[unchanged_path] = ("5" * 40, 5)
+    base.expect_failure_matching(
+        "unrelated remote blob change outside frozen S1-011 delta",
+        "unexpected=" + unchanged_path,
+        v19._require_exact_delta,
+        candidate,
+        trusted,
+    )
+
+
 def selftest() -> None:
     v19.selftest()
     _install_v20_policy()
     _selftest_remote_blob_identity()
+    _selftest_exact_delta_remote_blob_identities()
 
     if base.REPOSITORY != CANONICAL_REPOSITORY:
         base.fail(

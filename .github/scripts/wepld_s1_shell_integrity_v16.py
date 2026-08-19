@@ -21,7 +21,7 @@ import wepld_integrity as base
 
 POLICY_SCRIPT = ".github/scripts/wepld_s1_shell_integrity_v16.py"
 PRIOR_V15_RUNNER_PATH = ".github/scripts/wepld_s1_shell_integrity_v15.py"
-EXPECTED_PRIOR_V15_RUNNER_GIT_BLOB_SHA1 = "6c517db7ce1a306fc746a853acba1f0e89c820b3"
+EXPECTED_PRIOR_V15_RUNNER_GIT_BLOB_SHA1 = "e13b0c420550d6ffd58961d879253c1cfbf9dd49"
 
 EXPECTED_WORKFLOW_SHA256 = {
     ".github/workflows/foundation-integrity.yml": "c54de02a879acd44e3aac59a0d4e7c97dcca2cb1347f90a3115187ebd2afca67",

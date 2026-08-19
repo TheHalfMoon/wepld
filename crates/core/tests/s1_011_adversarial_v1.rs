@@ -179,10 +179,7 @@ fn zero_oversized_truncated_malformed_and_invalid_utf8_frames_fail_closed() {
 
     {
         let mut child = spawn_core();
-        send_wire(
-            &mut child,
-            &((MAX_PAYLOAD_BYTES as u32) + 1).to_be_bytes(),
-        );
+        send_wire(&mut child, &((MAX_PAYLOAD_BYTES as u32) + 1).to_be_bytes());
         assert!(!wait_for_exit(&mut child));
     }
 
@@ -332,10 +329,7 @@ fn health_watch_budget_exhaustion_is_fail_closed() {
         ));
     }
 
-    send(
-        &mut child,
-        &observe_request(MAX_HEALTH_WATCHES as u64 + 1),
-    );
+    send(&mut child, &observe_request(MAX_HEALTH_WATCHES as u64 + 1));
     assert!(!wait_for_exit(&mut child));
 }
 

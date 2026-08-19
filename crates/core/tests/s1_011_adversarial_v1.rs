@@ -338,7 +338,7 @@ fn in_flight_budget_exhaustion_remains_bounded_before_dispatch() {
     let mut state = HandshakeState::new(LAUNCH_ID, canonical_profile(), HealthStatus::Healthy);
 
     for request_id in 1..=(MAX_IN_FLIGHT_REQUESTS as u64) {
-        state
+        let _ = state
             .accept_request(match health_request(request_id) {
                 ProtocolEnvelope::Request(request) => request,
                 _ => unreachable!("health helper always returns a request"),

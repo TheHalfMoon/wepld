@@ -9,16 +9,14 @@ This wrapper changes no product/runtime/dependency/UI bytes. It binds the exact 
 runner before import, advances only the three already-controlled workflow byte
 identities, and permits the existing token-minimal `s1-contracts` workflow to produce
 S1-012 qualification evidence. The workflow uses the already-admitted Tauri source
-commit only as a pinned CI build-tool source, does not add a runtime dependency, and
-must not turn secondary-platform compile evidence into containment/process-ownership
-claims. S1-013+ remains unauthorized.
+commit only as a pinned CI build-tool source and does not add a runtime dependency.
 
-Bootstrap note: the candidate-head foundation path is an unprivileged self-check, not
-acceptance authority. A new wrapper cannot recursively pin its own bytes from within
-itself. The v22->v23 transition is therefore bound by the exact four-path bootstrap
-surface plus external exact-head qualification/review. Once v23 is canonical, its
-steady-state path requires the wrapper and all controlled workflows to remain
-byte-identical to the trusted v23 base.
+Bootstrap authority note: candidate-head `foundation-integrity` is an unprivileged
+self-check. A new wrapper cannot recursively embed an immutable digest of its own final
+bytes. The v22->v23 transition is therefore bounded by the exact four-path bootstrap
+surface plus exact-head deterministic/review evidence. Once v23 is canonical, ordinary
+candidates must keep the v23 wrapper and controlled workflows byte-identical to the
+trusted v23 base. S1-013+ remains unauthorized.
 """
 
 from __future__ import annotations
@@ -49,8 +47,6 @@ BOOTSTRAP_BASE_CONTROLLED_WORKFLOWS = frozenset(
         ".github/workflows/s1-admission-integrity.yml",
     }
 )
-S1_012_QUALIFICATION_AUTHORIZED = "YES"
-S1_013_PLUS = "NOT_STARTED"
 BOOTSTRAP_DELTA_PATHS = frozenset(
     {
         POLICY_SCRIPT,
@@ -59,6 +55,8 @@ BOOTSTRAP_DELTA_PATHS = frozenset(
         PLATFORM_WORKFLOW,
     }
 )
+S1_012_QUALIFICATION_AUTHORIZED = "YES"
+S1_013_PLUS = "NOT_STARTED"
 
 _INSTALLED = False
 _PRIOR_PRINT_SUCCESS = None
@@ -87,27 +85,7 @@ _bind_prior_v22_runner_before_import()
 import wepld_s1_shell_integrity_v22 as v22  # noqa: E402
 
 PRIOR_V22_WORKFLOW_SHA256 = dict(v22.EXPECTED_WORKFLOW_SHA256)
-
-v21 = v22.v21
-v20 = v22.v20
 v19 = v22.v19
-v18 = v22.v18
-v17 = v22.v17
-v16 = v22.v16
-v15 = v22.v15
-v14 = v22.v14
-v13 = v22.v13
-v12 = v22.v12
-v11 = v22.v11
-v10 = v22.v10
-v9 = v22.v9
-v8 = v22.v8
-v7 = v22.v7
-v6 = v22.v6
-v5 = v22.v5
-v4 = v22.v4
-v3 = v22.v3
-v2 = v22.v2
 shell = v22.shell
 PRIOR_V19_REQUIRE_EXACT_DELTA = v19._require_exact_delta
 
@@ -127,36 +105,40 @@ def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def _paths(view: base.RepositoryView) -> set[str]:
+    return {entry.path for entry in view.entries()}
+
+
+def _is_bootstrap_base(policy_base: base.RepositoryView) -> bool:
+    """Presence, not object identity, distinguishes pre-v23 from v23 trusted base."""
+    return POLICY_SCRIPT not in _paths(policy_base)
+
+
 def _changed_paths(
     candidate: base.RepositoryView,
     policy_base: base.RepositoryView,
 ) -> set[str]:
     candidate_entries = {entry.path: entry.mode for entry in candidate.entries()}
     base_entries = {entry.path: entry.mode for entry in policy_base.entries()}
-
     changed: set[str] = set(candidate_entries) ^ set(base_entries)
     for relative in set(candidate_entries) & set(base_entries):
         if candidate_entries[relative] != base_entries[relative]:
             changed.add(relative)
             continue
         if candidate.tree_identity(relative) != policy_base.tree_identity(relative):
-            changed.add(relative)
+            if candidate.read_bytes(relative, base.MAX_POLICY_FILE_BYTES) != policy_base.read_bytes(
+                relative, base.MAX_POLICY_FILE_BYTES
+            ):
+                changed.add(relative)
     return changed
-
-
-def _is_bootstrap_base(policy_base: base.RepositoryView) -> bool:
-    """True only while the trusted base is pre-v23."""
-    return policy_base.tree_identity(POLICY_SCRIPT) is None
 
 
 def _require_exact_delta_v23(
     candidate: base.RepositoryView,
     policy_base: base.RepositoryView,
 ) -> None:
-    """Admit the exact four-path bootstrap only from pre-v23; otherwise delegate."""
     if _is_bootstrap_base(policy_base):
-        changed = _changed_paths(candidate, policy_base)
-        if changed == set(BOOTSTRAP_DELTA_PATHS):
+        if _changed_paths(candidate, policy_base) == set(BOOTSTRAP_DELTA_PATHS):
             return
     PRIOR_V19_REQUIRE_EXACT_DELTA(candidate, policy_base)
 
@@ -165,41 +147,34 @@ def _compare_base_controlled_v23(
     candidate: base.RepositoryView,
     policy_base: base.RepositoryView,
 ) -> None:
-    """Permit exact v22->v23 workflow transitions, then require v23 steady-state equality."""
     bootstrap = _is_bootstrap_base(policy_base)
-
     for relative in sorted(base.BASE_CONTROLLED_PATHS):
         candidate_bytes = candidate.read_bytes(relative, base.MAX_POLICY_FILE_BYTES)
         base_bytes = policy_base.read_bytes(relative, base.MAX_POLICY_FILE_BYTES)
 
         if relative in BOOTSTRAP_BASE_CONTROLLED_WORKFLOWS:
-            expected_candidate = EXPECTED_WORKFLOW_SHA256[relative]
+            expected = EXPECTED_WORKFLOW_SHA256[relative]
             actual_candidate = _sha256(candidate_bytes)
-            if actual_candidate != expected_candidate:
+            if actual_candidate != expected:
                 base.fail(
                     "S1-012 workflow candidate drifted: "
-                    f"{relative}: expected={expected_candidate} actual={actual_candidate}"
+                    f"{relative}: expected={expected} actual={actual_candidate}"
                 )
 
-            if bootstrap:
-                expected_base = PRIOR_V22_WORKFLOW_SHA256[relative]
-                actual_base = _sha256(base_bytes)
-                if actual_base != expected_base:
-                    base.fail(
-                        "S1-012 bootstrap trusted-base workflow drifted: "
-                        f"{relative}: expected={expected_base} actual={actual_base}"
-                    )
-            else:
-                actual_base = _sha256(base_bytes)
-                if actual_base != expected_candidate:
-                    base.fail(
-                        "S1-012 steady-state trusted-base workflow drifted: "
-                        f"{relative}: expected={expected_candidate} actual={actual_base}"
-                    )
-                if candidate_bytes != base_bytes:
-                    base.fail(
-                        f"S1-012 steady-state base-controlled workflow changed: {relative}"
-                    )
+            expected_base = (
+                PRIOR_V22_WORKFLOW_SHA256[relative] if bootstrap else expected
+            )
+            actual_base = _sha256(base_bytes)
+            if actual_base != expected_base:
+                phase = "bootstrap" if bootstrap else "steady-state"
+                base.fail(
+                    f"S1-012 {phase} trusted-base workflow drifted: "
+                    f"{relative}: expected={expected_base} actual={actual_base}"
+                )
+            if not bootstrap and candidate_bytes != base_bytes:
+                base.fail(
+                    f"S1-012 steady-state base-controlled workflow changed: {relative}"
+                )
             continue
 
         if candidate_bytes != base_bytes:
@@ -211,32 +186,25 @@ def _verify_extension_paths_v23(
     policy_base: base.RepositoryView,
     controlled_paths: frozenset[str],
 ) -> None:
-    """Permit bootstrap transition once; require byte equality after v23 is trusted base."""
     bootstrap = _is_bootstrap_base(policy_base)
+    candidate_paths = _paths(candidate)
+    base_paths = _paths(policy_base)
 
     for relative in sorted(controlled_paths):
         if relative == POLICY_SCRIPT:
-            candidate_identity = candidate.tree_identity(relative)
-            if candidate_identity is None:
+            if relative not in candidate_paths:
                 base.fail("S1-012 v23 policy wrapper is missing from candidate")
-
             if bootstrap:
-                # The candidate self-check is deliberately non-authoritative. The
-                # new wrapper cannot contain a non-recursive digest of its own final
-                # bytes; exact-head external qualification/review binds bootstrap.
-                if policy_base.tree_identity(relative) is not None:
+                if relative in base_paths:
                     base.fail(
                         "S1-012 bootstrap policy wrapper unexpectedly exists in trusted base"
                     )
             else:
-                base_identity = policy_base.tree_identity(relative)
-                if base_identity is None:
+                if relative not in base_paths:
                     base.fail("S1-012 steady-state trusted base is missing v23 wrapper")
-                candidate_bytes = candidate.read_bytes(
+                if candidate.read_bytes(
                     relative, base.MAX_POLICY_FILE_BYTES
-                )
-                base_bytes = policy_base.read_bytes(relative, base.MAX_POLICY_FILE_BYTES)
-                if candidate_bytes != base_bytes:
+                ) != policy_base.read_bytes(relative, base.MAX_POLICY_FILE_BYTES):
                     base.fail("S1-012 steady-state v23 policy wrapper changed")
             continue
 
@@ -244,31 +212,25 @@ def _verify_extension_paths_v23(
         base_bytes = policy_base.read_bytes(relative, base.MAX_POLICY_FILE_BYTES)
 
         if relative == PLATFORM_WORKFLOW:
-            expected_candidate = EXPECTED_WORKFLOW_SHA256[relative]
+            expected = EXPECTED_WORKFLOW_SHA256[relative]
             actual_candidate = _sha256(candidate_bytes)
-            if actual_candidate != expected_candidate:
+            if actual_candidate != expected:
                 base.fail(
                     "S1-012 platform workflow candidate drifted: "
-                    f"expected={expected_candidate} actual={actual_candidate}"
+                    f"expected={expected} actual={actual_candidate}"
                 )
-
-            if bootstrap:
-                expected_base = PRIOR_V22_WORKFLOW_SHA256[relative]
-                actual_base = _sha256(base_bytes)
-                if actual_base != expected_base:
-                    base.fail(
-                        "S1-012 platform workflow bootstrap trusted base drifted: "
-                        f"expected={expected_base} actual={actual_base}"
-                    )
-            else:
-                actual_base = _sha256(base_bytes)
-                if actual_base != expected_candidate:
-                    base.fail(
-                        "S1-012 platform workflow steady-state trusted base drifted: "
-                        f"expected={expected_candidate} actual={actual_base}"
-                    )
-                if candidate_bytes != base_bytes:
-                    base.fail("S1-012 steady-state platform workflow changed")
+            expected_base = (
+                PRIOR_V22_WORKFLOW_SHA256[relative] if bootstrap else expected
+            )
+            actual_base = _sha256(base_bytes)
+            if actual_base != expected_base:
+                phase = "bootstrap" if bootstrap else "steady-state"
+                base.fail(
+                    f"S1-012 platform workflow {phase} trusted base drifted: "
+                    f"expected={expected_base} actual={actual_base}"
+                )
+            if not bootstrap and candidate_bytes != base_bytes:
+                base.fail("S1-012 steady-state platform workflow changed")
             continue
 
         if candidate_bytes != base_bytes:
@@ -300,9 +262,7 @@ def _verify_desktop_extension_controlled_paths_v23(
 def _print_success(stage: str, mode: str) -> None:
     if _PRIOR_PRINT_SUCCESS is None:
         base.fail("S1-012 prior success printer is not installed")
-
     _PRIOR_PRINT_SUCCESS(stage, mode)
-
     if stage == v19.S1_011_STAGE:
         print(f"s1_012_platform_qualification_authorized={S1_012_QUALIFICATION_AUTHORIZED}")
         print(f"s1_012_platform_qualification_workflow={PLATFORM_WORKFLOW}")
@@ -319,10 +279,6 @@ def _install_v23_policy() -> None:
     v22._install_v22_policy()
     _PRIOR_PRINT_SUCCESS = shell.print_success
 
-    # The bootstrap candidate may advance only the exact workflow bytes pinned
-    # above. Once v23 is in the trusted base, the same hooks become strict
-    # steady-state equality checks. Every other base/extension-controlled path
-    # remains byte-identical throughout.
     base.compare_base_controlled = _compare_base_controlled_v23
     v19._require_exact_delta = _require_exact_delta_v23
     shell.prior.verify_extension_controlled_paths = (
@@ -332,35 +288,18 @@ def _install_v23_policy() -> None:
         _verify_execution_extension_controlled_paths_v23
     )
 
-    for module in (
-        v22,
-        v21,
-        v20,
-        v19,
-        v18,
-        v17,
-        v16,
-        v15,
-        v14,
-        v13,
-        v12,
-        v11,
-        v10,
-        v9,
-        v8,
-        v7,
-        v6,
-        v5,
-        v4,
-        v3,
-        v2,
-        shell,
-        shell.prior,
-    ):
+    modules = [v22]
+    modules.extend(
+        getattr(v22, name)
+        for name in (
+            "v21", "v20", "v19", "v18", "v17", "v16", "v15", "v14", "v13",
+            "v12", "v11", "v10", "v9", "v8", "v7", "v6", "v5", "v4", "v3", "v2",
+        )
+    )
+    modules.extend((shell, shell.prior))
+    for module in modules:
         module.EXPECTED_WORKFLOW_SHA256 = EXPECTED_WORKFLOW_SHA256
 
-    # The workflow path itself is already an exact extension-controlled path
-    # inherited from S1 execution policy. Only this new wrapper path is added.
     shell.prior.EXTENSION_CONTROLLED_PATHS = frozenset(
         set(shell.prior.EXTENSION_CONTROLLED_PATHS) | {POLICY_SCRIPT}
     )
@@ -376,7 +315,7 @@ def _install_v23_policy() -> None:
 def _selftest_platform_workflow_binding() -> None:
     view = base.LocalRepositoryView(Path(__file__).resolve().parents[2])
     workflow = view.read_bytes(PLATFORM_WORKFLOW, base.MAX_POLICY_FILE_BYTES)
-    actual = hashlib.sha256(workflow).hexdigest()
+    actual = _sha256(workflow)
     expected = EXPECTED_WORKFLOW_SHA256[PLATFORM_WORKFLOW]
     if actual != expected:
         base.fail(
@@ -410,28 +349,25 @@ def _selftest_platform_workflow_binding() -> None:
 def _selftest_v23_steady_state() -> None:
     root = Path(__file__).resolve().parents[2]
     view = base.LocalRepositoryView(root)
-
     current_workflows = {
         relative: view.read_bytes(relative, base.MAX_POLICY_FILE_BYTES)
         for relative in BOOTSTRAP_BASE_CONTROLLED_WORKFLOWS | {PLATFORM_WORKFLOW}
     }
     policy_bytes = view.read_bytes(POLICY_SCRIPT, base.MAX_POLICY_FILE_BYTES)
 
-    base_files = {
+    steady_files = {
         relative: b"unchanged"
         for relative in base.BASE_CONTROLLED_PATHS
         if relative not in BOOTSTRAP_BASE_CONTROLLED_WORKFLOWS
     }
-    base_files.update(current_workflows)
-    base_files[POLICY_SCRIPT] = policy_bytes
+    steady_files.update(current_workflows)
+    steady_files[POLICY_SCRIPT] = policy_bytes
 
-    candidate_files = dict(base_files)
-    steady_base = base.MemoryView(base_files)
-    steady_candidate = base.MemoryView(candidate_files)
+    steady_base = base.MemoryView(steady_files)
+    steady_candidate = base.MemoryView(dict(steady_files))
 
     if _is_bootstrap_base(steady_base):
         base.fail("S1-012 steady-state self-test misclassified v23 trusted base")
-
     _compare_base_controlled_v23(steady_candidate, steady_base)
     _verify_extension_paths_v23(
         steady_candidate,
@@ -439,7 +375,7 @@ def _selftest_v23_steady_state() -> None:
         frozenset({POLICY_SCRIPT, PLATFORM_WORKFLOW}),
     )
 
-    mutated = dict(candidate_files)
+    mutated = dict(steady_files)
     mutated[POLICY_SCRIPT] = policy_bytes + b"\n# unauthorized steady-state drift\n"
     base.expect_failure_matching(
         "v23 steady-state wrapper drift",
@@ -450,7 +386,7 @@ def _selftest_v23_steady_state() -> None:
         frozenset({POLICY_SCRIPT, PLATFORM_WORKFLOW}),
     )
 
-    mutated_workflow = dict(candidate_files)
+    mutated_workflow = dict(steady_files)
     mutated_workflow[PLATFORM_WORKFLOW] = current_workflows[PLATFORM_WORKFLOW] + b"\n"
     base.expect_failure_matching(
         "v23 steady-state platform workflow drift",
@@ -461,8 +397,7 @@ def _selftest_v23_steady_state() -> None:
         frozenset({POLICY_SCRIPT, PLATFORM_WORKFLOW}),
     )
 
-    bootstrap_base = base.MemoryView({})
-    if not _is_bootstrap_base(bootstrap_base):
+    if not _is_bootstrap_base(base.MemoryView({})):
         base.fail("S1-012 bootstrap self-test failed to identify pre-v23 trusted base")
 
 
@@ -471,13 +406,11 @@ def selftest() -> None:
     _install_v23_policy()
     _selftest_platform_workflow_binding()
     _selftest_v23_steady_state()
-
     if base.REPOSITORY != CANONICAL_REPOSITORY:
         base.fail(
             "canonical repository identity drifted: "
             f"expected={CANONICAL_REPOSITORY} actual={base.REPOSITORY}"
         )
-
     print("wepld S1-012 platform-qualification policy self-tests: PASS")
 
 
@@ -489,7 +422,6 @@ def main(argv: list[str]) -> int:
         except base.PolicyError as exc:
             print(f"wepld integrity verification: FAIL: {exc}", file=sys.stderr)
             return 1
-
     _install_v23_policy()
     return v22.main(argv)
 

@@ -32,7 +32,7 @@ EXPECTED_PRIOR_V19_RUNNER_GIT_BLOB_SHA1 = "59d0d38ce3581a526906c4562f7a1b694af6c
 CANONICAL_REPOSITORY = "TheHalfMoon/wepld"
 
 EXPECTED_WORKFLOW_SHA256 = {
-    ".github/workflows/foundation-integrity.yml": "17d47138679b15162f1f383057f760d61457a6bc30d883f990a6c2e7992019ad",
+    ".github/workflows/foundation-integrity.yml": "cab42b9bae9cfdb392b47cd3f19ba27d80567e52342580ccce86b88da4f7d377",
     ".github/workflows/s1-admission-integrity.yml": "1d3e067078d5554ee8c1b86b76e492b99f638bcac0793c57b20b851129d1dda7",
     ".github/workflows/s1-contracts.yml": "2ab777e867c60ef545e1b96dd4ff01546ca268eb794ce5bc620c98e9af0fbc27",
 }

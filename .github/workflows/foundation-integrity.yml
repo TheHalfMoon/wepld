@@ -31,7 +31,7 @@ jobs:
       - name: Verify exact checked-out tree against the immutable baseline
         shell: bash
         env:
-          WEPLD_COMPARISON_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
+          WEPLD_COMPARISON_SHA: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
         run: |
           set -euo pipefail
           if [ -z "${WEPLD_COMPARISON_SHA:-}" ]; then

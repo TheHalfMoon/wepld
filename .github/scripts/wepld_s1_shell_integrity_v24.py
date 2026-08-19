@@ -312,6 +312,25 @@ def _print_success(stage: str, mode: str) -> None:
         print(f"s1_013_plus={S1_013_PLUS}")
 
 
+def _workflow_hash_modules() -> list[object]:
+    modules: list[object] = [v23, v22]
+    modules.extend(
+        getattr(v22, name)
+        for name in (
+            "v21", "v20", "v19", "v18", "v17", "v16", "v15", "v14", "v13",
+            "v12", "v11", "v10", "v9", "v8", "v7", "v6", "v5", "v4", "v3",
+            "v2",
+        )
+    )
+    modules.extend((shell, shell.prior))
+    return modules
+
+
+def _propagate_expected_workflow_hashes() -> None:
+    for module in _workflow_hash_modules():
+        module.EXPECTED_WORKFLOW_SHA256 = EXPECTED_WORKFLOW_SHA256
+
+
 def _install_v24_policy() -> None:
     global _INSTALLED, _PRIOR_PRINT_SUCCESS
     if _INSTALLED:
@@ -329,18 +348,7 @@ def _install_v24_policy() -> None:
         _verify_execution_extension_controlled_paths_v24
     )
 
-    modules = [v23, v22]
-    modules.extend(
-        getattr(v22, name)
-        for name in (
-            "v21", "v20", "v19", "v18", "v17", "v16", "v15", "v14", "v13",
-            "v12", "v11", "v10", "v9", "v8", "v7", "v6", "v5", "v4", "v3",
-            "v2",
-        )
-    )
-    modules.extend((shell, shell.prior))
-    for module in modules:
-        module.EXPECTED_WORKFLOW_SHA256 = EXPECTED_WORKFLOW_SHA256
+    _propagate_expected_workflow_hashes()
 
     shell.prior.EXTENSION_CONTROLLED_PATHS = frozenset(
         set(shell.prior.EXTENSION_CONTROLLED_PATHS) | {POLICY_SCRIPT}
@@ -479,6 +487,11 @@ def _selftest_v24_steady_state() -> None:
 
 
 def selftest() -> None:
+    # v24 changes only the two policy-runner workflow references. Project the
+    # v24 workflow identities into inherited self-tests before running them;
+    # PRIOR_V23_WORKFLOW_SHA256 was captured at import and remains the immutable
+    # bootstrap-base identity used by real transition verification.
+    _propagate_expected_workflow_hashes()
     v23.selftest()
     _install_v24_policy()
     _selftest_workflow_binding()

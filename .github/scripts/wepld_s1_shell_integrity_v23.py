@@ -142,13 +142,13 @@ def _compare_base_controlled_v23(
             base.fail(f"base-controlled policy/governance path changed: {relative}")
 
 
-def _verify_extension_controlled_paths_v23(
+def _verify_extension_paths_v23(
     candidate: base.RepositoryView,
     policy_base: base.RepositoryView,
+    controlled_paths: frozenset[str],
 ) -> None:
     """Permit only this wrapper plus the exact s1-contracts workflow transition."""
-    execution = shell.prior.prior
-    for relative in sorted(execution.EXTENSION_CONTROLLED_PATHS):
+    for relative in sorted(controlled_paths):
         if relative == POLICY_SCRIPT:
             if policy_base.tree_identity(relative) is not None:
                 base.fail("S1-012 bootstrap policy wrapper unexpectedly exists in trusted base")
@@ -179,6 +179,28 @@ def _verify_extension_controlled_paths_v23(
         if candidate_bytes != base_bytes:
             base.fail(f"base-controlled S1 execution policy path changed: {relative}")
 
+
+def _verify_execution_extension_controlled_paths_v23(
+    candidate: base.RepositoryView,
+    policy_base: base.RepositoryView,
+) -> None:
+    _verify_extension_paths_v23(
+        candidate,
+        policy_base,
+        shell.prior.prior.EXTENSION_CONTROLLED_PATHS,
+    )
+
+
+def _verify_desktop_extension_controlled_paths_v23(
+    candidate: base.RepositoryView,
+    policy_base: base.RepositoryView,
+) -> None:
+    _verify_extension_paths_v23(
+        candidate,
+        policy_base,
+        shell.prior.EXTENSION_CONTROLLED_PATHS,
+    )
+
 def _print_success(stage: str, mode: str) -> None:
     if _PRIOR_PRINT_SUCCESS is None:
         base.fail("S1-012 prior success printer is not installed")
@@ -205,8 +227,11 @@ def _install_v23_policy() -> None:
     # above. Preserve strict equality for every other base/extension-controlled
     # path while projecting the trusted base through canonical v22 identities.
     base.compare_base_controlled = _compare_base_controlled_v23
+    shell.prior.verify_extension_controlled_paths = (
+        _verify_desktop_extension_controlled_paths_v23
+    )
     shell.prior.prior.verify_extension_controlled_paths = (
-        _verify_extension_controlled_paths_v23
+        _verify_execution_extension_controlled_paths_v23
     )
 
     for module in (

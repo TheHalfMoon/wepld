@@ -5,15 +5,41 @@ This is the execution-authoritative S1 task ledger. A checked box requires stabl
 ```text
 SLICE = S1
 S1_ORIGINAL_BASE_MAIN = 6eff72319cad99c878a80f0d5bce9f107d213679
-CURRENT_CANONICAL_MAIN = 12fd72c19d639b4b72a8dec8dba644282383d0db
-ACTIVE_TASK = S1-003
-ACTIVE_BRANCH = ci/s1-stage-aware-foundation-integrity
-ACTIVE_PR = #4
+CANONICAL_EXECUTION_HEAD = 848566d89e5995e215295b92d9da4a9cfbe28927
+LEDGER_RECONCILIATION_BASE = 848566d89e5995e215295b92d9da4a9cfbe28927
+LIVE_MAIN = MUST_BE_READ_FROM_GITHUB
+ACTIVE_TASK = NONE
+NEXT_TASK = S1-013_NOT_STARTED
 FOUNDER_STANDING_AUTHORIZATION = GRANTED
-SOURCE_ACQUISITION_CHECK = OPEN
-DEPENDENCY_ADMISSION = NONE
-IMPLEMENTATION = BLOCKED
+SOURCE_ACQUISITION_CHECK = PASS
+RUNTIME_DEPENDENCY_ADMISSION = EXACT_S1_GRAPH
+IMPLEMENTATION = CANONICAL_THROUGH_S1_011
+S1_012_CANONICAL_ACTIVATION = PROVEN
+S1_013_PLUS = NOT_STARTED
 ```
+
+## Canonical reconciliation checkpoint — 2026-08-20
+
+This checkpoint reconciles the execution-authoritative ledger against live GitHub merge and post-merge evidence. Historical status text below is retained for traceability, but the current task state is the reconciled state above and the checked requirements below.
+
+```text
+S1-003 = CLOSED_CANONICAL_PROVEN / PR #4 / merge af000ec9cd4a1ce71545cdc509f13af0e69429f9
+S1-003_ACTIVATION = PROVEN / canary PR #6 / closed without merge
+S1-004 = CLOSED_CANONICAL_PROVEN / PR #7 / merge f1919396eacb90d8d947b06f023ae9da233a4580
+S1-005 = CLOSED_CANONICAL_PROVEN / PR #11 / merge 3ab1818802352d7eab45448ed3284489e67631f4
+S1-006 = CLOSED_CANONICAL_PROVEN / PR #14 / merge a2dcc7d148eb0c38243eb2da655e0c3aac5651c9
+S1-007 = CLOSED_CANONICAL_PROVEN / PR #17 / merge 24ef630d38b184cd05238dd62d4e5e92efe014ae
+S1-008 = CLOSED_CANONICAL_PROVEN / PR #19 / merge e629322723c63448874a86c1cd4871579d64dfe1
+S1-009 = CLOSED_CANONICAL_PROVEN / PR #22 / merge acd60e5cd8df31597bdc9263b1508d233b86cc24
+S1-010 = CLOSED_CANONICAL_PROVEN / PR #25 / merge eeb8d78b95a1710e3489d8174a3aff979df4d6dd
+S1-011 = CLOSED_CANONICAL_PROVEN / PR #33 / merge fbfe484dd8f506ca563affa8a2777ce37863580f
+S1-012 = CLOSED_CANONICAL_PROVEN / PR #37 / merge 848566d89e5995e215295b92d9da4a9cfbe28927
+S1-012_POST_MERGE_FOUNDATION = run 32291764730 / #331 / push / PASS
+S1-012_POST_MERGE_CONTRACTS = run 32291764814 / #118 / push / PASS
+S1-013_PLUS = NOT_STARTED
+```
+
+`CANONICAL_EXECUTION_HEAD` records the last code/policy execution milestone, not a promise that the live `main` ref will remain byte-identical after later docs-only reconciliation commits. Read live GitHub before every write, review, Ready transition, merge, or next-task start.
 
 ## S1-001 — Establish planning baseline
 
@@ -49,7 +75,7 @@ The planning merge did not accept S1 or admit dependencies.
 
 ## S1-003 — Migrate P0 foundation CI to stage-aware S1 integrity
 
-Active PR: #4.
+Historical execution PR: #4.
 
 ### Implemented on policy head `7bafe4b1f0e9cb6319526cfd957baf92ba6d7775`
 
@@ -77,158 +103,178 @@ Active PR: #4.
 - [x] Document that GitHub platform required-check enforcement is not proven/configured by this PR.
 - [x] Pass policy implementation exact-head self-check. Evidence: `31909208235` / #148 PASS on `7bafe4b1f0e9cb6319526cfd957baf92ba6d7775`.
 
-### Still required before PR #4 can merge
+### Required before PR #4 merge — completed
 
-- [ ] Re-run `foundation-integrity` on the exact head after canonical-memory/task checkpoint.
-- [ ] Inspect deterministic job steps and preserve exact run ID.
-- [ ] Record exact-head Codex Security status; if unavailable, `NOT_RUN_NON_BLOCKING`, never PASS.
-- [ ] Perform exact-head public-source secret-marker screening before any hosted reviewer.
-- [ ] Obtain at least one independently qualified exact-head correctness/engineering review. Cubic is currently ineligible.
-- [ ] Validate every finding against current code/policy.
-- [ ] Repair only valid findings.
-- [ ] Rerun every affected gate/review after repair.
-- [ ] Zero unresolved material findings.
-- [ ] Merge PR #4 only as the reviewed S1-003 policy migration, not as S1 acceptance.
+- [x] Re-run `foundation-integrity` on the exact head after canonical-memory/task checkpoint.
+- [x] Inspect deterministic job steps and preserve exact run ID.
+- [x] Record exact-head Codex Security status; if unavailable, `NOT_RUN_NON_BLOCKING`, never PASS.
+- [x] Perform exact-head public-source secret-marker screening before any hosted reviewer.
+- [x] Obtain at least one independently qualified exact-head correctness/engineering review. Cubic is currently ineligible.
+- [x] Validate every finding against current code/policy.
+- [x] Repair only valid findings.
+- [x] Rerun every affected gate/review after repair.
+- [x] Zero unresolved material findings.
+- [x] Merge PR #4 only as the reviewed S1-003 policy migration, not as S1 acceptance.
 
-### Post-merge S1-003 activation proof
+### Post-merge S1-003 activation proof — completed
 
-PR #4 cannot exercise `s1-admission-integrity` authoritatively because the workflow is not present in its base commit.
+PR #4 could not exercise `s1-admission-integrity` authoritatively because the workflow was not present in its base commit. Canary PR #6 later proved activation from canonical base and was closed without merge.
 
-- [ ] Verify post-merge canonical-main `foundation-integrity`.
-- [ ] Create a docs-only activation-canary PR from the post-merge main.
-- [ ] Prove `s1-admission-integrity` runs from the base policy.
-- [ ] Prove the authoritative path reads candidate Git objects as data only and reports `S1_PLANNING_ONLY`.
-- [ ] Confirm no candidate checkout/build/script execution occurs in that privileged path.
-- [ ] Close/merge the canary only according to its narrow evidence purpose.
-- [ ] Set `S1_003_ACTIVATION_PROVEN = YES` only after canary evidence is exact and complete.
+- [x] Verify post-merge canonical-main `foundation-integrity`.
+- [x] Create a docs-only activation-canary PR from the post-merge main.
+- [x] Prove `s1-admission-integrity` runs from the base policy.
+- [x] Prove the authoritative path reads candidate Git objects as data only and reports the expected prior stage.
+- [x] Confirm no candidate checkout/build/script execution occurs in that privileged path.
+- [x] Close the canary according to its narrow evidence purpose without merging its inert marker.
+- [x] Set `S1_003_ACTIVATION_PROVEN = YES` only after canary evidence is exact and complete.
 
-Gate: **S1-004 manifests are prohibited until the post-merge activation canary passes.**
+Evidence: PR #4 merge `af000ec9cd4a1ce71545cdc509f13af0e69429f9`; PR #6 records `S1_003_ACTIVATION_PROVEN = YES` with trusted-base admission PASS.
+
+Gate satisfied: **S1-004 manifests remained prohibited until the post-merge activation canary passed.**
 
 ## S1-004 — Resolve candidate dependency graph without product behavior
 
-- [ ] Start only after `S1_003_ACTIVATION_PROVEN = YES`.
-- [ ] Add the exact Rust toolchain candidate required by S1-003 policy.
-- [ ] Add the exact minimum Cargo workspace/manifests/skeletons allowed by S1-003 Stage B1.
-- [ ] Candidate direct deps: Tauri 2.11.5, Tauri-build 2.6.3, Serde 1.0.229, serde_json 1.0.151.
-- [ ] Keep `tauri-plugin-shell` absent.
-- [ ] Keep direct Tokio/Core async framework absent.
-- [ ] Pass authoritative `s1-admission-integrity` in `S1_DEPENDENCY_RESOLUTION_INPUT`.
-- [ ] Generate `Cargo.lock`.
-- [ ] Pass authoritative `s1-admission-integrity` in `S1_DEPENDENCY_RESOLUTION_LOCKED`.
-- [ ] Capture direct/transitive feature tree.
-- [ ] Generate SBOM.
-- [ ] Run advisory/security dependency scan.
-- [ ] No product behavior beyond exact manifest/toolchain/target skeleton required for resolution.
+- [x] Start only after `S1_003_ACTIVATION_PROVEN = YES`.
+- [x] Add the exact Rust toolchain candidate required by S1-003 policy.
+- [x] Add the exact minimum Cargo workspace/manifests/skeletons allowed by S1-003 Stage B1.
+- [x] Candidate direct deps: Tauri 2.11.5, Tauri-build 2.6.3, Serde 1.0.229, serde_json 1.0.151.
+- [x] Keep `tauri-plugin-shell` absent.
+- [x] Keep direct Tokio/Core async framework absent.
+- [x] Pass authoritative `s1-admission-integrity` in `S1_DEPENDENCY_RESOLUTION_INPUT`.
+- [x] Generate `Cargo.lock`.
+- [x] Pass authoritative `s1-admission-integrity` in `S1_DEPENDENCY_RESOLUTION_LOCKED`.
+- [x] Capture direct/transitive feature tree.
+- [x] Generate SBOM.
+- [x] Run advisory/security dependency scan.
+- [x] No product behavior beyond exact manifest/toolchain/target skeleton required for resolution.
+
+Evidence: PR #7 merged as `f1919396eacb90d8d947b06f023ae9da233a4580`; its exact-head evidence records `S1_DEPENDENCY_RESOLUTION_LOCKED`, SBOM/advisory output, and no product authorization.
 
 Status semantics:
 
 ```text
-DEPENDENCY_RESOLUTION_AUTHORIZED = YES_ONLY_AFTER_S1_003_ACTIVATION_CANARY
+DEPENDENCY_RESOLUTION_AUTHORIZED = YES_AFTER_S1_003_ACTIVATION_CANARY
 RUNTIME_DEPENDENCY_ADMITTED = NO_UNTIL_S1_005
 ```
 
 ## S1-005 — Finalize component admission / Source Acquisition Check
 
-- [ ] Reconcile exact resolved versions and features against intended candidates.
-- [ ] Reconcile every reportable advisory or coverage limitation.
-- [ ] Prove no unnecessary direct dependency remains.
-- [ ] Record Tauri capability surface and package/sidecar strategy.
-- [ ] Record replacement/exit strategy per admitted component.
-- [ ] Update `docs/governance/DEPENDENCY_REGISTER.md` for the exact S1 graph.
-- [ ] Add immutable S1 component-admission evidence.
-- [ ] Set `SOURCE_ACQUISITION_CHECK = PASS` only if all required evidence is complete.
+- [x] Reconcile exact resolved versions and features against intended candidates.
+- [x] Reconcile every reportable advisory or coverage limitation.
+- [x] Prove no unnecessary direct dependency remains.
+- [x] Record Tauri capability surface and package/sidecar strategy.
+- [x] Record replacement/exit strategy per admitted component.
+- [x] Update `docs/governance/DEPENDENCY_REGISTER.md` for the exact S1 graph.
+- [x] Add immutable S1 component-admission evidence.
+- [x] Set `SOURCE_ACQUISITION_CHECK = PASS` only if all required evidence is complete.
 
-Gate: **S1 product implementation is prohibited until this task passes.**
+Evidence: PR #11 merged as `3ab1818802352d7eab45448ed3284489e67631f4`; exact-head evidence records `SOURCE_ACQUISITION_CHECK=PASS`, zero audit vulnerabilities, explicit maintenance-debt reconciliation, and exact GLib backport provenance.
+
+Gate satisfied: **S1 product implementation remained prohibited until this task passed.**
 
 ## S1-006 — Implement protocol v1 contracts and bounded frame codec
 
-- [ ] Create typed protocol request/response/event/cancel/error enums/structs.
-- [ ] Freeze protocol v1 constants and capability schema.
-- [ ] Freeze one framing-size contract: `LENGTH_PREFIX_BYTES = 4`, `MAX_PAYLOAD_BYTES = 65_536`, `MAX_WIRE_FRAME_BYTES = 65_540`.
-- [ ] Implement 4-byte big-endian payload-length framing.
-- [ ] Read/validate the prefix before payload allocation/read/deserialization; reject declared payload length `> 65_536`.
-- [ ] Prove declared payload length exactly `65_536` is within bound and `65_537` is rejected before payload allocation/read/deserialization.
-- [ ] Strictly reject unknown versions/kinds/principals/operations and malformed required data.
-- [ ] Add golden fixtures and unit/property/negative tests.
-- [ ] No process, filesystem, network, UI, or project effects.
+- [x] Create typed protocol request/response/event/cancel/error enums/structs.
+- [x] Freeze protocol v1 constants and capability schema.
+- [x] Freeze one framing-size contract: `LENGTH_PREFIX_BYTES = 4`, `MAX_PAYLOAD_BYTES = 65_536`, `MAX_WIRE_FRAME_BYTES = 65_540`.
+- [x] Implement 4-byte big-endian payload-length framing.
+- [x] Read/validate the prefix before payload allocation/read/deserialization; reject declared payload length `> 65_536`.
+- [x] Prove declared payload length exactly `65_536` is within bound and `65_537` is rejected before payload allocation/read/deserialization.
+- [x] Strictly reject unknown versions/kinds/principals/operations and malformed required data.
+- [x] Add golden fixtures and unit/property/negative tests.
+- [x] No process, filesystem, network, UI, or project effects.
+
+Evidence: PR #14 merged as `a2dcc7d148eb0c38243eb2da655e0c3aac5651c9` after exact-head foundation/contracts/admission gates and independent review.
 
 ## S1-007 — Implement pure handshake / replay / cancellation state
 
-- [ ] Implement launch/request correlation semantics.
-- [ ] Implement serialized strictly increasing inbound command IDs per launch and an O(1) Core high-water mark; IDs never wrap/reuse within a launch.
-- [ ] Reject every command with `id <= highest_accepted_command_id` before dispatch.
-- [ ] Implement bounded in-flight/watch state.
-- [ ] Implement health/version/capability operations.
-- [ ] Implement bounded health-observation state and deterministic cancellation.
-- [ ] Prove duplicate observation cannot allocate a second watch/event stream.
-- [ ] Prove replayed cancellation cannot mutate state again and fresh cancellation of an already terminal operation is deterministic/non-mutating.
-- [ ] Prove stale launch IDs, non-monotonic/reused IDs, cancellation races, and budget exhaustion fail deterministically.
-- [ ] Keep logic testable without Tauri or OS child processes.
+- [x] Implement launch/request correlation semantics.
+- [x] Implement serialized strictly increasing inbound command IDs per launch and an O(1) Core high-water mark; IDs never wrap/reuse within a launch.
+- [x] Reject every command with `id <= highest_accepted_command_id` before dispatch.
+- [x] Implement bounded in-flight/watch state.
+- [x] Implement health/version/capability operations.
+- [x] Implement bounded health-observation state and deterministic cancellation.
+- [x] Prove duplicate observation cannot allocate a second watch/event stream.
+- [x] Prove replayed cancellation cannot mutate state again and fresh cancellation of an already terminal operation is deterministic/non-mutating.
+- [x] Prove stale launch IDs, non-monotonic/reused IDs, cancellation races, and budget exhaustion fail deterministically.
+- [x] Keep logic testable without Tauri or OS child processes.
+
+Evidence: PR #17 merged as `24ef630d38b184cd05238dd62d4e5e92efe014ae`; exact-head admission classified `S1_HANDSHAKE_STATE_CANDIDATE / S1_007_ONLY` and the bounded state suite passed.
 
 ## S1-008 — Implement separate Rust Core child process
 
-- [ ] Core protocol bytes use inherited stdin/stdout only.
-- [ ] Core stderr is diagnostics-only and is never parsed as protocol data.
-- [ ] Use stdlib process/IO/concurrency primitives unless a separately qualified need changes this.
-- [ ] No network listener/client for the S1 Desktop ↔ Core handshake.
-- [ ] No project/filesystem/terminal/worker authority.
-- [ ] EOF/broken input terminates or degrades predictably.
-- [ ] Malformed/oversized protocol data cannot fabricate success.
-- [ ] Add Core process integration tests.
+- [x] Core protocol bytes use inherited stdin/stdout only.
+- [x] Core stderr is diagnostics-only and is never parsed as protocol data.
+- [x] Use stdlib process/IO/concurrency primitives unless a separately qualified need changes this.
+- [x] No network listener/client for the S1 Desktop ↔ Core handshake.
+- [x] No project/filesystem/terminal/worker authority.
+- [x] EOF/broken input terminates or degrades predictably.
+- [x] Malformed/oversized protocol data cannot fabricate success.
+- [x] Add Core process integration tests.
+
+Evidence: PR #19 merged as `e629322723c63448874a86c1cd4871579d64dfe1`; exact-head admission classified `S1_CORE_PROCESS_CANDIDATE / S1_008_ONLY` and process tests passed.
 
 ## S1-009 — Implement Desktop-owned Core lifecycle and protocol client
 
-- [ ] Resolve explicit packaged sibling Core executable path; no shell/PATH lookup.
-- [ ] Launch separate Core child with piped stdin/stdout and an explicit stderr strategy.
-- [ ] If stderr is piped, drain it concurrently with bounded retained diagnostics and observable truncation.
-- [ ] Assign `desktop_host` principal and fresh launch ID internally.
-- [ ] Allocate request/cancel command IDs in the same serialized order frames are written to Core.
-- [ ] Implement typed request/event/cancel client.
-- [ ] EOF/child exit immediately invalidates readiness.
-- [ ] Restart uses a new launch ID and invalidates prior in-flight operations.
-- [ ] Bound restart/retry behavior; no infinite silent restart loop.
-- [ ] Record observed orphan/cleanup behavior without claiming S3 containment.
+- [x] Resolve explicit packaged sibling Core executable path; no shell/PATH lookup.
+- [x] Launch separate Core child with piped stdin/stdout and an explicit stderr strategy.
+- [x] If stderr is piped, drain it concurrently with bounded retained diagnostics and observable truncation.
+- [x] Assign `desktop_host` principal and fresh launch ID internally.
+- [x] Allocate request/cancel command IDs in the same serialized order frames are written to Core.
+- [x] Implement typed request/event/cancel client.
+- [x] EOF/child exit immediately invalidates readiness.
+- [x] Restart uses a new launch ID and invalidates prior in-flight operations.
+- [x] Bound restart/retry behavior; no infinite silent restart loop.
+- [x] Record observed orphan/cleanup behavior without claiming S3 containment.
+
+Evidence: PR #22 merged as `acd60e5cd8df31597bdc9263b1508d233b86cc24`; exact-head Windows lifecycle tests and trusted-base `S1_009_ONLY` admission passed.
 
 ## S1-010 — Implement minimal Tauri shell and static presentation
 
-- [ ] Minimal Tauri Desktop application only.
-- [ ] Bundle Core using the minimum qualified Tauri external-binary mechanism.
-- [ ] Expose only narrow typed status/control projection needed by S1 UI.
-- [ ] No general shell/filesystem/network permission to WebView merely for the S1 handshake.
-- [ ] Static local UI shows Core readiness/health/version/capabilities and cancellable observation state.
-- [ ] Keyboard/focus/status semantics satisfy the applicable accessibility baseline.
-- [ ] No React/Vite/Tailwind/frontend package manager unless a new measured need is qualified.
+- [x] Minimal Tauri Desktop application only.
+- [x] Bundle Core using the minimum qualified Tauri external-binary mechanism.
+- [x] Expose only narrow typed status/control projection needed by S1 UI.
+- [x] No general shell/filesystem/network permission to WebView merely for the S1 handshake.
+- [x] Static local UI shows Core readiness/health/version/capabilities and cancellable observation state.
+- [x] Keyboard/focus/status semantics satisfy the applicable accessibility baseline.
+- [x] No React/Vite/Tailwind/frontend package manager unless a new measured need is qualified.
+
+Evidence: PR #25 merged as `eeb8d78b95a1710e3489d8174a3aff979df4d6dd` after canonical v18 admission; final visual/branding design remains separately deferred and the tracked icon is a neutral technical build fixture.
 
 ## S1-011 — Cross-process failure/adversarial suite
 
-- [ ] Valid request/response round-trip.
-- [ ] Event delivery and cancellation.
-- [ ] Unknown command/version/principal and downgrade attempt.
-- [ ] Zero-length payload and malformed/truncated framing.
-- [ ] Declared payload length `65_536` is within bound; `65_537` is rejected before payload allocation/read/deserialization.
-- [ ] Invalid UTF-8/text contract cases.
-- [ ] Duplicate/replay/non-monotonic command IDs and stale launch.
-- [ ] Replay after terminal/cache eviction remains rejected by launch-wide high-water state.
-- [ ] Duplicate observation cannot allocate a second watch/event stream.
-- [ ] Replayed cancellation cannot mutate twice; fresh cancel of terminal target is deterministic/non-mutating.
-- [ ] Cancellation of unknown/completed/already-cancelled request and cancellation race.
-- [ ] In-flight/watch budget exhaustion.
-- [ ] Core unavailable/crash/restart.
-- [ ] Desktop writer/reader loss and Desktop exit.
-- [ ] Stale response/event after restart.
-- [ ] Wrong/missing/mismatched Core binary/package scenario.
-- [ ] Emit diagnostics beyond expected OS stderr pipe capacity while protocol exchanges continue.
+- [x] Valid request/response round-trip.
+- [x] Event delivery and cancellation.
+- [x] Unknown command/version/principal and downgrade attempt.
+- [x] Zero-length payload and malformed/truncated framing.
+- [x] Declared payload length `65_536` is within bound; `65_537` is rejected before payload allocation/read/deserialization.
+- [x] Invalid UTF-8/text contract cases.
+- [x] Duplicate/replay/non-monotonic command IDs and stale launch.
+- [x] Replay after terminal/cache eviction remains rejected by launch-wide high-water state.
+- [x] Duplicate observation cannot allocate a second watch/event stream.
+- [x] Replayed cancellation cannot mutate twice; fresh cancel of terminal target is deterministic/non-mutating.
+- [x] Cancellation of unknown/completed/already-cancelled request and cancellation race.
+- [x] In-flight/watch budget exhaustion.
+- [x] Core unavailable/crash/restart.
+- [x] Desktop writer/reader loss and Desktop exit.
+- [x] Stale response/event after restart.
+- [x] Wrong/missing/mismatched Core binary/package scenario.
+- [x] Emit diagnostics beyond expected OS stderr pipe capacity while protocol exchanges continue.
+
+Evidence: PR #33 merged as `fbfe484dd8f506ca563affa8a2777ce37863580f`; canonical v22 authorized only the exact adversarial projection and final exact-head foundation/contracts/admission/review gates passed.
 
 ## S1-012 — Windows-first qualification and secondary platform evidence
 
-- [ ] Windows x86_64 MSVC build from clean checkout.
-- [ ] Windows Desktop launches intended packaged Core sibling.
-- [ ] Windows typed round-trip/event/cancel/failure suite passes.
-- [ ] Windows Core crash/restart and Desktop-exit child behavior recorded.
-- [ ] Windows packaging path/version mismatch cases exercised.
-- [ ] Linux compile + protocol/contract tests.
-- [ ] macOS compile + protocol/contract tests when runner availability permits; otherwise record exact coverage limitation.
-- [ ] No compile-only result is reported as runtime containment/process-ownership proof.
+- [x] Windows x86_64 MSVC build from clean checkout.
+- [x] Windows Desktop launches intended packaged Core sibling.
+- [x] Windows typed round-trip/event/cancel/failure suite passes.
+- [x] Windows Core crash/restart and Desktop-exit child behavior recorded.
+- [x] Windows packaging path/version mismatch cases exercised.
+- [x] Linux compile + protocol/contract tests.
+- [x] macOS compile + protocol/contract tests when runner availability permits; otherwise record exact coverage limitation.
+- [x] No compile-only result is reported as runtime containment/process-ownership proof.
+
+Evidence: PR #37 merged as `848566d89e5995e215295b92d9da4a9cfbe28927`. Post-merge push `foundation-integrity #331` / run `32291764730` passed on that exact merge SHA. Post-merge push `s1-contracts #118` / run `32291764814` passed 3/3 jobs on the same exact merge SHA: Linux and macOS secondary evidence plus Windows adversarial qualification, pinned-source Tauri CLI build, NSIS build/install, packaged launch/missing/mismatch exercises, and cleanup. `WINDOWS_PREEXEC_BINARY_IDENTITY_ATTESTATION=NOT_IMPLEMENTED_NOT_CLAIMED`; no S3 containment claim is inferred.
 
 ## S1-013 — Performance and evidence packet
 
@@ -270,13 +316,13 @@ Gate: **S1 product implementation is prohibited until this task passes.**
 ## Current gate
 
 ```text
-COMPLETED = S1-001 + S1-002
-CURRENT = S1-003 PR #4 EXACT-HEAD REVIEW / RECONCILIATION
-LAST_POLICY_HEAD = 7bafe4b1f0e9cb6319526cfd957baf92ba6d7775
-LAST_POLICY_HEAD_INTEGRITY = 31909208235 / #148 PASS
-NEXT = CHECKPOINT HEAD -> EXACT CI -> SECURITY ACCOUNTING -> INDEPENDENT REVIEW
-S1_004 = BLOCKED
-SOURCE_ACQUISITION_CHECK = OPEN
-DEPENDENCY_ADMISSION = NONE
-IMPLEMENTATION = BLOCKED
+COMPLETED = S1-001 THROUGH S1-012
+CURRENT = CANONICAL_LEDGER_RECONCILIATION_ONLY
+CANONICAL_EXECUTION_HEAD = 848566d89e5995e215295b92d9da4a9cfbe28927
+S1_012_CANONICAL_ACTIVATION = PROVEN
+NEXT = S1-013_ONLY_AFTER_THIS_LEDGER_RECONCILIATION_IS_QUALIFIED_AND_MERGED
+S1_013_PLUS = NOT_STARTED
+SOURCE_ACQUISITION_CHECK = PASS
+RUNTIME_DEPENDENCY_ADMISSION = EXACT_S1_GRAPH
+IMPLEMENTATION = CANONICAL_THROUGH_S1_011
 ```

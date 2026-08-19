@@ -24,7 +24,10 @@ fn core_ready(state: tauri::State<'_, AppState>) -> Result<bool, String> {
         .send_health()
         .map_err(|_| String::from("core request failed"))?;
     for _ in 0..=32 {
-        match client.receive().map_err(|_| String::from("core response unavailable"))? {
+        match client
+            .receive()
+            .map_err(|_| String::from("core response unavailable"))?
+        {
             InboundEnvelope::Response(ResponseEnvelope::Health(fields))
                 if fields.request_id == request_id =>
             {
@@ -55,7 +58,10 @@ fn core_health(state: tauri::State<'_, AppState>) -> Result<String, String> {
         .send_health()
         .map_err(|_| String::from("core request failed"))?;
     for _ in 0..=32 {
-        match client.receive().map_err(|_| String::from("core response unavailable"))? {
+        match client
+            .receive()
+            .map_err(|_| String::from("core response unavailable"))?
+        {
             InboundEnvelope::Response(ResponseEnvelope::Health(fields))
                 if fields.request_id == request_id =>
             {
@@ -89,7 +95,10 @@ fn core_version(state: tauri::State<'_, AppState>) -> Result<String, String> {
         .send_version()
         .map_err(|_| String::from("core request failed"))?;
     for _ in 0..=32 {
-        match client.receive().map_err(|_| String::from("core response unavailable"))? {
+        match client
+            .receive()
+            .map_err(|_| String::from("core response unavailable"))?
+        {
             InboundEnvelope::Response(ResponseEnvelope::Version(fields))
                 if fields.request_id == request_id =>
             {
@@ -123,7 +132,10 @@ fn core_capabilities(state: tauri::State<'_, AppState>) -> Result<Vec<String>, S
         .send_capabilities()
         .map_err(|_| String::from("core request failed"))?;
     for _ in 0..=32 {
-        match client.receive().map_err(|_| String::from("core response unavailable"))? {
+        match client
+            .receive()
+            .map_err(|_| String::from("core response unavailable"))?
+        {
             InboundEnvelope::Response(ResponseEnvelope::Capabilities(fields))
                 if fields.request_id == request_id =>
             {
@@ -168,7 +180,10 @@ fn core_observe_health(state: tauri::State<'_, AppState>) -> Result<u64, String>
         .send_observe_health()
         .map_err(|_| String::from("core request failed"))?;
     for _ in 0..=32 {
-        match client.receive().map_err(|_| String::from("core response unavailable"))? {
+        match client
+            .receive()
+            .map_err(|_| String::from("core response unavailable"))?
+        {
             InboundEnvelope::Response(ResponseEnvelope::ObserveHealth(fields))
                 if fields.request_id == request_id =>
             {
@@ -202,7 +217,10 @@ fn core_cancel_observation(
         .send_cancel(request_id)
         .map_err(|_| String::from("core request failed"))?;
     for _ in 0..=32 {
-        match client.receive().map_err(|_| String::from("core response unavailable"))? {
+        match client
+            .receive()
+            .map_err(|_| String::from("core response unavailable"))?
+        {
             InboundEnvelope::Response(ResponseEnvelope::Cancel(fields))
                 if fields.request_id == cancel_id =>
             {

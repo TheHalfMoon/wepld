@@ -193,9 +193,11 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          $repoRoot = (Get-Location).Path
           Push-Location apps\desktop
           try { cargo tauri build --ci --bundles nsis } finally { Pop-Location }
-          $installer = @(Get-ChildItem target\release\bundle\nsis\*.exe)
+          $installerPattern = Join-Path $repoRoot 'target\release\bundle\nsis\*.exe'
+          $installer = @(Get-ChildItem $installerPattern)
           if ($installer.Count -ne 1) { throw "expected one NSIS installer, observed=$($installer.Count)" }
           $p = Start-Process $installer[0].FullName -ArgumentList '/S' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "NSIS install failed: $($p.ExitCode)" }
@@ -211,7 +213,7 @@ jobs:
           "WEPLD_INSTALLED_DESKTOP=$($desktop[0].FullName)" | Out-File $env:GITHUB_ENV -Append
           @('WINDOWS_NSIS_PACKAGE=PASS','WINDOWS_PACKAGED_CORE_SIBLING=PASS','WINDOWS_PACKAGED_CORE_HASH_MATCH=PASS') | Out-File $env:GITHUB_STEP_SUMMARY -Append
 
-      - name: Prove packaged launch and mismatch behavior
+      - name: Prove packaged launch and exercise mismatch behavior
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -249,7 +251,11 @@ jobs:
             if ($bad.HasExited) { throw 'Desktop exited in mismatched-Core case' }
             if (Get-CimInstance Win32_Process -Filter "ParentProcessId = $($bad.Id)" | Where-Object Name -eq 'wepld-core.exe') { throw 'mismatched Core remained live' }
             Stop-WePLD $bad
-            'WINDOWS_PACKAGED_IDENTITY_MISMATCH_CASE=FAIL_CLOSED_PASS' | Out-File $env:GITHUB_STEP_SUMMARY -Append
+            @(
+              'WINDOWS_PACKAGED_MISMATCH_CASE_EXERCISED=PASS'
+              'WINDOWS_PACKAGED_MISMATCHED_SIBLING_REMAINED_LIVE=NO'
+              'WINDOWS_PREEXEC_BINARY_IDENTITY_ATTESTATION=NOT_IMPLEMENTED_NOT_CLAIMED'
+            ) | Out-File $env:GITHUB_STEP_SUMMARY -Append
           } finally {
             Stop-WePLD $null
             Remove-Item $core -Force -ErrorAction SilentlyContinue

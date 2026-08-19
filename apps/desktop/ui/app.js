@@ -5,6 +5,7 @@ const versionStatus = document.getElementById("core-version");
 const capabilitiesStatus = document.getElementById("core-capabilities");
 const observationStatus = document.getElementById("observation-status");
 let observationRequestId = null;
+let observationBusy = false;
 
 async function refresh() {
   try {
@@ -22,23 +23,31 @@ async function refresh() {
 }
 
 document.getElementById("observation-start").addEventListener("click", async () => {
+  if (observationBusy || observationRequestId !== null) return;
+  observationBusy = true;
   try {
     observationRequestId = await invoke("core_observe_health");
     observationStatus.textContent = "Observation active";
   } catch (_error) {
     observationRequestId = null;
     observationStatus.textContent = "Observation unavailable";
+  } finally {
+    observationBusy = false;
   }
 });
 
 document.getElementById("observation-cancel").addEventListener("click", async () => {
-  if (observationRequestId === null) return;
+  if (observationBusy || observationRequestId === null) return;
+  const requestId = observationRequestId;
+  observationBusy = true;
   try {
-    await invoke("core_cancel_observation", { requestId: observationRequestId });
-    observationRequestId = null;
+    await invoke("core_cancel_observation", { requestId });
+    if (observationRequestId === requestId) observationRequestId = null;
     observationStatus.textContent = "Observation cancelled";
   } catch (_error) {
     observationStatus.textContent = "Cancellation failed";
+  } finally {
+    observationBusy = false;
   }
 });
 

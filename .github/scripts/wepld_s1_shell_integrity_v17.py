@@ -71,11 +71,12 @@ v3 = v16.v3
 v2 = v16.v2
 shell = v16.shell
 
+PRIOR_V16_MAIN = v16.EXPECTED_BOUNDED_DEMUX_MAIN
 _INSTALLED = False
 
 
 def _fixed_error_main_from_v16() -> str:
-    text = v16.EXPECTED_BOUNDED_DEMUX_MAIN
+    text = PRIOR_V16_MAIN
     send_error = '.map_err(|error| format!("{error:?}"))?;'
     receive_error = 'client.receive().map_err(|error| format!("{error:?}"))?'
 
@@ -169,9 +170,7 @@ def selftest() -> None:
     shell.verify_shell_config(fixture)
 
     old_debug_template = dict(safe)
-    old_debug_template["apps/desktop/src-tauri/src/main.rs"] = (
-        v16._bounded_main_from_v15().encode("ascii")
-    )
+    old_debug_template["apps/desktop/src-tauri/src/main.rs"] = PRIOR_V16_MAIN.encode("ascii")
     base.expect_failure_matching(
         "S1-010 variable Core error forwarding",
         "frozen typed status-projection template",

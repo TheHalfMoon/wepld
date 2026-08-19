@@ -26,7 +26,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python .github/scripts/wepld_s1_shell_integrity_v21.py selftest
+          python .github/scripts/wepld_s1_shell_integrity_v22.py selftest
 
       - name: Verify exact checked-out tree against the immutable baseline
         shell: bash
@@ -38,7 +38,7 @@ jobs:
             echo 'immutable baseline comparison SHA could not be established' >&2
             exit 1
           fi
-          python .github/scripts/wepld_s1_shell_integrity_v21.py verify-local \
+          python .github/scripts/wepld_s1_shell_integrity_v22.py verify-local \
             --root . \
             --remote-baseline \
             --pr-base-sha "$WEPLD_COMPARISON_SHA"

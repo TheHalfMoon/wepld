@@ -30,7 +30,7 @@ CANONICAL_REPOSITORY = "TheHalfMoon/wepld"
 EXPECTED_WORKFLOW_SHA256 = {
     ".github/workflows/foundation-integrity.yml": "7a1fca2b32ffa843f596dab608f580d2f32a226f9867f7081be45516791e7219",
     ".github/workflows/s1-admission-integrity.yml": "efb01f78dace2db331fa4bedcad3ed46e0a60e3f5ad1ff7d6c60cc820247453f",
-    ".github/workflows/s1-contracts.yml": "ba915a7780c23ea2d27a1dc73a351835a5043b94244b8ea710fa92458352f17b",
+    ".github/workflows/s1-contracts.yml": "a71ad16471857e1b95ca17b0f1fddd1460b23829a182d57cbc1df7b24ebb7301",
 }
 
 TAURI_SOURCE_COMMIT = "7cd71369c00978a3783b6ae3e9972358abbe4ae6"
@@ -333,7 +333,9 @@ def _selftest_platform_workflow_binding() -> None:
         b"2\\.11\\.4",
         b"cargo tauri build --ci --bundles nsis",
         b"WINDOWS_RUNTIME_CONTAINMENT_CLAIM=NONE",
-        b"${RUNNER_OS^^}_RUNTIME_CONTAINMENT_CLAIM=NONE",
+        b'case "$RUNNER_OS" in',
+        b"${platform}_RUNTIME_CONTAINMENT_CLAIM=NONE",
+        b"Copy-Item -Force target\\debug\\wepld-core.exe apps\\desktop\\src-tauri\\binaries\\wepld-core-x86_64-pc-windows-msvc.exe",
     )
     missing = [token.decode("utf-8") for token in required if token not in workflow]
     if missing:

@@ -104,11 +104,16 @@ jobs:
           Path("apps/desktop/src-tauri/icons/icon.png").write_bytes(png)
           PY
           cargo check --locked --package wepld-desktop --all-targets
+          case "$RUNNER_OS" in
+            Linux) platform=LINUX ;;
+            macOS) platform=MACOS ;;
+            *) echo "unexpected runner OS: $RUNNER_OS" >&2; exit 1 ;;
+          esac
           {
-            echo "${RUNNER_OS^^}_HOST_TRIPLE=$host"
-            echo "${RUNNER_OS^^}_COMPILE=PASS"
-            echo "${RUNNER_OS^^}_PROTOCOL_CONTRACT_TESTS=PASS"
-            echo "${RUNNER_OS^^}_RUNTIME_CONTAINMENT_CLAIM=NONE"
+            echo "${platform}_HOST_TRIPLE=$host"
+            echo "${platform}_COMPILE=PASS"
+            echo "${platform}_PROTOCOL_CONTRACT_TESTS=PASS"
+            echo "${platform}_RUNTIME_CONTAINMENT_CLAIM=NONE"
           } >> "$GITHUB_STEP_SUMMARY"
 
   desktop-windows:
@@ -143,8 +148,9 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           cargo build --locked --package wepld-core
-          New-Item -ItemType Directory -Force target\debug\deps | Out-Null
+          New-Item -ItemType Directory -Force target\debug\deps,apps\desktop\src-tauri\binaries | Out-Null
           Copy-Item -Force target\debug\wepld-core.exe target\debug\deps\wepld-core.exe
+          Copy-Item -Force target\debug\wepld-core.exe apps\desktop\src-tauri\binaries\wepld-core-x86_64-pc-windows-msvc.exe
           cargo fmt --package wepld-desktop -- --check
           cargo clippy --locked --package wepld-desktop --all-targets -- -D warnings -F unsafe-code
           cargo test --locked --package wepld-desktop --all-targets

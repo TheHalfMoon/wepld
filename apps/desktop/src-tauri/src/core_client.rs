@@ -854,3 +854,7 @@ mod tests {
         ));
     }
 }
+
+#[cfg(test)]
+#[path = "s1_011_tests.rs"]
+mod s1_011_tests;

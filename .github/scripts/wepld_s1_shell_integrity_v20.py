@@ -29,6 +29,7 @@ import wepld_integrity as base
 POLICY_SCRIPT = ".github/scripts/wepld_s1_shell_integrity_v20.py"
 PRIOR_V19_RUNNER_PATH = ".github/scripts/wepld_s1_shell_integrity_v19.py"
 EXPECTED_PRIOR_V19_RUNNER_GIT_BLOB_SHA1 = "59d0d38ce3581a526906c4562f7a1b694af6cff4"
+CANONICAL_REPOSITORY = "TheHalfMoon/wepld"
 
 EXPECTED_WORKFLOW_SHA256 = {
     ".github/workflows/foundation-integrity.yml": "17d47138679b15162f1f383057f760d61457a6bc30d883f990a6c2e7992019ad",
@@ -212,6 +213,12 @@ def selftest() -> None:
     _install_v20_policy()
     _selftest_remote_blob_identity()
 
+    if base.REPOSITORY != CANONICAL_REPOSITORY:
+        base.fail(
+            "canonical repository identity drifted: "
+            f"expected={CANONICAL_REPOSITORY} actual={base.REPOSITORY}"
+        )
+
     marker_fixture = base.MemoryView(
         {
             v19.CORE_ADVERSARIAL_TEST_PATH: b"candidate core test\n",
@@ -246,13 +253,16 @@ def _verify_local(argv: list[str]) -> int:
                     "and an exact trusted PR base"
                 )
             comparison_sha = base.require_comparison_sha(args.pr_base_sha)
-            repository = os.environ.get("GITHUB_REPOSITORY")
-            if not repository or not base.REPOSITORY_SLUG_RE.fullmatch(repository):
+            if base.REPOSITORY != CANONICAL_REPOSITORY:
                 base.fail(
-                    "S1-011 local qualification requires canonical "
-                    "GITHUB_REPOSITORY identity"
+                    "canonical repository identity drifted: "
+                    f"expected={CANONICAL_REPOSITORY} actual={base.REPOSITORY}"
                 )
-            policy_base = base.RemoteRepositoryView(repository, comparison_sha, client)
+            policy_base = base.RemoteRepositoryView(
+                CANONICAL_REPOSITORY,
+                comparison_sha,
+                client,
+            )
             stage = verify_view(view, policy_base=policy_base)
         else:
             stage = verify_view(view)

@@ -263,8 +263,8 @@ def _selftest_platform_workflow_binding() -> None:
 
     required = (
         b"runs-on: windows-latest",
-        b"runs-on: ubuntu-latest",
-        b"runs-on: macos-latest",
+        b"os: [ubuntu-latest, macos-latest]",
+        b"runs-on: ${{ matrix.os }}",
         b"permissions: {}",
         b"7cd71369c00978a3783b6ae3e9972358abbe4ae6",
         b"2\\.11\\.4",

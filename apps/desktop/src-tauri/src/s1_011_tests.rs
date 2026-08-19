@@ -11,8 +11,7 @@ use wepld_contracts::{
 
 const FAKE_CORE_HELPER_ENV: &str = "WEPLD_S1_011_FAKE_CORE_HELPER";
 const FAKE_CORE_READY_MARKER: &[u8] = b"WEPLD_S1_011_FAKE_CORE_READY\n";
-const FAKE_CORE_HELPER_TEST: &str =
-    "core_client::s1_011_tests::fake_core_stderr_flood_helper";
+const FAKE_CORE_HELPER_TEST: &str = "core_client::s1_011_tests::fake_core_stderr_flood_helper";
 const TEST_POLL_INTERVAL: Duration = Duration::from_millis(5);
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -220,7 +219,9 @@ fn fake_core_stderr_flood_helper() {
     stdout
         .write_all(&wire)
         .expect("fake Core health response must write");
-    stdout.flush().expect("fake Core health response must flush");
+    stdout
+        .flush()
+        .expect("fake Core health response must flush");
 
     let mut sink = [0_u8; 1];
     while stdin.read(&mut sink).unwrap_or(0) != 0 {}
@@ -263,7 +264,10 @@ fn core_crash_invalidates_then_restart_uses_fresh_launch() {
     assert!(client.is_ready());
     let prior_launch = client.launch_id();
 
-    client.child.kill().expect("owned Core must accept termination");
+    client
+        .child
+        .kill()
+        .expect("owned Core must accept termination");
     wait_until_child_exits(&mut client);
 
     let error = client
@@ -402,7 +406,9 @@ fn desktop_owned_child_cleanup_is_bounded_and_observable() {
     let _ = client.receive().expect("health response must arrive");
     assert!(client.is_ready());
 
-    client.stop_child().expect("owned child cleanup must succeed");
+    client
+        .stop_child()
+        .expect("owned child cleanup must succeed");
     assert!(!client.is_ready());
     assert!(
         client
@@ -415,8 +421,7 @@ fn desktop_owned_child_cleanup_is_bounded_and_observable() {
 
 #[test]
 fn stderr_pressure_beyond_retained_capacity_does_not_block_protocol_round_trip() {
-    let mut client =
-        spawn_stderr_flood_client().expect("frozen stderr-flood helper must start");
+    let mut client = spawn_stderr_flood_client().expect("frozen stderr-flood helper must start");
 
     let request_id = client.send_health().expect("health request must enqueue");
     let response = client

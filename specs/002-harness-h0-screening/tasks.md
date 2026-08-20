@@ -12,11 +12,24 @@ S1_013_PLUS = NOT_STARTED
 
 Task state is repository coordination, not effect authority. A task may move only when its explicit canonical prerequisites are proven. No task in this file can self-authorize implementation, dependency admission, external egress, or completion.
 
+## Canonicalization semantics
+
+H0-001 and H0-002 are necessarily **pre-canonicalization bootstrap steps** for this file itself. This `tasks.md` becomes execution-authoritative only after H0-002 is merged and post-merge refreeze is proven.
+
+Therefore:
+
+```text
+PRE_CANONICALIZATION_NEXT = H0-001
+CANONICAL_ENTRYPOINT_AFTER_H0_002 = H0-003
+```
+
+After this package is canonical, H0-001/H0-002 are historical prerequisites and MUST NOT be reopened merely because their instructions remain preserved here.
+
 ## Governance / planning canonicalization
 
 ### H0-001 — Bootstrap H0 Spec-Kit integrity policy
 
-**State:** ACTIVE / NEXT
+**State in this package:** PRE-CANONICALIZATION PREREQUISITE
 
 Create a dedicated trusted-bootstrap policy that permits only:
 
@@ -40,7 +53,7 @@ The policy must freeze the package after canonicalization and delegate unrelated
 
 ### H0-002 — Canonicalize exact H0 Spec Kit package
 
-**State:** BLOCKED_ON_H0_001
+**State in this package:** PRE-CANONICALIZATION SELF-CANONICALIZATION STEP / BLOCKED_ON_H0_001
 
 Add exactly the frozen H0 planning files authorized by H0-001, with no source/runtime/dependency/roadmap changes.
 
@@ -59,17 +72,19 @@ Required gates:
 
 ### H0-003 — Reconcile canonical planning status
 
-**State:** BLOCKED_ON_H0_002
+**State:** CANONICAL_ENTRYPOINT / REQUIRES_H0_002
 
 Verify that canonical main contains exact planned blobs and that no excluded Harness research handoff, product source, dependency manifest, or S1-013 mutation entered through the planning transition.
 
-**Exit:** planning identity packet recorded.
+Also bind the exact H0-001 policy activation and H0-002 planning-package refreeze evidence externally in GitHub/repository evidence without rewriting a purported final PR head into the historical planning blobs.
+
+**Exit:** planning identity packet recorded and H0-004 may start.
 
 ## Ponytail / Source Acquisition closeout
 
 ### H0-004 — Ponytail FULL closeout
 
-**State:** BLOCKED_ON_H0_002
+**State:** BLOCKED_ON_H0_003
 
 Re-run/verify Ponytail FULL against the canonical Spec Kit package and current repository/source truth. Confirm that every proposed abstraction/dependency still earns its place.
 
@@ -94,7 +109,7 @@ CUSTOM_CRYPTO/HASH_IMPLEMENTATION
 
 ### H0-005 — Qualify Rust toolchain reuse for H0
 
-**State:** BLOCKED_ON_H0_002
+**State:** BLOCKED_ON_H0_003
 
 Determine whether the exact canonical Rust toolchain evidence already used by S1 can be reused for H0 control/evidence implementation. Reverify exact source/release identity and H0 build requirements.
 
@@ -102,7 +117,7 @@ Determine whether the exact canonical Rust toolchain evidence already used by S1
 
 ### H0-006 — Qualify typed serialization/canonicalization substrate
 
-**State:** BLOCKED_ON_H0_002
+**State:** BLOCKED_ON_H0_003
 
 Select the minimum typed serialization package set and freeze WePLD canonical serialization rules for all decision-relevant H0 manifests/records.
 
@@ -110,13 +125,13 @@ Must prove deterministic canonical bytes independent of map iteration/order and 
 
 ### H0-007 — Qualify SHA-256 implementation
 
-**State:** BLOCKED_ON_H0_002
+**State:** BLOCKED_ON_H0_003
 
 Select an established commodity SHA-256 implementation; do not hand-write cryptographic hashing. Pin exact source/package/version/features and inspect maintenance/security/license/exit strategy.
 
 ### H0-008 — Qualify local execution/container boundary
 
-**State:** BLOCKED_ON_H0_002
+**State:** BLOCKED_ON_H0_003
 
 Define the exact local process/container execution mechanism for H0-SCREEN.
 
@@ -134,7 +149,7 @@ Requirements:
 
 ### H0-009 — Qualify model-provider boundary
 
-**State:** BLOCKED_ON_H0_002
+**State:** BLOCKED_ON_H0_003
 
 Define a replaceable model invocation boundary without silently admitting a broad provider SDK.
 
@@ -148,7 +163,7 @@ Requirements:
 
 ### H0-010 — Source Acquisition final reconciliation
 
-**State:** BLOCKED_ON_H0_005..H0_009
+**State:** BLOCKED_ON_H0_004..H0_009
 
 Create exact H0 component admission evidence, dependency/feature inventory, license/notice disposition, advisory/SBOM evidence where applicable, and replacement/exit paths.
 
@@ -349,7 +364,12 @@ None authorizes product Harness implementation or S1-013.
 Until H0-012 is canonical and activation-proven, tasks H0-013 through H0-031 are coordination-only and MUST NOT be started.
 
 ```text
-CURRENT_NEXT_TASK = H0-001
+IF_THIS_PACKAGE_IS_NOT_YET_CANONICAL:
+  NEXT = H0-001
+
+IF_H0_SPEC_KIT_CLOSED_CANONICAL_PROVEN:
+  NEXT = H0-003
+
 H0_SCREEN_IMPLEMENTATION = NOT_STARTED
 HARNESS_IMPLEMENTATION_AUTHORIZED = NO
 S1_013_PLUS = NOT_STARTED

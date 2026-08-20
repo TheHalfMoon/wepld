@@ -1,10 +1,10 @@
 # Acceptance — Harness H0 Screening Falsification
 
-This file defines acceptance states for the H0-SCREEN planning and later screening slice. It does not grant implementation or H0 promotion authority.
+This file defines acceptance transitions for the H0-SCREEN planning and later screening slice. It does not grant implementation or H0 promotion authority, and it does not encode a purported final PR head inside tracked content.
 
 ## A. Spec Kit planning acceptance
 
-The planning package may be accepted as `H0_SPEC_KIT = CLOSED_CANONICAL_PROVEN` only when all are true:
+The planning package may transition to `H0_SPEC_KIT = CLOSED_CANONICAL_PROVEN` only when all are true on live GitHub/canonical evidence:
 
 ```text
 EXACT_PLANNING_PACKAGE = CANONICAL
@@ -30,6 +30,8 @@ H0_GO = YES
 ROADMAP_MUTATION = YES
 S1_013_STARTED = YES
 ```
+
+H0-001/H0-002 are pre-canonicalization bootstrap/canonicalization steps. Once this package is canonical and refreeze-proven, the execution-authoritative entrypoint is H0-003.
 
 ## B. Ponytail acceptance
 
@@ -204,17 +206,28 @@ H0_RESEARCH_KILL_OR_NARROW_CANDIDATE
 
 No screening completion state equals confirmatory H0 GO.
 
-## Current acceptance state
+## Package-state transition model
+
+This file is designed to remain true before and after canonicalization:
 
 ```text
-H0_SPEC_KIT = NOT_YET_CANONICAL
-PONYTAIL_FULL = DRAFT_COMPLETE_FOR_PLANNING_REVIEW
-SOURCE_ACQUISITION_CHECK = OPEN
-H0_SCREEN_IMPLEMENTATION_AUTHORIZED = NO
-H0_SCREEN = NOT_STARTED
-H0_PROMOTION_AUTHORITY = NONE
-HARNESS_SOURCE_ADMISSION = NONE
-HARNESS_DEPENDENCY_ADMISSION = NONE
-ROADMAP_MUTATION = NONE
-S1_013_PLUS = NOT_STARTED
+PRE_CANONICALIZATION:
+  H0_SPEC_KIT = CANDIDATE_PENDING_H0_001_H0_002
+  SOURCE_ACQUISITION_CHECK = OPEN
+  H0_SCREEN_IMPLEMENTATION_AUTHORIZED = NO
+  H0_SCREEN = NOT_STARTED
+
+AFTER_H0_002_POST_MERGE_REFREEZE_PROVEN:
+  H0_SPEC_KIT = CLOSED_CANONICAL_PROVEN
+  NEXT_EXECUTION_TASK = H0_003
+  SOURCE_ACQUISITION_CHECK = OPEN
+  H0_SCREEN_IMPLEMENTATION_AUTHORIZED = NO
+  H0_SCREEN = NOT_STARTED
+
+GLOBAL:
+  H0_PROMOTION_AUTHORITY = NONE
+  HARNESS_SOURCE_ADMISSION = NONE_UNTIL_SEPARATELY_QUALIFIED
+  HARNESS_DEPENDENCY_ADMISSION = NONE_UNTIL_SEPARATELY_QUALIFIED
+  ROADMAP_MUTATION = NONE
+  S1_013_PLUS = NOT_STARTED
 ```

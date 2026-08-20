@@ -125,7 +125,11 @@ Runner/model/harness completion maps to observations. Runner execution completio
 
 ## C-016 — How are retries handled?
 
-**Decision:** no task/harness/model/budget retries. At most one replacement trial is allowed for independently evidenced shared infrastructure/provider failure under the frozen RetryPolicy. The original record is retained.
+**Decision:** each task/arm/model cell has exactly one started screening attempt. Task, harness, model, budget, verifier, and post-start infrastructure/provider failures are never retried.
+
+A shared infrastructure/provider failure may be rescheduled at most once only when it is independently evidenced **before the cell attempt starts**. Such an event is recorded as `PRE_ATTEMPT_INFRASTRUCTURE_OBSERVATION`, does not create a TrialRecord, does not consume the cell's single attempt, and may not change the frozen task/model/recipe/environment/verifier/budget/effect identities. If the rescheduled readiness check fails again, the affected batch is `SCREENING_BLOCKED`; the cell is not repeatedly rescheduled.
+
+The attempt-start boundary is the first transition into task/model/harness execution after manifest validation and shared readiness checks. Once that boundary is crossed, every terminal condition is retained as the cell's sole screening outcome.
 
 ## C-017 — What network policy applies?
 
@@ -157,7 +161,30 @@ No arm may receive a broader network/effect envelope than another paired arm.
 
 ## C-021 — When is the minimum runner considered inadequate?
 
-**Decision:** runner replacement/repair is required before confirmatory planning if the stable screening rerun breaches any frozen runner criteria, including:
+**Decision:** runner replacement/repair is required before confirmatory planning if the stable screening rerun breaches any frozen runner criteria.
+
+Runner overhead is computed mechanically for every **started screening trial**, including normal success/failure and runner-caused invalid/incomplete outcomes:
+
+```text
+trial_wall_seconds = monotonic(finalization_end - attempt_start)
+runner_overhead_seconds = sum(exclusive runner-controlled orchestration intervals)
+runner_overhead_fraction = runner_overhead_seconds / trial_wall_seconds
+```
+
+`runner_overhead_seconds` includes runner-controlled validation after attempt start, workspace/container/process orchestration, observation/control bookkeeping, artifact/evidence capture orchestration, cleanup, canonical serialization, and TrialRecord finalization. It excludes intervals spent waiting for task code, model/provider execution, and objective-verifier execution. Timers for a trial must be non-overlapping monotonic intervals so summed runner time cannot double-count concurrent phases.
+
+Pre-attempt infrastructure observations from C-016 are excluded because no screening attempt has started; they are reported separately as readiness/infrastructure counts and operator burden. No post-start retry exists. A started trial with missing/nonpositive wall timing or unaccountable runner timing makes runner evidence incomplete and fails the adequacy gate rather than being removed from aggregation.
+
+For the final stable screening batch:
+
+```text
+MEDIAN_RUNNER_OVERHEAD_FRACTION = median(per-started-trial runner_overhead_fraction)
+P95_RUNNER_OVERHEAD_SECONDS = nearest-rank p95(per-started-trial runner_overhead_seconds)
+```
+
+Aggregation is across all started task/arm/model trials in the frozen batch, with no per-arm, per-model, per-cell, or success-only pre-aggregation.
+
+Runner replacement/repair is required if any applies:
 
 ```text
 RUNNER_CAUSED_INVALID_OR_INCOMPLETE_TRIAL_RATE > 2_PERCENT

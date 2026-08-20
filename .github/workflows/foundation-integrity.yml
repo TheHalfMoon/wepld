@@ -22,6 +22,42 @@ jobs:
           lfs: false
           submodules: false
 
+      - name: Diagnostic read-only list of trusted admission runs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import urllib.request
+
+          url = (
+              "https://api.github.com/repos/TheHalfMoon/wepld/actions/workflows/"
+              "s1-admission-integrity.yml/runs?event=pull_request_target&per_page=20"
+          )
+          request = urllib.request.Request(
+              url,
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "User-Agent": "wepld-h0-admission-diagnostic",
+              },
+          )
+          with urllib.request.urlopen(request, timeout=30) as response:
+              payload = json.load(response)
+          for run in payload.get("workflow_runs", []):
+              print(
+                  "S1_ADMISSION_RUN "
+                  f"id={run.get('id')} "
+                  f"number={run.get('run_number')} "
+                  f"event={run.get('event')} "
+                  f"branch={run.get('head_branch')} "
+                  f"sha={run.get('head_sha')} "
+                  f"status={run.get('status')} "
+                  f"conclusion={run.get('conclusion')} "
+                  f"created_at={run.get('created_at')} "
+                  f"pull_requests={[(pr.get('number'), pr.get('head', {}).get('sha')) for pr in run.get('pull_requests', [])]}"
+              )
+          PY
+
       - name: Run integrity policy self-tests
         shell: bash
         run: |

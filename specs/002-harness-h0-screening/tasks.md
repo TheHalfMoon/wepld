@@ -322,7 +322,8 @@ Freeze before the first real screening outcome:
 - concurrency;
 - balanced run-order algorithm/seed;
 - expected started-trial count;
-- runner-overhead timing boundaries, inclusion/exclusion rules, formula, and deterministic batch aggregation.
+- runner-overhead timing boundaries, inclusion/exclusion rules, formula, and deterministic batch aggregation;
+- manual-recovery numerator, all-started-trial denominator, units, exclusions, and fail-closed zero/missing-accounting behavior.
 
 No post-start retry or replacement is permitted.
 
@@ -336,7 +337,7 @@ Run exactly one started attempt per task/arm/model cell using common runner plum
 
 **State:** BLOCKED_ON_H0_028
 
-Emit the runner-neutral TrialRecord set, separately retained pre-attempt infrastructure observations, normalized export, screening metrics, calibration profiles, recipe traces, failure counts, hard-gate incidents, evidence-completeness accounting, and mechanically recomputable runner-overhead timing records.
+Emit the runner-neutral TrialRecord set, separately retained pre-attempt infrastructure observations, normalized export, screening metrics, calibration profiles, recipe traces, failure counts, hard-gate incidents, evidence-completeness accounting, mechanically recomputable runner-overhead timing records, and complete operator-recovery minute records covering both pre-attempt readiness handling and started-trial runner recovery.
 
 ### H0-030 — Evaluate runner adequacy
 
@@ -359,12 +360,22 @@ MEDIAN_RUNNER_OVERHEAD_FRACTION = median(per-started-trial runner_overhead_fract
 P95_RUNNER_OVERHEAD_SECONDS = nearest-rank p95(per-started-trial runner_overhead_seconds)
 ```
 
+Manual recovery uses the same explicit all-started-trial denominator:
+
+```text
+STARTED_TRIAL_COUNT = count(TrialRecords that crossed attempt_start in the final stable screening batch)
+OPERATOR_RECOVERY_MINUTES_TOTAL = sum(unplanned manual operator recovery minutes attributable to H0 runner/readiness operation in that batch)
+OPERATOR_MINUTES_PER_100_STARTED_TRIALS = (OPERATOR_RECOVERY_MINUTES_TOTAL * 100) / STARTED_TRIAL_COUNT
+```
+
+Include successful, failed, and runner-caused invalid/incomplete TrialRecords in `STARTED_TRIAL_COUNT`. Include pre-attempt readiness recovery minutes in `OPERATOR_RECOVERY_MINUTES_TOTAL` even though those readiness observations are not TrialRecords. Exclude planned experiment setup. A zero denominator or incomplete recovery-time accounting fails runner-evidence completeness.
+
 Then apply the frozen runner criteria:
 
 ```text
 INVALID_OR_INCOMPLETE_RATE <= 2_PERCENT
 MEDIAN_RUNNER_OVERHEAD_FRACTION <= 15_PERCENT
-MANUAL_RECOVERY <= 2_OPERATOR_HOURS_PER_100_COMPLETED_TRIALS
+OPERATOR_MINUTES_PER_100_STARTED_TRIALS <= 120
 NO_DISTRIBUTED_SCHEDULER_REQUIRED
 NO_NEW_CLOUD_PROVIDER_BACKEND_REQUIRED
 EVIDENCE_CONTRACT_FULLY_SATISFIED

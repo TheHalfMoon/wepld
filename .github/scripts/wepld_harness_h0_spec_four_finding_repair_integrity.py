@@ -101,11 +101,9 @@ def _paths(view: base.RepositoryView) -> set[str]:
 
 
 def _bind_prior_policy_before_import() -> None:
-    path = Path(__file__).resolve().with_name("wepld_harness_h0_spec_recovery_integrity.py")
-    try:
-        data = path.read_bytes()
-    except OSError as exc:
-        base.fail(f"unable to read frozen H0 Spec Kit recovery policy runner: {exc}")
+    root = Path(__file__).resolve().parents[2]
+    view = base.LocalRepositoryView(root)
+    data = view.read_bytes(PRIOR_POLICY_PATH, base.MAX_POLICY_FILE_BYTES)
     actual = _git_blob_sha1(data)
     if actual != EXPECTED_PRIOR_POLICY_GIT_BLOB_SHA1:
         base.fail(

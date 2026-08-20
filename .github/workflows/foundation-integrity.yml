@@ -22,6 +22,58 @@ jobs:
           lfs: false
           submodules: false
 
+      - name: Diagnostic read-only list of target trusted-admission runs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import urllib.parse
+          import urllib.request
+
+          target_branch = "docs/harness-h0-screening-spec-kit-recovery-denominator-repair"
+          target_sha = "36f94d1cd8b48fd1a781a5d35d2e14cedc8f2c60"
+          query = urllib.parse.urlencode({
+              "branch": target_branch,
+              "event": "pull_request_target",
+              "per_page": 20,
+          })
+          url = (
+              "https://api.github.com/repos/TheHalfMoon/wepld/actions/workflows/"
+              f"s1-admission-integrity.yml/runs?{query}"
+          )
+          request = urllib.request.Request(
+              url,
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "User-Agent": "wepld-h0-package-admission-diagnostic",
+              },
+          )
+          with urllib.request.urlopen(request, timeout=30) as response:
+              payload = json.load(response)
+
+          matched = False
+          for run in payload.get("workflow_runs", []):
+              line = (
+                  "S1_ADMISSION_RUN "
+                  f"id={run.get('id')} "
+                  f"number={run.get('run_number')} "
+                  f"event={run.get('event')} "
+                  f"branch={run.get('head_branch')} "
+                  f"sha={run.get('head_sha')} "
+                  f"status={run.get('status')} "
+                  f"conclusion={run.get('conclusion')} "
+                  f"created_at={run.get('created_at')}"
+              )
+              print(line)
+              if run.get("head_sha") == target_sha and run.get("head_branch") == target_branch:
+                  matched = True
+                  print("TARGET_S1_ADMISSION_RUN " + line.removeprefix("S1_ADMISSION_RUN "))
+
+          if not matched:
+              raise SystemExit("target trusted-admission run not found in latest 20 matching runs")
+          PY
+
       - name: Run integrity policy self-tests
         shell: bash
         run: |

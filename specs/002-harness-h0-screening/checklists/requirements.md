@@ -78,7 +78,7 @@ This checklist evaluates planning quality and pre-implementation readiness only.
 - [x] F12 unexpected egress canary is required where instrumentable.
 - [x] F13 synthetic secret-redaction boundary is required.
 - [x] F14 parallel workspace isolation is required.
-- [x] F15 retry-policy symmetry is required.
+- [x] F15 one-attempt/pre-attempt-reschedule symmetry is required.
 - [x] F16 run-order identity is required.
 - [x] All required synthetic fixtures must pass before real screening tasks.
 
@@ -109,16 +109,26 @@ This checklist evaluates planning quality and pre-implementation readiness only.
 
 ## Retry and failure semantics
 
-- [x] Task/harness/model/budget failures are not retried.
-- [x] Shared infrastructure/provider replacement is capped at one when independently proven.
-- [x] Original failed trial is retained.
+- [x] Every task/arm/model cell has exactly one started screening attempt.
+- [x] Task/harness/model/budget/verifier/post-start infrastructure/provider failures are not retried.
+- [x] Independently proven shared readiness failure may be rescheduled at most once only before attempt start.
+- [x] A pre-attempt readiness failure is recorded separately and cannot create a TrialRecord or consume the cell attempt.
+- [x] A second pre-attempt readiness failure blocks the affected batch.
+- [x] Every started-trial failure remains the sole cell outcome.
 - [x] Harness-induced crashes/loops/context failures remain outcomes.
 - [x] Failure taxonomy is frozen before screening execution.
 
 ## Runner adequacy
 
 - [x] Runner-caused invalid/incomplete rate is measured.
-- [x] Runner overhead is measured.
+- [x] Per-started-trial runner overhead uses non-overlapping monotonic runner-controlled intervals.
+- [x] `runner_overhead_fraction = runner_overhead_seconds / trial_wall_seconds` is frozen.
+- [x] Task/model/provider/verifier execution waits are excluded from the overhead numerator.
+- [x] All started trials, including runner-caused invalid/incomplete outcomes, remain in overhead aggregation.
+- [x] Pre-attempt infrastructure observations are excluded from trial aggregation and reported separately.
+- [x] Missing/nonpositive timing fails runner-evidence completeness rather than being dropped.
+- [x] Median overhead fraction is aggregated directly across all started trials in the stable batch.
+- [x] P95 overhead seconds uses nearest-rank p95 across the same started-trial set.
 - [x] Manual recovery burden is measured.
 - [x] Resource contention is measured.
 - [x] Runner retention threshold is `<= 2%` invalid/incomplete rate.

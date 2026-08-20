@@ -125,7 +125,7 @@ No product runtime path under `apps/` or existing S1 runtime crate is presumed p
 
 - canonicalize this exact planning packet under a dedicated trusted-base policy;
 - run deterministic integrity qualification;
-- apply exact-head egress preflight;
+- apply exact-head egress preflight under `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md`;
 - obtain independent correctness/engineering review;
 - reconcile findings;
 - merge only on exact reviewed head;
@@ -134,7 +134,7 @@ No product runtime path under `apps/` or existing S1 runtime crate is presumed p
 Exit:
 
 ```text
-SPEC_KIT = CANONICAL_PROVEN
+H0_SPEC_KIT = CLOSED_CANONICAL_PROVEN
 IMPLEMENTATION = BLOCKED
 ```
 
@@ -286,7 +286,7 @@ Evaluate the minimal runner against the frozen retention/switch criteria:
 ```text
 INVALID_OR_INCOMPLETE_RATE <= 2_PERCENT
 MEDIAN_RUNNER_OVERHEAD_FRACTION <= 15_PERCENT
-MANUAL_RECOVERY <= 2_OPERATOR_HOURS_PER_100_COMPLETED_TRIALS
+OPERATOR_MINUTES_PER_100_STARTED_TRIALS <= 120
 NO_DISTRIBUTED_SCHEDULER_REQUIRED
 NO_NEW_CLOUD_PROVIDER_BACKEND_REQUIRED
 EVIDENCE_CONTRACT_FULLY_SATISFIED

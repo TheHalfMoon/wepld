@@ -350,26 +350,22 @@ def _selftest_workflow_binding() -> None:
 
 
 def _fixture_canonical_base() -> tuple[dict[str, bytes], dict[bytes, str]]:
+    view = base.LocalRepositoryView(Path(__file__).resolve().parents[2])
     files: dict[str, bytes] = {}
-    identities: dict[bytes, str] = {}
 
-    ledger = b"canonical-ledger-fixture"
-    files[prior.prior.CANONICAL_LEDGER_PATH] = ledger
-    identities[ledger] = prior.prior.EXPECTED_RECONCILED_LEDGER_GIT_BLOB_SHA1
+    required = [
+        prior.prior.CANONICAL_LEDGER_PATH,
+        *sorted(prior.prior.RESEARCH_DOC_BLOBS),
+        PRIOR_POLICY_PATH,
+    ]
+    for relative in required:
+        files[relative] = view.read_bytes(relative, base.MAX_POLICY_FILE_BYTES)
 
-    for relative, expected in prior.prior.RESEARCH_DOC_BLOBS.items():
-        data = ("research:" + relative).encode("utf-8")
-        files[relative] = data
-        identities[data] = expected
-
-    old_policy = b"canonical-h0-spec-policy"
-    files[PRIOR_POLICY_PATH] = old_policy
-    identities[old_policy] = EXPECTED_PRIOR_POLICY_GIT_BLOB_SHA1
-    return files, identities
+    return files, {}
 
 
 def _selftest_repair_bootstrap_delta() -> None:
-    base_files, identities = _fixture_canonical_base()
+    base_files, _ = _fixture_canonical_base()
     base_files[FOUNDATION_WORKFLOW] = b"old-foundation"
     base_files[ADMISSION_WORKFLOW] = b"old-admission"
 
@@ -383,20 +379,10 @@ def _selftest_repair_bootstrap_delta() -> None:
         ADMISSION_WORKFLOW: "c" * 40,
     }
 
-    original = globals()["_git_blob_sha1"]
-    try:
-        def fake_git_blob_sha1(data: bytes) -> str:
-            if data in identities:
-                return identities[data]
-            return original(data)
-
-        globals()["_git_blob_sha1"] = fake_git_blob_sha1
-        _require_exact_delta_repair(
-            base.MemoryView(candidate_files, trees=trees),
-            base.MemoryView(base_files),
-        )
-    finally:
-        globals()["_git_blob_sha1"] = original
+    _require_exact_delta_repair(
+        base.MemoryView(candidate_files, trees=trees),
+        base.MemoryView(base_files),
+    )
 
 
 def _selftest_corrected_spec_transition() -> None:

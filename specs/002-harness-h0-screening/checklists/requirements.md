@@ -105,7 +105,7 @@ This checklist evaluates planning quality and pre-implementation readiness only.
 - [x] Synthetic canary secrets are used for redaction testing.
 - [x] Container privileged mode is denied.
 - [x] Host container-engine socket is not exposed inside task environments.
-- [x] External reviewer egress remains subject to canonical preflight policy.
+- [x] External reviewer egress is governed by `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md`; its classification, secret/private-data screening, provider-handling, approval, and durable egress-record requirements must complete before any manual external review.
 
 ## Retry and failure semantics
 
@@ -170,7 +170,7 @@ This checklist evaluates planning quality and pre-implementation readiness only.
 - [x] Independent correctness/engineering review is required for material planning/policy work.
 - [x] Security-specialist review is applicable to policy/workflow trust changes when available and egress-permitted.
 - [x] Reviewer output is evidence, not completion authority.
-- [x] Exact-head egress preflight precedes manual external review.
+- [x] Exact-head egress preflight under `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md` precedes every manual external review.
 - [x] Material head mutation invalidates stale review conclusions.
 - [ ] Spec Kit canonicalization review complete.
 - [ ] Ponytail/Source Acquisition review complete.

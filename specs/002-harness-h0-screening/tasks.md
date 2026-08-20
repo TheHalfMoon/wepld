@@ -216,7 +216,7 @@ Implement canonical bytes, SHA-256 identities, domain separation, manifest valid
 
 **State:** NOT_STARTED / REQUIRES_H0_012
 
-Implement typed minimum representations for ExperimentManifest, TaskManifest, ModelManifest, RecipeManifest, EnvironmentManifest, VerifierManifest, BudgetPolicy, EffectEnvelope, and RetryPolicy.
+Implement typed minimum representations for ExperimentManifest, TaskManifest, ModelManifest, RecipeManifest, EnvironmentManifest, VerifierManifest, BudgetPolicy, EffectEnvelope, and the frozen attempt-start/pre-attempt-readiness policy.
 
 ### H0-015 — Evidence record/finalizer core
 
@@ -282,7 +282,7 @@ Add one fixed bounded worker-pool policy, isolated trial workspaces, balanced sc
 
 **State:** NOT_STARTED / REQUIRES_H0_012
 
-Implement and pass all required synthetic runner/evidence fixtures.
+Implement and pass all required synthetic runner/evidence fixtures, including F15 proving that post-start failures cannot be retried, one pre-attempt shared-readiness failure may be rescheduled at most once without creating a TrialRecord/attempt, and a second readiness failure blocks the affected batch.
 
 Hard prerequisite for any real screening task:
 
@@ -308,29 +308,58 @@ Select/freeze exactly 40 screening tasks, archetypes, fixture hashes, environmen
 
 Freeze eligible model/provider identities/settings and their calibration profiles. No silent substitution after freeze.
 
-### H0-027 — Freeze screening budgets/retry/failure/run-order policy
+### H0-027 — Freeze screening budgets/attempt/failure/run-order/overhead policy
 
 **State:** BLOCKED_ON_H0_025,H0_026
 
-Freeze per-task maximum budgets, retry policy, failure taxonomy, concurrency, balanced run-order algorithm/seed, and expected run count before first real screening outcome.
+Freeze before the first real screening outcome:
+
+- per-task maximum budgets;
+- exact one-started-attempt-per-task/arm/model rule;
+- attempt-start boundary;
+- pre-attempt shared-readiness observation/reschedule policy with at most one reschedule and batch block on a second readiness failure;
+- failure taxonomy;
+- concurrency;
+- balanced run-order algorithm/seed;
+- expected started-trial count;
+- runner-overhead timing boundaries, inclusion/exclusion rules, formula, and deterministic batch aggregation.
+
+No post-start retry or replacement is permitted.
 
 ### H0-028 — Execute H0-SCREEN
 
 **State:** BLOCKED_ON_H0_025..H0_027
 
-Run one attempt per task/arm/model cell using common runner plumbing. Preserve all trials and evidence classifications. No confirmatory tasks and no GO decision.
+Run exactly one started attempt per task/arm/model cell using common runner plumbing. Preserve every started trial and evidence classification as the cell's sole outcome. Pre-attempt shared-readiness failures are retained separately, may be rescheduled at most once without creating a TrialRecord or consuming the cell attempt, and a second readiness failure blocks the affected batch. No confirmatory tasks and no GO decision.
 
 ### H0-029 — Produce normalized screening evidence
 
 **State:** BLOCKED_ON_H0_028
 
-Emit the runner-neutral TrialRecord set, normalized export, screening metrics, calibration profiles, recipe traces, failure counts, hard-gate incidents, and evidence-completeness accounting.
+Emit the runner-neutral TrialRecord set, separately retained pre-attempt infrastructure observations, normalized export, screening metrics, calibration profiles, recipe traces, failure counts, hard-gate incidents, evidence-completeness accounting, and mechanically recomputable runner-overhead timing records.
 
 ### H0-030 — Evaluate runner adequacy
 
 **State:** BLOCKED_ON_H0_029
 
-Apply the frozen runner criteria:
+For every started trial compute:
+
+```text
+trial_wall_seconds = monotonic(finalization_end - attempt_start)
+runner_overhead_seconds = sum(non-overlapping exclusive runner-controlled orchestration intervals)
+runner_overhead_fraction = runner_overhead_seconds / trial_wall_seconds
+```
+
+Include every started trial in aggregation, including ordinary failures and runner-caused invalid/incomplete outcomes. Exclude pre-attempt infrastructure observations from trial-overhead aggregation and report them separately. Missing/nonpositive wall timing or unaccountable runner timing fails runner-evidence completeness rather than removing the trial.
+
+Across all started trials in the final stable batch, with no per-arm/model/cell/success-only pre-aggregation:
+
+```text
+MEDIAN_RUNNER_OVERHEAD_FRACTION = median(per-started-trial runner_overhead_fraction)
+P95_RUNNER_OVERHEAD_SECONDS = nearest-rank p95(per-started-trial runner_overhead_seconds)
+```
+
+Then apply the frozen runner criteria:
 
 ```text
 INVALID_OR_INCOMPLETE_RATE <= 2_PERCENT

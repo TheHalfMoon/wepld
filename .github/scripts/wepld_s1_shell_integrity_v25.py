@@ -433,12 +433,14 @@ def _selftest_research_bundle_transition() -> None:
         replay = dict(post_base)
         for relative in RESEARCH_DOC_PATHS:
             replay[relative] = b"later-drift:" + relative.encode("utf-8")
+        post_trees = {relative: "1" * 40 for relative in RESEARCH_DOC_PATHS}
+        replay_trees = {relative: "2" * 40 for relative in RESEARCH_DOC_PATHS}
         base.expect_failure_matching(
             "v25 research bundle refreezes after canonicalization",
             "one-time only",
             _require_exact_delta_v25,
-            base.MemoryView(replay),
-            base.MemoryView(post_base),
+            base.MemoryView(replay, trees=replay_trees),
+            base.MemoryView(post_base, trees=post_trees),
         )
     finally:
         globals()["_doc_blob"] = original

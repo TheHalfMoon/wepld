@@ -321,7 +321,7 @@ def _install_repair_policy() -> None:
     _PRIOR_PRINT_SUCCESS = shell.print_success
 
     base.compare_base_controlled = _compare_base_controlled_repair
-    prior.v24.v19._require_exact_delta = _require_exact_delta_repair
+    prior.prior.v24.v19._require_exact_delta = _require_exact_delta_repair
     shell.prior.verify_extension_controlled_paths = _verify_desktop_extension_paths
     shell.prior.prior.verify_extension_controlled_paths = _verify_execution_extension_paths
 
@@ -487,7 +487,7 @@ def main(argv: list[str]) -> int:
             print(f"wepld integrity verification: FAIL: {exc}", file=sys.stderr)
             return 1
     _install_repair_policy()
-    return prior.v24.main(argv)
+    return prior.prior.v24.main(argv)
 
 
 if __name__ == "__main__":

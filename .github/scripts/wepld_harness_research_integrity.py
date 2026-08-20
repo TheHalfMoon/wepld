@@ -5,7 +5,7 @@ This wrapper does not authorize Harness implementation, source admission,
 dependency admission, roadmap mutation, or S1-013+. It authorizes only:
 
 1. the one-time v24 -> Harness-research policy/workflow bootstrap; and
-2. after this wrapper is canonical, one exact two-file research-doc addition.
+2. after this wrapper is canonical, one exact seven-file research-doc addition.
 
 After those exact research blobs are canonical, the research paths refreeze and
 all other candidate semantics continue through canonical v24.
@@ -29,18 +29,23 @@ ADMISSION_WORKFLOW = ".github/workflows/s1-admission-integrity.yml"
 CANONICAL_LEDGER_PATH = "specs/001-desktop-rust-trusted-core-handshake/tasks.md"
 EXPECTED_RECONCILED_LEDGER_GIT_BLOB_SHA1 = "d331b7f167fe67ae9061ed553cf0949fab12aae0"
 
-DONOR_INVENTORY_PATH = (
-    "docs/acquisition/HARNESS_PROGRAM_DONOR_CANDIDATES_2026-08-20.md"
-)
-DOSSIER_PATH = (
-    "docs/acquisition/"
-    "WEPLD_HARNESS_ARCHITECTURE_AND_FALSIFICATION_DOSSIER_2026-08-20.md"
-)
-RESEARCH_DOC_PATHS = frozenset({DONOR_INVENTORY_PATH, DOSSIER_PATH})
-EXPECTED_RESEARCH_DOC_GIT_BLOB_SHA1 = {
-    DONOR_INVENTORY_PATH: "0934b118fba8e20fdb87deca471bc1d0355d8d53",
-    DOSSIER_PATH: "93725e65906d5e65ff55992ae6aa68c8240b13e5",
+RESEARCH_DOC_BLOBS = {
+    "docs/acquisition/HARNESS_PROGRAM_DONOR_CANDIDATES_2026-08-20.md":
+        "0934b118fba8e20fdb87deca471bc1d0355d8d53",
+    "docs/acquisition/WEPLD_HARNESS_ARCHITECTURE_AND_FALSIFICATION_DOSSIER_2026-08-20.md":
+        "93725e65906d5e65ff55992ae6aa68c8240b13e5",
+    "docs/acquisition/WEPLD_HARNESS_H0_THESIS_TOURNAMENT_CONTRACT_2026-08-20.md":
+        "73b752d6add47f51cdfe78f99be5fe4454f6a94c",
+    "docs/acquisition/WEPLD_HARNESS_H0_EVALUATION_DONOR_RECONNAISSANCE_2026-08-20.md":
+        "181baf7988ff7e9c1fee1836318d80dc2e0f48eb",
+    "docs/acquisition/WEPLD_HARNESS_H0_EVIDENCE_AND_RUNNER_CONTRACT_2026-08-20.md":
+        "5c52ca59ee0c9dccc54e5456ea10cd4fc242d508",
+    "docs/acquisition/WEPLD_HARNESS_H0_RUNNER_DECISION_REVIEW_2026-08-20.md":
+        "cd097f79de90d721a5d710d6f4f88aa3728d2725",
+    "docs/acquisition/WEPLD_HARNESS_H0_SCREENING_FIXTURE_AND_RECIPE_BOUNDARY_2026-08-20.md":
+        "f044eb2104b31d797d443338518f9aab9ae95e68",
 }
+RESEARCH_DOC_PATHS = frozenset(RESEARCH_DOC_BLOBS)
 
 EXPECTED_WORKFLOW_SHA256 = {
     FOUNDATION_WORKFLOW: "0924f523923a12b3feac9f6f637d541d4ec38d12d788c87c6ee57af6e1baa695",
@@ -54,7 +59,7 @@ BOOTSTRAP_DELTA_PATHS = frozenset(
     {POLICY_SCRIPT, FOUNDATION_WORKFLOW, ADMISSION_WORKFLOW}
 )
 
-HARNESS_RESEARCH_DOCS_AUTHORIZED = "EXACT_TWO_FILE_ONE_TIME"
+HARNESS_RESEARCH_DOCS_AUTHORIZED = "EXACT_SEVEN_FILE_ONE_TIME"
 HARNESS_IMPLEMENTATION_AUTHORIZED = "NO"
 HARNESS_SOURCE_ADMISSION = "NONE"
 HARNESS_DEPENDENCY_ADMISSION = "NONE"
@@ -151,10 +156,9 @@ def _validate_research_doc_candidate(candidate: base.RepositoryView) -> None:
         base.fail(
             "Harness research canonicalization is partial; missing=" + ",".join(missing)
         )
-    for relative in sorted(RESEARCH_DOC_PATHS):
+    for relative, expected in sorted(RESEARCH_DOC_BLOBS.items()):
         data = candidate.read_bytes(relative, base.MAX_POLICY_FILE_BYTES)
         actual = _git_blob_sha1(data)
-        expected = EXPECTED_RESEARCH_DOC_GIT_BLOB_SHA1[relative]
         if actual != expected:
             base.fail(
                 "Harness research document candidate drifted: "
@@ -190,7 +194,7 @@ def _require_exact_delta_harness(
             if unexpected:
                 detail.append("unexpected=" + ",".join(unexpected))
             base.fail(
-                "Harness research canonicalization delta must be exactly two files: "
+                "Harness research canonicalization delta must be exactly seven files: "
                 + ("; ".join(detail) if detail else "delta mismatch")
             )
         _validate_research_doc_candidate(candidate)
@@ -410,17 +414,22 @@ def _selftest_bootstrap_delta() -> None:
 
 def _selftest_research_transition() -> None:
     ledger = b"reconciled-ledger-fixture"
-    donor = b"donor-inventory-fixture"
-    dossier = b"architecture-dossier-fixture"
+    fixtures = {
+        relative: ("fixture:" + relative).encode("utf-8")
+        for relative in RESEARCH_DOC_PATHS
+    }
     original = globals()["_git_blob_sha1"]
     try:
+        fixture_hashes = {
+            data: RESEARCH_DOC_BLOBS[relative]
+            for relative, data in fixtures.items()
+        }
+
         def fake_git_blob_sha1(data: bytes) -> str:
             if data == ledger:
                 return EXPECTED_RECONCILED_LEDGER_GIT_BLOB_SHA1
-            if data == donor:
-                return EXPECTED_RESEARCH_DOC_GIT_BLOB_SHA1[DONOR_INVENTORY_PATH]
-            if data == dossier:
-                return EXPECTED_RESEARCH_DOC_GIT_BLOB_SHA1[DOSSIER_PATH]
+            if data in fixture_hashes:
+                return fixture_hashes[data]
             return original(data)
 
         globals()["_git_blob_sha1"] = fake_git_blob_sha1
@@ -430,11 +439,10 @@ def _selftest_research_transition() -> None:
             CANONICAL_LEDGER_PATH: ledger,
         }
         candidate_files = dict(base_files)
-        candidate_files[DONOR_INVENTORY_PATH] = donor
-        candidate_files[DOSSIER_PATH] = dossier
+        candidate_files.update(fixtures)
         candidate_trees = {
-            DONOR_INVENTORY_PATH: "4" * 40,
-            DOSSIER_PATH: "5" * 40,
+            relative: f"{index:040x}"
+            for index, relative in enumerate(sorted(RESEARCH_DOC_PATHS), start=10)
         }
         _require_exact_delta_harness(
             base.MemoryView(candidate_files, trees=candidate_trees),
@@ -442,19 +450,21 @@ def _selftest_research_transition() -> None:
         )
 
         partial = dict(base_files)
-        partial[DONOR_INVENTORY_PATH] = donor
+        first_path = sorted(RESEARCH_DOC_PATHS)[0]
+        partial[first_path] = fixtures[first_path]
         base.expect_failure_matching(
             "Harness research partial transition",
-            "delta must be exactly two files",
+            "delta must be exactly seven files",
             _require_exact_delta_harness,
-            base.MemoryView(partial, trees={DONOR_INVENTORY_PATH: "6" * 40}),
+            base.MemoryView(partial, trees={first_path: "8" * 40}),
             base.MemoryView(base_files),
         )
 
         wrong = dict(candidate_files)
-        wrong[DOSSIER_PATH] = b"wrong-dossier"
+        wrong_path = sorted(RESEARCH_DOC_PATHS)[-1]
+        wrong[wrong_path] = b"wrong-research-doc"
         base.expect_failure_matching(
-            "Harness research wrong dossier blob",
+            "Harness research wrong document blob",
             "document candidate drifted",
             _require_exact_delta_harness,
             base.MemoryView(wrong, trees=candidate_trees),
@@ -463,16 +473,17 @@ def _selftest_research_transition() -> None:
 
         post_base = dict(candidate_files)
         post_candidate = dict(post_base)
-        post_candidate[DONOR_INVENTORY_PATH] = b"later-drift"
+        drift_path = sorted(RESEARCH_DOC_PATHS)[0]
+        post_candidate[drift_path] = b"later-drift"
+        post_trees = dict(candidate_trees)
+        drift_trees = dict(candidate_trees)
+        drift_trees[drift_path] = "9" * 40
         base.expect_failure_matching(
             "Harness research refreeze",
             "frozen after canonicalization",
             _require_exact_delta_harness,
-            base.MemoryView(
-                post_candidate,
-                trees={DONOR_INVENTORY_PATH: "7" * 40, DOSSIER_PATH: "5" * 40},
-            ),
-            base.MemoryView(post_base, trees=candidate_trees),
+            base.MemoryView(post_candidate, trees=drift_trees),
+            base.MemoryView(post_base, trees=post_trees),
         )
     finally:
         globals()["_git_blob_sha1"] = original

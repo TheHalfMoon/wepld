@@ -125,12 +125,15 @@ ENVIRONMENT_IDENTITIES
 VERIFIER_IDENTITIES
 BUDGET_POLICIES
 EFFECT_ENVELOPES
-RETRY_POLICY
+ATTEMPT_START_AND_PRE_ATTEMPT_READINESS_POLICY
 FAILURE_TAXONOMY
 CONCURRENCY_POLICY
 RUN_ORDER_ALGORITHM_AND_SEED
-EXPECTED_RUN_COUNT
+EXPECTED_STARTED_TRIAL_COUNT
+RUNNER_OVERHEAD_MEASUREMENT_CONTRACT
 ```
+
+The frozen attempt policy must state that every cell has exactly one started attempt; no post-start failure is retried. A shared readiness failure may be rescheduled at most once only before attempt start, as a separately retained `PRE_ATTEMPT_INFRASTRUCTURE_OBSERVATION` that creates no TrialRecord and consumes no attempt. A second pre-attempt readiness failure blocks the affected batch.
 
 Screening identities must be disjoint from future confirmatory task identities.
 
@@ -139,6 +142,7 @@ Screening identities must be disjoint from future confirmatory task identities.
 A trial can be a normal finalized screening observation only when:
 
 - all required manifest identities are valid;
+- the cell crossed the frozen attempt-start boundary exactly once;
 - the trial followed the frozen state machine;
 - required raw/artifact/usage/effect/verifier evidence is complete under the contract;
 - the final objective verifier ran under the frozen VerifierManifest;
@@ -146,6 +150,8 @@ A trial can be a normal finalized screening observation only when:
 - `verified_success` was mechanically derived by the WePLD evidence finalizer.
 
 Runner/model/harness claims never directly set `verified_success`.
+
+Once a cell starts, every terminal success/failure/incomplete state is retained as that cell's sole attempt; it cannot be replaced or retried. Pre-attempt readiness observations are retained separately and cannot be analyzed as TrialRecords.
 
 If identity/evidence is materially uninterpretable, classify `EVIDENCE_INCOMPLETE`; do not silently delete the trial.
 
@@ -165,7 +171,30 @@ A hard-gate event is retained and investigated. Performance cannot override it.
 
 ## I. Runner adequacy acceptance
 
-The minimal runner may remain the preferred confirmatory candidate only when the final stable screening rerun satisfies all:
+The minimal runner may remain the preferred confirmatory candidate only when runner metrics are mechanically recomputable from the final stable screening batch.
+
+For every started trial:
+
+```text
+trial_wall_seconds = monotonic(finalization_end - attempt_start)
+runner_overhead_seconds = sum(non-overlapping exclusive runner-controlled orchestration intervals)
+runner_overhead_fraction = runner_overhead_seconds / trial_wall_seconds
+```
+
+The runner-overhead numerator includes runner-controlled validation after attempt start, workspace/container/process orchestration, observation/control bookkeeping, artifact/evidence capture orchestration, cleanup, canonical serialization, and TrialRecord finalization. It excludes waiting for task code, model/provider execution, and objective-verifier execution.
+
+All started trials are included in aggregation, including ordinary failures and runner-caused invalid/incomplete outcomes. Pre-attempt infrastructure observations are excluded from trial-overhead aggregation and reported separately. Missing/nonpositive wall timing or unaccountable runner timing makes runner evidence incomplete and fails acceptance rather than being dropped.
+
+For the stable batch:
+
+```text
+MEDIAN_RUNNER_OVERHEAD_FRACTION = median(per-started-trial runner_overhead_fraction)
+P95_RUNNER_OVERHEAD_SECONDS = nearest-rank p95(per-started-trial runner_overhead_seconds)
+```
+
+No per-arm, per-model, per-cell, or success-only pre-aggregation is allowed.
+
+The minimal runner may remain the preferred confirmatory candidate only when all are true:
 
 ```text
 RUNNER_CAUSED_INVALID_OR_INCOMPLETE_TRIAL_RATE <= 2_PERCENT
@@ -187,6 +216,8 @@ H0-SCREEN may be recorded complete only when:
 - all required deterministic gates pass;
 - all required synthetic fixtures pass;
 - the frozen real screening batch finishes with complete accounting;
+- each frozen cell has exactly one started attempt or the batch is explicitly blocked before completion;
+- all pre-attempt infrastructure observations are separately retained/accounted;
 - normalized evidence and runner metrics are durable/recomputable;
 - hard-gate incidents are fully accounted;
 - independent correctness/engineering review is complete;

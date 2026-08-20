@@ -116,11 +116,11 @@ S1_013_PLUS = NOT_STARTED
 
 **Disposition:** RESOLVED.
 
-## A-013 — Retry replacement versus cherry-picking outcomes
+## A-013 — One attempt versus infrastructure readiness failures
 
-**Risk:** retry logic could preferentially rescue failing arms.
+**Risk:** a retry/replacement path could preferentially rescue failing arms and silently violate `ATTEMPTS_PER_TASK_ARM_MODEL = 1`.
 
-**Reconciliation:** no task/harness/model/budget retry. One replacement at most for independently evidenced shared infrastructure/provider failure, symmetrically applied, with original record retained. The retry policy is frozen before real screening.
+**Reconciliation:** no started task/arm/model cell is retried for task, harness, model, budget, verifier, infrastructure, or provider failure. Independently evidenced shared infrastructure/provider failure may be rescheduled at most once only before the cell enters task/model/harness execution. That event is a `PRE_ATTEMPT_INFRASTRUCTURE_OBSERVATION`, not a TrialRecord or attempt, and cannot alter any frozen cell identity or protocol parameter. A second pre-attempt readiness failure blocks the affected batch. Once attempt start occurs, every terminal state is retained as the cell's sole screening outcome.
 
 **Disposition:** RESOLVED.
 
@@ -134,9 +134,9 @@ S1_013_PLUS = NOT_STARTED
 
 ## A-015 — Runner adequacy versus Harness performance
 
-**Risk:** runner failures could distort arm comparisons or be mistaken for Harness weakness.
+**Risk:** runner failures or ambiguous runner-overhead accounting could distort arm comparisons or be mistaken for Harness weakness.
 
-**Reconciliation:** runner adequacy metrics are first-class separate evidence. The minimum runner remains a confirmatory candidate only if the final stable screening rerun meets all frozen operational criteria. Runner inadequacy does not lower Harness thresholds; it triggers runner repair/replacement qualification.
+**Reconciliation:** runner adequacy metrics are first-class separate evidence. For every started trial, runner overhead is measured from non-overlapping monotonic runner-controlled orchestration intervals divided by total trial wall time from attempt start through finalization. Task/model/provider/verifier execution waits are excluded from the numerator; all started trials, including runner-caused invalid/incomplete outcomes, remain in the batch aggregation. Pre-attempt infrastructure observations are separate readiness evidence. Missing or nonpositive timing fails runner-evidence completeness rather than disappearing from the metric. The minimum runner remains a confirmatory candidate only if the final stable screening batch meets all frozen operational criteria.
 
 **Disposition:** RESOLVED.
 

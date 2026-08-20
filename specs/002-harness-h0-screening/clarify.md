@@ -184,12 +184,22 @@ P95_RUNNER_OVERHEAD_SECONDS = nearest-rank p95(per-started-trial runner_overhead
 
 Aggregation is across all started task/arm/model trials in the frozen batch, with no per-arm, per-model, per-cell, or success-only pre-aggregation.
 
+Manual recovery uses the same explicit all-started-trial population. Define:
+
+```text
+STARTED_TRIAL_COUNT = count(TrialRecords that crossed attempt_start in the final stable screening batch)
+OPERATOR_RECOVERY_MINUTES_TOTAL = sum(unplanned manual operator recovery minutes attributable to H0 runner/readiness operation in that batch)
+OPERATOR_MINUTES_PER_100_STARTED_TRIALS = (OPERATOR_RECOVERY_MINUTES_TOTAL * 100) / STARTED_TRIAL_COUNT
+```
+
+`STARTED_TRIAL_COUNT` includes successful, failed, and runner-caused invalid/incomplete outcomes. `OPERATOR_RECOVERY_MINUTES_TOTAL` includes manual recovery attributable to pre-attempt readiness handling and started-trial orchestration/cleanup/evidence handling; planned experiment setup is excluded. A zero started-trial denominator or incomplete recovery-time accounting makes runner adequacy evidence incomplete and cannot pass.
+
 Runner replacement/repair is required if any applies:
 
 ```text
 RUNNER_CAUSED_INVALID_OR_INCOMPLETE_TRIAL_RATE > 2_PERCENT
 MEDIAN_RUNNER_OVERHEAD_FRACTION > 15_PERCENT
-MANUAL_RECOVERY > 2_OPERATOR_HOURS_PER_100_COMPLETED_TRIALS
+OPERATOR_MINUTES_PER_100_STARTED_TRIALS > 120
 DISTRIBUTED_SCHEDULER_REQUIRED = YES
 NEW_CLOUD_PROVIDER_BACKEND_REQUIRED = YES
 EVIDENCE_CONTRACT_FULLY_SATISFIED = NO

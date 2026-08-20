@@ -435,6 +435,11 @@ def _selftest_bootstrap_delta() -> None:
     candidate_files[POLICY_SCRIPT] = b"h0-spec-policy"
     candidate_files[FOUNDATION_WORKFLOW] = b"new-foundation"
     candidate_files[ADMISSION_WORKFLOW] = b"new-admission"
+    candidate_trees = {
+        POLICY_SCRIPT: "1" * 40,
+        FOUNDATION_WORKFLOW: "2" * 40,
+        ADMISSION_WORKFLOW: "3" * 40,
+    }
 
     original = globals()["_git_blob_sha1"]
     try:
@@ -445,7 +450,7 @@ def _selftest_bootstrap_delta() -> None:
 
         globals()["_git_blob_sha1"] = fake_git_blob_sha1
         _require_exact_delta_h0_spec(
-            base.MemoryView(candidate_files),
+            base.MemoryView(candidate_files, trees=candidate_trees),
             base.MemoryView(base_files),
         )
     finally:
@@ -465,6 +470,10 @@ def _selftest_spec_transition() -> None:
 
     candidate_files = dict(base_files)
     candidate_files.update(spec_fixtures)
+    spec_trees = {
+        relative: f"{index:040x}"
+        for index, relative in enumerate(sorted(SPEC_KIT_PATHS), start=10)
+    }
 
     original = globals()["_git_blob_sha1"]
     try:
@@ -476,7 +485,7 @@ def _selftest_spec_transition() -> None:
         globals()["_git_blob_sha1"] = fake_git_blob_sha1
 
         _require_exact_delta_h0_spec(
-            base.MemoryView(candidate_files),
+            base.MemoryView(candidate_files, trees=spec_trees),
             base.MemoryView(base_files),
         )
 
@@ -487,7 +496,7 @@ def _selftest_spec_transition() -> None:
             "Harness H0 Spec Kit partial transition",
             "delta must be exactly ten files",
             _require_exact_delta_h0_spec,
-            base.MemoryView(partial),
+            base.MemoryView(partial, trees={first_path: "8" * 40}),
             base.MemoryView(base_files),
         )
 
@@ -498,19 +507,22 @@ def _selftest_spec_transition() -> None:
             "Harness H0 Spec Kit wrong blob",
             "candidate drifted",
             _require_exact_delta_h0_spec,
-            base.MemoryView(wrong),
+            base.MemoryView(wrong, trees=spec_trees),
             base.MemoryView(base_files),
         )
 
         post_base = dict(candidate_files)
         post_candidate = dict(post_base)
         post_candidate[first_path] = b"later-h0-spec-drift"
+        post_trees = dict(spec_trees)
+        drift_trees = dict(spec_trees)
+        drift_trees[first_path] = "9" * 40
         base.expect_failure_matching(
             "Harness H0 Spec Kit refreeze",
             "frozen after canonicalization",
             _require_exact_delta_h0_spec,
-            base.MemoryView(post_candidate),
-            base.MemoryView(post_base),
+            base.MemoryView(post_candidate, trees=drift_trees),
+            base.MemoryView(post_base, trees=post_trees),
         )
     finally:
         globals()["_git_blob_sha1"] = original

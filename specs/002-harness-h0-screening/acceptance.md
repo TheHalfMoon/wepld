@@ -131,9 +131,12 @@ CONCURRENCY_POLICY
 RUN_ORDER_ALGORITHM_AND_SEED
 EXPECTED_STARTED_TRIAL_COUNT
 RUNNER_OVERHEAD_MEASUREMENT_CONTRACT
+MANUAL_RECOVERY_MEASUREMENT_CONTRACT
 ```
 
 The frozen attempt policy must state that every cell has exactly one started attempt; no post-start failure is retried. A shared readiness failure may be rescheduled at most once only before attempt start, as a separately retained `PRE_ATTEMPT_INFRASTRUCTURE_OBSERVATION` that creates no TrialRecord and consumes no attempt. A second pre-attempt readiness failure blocks the affected batch.
+
+The frozen manual-recovery contract must use all started trials as its denominator, include failures and runner-invalid/incomplete outcomes, include unplanned recovery minutes attributable to pre-attempt readiness handling in the numerator, and fail closed when the denominator is zero or recovery time is incompletely accounted.
 
 Screening identities must be disjoint from future confirmatory task identities.
 
@@ -194,12 +197,22 @@ P95_RUNNER_OVERHEAD_SECONDS = nearest-rank p95(per-started-trial runner_overhead
 
 No per-arm, per-model, per-cell, or success-only pre-aggregation is allowed.
 
+Manual recovery is normalized over the same explicit all-started-trial population:
+
+```text
+STARTED_TRIAL_COUNT = count(TrialRecords that crossed attempt_start in the final stable screening batch)
+OPERATOR_RECOVERY_MINUTES_TOTAL = sum(unplanned manual operator recovery minutes attributable to H0 runner/readiness operation in that batch)
+OPERATOR_MINUTES_PER_100_STARTED_TRIALS = (OPERATOR_RECOVERY_MINUTES_TOTAL * 100) / STARTED_TRIAL_COUNT
+```
+
+`STARTED_TRIAL_COUNT` includes successful, failed, and runner-caused invalid/incomplete outcomes. `OPERATOR_RECOVERY_MINUTES_TOTAL` includes unplanned recovery attributable to pre-attempt readiness handling and started-trial orchestration/cleanup/evidence handling, while planned experiment setup is excluded. `STARTED_TRIAL_COUNT <= 0` or incomplete recovery-time accounting fails runner adequacy evidence rather than creating a passable or omitted value.
+
 The minimal runner may remain the preferred confirmatory candidate only when all are true:
 
 ```text
 RUNNER_CAUSED_INVALID_OR_INCOMPLETE_TRIAL_RATE <= 2_PERCENT
 MEDIAN_RUNNER_OVERHEAD_FRACTION <= 15_PERCENT
-MANUAL_RECOVERY <= 2_OPERATOR_HOURS_PER_100_COMPLETED_TRIALS
+OPERATOR_MINUTES_PER_100_STARTED_TRIALS <= 120
 LOCAL_OR_EXISTING_CONTROLLED_CAPACITY = SUFFICIENT_WITHIN_DECLARED_BUDGET
 DISTRIBUTED_SCHEDULER_REQUIRED = NO
 NEW_CLOUD_PROVIDER_BACKEND_REQUIRED = NO

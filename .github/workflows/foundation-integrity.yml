@@ -22,6 +22,53 @@ jobs:
           lfs: false
           submodules: false
 
+      - name: Diagnostic locate canonical activation push run
+        shell: bash
+        env:
+          TARGET_SHA: 71188a30f9e759b9198360f5589d50eb54b7ee99
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          target = os.environ["TARGET_SHA"]
+          url = (
+              "https://api.github.com/repos/TheHalfMoon/wepld/actions/workflows/"
+              "foundation-integrity.yml/runs?event=push&branch=main&per_page=100"
+          )
+          request = urllib.request.Request(
+              url,
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "User-Agent": "wepld-read-only-activation-diagnostic",
+                  "X-GitHub-Api-Version": "2022-11-28",
+              },
+          )
+          with urllib.request.urlopen(request, timeout=20) as response:
+              payload = json.load(response)
+
+          matches = [
+              run for run in payload.get("workflow_runs", [])
+              if run.get("head_sha") == target
+          ]
+          print(f"TARGET_SHA={target}")
+          print(f"MATCH_COUNT={len(matches)}")
+          if not matches:
+              raise SystemExit("TARGET_PUSH_RUN_NOT_FOUND")
+          for run in matches:
+              print(f"RUN_ID={run.get('id')}")
+              print(f"RUN_NUMBER={run.get('run_number')}")
+              print(f"EVENT={run.get('event')}")
+              print(f"HEAD_BRANCH={run.get('head_branch')}")
+              print(f"HEAD_SHA={run.get('head_sha')}")
+              print(f"STATUS={run.get('status')}")
+              print(f"CONCLUSION={run.get('conclusion')}")
+              print(f"CREATED_AT={run.get('created_at')}")
+              print(f"JOBS_URL={run.get('jobs_url')}")
+          PY
+
       - name: Run integrity policy self-tests
         shell: bash
         run: |

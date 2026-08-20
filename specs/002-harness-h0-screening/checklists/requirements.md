@@ -129,11 +129,13 @@ This checklist evaluates planning quality and pre-implementation readiness only.
 - [x] Missing/nonpositive timing fails runner-evidence completeness rather than being dropped.
 - [x] Median overhead fraction is aggregated directly across all started trials in the stable batch.
 - [x] P95 overhead seconds uses nearest-rank p95 across the same started-trial set.
-- [x] Manual recovery burden is measured.
+- [x] Manual recovery burden uses `operator_minutes_per_100_started_trials = (operator_recovery_minutes_total * 100) / started_trial_count`.
+- [x] The manual-recovery denominator includes every started success/failure/runner-invalid/incomplete TrialRecord; zero denominator or incomplete recovery accounting fails adequacy.
+- [x] Pre-attempt readiness recovery minutes are included in operator recovery burden even though the readiness observations are not TrialRecords.
 - [x] Resource contention is measured.
 - [x] Runner retention threshold is `<= 2%` invalid/incomplete rate.
 - [x] Runner retention threshold is `<= 15%` median overhead fraction.
-- [x] Runner retention threshold is `<= 2 operator-hours / 100 completed trials`.
+- [x] Runner retention threshold is `<= 120 operator-minutes / 100 started trials`.
 - [x] Distributed scheduler/cloud-backend requirement triggers runner re-evaluation.
 - [x] Harbor remains conditional and not automatically admitted.
 

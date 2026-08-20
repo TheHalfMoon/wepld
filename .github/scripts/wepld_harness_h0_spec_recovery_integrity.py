@@ -157,7 +157,7 @@ def _require_prior_repair_base(view: base.RepositoryView) -> None:
             "H0 Spec Kit recovery base repair policy drifted: "
             f"expected={EXPECTED_PRIOR_POLICY_GIT_BLOB_SHA1} actual={actual}"
         )
-    prior._verify_policy_files(view)
+    prior._require_prior_h0_base(view)
     if paths & set(RECOVERED_SPEC_KIT_PATHS):
         base.fail("H0 Spec Kit recovery bootstrap requires package paths to remain absent")
 

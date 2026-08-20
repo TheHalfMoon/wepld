@@ -221,7 +221,7 @@ p95_runner_overhead_seconds
 median_runner_overhead_fraction
 host_resource_contention_events
 manual_recovery_events
-operator_minutes_per_100_trials
+operator_minutes_per_100_started_trials
 runner_caused_invalid_or_incomplete_trial_rate
 ```
 
@@ -245,6 +245,16 @@ P95_RUNNER_OVERHEAD_SECONDS = nearest-rank p95(per-started-trial runner_overhead
 ```
 
 Aggregation is across all started task/arm/model trials with no per-arm, per-model, per-cell, or success-only pre-aggregation.
+
+Manual-recovery burden MUST use the same fail-closed trial population rather than an undefined “completed trial” denominator:
+
+```text
+started_trial_count = count(TrialRecords that crossed attempt_start in the final stable screening batch)
+operator_recovery_minutes_total = sum(manual operator recovery minutes attributable to H0 runner/readiness operation in that batch)
+operator_minutes_per_100_started_trials = (operator_recovery_minutes_total * 100) / started_trial_count
+```
+
+`started_trial_count` includes normal successes, ordinary failures, and runner-caused invalid/incomplete outcomes. `operator_recovery_minutes_total` includes unplanned manual recovery attributable to pre-attempt readiness handling as well as started-trial orchestration/cleanup/evidence handling; planned experiment setup is excluded. If `started_trial_count <= 0`, or recovery time cannot be completely accounted, runner-adequacy evidence is incomplete and MUST NOT pass.
 
 These metrics decide runner adequacy only; they do not alter Harness thesis GO thresholds.
 

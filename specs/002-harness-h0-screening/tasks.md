@@ -61,7 +61,7 @@ Required gates:
 
 - trusted-base admission in candidate-data-only mode;
 - candidate exact-head foundation integrity;
-- exact-head secret/private-data/egress preflight;
+- exact-head secret/private-data/egress preflight under `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md`;
 - independent correctness/engineering review;
 - finding reconciliation;
 - final race check;
@@ -200,7 +200,7 @@ S1_013_PLUS = NOT_STARTED
 
 **State:** BLOCKED_ON_H0_011
 
-Use trusted-bootstrap procedure: exact-head deterministic qualification, applicable security accounting, egress preflight, independent review, reconciliation, exact merge, post-merge activation proof.
+Use trusted-bootstrap procedure: exact-head deterministic qualification, applicable security accounting, egress preflight under `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md`, independent review, reconciliation, exact merge, post-merge activation proof.
 
 **Exit:** `H0_SCREEN_IMPLEMENTATION_AUTHORIZED = EXACT_BOUNDED_SURFACE`.
 
@@ -298,7 +298,7 @@ CROSS_TRIAL_CONTAMINATION = 0
 
 ### H0-025 — Freeze exact 40-task screening manifest
 
-**State:** BLOCKED_ON_H0_020,H0_021,H0_024
+**State:** BLOCKED_ON_H0_013..H0_024
 
 Select/freeze exactly 40 screening tasks, archetypes, fixture hashes, environments, verifiers, allowed effects, and eligibility notes. Identities must be disjoint from future confirmatory tasks.
 
@@ -329,7 +329,7 @@ No post-start retry or replacement is permitted.
 
 ### H0-028 — Execute H0-SCREEN
 
-**State:** BLOCKED_ON_H0_025..H0_027
+**State:** BLOCKED_ON_H0_013..H0_027
 
 Run exactly one started attempt per task/arm/model cell using common runner plumbing. Preserve every started trial and evidence classification as the cell's sole outcome. Pre-attempt shared-readiness failures are retained separately, may be rescheduled at most once without creating a TrialRecord or consuming the cell attempt, and a second readiness failure blocks the affected batch. No confirmatory tasks and no GO decision.
 

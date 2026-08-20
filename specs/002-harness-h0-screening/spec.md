@@ -193,9 +193,13 @@ All paired arms MUST receive the same maximum wall/token/money budgets where enf
 
 The implementation MUST preserve the frozen H0 failure classes and retain original run evidence. Harness-induced crashes, loops, malformed tool requests, context failures, or verifier misuse are outcomes, not infrastructure exclusions.
 
-### FR-017 — Retry symmetry
+### FR-017 — One-attempt and pre-attempt infrastructure semantics
 
-Task/harness/model/budget failures are not retried. A shared infrastructure/provider replacement is allowed at most once only when independently evidenced under the frozen retry policy. The original trial remains retained.
+Each task/arm/model cell MUST have exactly one started screening attempt. Task, harness, model, budget, verifier, and any infrastructure/provider failure after attempt start MUST NOT be retried.
+
+A shared infrastructure/provider readiness failure MAY be rescheduled at most once only when independently evidenced before attempt start. It MUST be recorded as a `PRE_ATTEMPT_INFRASTRUCTURE_OBSERVATION`, MUST NOT create a TrialRecord or consume the cell's single attempt, and MUST NOT alter any frozen cell identity, recipe, verifier, budget, effect envelope, or run-order rule. A second pre-attempt readiness failure blocks the affected batch rather than creating repeated reschedules.
+
+The attempt-start boundary is the first transition into task/model/harness execution after manifest validation and shared readiness checks. Once crossed, every terminal condition remains the cell's sole screening outcome.
 
 ### FR-018 — Bounded local concurrency
 
@@ -214,11 +218,33 @@ usage_capture_failures
 verifier_invocation_failures
 median_runner_overhead_seconds
 p95_runner_overhead_seconds
+median_runner_overhead_fraction
 host_resource_contention_events
 manual_recovery_events
 operator_minutes_per_100_trials
 runner_caused_invalid_or_incomplete_trial_rate
 ```
+
+For every started screening trial, timing MUST be derived from non-overlapping monotonic intervals:
+
+```text
+trial_wall_seconds = finalization_end - attempt_start
+runner_overhead_seconds = sum(exclusive runner-controlled orchestration intervals)
+runner_overhead_fraction = runner_overhead_seconds / trial_wall_seconds
+```
+
+Runner-controlled orchestration includes runner validation after attempt start, workspace/container/process orchestration, observation/control bookkeeping, artifact/evidence capture orchestration, cleanup, canonical serialization, and TrialRecord finalization. It excludes waiting time attributable to task code, model/provider execution, and objective-verifier execution.
+
+Pre-attempt infrastructure observations are excluded from trial-overhead aggregation because no screening attempt has started; they are reported separately. All started trials, including ordinary failures and runner-caused invalid/incomplete outcomes, are included. Missing/nonpositive wall timing or unaccountable runner timing makes runner adequacy evidence incomplete and MUST NOT be silently excluded.
+
+For the final stable screening batch:
+
+```text
+MEDIAN_RUNNER_OVERHEAD_FRACTION = median(per-started-trial runner_overhead_fraction)
+P95_RUNNER_OVERHEAD_SECONDS = nearest-rank p95(per-started-trial runner_overhead_seconds)
+```
+
+Aggregation is across all started task/arm/model trials with no per-arm, per-model, per-cell, or success-only pre-aggregation.
 
 These metrics decide runner adequacy only; they do not alter Harness thesis GO thresholds.
 

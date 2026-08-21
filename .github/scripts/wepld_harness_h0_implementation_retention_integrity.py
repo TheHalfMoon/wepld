@@ -33,6 +33,8 @@ EXPECTED_WORKFLOW_SHA256 = {
 }
 
 H0_012_REPAIR = "MONOTONIC_CANONICAL_H0_PATH_RETENTION"
+H0_012_REPAIR_2 = "EXACT_DELTA_HOOK_TARGET_CHECKED"
+EXPECTED_EXACT_DELTA_HOOK_OWNER_MODULE = "wepld_s1_shell_integrity_v19"
 H0_SCREEN_IMPLEMENTATION_AUTHORIZED = "NO_UNTIL_H0_012_CANONICAL_ACTIVATION"
 PRODUCT_HARNESS_INTEGRATION = "NO"
 H0_CONFIRMATORY_EXECUTION = "NO"
@@ -74,6 +76,83 @@ import wepld_harness_h0_implementation_integrity as impl  # noqa: E402
 
 shell = impl.shell
 IMPL_REQUIRE_EXACT_DELTA = impl._require_exact_delta_h0_implementation
+
+
+def _exact_delta_hook_owner():
+    try:
+        owner = impl.prior.prior.prior.prior.prior.prior.v24.v19
+    except AttributeError as exc:
+        base.fail(f"exact-delta hook topology is missing or stale: {exc}")
+    actual_module = getattr(owner, "__name__", None)
+    if actual_module != EXPECTED_EXACT_DELTA_HOOK_OWNER_MODULE:
+        base.fail(
+            "exact-delta hook owner module drifted: "
+            f"expected={EXPECTED_EXACT_DELTA_HOOK_OWNER_MODULE} actual={actual_module}"
+        )
+    if not hasattr(owner, "_require_exact_delta"):
+        base.fail("exact-delta hook owner is missing _require_exact_delta")
+    return owner
+
+
+def _require_exact_delta_hook_identity(expected, phase: str):
+    owner = _exact_delta_hook_owner()
+    actual = getattr(owner, "_require_exact_delta", None)
+    if actual is not expected:
+        expected_name = getattr(expected, "__qualname__", repr(expected))
+        actual_name = getattr(actual, "__qualname__", repr(actual))
+        base.fail(
+            "exact-delta hook callable drifted: "
+            f"phase={phase} expected={expected_name} actual={actual_name}"
+        )
+    return owner
+
+
+def _install_implementation_policy_checked() -> None:
+    if impl._INSTALLED:
+        expected = (
+            _require_exact_delta_retention
+            if _INSTALLED
+            else IMPL_REQUIRE_EXACT_DELTA
+        )
+        phase = (
+            "implementation-under-retention-overlay"
+            if _INSTALLED
+            else "implementation-already-installed"
+        )
+        _require_exact_delta_hook_identity(expected, phase)
+        return
+
+    impl._activate_implementation_contract()
+    impl.prior._install_two_finding_repair_policy()
+    impl._PRIOR_PRINT_SUCCESS = shell.print_success
+
+    hook_owner = _require_exact_delta_hook_identity(
+        impl.PRIOR_REQUIRE_EXACT_DELTA,
+        "implementation-pre-bind",
+    )
+    base.compare_base_controlled = impl._compare_base_controlled_h0_implementation
+    hook_owner._require_exact_delta = IMPL_REQUIRE_EXACT_DELTA
+    _require_exact_delta_hook_identity(
+        IMPL_REQUIRE_EXACT_DELTA,
+        "implementation-post-bind",
+    )
+
+    shell.prior.verify_extension_controlled_paths = impl._verify_desktop_extension_paths
+    shell.prior.prior.verify_extension_controlled_paths = (
+        impl._verify_execution_extension_paths
+    )
+
+    shell.prior.EXTENSION_CONTROLLED_PATHS = frozenset(
+        set(shell.prior.EXTENSION_CONTROLLED_PATHS) | {impl.POLICY_SCRIPT}
+    )
+    shell.prior.prior.EXTENSION_CONTROLLED_PATHS = frozenset(
+        set(shell.prior.prior.EXTENSION_CONTROLLED_PATHS) | {impl.POLICY_SCRIPT}
+    )
+
+    shell.verify_policy_files = impl._verify_policy_files
+    shell.print_success = impl._print_success
+    impl._INSTALLED = True
+
 
 BOOTSTRAP_WORKFLOWS = frozenset({FOUNDATION_WORKFLOW, ADMISSION_WORKFLOW})
 BOOTSTRAP_DELTA_PATHS = frozenset(
@@ -202,6 +281,9 @@ def _print_success(stage: str, mode: str) -> None:
         base.fail("prior H0 implementation success printer is not installed")
     _PRIOR_PRINT_SUCCESS(stage, mode)
     print(f"h0_012_repair={H0_012_REPAIR}")
+    print(f"h0_012_repair_2={H0_012_REPAIR_2}")
+    print(f"exact_delta_hook_owner={EXPECTED_EXACT_DELTA_HOOK_OWNER_MODULE}")
+    print("exact_delta_hook_binding=TARGET_CHECKED_FAIL_CLOSED")
     print("canonical_h0_path_retention=MONOTONIC_FAIL_CLOSED")
     print(
         "h0_screen_implementation_authorized="
@@ -217,14 +299,25 @@ def _print_success(stage: str, mode: str) -> None:
 def _install_retention_policy() -> None:
     global _INSTALLED, _PRIOR_PRINT_SUCCESS
     if _INSTALLED:
+        _require_exact_delta_hook_identity(
+            _require_exact_delta_retention,
+            "retention-already-installed",
+        )
         return
 
     _activate_retention_contract()
-    impl._install_h0_implementation_policy()
+    impl._install_h0_implementation_policy = _install_implementation_policy_checked
+    _install_implementation_policy_checked()
     _PRIOR_PRINT_SUCCESS = shell.print_success
 
-    impl.prior.prior.prior.prior.prior.prior.v24.v19._require_exact_delta = (
-        _require_exact_delta_retention
+    hook_owner = _require_exact_delta_hook_identity(
+        IMPL_REQUIRE_EXACT_DELTA,
+        "retention-pre-bind",
+    )
+    hook_owner._require_exact_delta = _require_exact_delta_retention
+    _require_exact_delta_hook_identity(
+        _require_exact_delta_retention,
+        "retention-post-bind",
     )
 
     shell.prior.EXTENSION_CONTROLLED_PATHS = frozenset(
@@ -303,6 +396,34 @@ def _selftest_monotonic_retention() -> None:
     )
 
 
+def _selftest_exact_delta_hook_binding() -> None:
+    owner = _require_exact_delta_hook_identity(
+        _require_exact_delta_retention,
+        "selftest-post-bind",
+    )
+    installed = owner._require_exact_delta
+
+    def unexpected_hook(candidate, policy_base):
+        return None
+
+    owner._require_exact_delta = unexpected_hook
+    try:
+        base.expect_failure_matching(
+            "H0 exact-delta hook identity mismatch",
+            "exact-delta hook callable drifted",
+            _require_exact_delta_hook_identity,
+            installed,
+            "selftest-mismatch",
+        )
+    finally:
+        owner._require_exact_delta = installed
+
+    _require_exact_delta_hook_identity(
+        _require_exact_delta_retention,
+        "selftest-restored",
+    )
+
+
 def _selftest_steady_state_wrapper() -> None:
     root = Path(__file__).resolve().parents[2]
     view = base.LocalRepositoryView(root)
@@ -335,11 +456,13 @@ def _selftest_steady_state_wrapper() -> None:
 
 def selftest() -> None:
     _activate_retention_contract()
+    impl._install_h0_implementation_policy = _install_implementation_policy_checked
     impl.selftest()
     _install_retention_policy()
     _selftest_workflow_binding()
     _selftest_bootstrap_delta()
     _selftest_monotonic_retention()
+    _selftest_exact_delta_hook_binding()
     _selftest_steady_state_wrapper()
     if base.REPOSITORY != impl.CANONICAL_REPOSITORY:
         base.fail(

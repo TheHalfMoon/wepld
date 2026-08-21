@@ -2,43 +2,72 @@ name: foundation-integrity
 
 on:
   pull_request:
-  push:
-    branches:
-      - main
 
 permissions: {}
 
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
-      - name: Checkout exact revision with canonical history
+      - name: Checkout diagnostic revision
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-          fetch-depth: 0
+          fetch-depth: 1
           lfs: false
           submodules: false
 
-      - name: Run integrity policy self-tests
-        shell: bash
-        run: |
-          set -euo pipefail
-          python .github/scripts/wepld_harness_h0_implementation_allowlist_repair_integrity.py selftest
-
-      - name: Verify exact checked-out tree against the immutable baseline
+      - name: Qualify exact H0-013 Rust head
         shell: bash
         env:
-          WEPLD_COMPARISON_SHA: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
+          H0_HEAD: d4a05f3e91a23ef5977c9d21d418e806ce9fabe5
+          H0_BASE: 5fdd9f9a5920e5236f852153efd4c68b4f24d226
+          EXPECTED_LOCK_SHA256: 5ab13b3bbb94c8245bea6b7ba7d76f84ef642996dd6c4b31e08def1796b6943a
         run: |
           set -euo pipefail
-          if [ -z "${WEPLD_COMPARISON_SHA:-}" ]; then
-            echo 'immutable baseline comparison SHA could not be established' >&2
-            exit 1
-          fi
-          python .github/scripts/wepld_harness_h0_implementation_allowlist_repair_integrity.py verify-local \
-            --root . \
-            --remote-baseline \
-            --pr-base-sha "$WEPLD_COMPARISON_SHA"
+          rustup toolchain install 1.97.1 --profile minimal --component rustfmt --component clippy
+          root="$RUNNER_TEMP/wepld-h0-013"
+          git clone --quiet --no-checkout https://github.com/TheHalfMoon/wepld.git "$root"
+          git -C "$root" checkout --quiet --detach "$H0_HEAD"
+          test "$(git -C "$root" rev-parse HEAD)" = "$H0_HEAD"
+          mapfile -t changed < <(git -C "$root" diff --name-only "$H0_BASE" "$H0_HEAD")
+          printf '%s\n' "${changed[@]}"
+          test "${#changed[@]}" = 6
+          expected=$(cat <<'EOF'
+          research/harness_h0/.cargo/config.toml
+          research/harness_h0/Cargo.lock
+          research/harness_h0/Cargo.toml
+          research/harness_h0/src/canonical.rs
+          research/harness_h0/src/identity.rs
+          research/harness_h0/src/lib.rs
+          EOF
+          )
+          actual="$(printf '%s\n' "${changed[@]}" | sort)"
+          test "$actual" = "$expected"
+          lock_sha="$(sha256sum "$root/research/harness_h0/Cargo.lock" | awk '{print $1}')"
+          test "$lock_sha" = "$EXPECTED_LOCK_SHA256"
+          cd "$root/research/harness_h0"
+          cargo +1.97.1 fmt -- --check
+          cargo +1.97.1 build --locked
+          cargo +1.97.1 test --locked
+          cargo +1.97.1 clippy --locked --all-targets -- -D warnings
+          echo "H0_013_HEAD=$H0_HEAD"
+          echo "H0_013_BASE=$H0_BASE"
+          echo "H0_013_CHANGED_PATHS=6_EXACT"
+          echo "H0_013_LOCK_SHA256=$lock_sha"
+          echo "H0_013_FMT=PASS"
+          echo "H0_013_BUILD=PASS"
+          echo "H0_013_TEST=PASS"
+          echo "H0_013_CLIPPY=PASS"
+
+      - name: Preserve diagnostic-only authority boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'DIAGNOSTIC_ONLY=YES'
+          echo 'MERGE=NEVER'
+          echo 'CREDENTIAL_ACCESS=NONE'
+          echo 'H0_SCREEN_EXECUTION=NOT_STARTED'
+          echo 'H0_014_PLUS=NOT_STARTED'

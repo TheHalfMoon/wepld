@@ -4,8 +4,11 @@ on:
   push:
     branches:
       - diag/browser-visual-edit-bootstrap-qualification
+    paths:
+      - .github/workflows/diag-browser-visual-edit-bootstrap-qualification.yml
 
-permissions: {}
+permissions:
+  contents: write
 
 jobs:
   qualify:
@@ -61,3 +64,34 @@ jobs:
           grep -F 'H0_014_PLUS = "NOT_STARTED"' .github/scripts/wepld_browser_visual_edit_research_integrity.py
           grep -F 'H0_SCREEN_EXECUTION = "NONE"' .github/scripts/wepld_browser_visual_edit_research_integrity.py
           grep -F 'MODEL_PROVIDER_EXECUTION = "NONE"' .github/scripts/wepld_browser_visual_edit_research_integrity.py
+
+      - name: Persist PASS evidence to diagnostic branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          evidence=$(cat <<EOF
+          DIAGNOSTIC=browser-visual-edit-bootstrap-qualification
+          RESULT=PASS
+          TARGET_BASE=c5779d4589d13285f69d2f090731ef60a3fd69f5
+          TARGET_HEAD=55b096c87f49dbef308073c3879c218f6b5bc60f
+          TARGET_CHANGED_FILES=3
+          SELFTEST=PASS
+          VERIFY_LOCAL=PASS
+          SOURCE_ADMISSION=NONE
+          DEPENDENCY_ADMISSION=NONE
+          PRODUCT_IMPLEMENTATION_AUTHORITY=NONE
+          H0_014_PLUS=NOT_STARTED
+          H0_SCREEN_EXECUTION=NONE
+          MODEL_PROVIDER_EXECUTION=NONE
+          RUN_ID=${GITHUB_RUN_ID}
+          RUN_ATTEMPT=${GITHUB_RUN_ATTEMPT}
+          EOF
+          )
+          encoded=$(printf '%s\n' "$evidence" | base64 -w0)
+          gh api --method PUT \
+            "repos/${GITHUB_REPOSITORY}/contents/docs/diagnostics/BROWSER_VISUAL_EDIT_BOOTSTRAP_QUALIFICATION_PASS.txt" \
+            -f message='diag(acquisition): record browser research bootstrap PASS' \
+            -f content="$encoded" \
+            -f branch='diag/browser-visual-edit-bootstrap-qualification'

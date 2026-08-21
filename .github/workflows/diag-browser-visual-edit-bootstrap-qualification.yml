@@ -1,0 +1,63 @@
+name: diag-browser-visual-edit-bootstrap-qualification
+
+on:
+  push:
+    branches:
+      - diag/browser-visual-edit-bootstrap-qualification
+
+permissions: {}
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact bootstrap candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 55b096c87f49dbef308073c3879c218f6b5bc60f
+          persist-credentials: false
+          fetch-depth: 0
+          lfs: false
+          submodules: false
+
+      - name: Assert exact candidate and immutable base
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "55b096c87f49dbef308073c3879c218f6b5bc60f"
+          git cat-file -e c5779d4589d13285f69d2f090731ef60a3fd69f5^{commit}
+          test "$(git rev-list --count c5779d4589d13285f69d2f090731ef60a3fd69f5..HEAD)" = "3"
+          test "$(git rev-list --count HEAD..c5779d4589d13285f69d2f090731ef60a3fd69f5)" = "0"
+          mapfile -t changed < <(git diff --name-only c5779d4589d13285f69d2f090731ef60a3fd69f5..HEAD)
+          printf '%s\n' "${changed[@]}"
+          test "${#changed[@]}" = "3"
+          test "${changed[0]}" = ".github/scripts/wepld_browser_visual_edit_research_integrity.py"
+          test "${changed[1]}" = ".github/workflows/foundation-integrity.yml"
+          test "${changed[2]}" = ".github/workflows/s1-admission-integrity.yml"
+
+      - name: Run exact bootstrap self-tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python .github/scripts/wepld_browser_visual_edit_research_integrity.py selftest
+
+      - name: Verify exact bootstrap tree against canonical main
+        shell: bash
+        run: |
+          set -euo pipefail
+          python .github/scripts/wepld_browser_visual_edit_research_integrity.py verify-local \
+            --root . \
+            --remote-baseline \
+            --pr-base-sha c5779d4589d13285f69d2f090731ef60a3fd69f5
+
+      - name: Reassert no runtime authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F 'SOURCE_ADMISSION = "NONE"' .github/scripts/wepld_browser_visual_edit_research_integrity.py
+          grep -F 'DEPENDENCY_ADMISSION = "NONE"' .github/scripts/wepld_browser_visual_edit_research_integrity.py
+          grep -F 'PRODUCT_IMPLEMENTATION_AUTHORITY = "NONE"' .github/scripts/wepld_browser_visual_edit_research_integrity.py
+          grep -F 'H0_014_PLUS = "NOT_STARTED"' .github/scripts/wepld_browser_visual_edit_research_integrity.py
+          grep -F 'H0_SCREEN_EXECUTION = "NONE"' .github/scripts/wepld_browser_visual_edit_research_integrity.py
+          grep -F 'MODEL_PROVIDER_EXECUTION = "NONE"' .github/scripts/wepld_browser_visual_edit_research_integrity.py

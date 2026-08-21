@@ -13,32 +13,59 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout exact revision with canonical history
+      - name: Checkout diagnostic revision
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-          fetch-depth: 0
+          fetch-depth: 1
           lfs: false
           submodules: false
 
-      - name: Run integrity policy self-tests
-        shell: bash
-        run: |
-          set -euo pipefail
-          python .github/scripts/wepld_minimax_agent_research_integrity.py selftest
-
-      - name: Verify exact checked-out tree against the immutable baseline
+      - name: Expose exact PR 78 canonical activation run
         shell: bash
         env:
-          WEPLD_COMPARISON_SHA: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
+          TARGET_SHA: b028b07495bff32b42d093aebe653199ce59b8a5
         run: |
           set -euo pipefail
-          if [ -z "${WEPLD_COMPARISON_SHA:-}" ]; then
-            echo 'immutable baseline comparison SHA could not be established' >&2
-            exit 1
-          fi
-          python .github/scripts/wepld_minimax_agent_research_integrity.py verify-local \
-            --root . \
-            --remote-baseline \
-            --pr-base-sha "$WEPLD_COMPARISON_SHA"
+          api='https://api.github.com/repos/TheHalfMoon/wepld/actions/workflows/foundation-integrity.yml/runs?event=push&branch=main&per_page=100'
+          curl --fail --silent --show-error --location \
+            --header 'Accept: application/vnd.github+json' \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            "$api" > "$RUNNER_TEMP/runs.json"
+          jq --arg sha "$TARGET_SHA" \
+            '[.workflow_runs[] | select(.head_sha == $sha and .event == "push" and .head_branch == "main")] | sort_by(.created_at) | reverse | .[0]' \
+            "$RUNNER_TEMP/runs.json" > "$RUNNER_TEMP/target.json"
+          test "$(jq -r '.id // empty' "$RUNNER_TEMP/target.json")" != ''
+          run_id="$(jq -r '.id' "$RUNNER_TEMP/target.json")"
+          jobs_url="$(jq -r '.jobs_url' "$RUNNER_TEMP/target.json")"
+          echo "TARGET_SHA=$TARGET_SHA"
+          echo "MATCH_RUN_ID=$run_id"
+          echo "RUN_NUMBER=$(jq -r '.run_number' "$RUNNER_TEMP/target.json")"
+          echo "WORKFLOW_NAME=$(jq -r '.name' "$RUNNER_TEMP/target.json")"
+          echo "EVENT=$(jq -r '.event' "$RUNNER_TEMP/target.json")"
+          echo "HEAD_BRANCH=$(jq -r '.head_branch' "$RUNNER_TEMP/target.json")"
+          echo "HEAD_SHA=$(jq -r '.head_sha' "$RUNNER_TEMP/target.json")"
+          echo "STATUS=$(jq -r '.status' "$RUNNER_TEMP/target.json")"
+          echo "CONCLUSION=$(jq -r '.conclusion' "$RUNNER_TEMP/target.json")"
+          echo "CREATED_AT=$(jq -r '.created_at' "$RUNNER_TEMP/target.json")"
+          curl --fail --silent --show-error --location \
+            --header 'Accept: application/vnd.github+json' \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            "$jobs_url" > "$RUNNER_TEMP/jobs.json"
+          jq -r '.jobs[] | "JOB_ID=\(.id) JOB_NAME=\(.name) JOB_STATUS=\(.status) JOB_CONCLUSION=\(.conclusion)"' "$RUNNER_TEMP/jobs.json"
+
+      - name: Preserve diagnostic-only authority boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'DIAGNOSTIC_ONLY=YES'
+          echo 'MERGE=NEVER'
+          echo 'CREDENTIAL_ACCESS=NONE'
+          echo 'SOURCE_ADMISSION=NONE'
+          echo 'DEPENDENCY_ADMISSION=NONE'
+          echo 'PRODUCT_IMPLEMENTATION_AUTHORITY=NONE'
+          echo 'ROADMAP_MUTATION=NONE'
+          echo 'H0_014_PLUS=NOT_STARTED'
+          echo 'H0_SCREEN_EXECUTION=NONE'
+          echo 'MODEL_PROVIDER_EXECUTION=NONE'

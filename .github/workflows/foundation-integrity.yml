@@ -62,10 +62,17 @@ jobs:
           package_count="$(grep -c '^\[\[package\]\]$' "$root/Cargo.lock")"
           echo "LOCK_SHA256=$lock_sha"
           echo "LOCK_PACKAGE_COUNT=$package_count"
-          echo "LOCK_BASE64_BEGIN"
-          base64 -w0 "$root/Cargo.lock"
-          echo
-          echo "LOCK_BASE64_END"
+          test "$lock_sha" = "5ab13b3bbb94c8245bea6b7ba7d76f84ef642996dd6c4b31e08def1796b6943a"
+          test "$package_count" = "54"
+
+      - name: Upload exact H0-013 Cargo lock candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: h0-013-cargo-lock
+          path: ${{ runner.temp }}/wepld-h0-013-lock-materialization/Cargo.lock
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
 
       - name: Run integrity policy self-tests
         shell: bash

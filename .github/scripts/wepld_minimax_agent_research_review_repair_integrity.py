@@ -62,8 +62,8 @@ PRIOR_EXPECTED_WORKFLOW_SHA256 = {
     CONTRACTS_WORKFLOW: "008441e0e17542679c7bdc23e64ad6e2ce57664ed5c65e4842b7d8fbd77500d7",
 }
 EXPECTED_WORKFLOW_SHA256 = {
-    FOUNDATION_WORKFLOW: "c581fef7322ab364b196c3b1759c564b71c5ce37a13545a808879ee1e5562d3a",
-    ADMISSION_WORKFLOW: "6ef424253d43934b821f27ac4df24d3beae79f49a81b2088ef6d67cf27593c14",
+    FOUNDATION_WORKFLOW: "083a1727006708e4b9141c30bf394d3bd7c195819ac6556d96deecb11953e880",
+    ADMISSION_WORKFLOW: "2d9d4558a703c76c97d87660c787c6200953e5b6987eabea4e5797f0beabd2a3",
     CONTRACTS_WORKFLOW: "008441e0e17542679c7bdc23e64ad6e2ce57664ed5c65e4842b7d8fbd77500d7",
 }
 
@@ -116,15 +116,21 @@ def _is_bootstrap_base(policy_base: base.RepositoryView) -> bool:
 
 
 def _activate_contract() -> None:
-    prior.EXPECTED_WORKFLOW_SHA256 = dict(EXPECTED_WORKFLOW_SHA256)
-    prior.prior.EXPECTED_WORKFLOW_SHA256 = dict(EXPECTED_WORKFLOW_SHA256)
-    prior.prior.prior.EXPECTED_WORKFLOW_SHA256 = dict(EXPECTED_WORKFLOW_SHA256)
-    prior.prior.prior.retention.EXPECTED_WORKFLOW_SHA256 = dict(
-        EXPECTED_WORKFLOW_SHA256
-    )
-    prior.prior.prior.retention.impl.EXPECTED_WORKFLOW_SHA256 = dict(
-        EXPECTED_WORKFLOW_SHA256
-    )
+    try:
+        prior.EXPECTED_WORKFLOW_SHA256 = dict(EXPECTED_WORKFLOW_SHA256)
+        prior.prior.EXPECTED_WORKFLOW_SHA256 = dict(EXPECTED_WORKFLOW_SHA256)
+        prior.prior.prior.EXPECTED_WORKFLOW_SHA256 = dict(EXPECTED_WORKFLOW_SHA256)
+        prior.prior.prior.retention.EXPECTED_WORKFLOW_SHA256 = dict(
+            EXPECTED_WORKFLOW_SHA256
+        )
+        prior.prior.prior.retention.impl.EXPECTED_WORKFLOW_SHA256 = dict(
+            EXPECTED_WORKFLOW_SHA256
+        )
+    except AttributeError as exc:
+        base.fail(
+            "MiniMax review-repair inherited policy topology is missing or stale: "
+            f"{exc}"
+        )
 
 
 def _validate_target_candidate(candidate: base.RepositoryView) -> None:

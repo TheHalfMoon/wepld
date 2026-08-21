@@ -38,4 +38,7 @@ jobs:
             echo 'immutable baseline comparison SHA could not be established' >&2
             exit 1
           fi
-          python .github/scripts/wepld_minimax_agent_research_review_repair_integrity.py verify-local             --root .             --remote-baseline             --pr-base-sha "$WEPLD_COMPARISON_SHA"
+          python .github/scripts/wepld_minimax_agent_research_review_repair_integrity.py verify-local \
+            --root . \
+            --remote-baseline \
+            --pr-base-sha "$WEPLD_COMPARISON_SHA"

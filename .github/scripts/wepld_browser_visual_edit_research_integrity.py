@@ -82,6 +82,12 @@ def _paths(view: base.RepositoryView) -> set[str]:
     return {entry.path for entry in view.entries()}
 
 
+def _memory_view(files: dict[str, bytes]) -> base.MemoryView:
+    """Build a fixture view whose tree identities track the fixture bytes."""
+    trees = {relative: _git_blob_sha1(data) for relative, data in files.items()}
+    return base.MemoryView(files, trees=trees)
+
+
 def _is_bootstrap_base(policy_base: base.RepositoryView) -> bool:
     return POLICY_SCRIPT not in _paths(policy_base)
 
@@ -409,8 +415,8 @@ def _selftest_bootstrap_delta() -> None:
     candidate_files[ADMISSION_WORKFLOW] = b"new-admission"
 
     _require_exact_delta_browser_research(
-        base.MemoryView(candidate_files),
-        base.MemoryView(base_files),
+        _memory_view(candidate_files),
+        _memory_view(base_files),
     )
 
     mixed = dict(candidate_files)
@@ -419,8 +425,8 @@ def _selftest_bootstrap_delta() -> None:
         "Browser visual-edit research mixed bootstrap rejection",
         "bootstrap delta must be exactly",
         _require_exact_delta_browser_research,
-        base.MemoryView(mixed),
-        base.MemoryView(base_files),
+        _memory_view(mixed),
+        _memory_view(base_files),
     )
 
 
@@ -437,8 +443,8 @@ def _selftest_target_transition() -> None:
         candidate_files[TARGET_PATH] = fixture
 
         _require_exact_delta_browser_research(
-            base.MemoryView(candidate_files),
-            base.MemoryView(base_files),
+            _memory_view(candidate_files),
+            _memory_view(base_files),
         )
 
         wrong = dict(base_files)
@@ -447,8 +453,8 @@ def _selftest_target_transition() -> None:
             "Browser visual-edit research wrong-blob rejection",
             "document drifted",
             _require_exact_delta_browser_research,
-            base.MemoryView(wrong),
-            base.MemoryView(base_files),
+            _memory_view(wrong),
+            _memory_view(base_files),
         )
 
         extra = dict(candidate_files)
@@ -457,8 +463,8 @@ def _selftest_target_transition() -> None:
             "Browser visual-edit research extra-path rejection",
             "canonicalization delta must be exactly one file",
             _require_exact_delta_browser_research,
-            base.MemoryView(extra),
-            base.MemoryView(base_files),
+            _memory_view(extra),
+            _memory_view(base_files),
         )
 
         frozen_base = dict(candidate_files)
@@ -468,8 +474,8 @@ def _selftest_target_transition() -> None:
             "Browser visual-edit research post-canonical mutation rejection",
             "frozen after canonicalization",
             _require_exact_delta_browser_research,
-            base.MemoryView(frozen_candidate),
-            base.MemoryView(frozen_base),
+            _memory_view(frozen_candidate),
+            _memory_view(frozen_base),
         )
     finally:
         TARGET_GIT_BLOB_SHA1 = original

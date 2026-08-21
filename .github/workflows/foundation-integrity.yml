@@ -19,24 +19,24 @@ jobs:
           lfs: false
           submodules: false
 
-      - name: Expose exact PR67 trusted admission run
+      - name: Expose exact H0-013 canonical activation run
         shell: bash
         env:
-          TARGET_PR: '67'
+          TARGET_SHA: 'c5779d4589d13285f69d2f090731ef60a3fd69f5'
         run: |
           set -euo pipefail
-          api='https://api.github.com/repos/TheHalfMoon/wepld/actions/runs?event=pull_request_target&per_page=100'
+          api='https://api.github.com/repos/TheHalfMoon/wepld/actions/runs?event=push&per_page=100'
           curl --fail --silent --show-error --location \
             --header 'Accept: application/vnd.github+json' \
             --header 'X-GitHub-Api-Version: 2022-11-28' \
             "$api" > "$RUNNER_TEMP/runs.json"
-          jq --argjson pr "$TARGET_PR" \
-            '[.workflow_runs[] | select(.name == "s1-admission-integrity") | select(any(.pull_requests[]?; .number == $pr))] | sort_by(.created_at) | reverse | .[0]' \
+          jq --arg sha "$TARGET_SHA" \
+            '[.workflow_runs[] | select(.name == "foundation-integrity") | select(.head_branch == "main") | select(.head_sha == $sha)] | sort_by(.created_at) | reverse | .[0]' \
             "$RUNNER_TEMP/runs.json" > "$RUNNER_TEMP/target.json"
           test "$(jq -r '.id // empty' "$RUNNER_TEMP/target.json")" != ''
           run_id="$(jq -r '.id' "$RUNNER_TEMP/target.json")"
           jobs_url="$(jq -r '.jobs_url' "$RUNNER_TEMP/target.json")"
-          echo "TARGET_PR=$TARGET_PR"
+          echo "TARGET_SHA=$TARGET_SHA"
           echo "RUN_ID=$run_id"
           echo "RUN_NUMBER=$(jq -r '.run_number' "$RUNNER_TEMP/target.json")"
           echo "WORKFLOW_NAME=$(jq -r '.name' "$RUNNER_TEMP/target.json")"

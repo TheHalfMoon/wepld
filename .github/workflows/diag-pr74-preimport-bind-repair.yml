@@ -1,0 +1,110 @@
+name: diag-pr74-preimport-bind-repair
+
+on:
+  push:
+    branches:
+      - diag/pr74-preimport-bind-repair
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact PR 74 branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ci/browser-visual-edit-research-authorization
+          persist-credentials: true
+          fetch-depth: 0
+          lfs: false
+          submodules: false
+
+      - name: Assert exact starting head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "e7926f38e0a8fe509c9e06e069404173dcc3a10a"
+          test "$(git status --porcelain)" = ""
+
+      - name: Bind Repair-3 predecessor before import
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('.github/scripts/wepld_browser_visual_edit_research_integrity.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''import wepld_integrity as base
+          import wepld_harness_h0_implementation_allowlist_repair_integrity as prior
+
+          POLICY_SCRIPT = ".github/scripts/wepld_browser_visual_edit_research_integrity.py"
+          PRIOR_POLICY_PATH = (
+              ".github/scripts/wepld_harness_h0_implementation_allowlist_repair_integrity.py"
+          )
+          EXPECTED_PRIOR_POLICY_GIT_BLOB_SHA1 = "2673104ea0f95c2fcad38cd79d9aa9fbf5008193"
+          '''.replace('          ', '')
+          new = '''import wepld_integrity as base
+
+          POLICY_SCRIPT = ".github/scripts/wepld_browser_visual_edit_research_integrity.py"
+          PRIOR_POLICY_PATH = (
+              ".github/scripts/wepld_harness_h0_implementation_allowlist_repair_integrity.py"
+          )
+          EXPECTED_PRIOR_POLICY_GIT_BLOB_SHA1 = "2673104ea0f95c2fcad38cd79d9aa9fbf5008193"
+
+
+          def _bind_prior_policy_before_import() -> None:
+              root = Path(__file__).resolve().parents[2]
+              view = base.LocalRepositoryView(root)
+              data = view.read_bytes(PRIOR_POLICY_PATH, base.MAX_POLICY_FILE_BYTES)
+              header = f"blob {len(data)}\\0".encode("ascii")
+              actual = hashlib.sha1(header + data).hexdigest()
+              if actual != EXPECTED_PRIOR_POLICY_GIT_BLOB_SHA1:
+                  base.fail(
+                      "frozen H0-012 Repair-3 policy runner drifted before import: "
+                      f"expected={EXPECTED_PRIOR_POLICY_GIT_BLOB_SHA1} actual={actual}"
+                  )
+
+
+          _bind_prior_policy_before_import()
+          import wepld_harness_h0_implementation_allowlist_repair_integrity as prior  # noqa: E402
+          '''.replace('          ', '')
+          if text.count(old) != 1:
+              raise SystemExit(f'EXPECTED_EXACT_IMPORT_BLOCK_NOT_FOUND count={text.count(old)}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+          git diff --check
+          git diff -- .github/scripts/wepld_browser_visual_edit_research_integrity.py
+
+      - name: Run repaired exact-head self-tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python .github/scripts/wepld_browser_visual_edit_research_integrity.py selftest
+
+      - name: Commit and fast-forward PR 74 branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git diff --name-only)" = ".github/scripts/wepld_browser_visual_edit_research_integrity.py"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/scripts/wepld_browser_visual_edit_research_integrity.py
+          git commit -m 'fix(acquisition): bind Repair-3 predecessor before import'
+          git push origin HEAD:ci/browser-visual-edit-research-authorization
+          echo "NEW_HEAD=$(git rev-parse HEAD)"
+
+      - name: Preserve repair boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'DIAGNOSTIC_DRIVER_ONLY=YES'
+          echo 'SOURCE_ADMISSION=NONE'
+          echo 'DEPENDENCY_ADMISSION=NONE'
+          echo 'PRODUCT_IMPLEMENTATION_AUTHORITY=NONE'
+          echo 'H0_014_PLUS=NOT_STARTED'
+          echo 'H0_SCREEN_EXECUTION=NONE'
+          echo 'MODEL_PROVIDER_EXECUTION=NONE'

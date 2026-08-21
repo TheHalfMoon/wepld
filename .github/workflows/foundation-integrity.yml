@@ -22,10 +22,10 @@ jobs:
       - name: Expose PR 74 trusted admission run
         shell: bash
         env:
-          TARGET_SHA: e7926f38e0a8fe509c9e06e069404173dcc3a10a
+          TARGET_SHA: cdd4a1ff0757d910b70e4e330b8c0bf21a9926e0
           TARGET_BRANCH: ci/browser-visual-edit-research-authorization
           TARGET_PR: "74"
-          NOT_BEFORE: "2026-08-21T15:55:00Z"
+          NOT_BEFORE: "2026-08-21T16:08:00Z"
         run: |
           set -euo pipefail
           python - <<'PY'

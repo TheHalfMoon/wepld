@@ -19,13 +19,29 @@ import sys
 from pathlib import Path
 
 import wepld_integrity as base
-import wepld_harness_h0_implementation_allowlist_repair_integrity as prior
 
 POLICY_SCRIPT = ".github/scripts/wepld_browser_visual_edit_research_integrity.py"
 PRIOR_POLICY_PATH = (
     ".github/scripts/wepld_harness_h0_implementation_allowlist_repair_integrity.py"
 )
 EXPECTED_PRIOR_POLICY_GIT_BLOB_SHA1 = "2673104ea0f95c2fcad38cd79d9aa9fbf5008193"
+
+
+def _bind_prior_policy_before_import() -> None:
+    root = Path(__file__).resolve().parents[2]
+    view = base.LocalRepositoryView(root)
+    data = view.read_bytes(PRIOR_POLICY_PATH, base.MAX_POLICY_FILE_BYTES)
+    header = f"blob {len(data)}\0".encode("ascii")
+    actual = hashlib.sha1(header + data).hexdigest()
+    if actual != EXPECTED_PRIOR_POLICY_GIT_BLOB_SHA1:
+        base.fail(
+  "frozen H0-012 Repair-3 policy runner drifted before import: "
+  f"expected={EXPECTED_PRIOR_POLICY_GIT_BLOB_SHA1} actual={actual}"
+        )
+
+
+_bind_prior_policy_before_import()
+import wepld_harness_h0_implementation_allowlist_repair_integrity as prior  # noqa: E402
 
 FOUNDATION_WORKFLOW = ".github/workflows/foundation-integrity.yml"
 ADMISSION_WORKFLOW = ".github/workflows/s1-admission-integrity.yml"

@@ -1,0 +1,7 @@
+[build]
+rustflags = [
+  "--cfg",
+  "sha2_backend=\"soft\"",
+  "--cfg",
+  "sha2_backend_soft=\"compact\"",
+]

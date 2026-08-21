@@ -4,6 +4,8 @@
 DOCUMENT_DATE = 2026-08-21
 DOCUMENT_CLASS = DISCOVERY / DONOR RECONNAISSANCE / FUTURE PRODUCT-ARCHITECTURE INPUT
 RESEARCH_BASE_MAIN = 5d25112d506b0044f2e79756869c009c5b5ba358
+REVIEW_REPAIR_SOURCE_HEAD = 701fcf71185b859d825863a5dfddf55dab9dd0aa
+REVIEW_REPAIR_CLASS = TWO_MAJOR_FINDINGS_PLUS_EVIDENCE_TRACEABILITY_HARDENING
 CANONICAL_REGISTRY_REVISION = NONE
 FROZEN_402_REGISTRY_MUTATION = NONE
 SOURCE_ADMISSION = NONE
@@ -66,34 +68,51 @@ REJECT A PROVIDER-LOCKED AGENT CORE
 
 ## Current official product evidence
 
-MiniMax's current documentation index exposes dedicated surfaces for custom models/BYOK, custom Agents, Memory, Skills, Agent Team, messaging integrations, Remote Control, Scheduled Tasks, Built-in Browser, Goal mode, permissions/safety, task history, and workspace/project context.
+MiniMax's current documentation index exposes dedicated surfaces for custom models/BYOK, custom Agents, Memory, Skills, Agent Team, messaging integrations, Remote Control, Scheduled Tasks, Built-in Browser, Goal mode, permissions/safety, task history, and workspace/project context. [P1]
 
-Primary current documentation index:
+The product-behavior sources below are live vendor pages rather than immutable source revisions. The observation record therefore makes the temporal limitation explicit instead of inventing a revision or digest that MiniMax does not publish.
 
-- https://agent.minimax.io/docs/llms.txt
+```text
+OBSERVED_AT_UTC = 2026-08-21T19:29:00Z
+IMMUTABLE_VENDOR_REVISION = NOT_PUBLISHED
+ARCHIVED_VENDOR_REVISION = NOT_ESTABLISHED
+LIVE_VENDOR_PAGE_DIGEST = NOT_RECORDED
+REVALIDATION_BEFORE_FUTURE_PRODUCT_DECISION = REQUIRED
+```
 
-Current MiniMax Code product surface:
+Product evidence references:
 
-- https://agent.minimax.io/download
+- **P1 — MiniMax Agent documentation index:** https://agent.minimax.io/docs/llms.txt
+- **P2 — MiniMax Code product/download surface:** https://agent.minimax.io/download
+- **P3 — MiniMax Agent engineering tech-blog index:** https://agent.minimax.io/docs/techblog
+- **P4 — MiniMax Agent Team long-running-work article:** https://www.minimax.io/blog/minimax-agent-team-long-running-1779893953
+- **P5 — MiniMax M3 / Agent Team article:** https://www.minimax.io/blog/minimax-m3
+- **P6 — MiniMax Agent changelog:** https://agent.minimax.io/docs/changelog
 
-Current Agent Team engineering description:
+Claim map for the live product evidence:
 
-- https://agent.minimax.io/docs/techblog
-- https://www.minimax.io/blog/minimax-agent-team-long-running-1779893953
+```text
+CUSTOM_MODELS_BYOK = P1
+CUSTOM_AGENTS = P1
+MEMORY = P1
+SKILLS = P1
+AGENT_TEAM = P1 + P3 + P4 + P5
+MESSAGING_INTEGRATIONS = P1
+REMOTE_CONTROL = P1
+SCHEDULED_TASKS = P1
+BUILT_IN_BROWSER = P1
+GOAL_MODE = P1
+PERMISSIONS_SAFETY = P1 + P6
+TASK_HISTORY = P1
+WORKSPACE_PROJECT_CONTEXT = P1
+MINIMAX_CODE_PRODUCT_SURFACE = P2
+```
 
-Current MiniMax M3 / Agent Team description:
-
-- https://www.minimax.io/blog/minimax-m3
-
-Current changelog:
-
-- https://agent.minimax.io/docs/changelog
-
-These product references are behavior / architecture evidence only. They do not establish open-source availability of every product subsystem.
+These product references are behavior / architecture evidence only. They do not establish open-source availability of every product subsystem. Because the vendor pages are mutable, any later implementation, acquisition, or publication decision that depends on them must revalidate the live claims or replace them with an immutable archived source. The exact Git source anchors recorded later in this document remain separately pinned by commit and blob identity.
 
 ## Agent Team findings
 
-MiniMax describes a deterministic multi-Agent collaboration loop with three primary roles:
+MiniMax describes a deterministic multi-Agent collaboration loop with three primary roles. [P1, P3, P4]
 
 ```text
 Leader
@@ -109,7 +128,7 @@ Verifier
   -> can reject and return work for correction
 ```
 
-The product engineering material also emphasizes context isolation, parallel sub-task execution, adversarial quality gates, asynchronous execution, and long-running work.
+The product engineering material also emphasizes context isolation, parallel sub-task execution, adversarial quality gates, asynchronous execution, and long-running work. [P3, P4, P5]
 
 ### WePLD lesson
 
@@ -153,7 +172,7 @@ VERIFIER_REJECTED -> SILENTLY_ACCEPT_WORKER_SUCCESS
 
 ## Goal / long-horizon execution findings
 
-MiniMax exposes a Goal mode in which the user specifies a verifiable outcome and the agent keeps working until the goal is achieved or progress is blocked.
+MiniMax exposes a Goal mode in which the user specifies a verifiable outcome and the agent keeps working until the goal is achieved or progress is blocked. [P1]
 
 ### WePLD lesson
 
@@ -185,7 +204,7 @@ A goal can survive restarts, provider changes, and model changes. Any privileged
 
 ## Persistent memory findings
 
-MiniMax currently presents persistent memory as retention of habits, preferences, project context, conventions, and long-term working patterns. `Mini-Agent` also exposes a concrete persistent Session Note mechanism.
+MiniMax currently presents persistent memory as retention of habits, preferences, project context, conventions, and long-term working patterns. [P1] `Mini-Agent` also exposes a concrete persistent Session Note mechanism through the exact source pin recorded later in this document.
 
 ### WePLD lesson
 
@@ -230,7 +249,7 @@ STALE_MEMORY_MUST_NOT_BECOME_AUTHORITY = YES
 
 ## Scheduled work findings
 
-MiniMax exposes Scheduled Tasks for recurring Agent work and its current product surfaces advertise schedules alongside skills, memories, and teams.
+MiniMax exposes Scheduled Tasks for recurring Agent work and its current product surfaces advertise schedules alongside skills, memories, and teams. [P1]
 
 ### WePLD lesson
 
@@ -273,7 +292,7 @@ A schedule created while a capability is allowed must not continue exercising th
 
 ## Skills findings
 
-MiniMax exposes reusable Skills in the product and maintains a public `MiniMax-AI/skills` repository. The repository documents installation into Claude Code, Cursor, Codex, OpenCode, and other agent environments, demonstrating that the skill concept is portable across model/tool hosts.
+MiniMax exposes reusable Skills in the product [P1] and maintains a public `MiniMax-AI/skills` repository. The repository documents installation into Claude Code, Cursor, Codex, OpenCode, and other agent environments, demonstrating that the skill concept is portable across model/tool hosts.
 
 ### WePLD lesson
 
@@ -312,7 +331,7 @@ The skill loader should expose the minimum relevant skill to the model and avoid
 
 ## Custom Agents findings
 
-MiniMax's current documentation index exposes Custom Agents with their own role, instructions, skills, workspace, and channels.
+MiniMax's current documentation index exposes Custom Agents with their own role, instructions, skills, workspace, and channels. [P1]
 
 ### WePLD lesson
 
@@ -345,7 +364,7 @@ A profile must not contain an irrevocable or hidden privilege grant.
 
 ## Model / provider indirection findings
 
-MiniMax Code currently documents Custom Models / BYOK with a provider base URL, API key, API format, and model names.
+MiniMax Code currently documents Custom Models / BYOK with a provider base URL, API key, API format, and model names. [P1]
 
 The stronger open-source evidence is `MiniMax-AI/OpenRoom`, which has a typed provider abstraction supporting both OpenAI-compatible and Anthropic-compatible request formats. Its current provider configuration explicitly includes `llama.cpp` with a default local endpoint:
 
@@ -437,7 +456,7 @@ This same pattern should apply to browser operations, filesystem changes, termin
 
 ## MCP findings
 
-MiniMax maintains public MCP repositories and `Mini-Agent` includes an MCP loader. The current MiniMax documentation also treats MCP as an extensibility layer.
+MiniMax maintains public MCP repositories and `Mini-Agent` includes an MCP loader. The current MiniMax documentation also treats MCP as an extensibility layer. [P1]
 
 ### WePLD lesson
 
@@ -455,7 +474,7 @@ Tool schemas should be loaded on demand where possible to avoid permanently spen
 
 ## Browser and remote-control findings
 
-MiniMax currently exposes a built-in browser and Remote Control surfaces. The current product documentation distinguishes browser functionality from broader task collaboration and permission flows.
+MiniMax currently exposes a built-in browser and Remote Control surfaces. [P1] The current product documentation distinguishes browser functionality from broader task collaboration and permission flows. [P1, P6]
 
 ### WePLD lesson
 
@@ -480,7 +499,7 @@ Remote Control is a control plane, not a reason to bypass local authority checks
 
 ## Permissions findings
 
-MiniMax's current documentation index exposes a dedicated Permissions and Safety surface, and the changelog records permission-review explanations.
+MiniMax's current documentation index exposes a dedicated Permissions and Safety surface, and the changelog records permission-review explanations. [P1, P6]
 
 ### WePLD lesson
 
@@ -709,12 +728,69 @@ PUBLIC_SOURCE_ONLY + USER_ALLOWS_REMOTE -> LOCAL_OR_REMOTE
 REMOTE_PROVIDER_UNAVAILABLE -> QUALIFIED_LOCAL_FALLBACK
 ```
 
-Required invariant:
+Required invariants:
 
 ```text
 FALLBACK_MAY_CHANGE_MODEL
 FALLBACK_MUST_NOT_CHANGE_AUTHORITY
+FALLBACK_MUST_NOT_WEAKEN_DATA_EGRESS_CLASS
 ```
+
+`DATA_EGRESS_CLASS` is a work/candidate property, not merely a model-selection hint. It must be propagated into every action that can transmit task or candidate data across a process or network boundary.
+
+Candidate egress classes:
+
+```text
+LOCAL_PROCESS_ONLY
+LOCAL_NETWORK_ALLOWED
+PUBLIC_SOURCE_REMOTE_ALLOWED
+RESTRICTED_REMOTE_CONFIRMATION_REQUIRED
+PROHIBITED_EGRESS
+```
+
+`LOCAL_ONLY` means `LOCAL_PROCESS_ONLY` unless policy explicitly grants `LOCAL_NETWORK_ALLOWED`. A loopback or LAN endpoint is not silently equivalent to local-process execution.
+
+Every transmission-capable boundary must receive and enforce the effective class:
+
+```text
+MODEL_ADAPTER
+TOOL_ADAPTER
+MCP_ADAPTER
+BROWSER_ADAPTER
+REMOTE_CONTROL_ADAPTER
+TELEMETRY_ADAPTER
+ARTIFACT_UPLOAD_ADAPTER
+```
+
+Required execution order:
+
+```text
+PROPOSED_TRANSMISSION
+  -> RESOLVE_CURRENT_DATA_EGRESS_CLASS
+  -> RESOLVE_DESTINATION_LOCALITY
+  -> MACHINE_ENFORCED_PRE_EGRESS_GATE
+      -> ALLOW
+      -> CONFIRM
+      -> BLOCK
+  -> TRANSMIT_OR_FAIL_CLOSED
+  -> RECORD_EGRESS_EVIDENCE
+```
+
+Required fail-closed rules:
+
+```text
+MISSING_DATA_EGRESS_CLASS -> BLOCK
+UNKNOWN_DESTINATION_LOCALITY -> BLOCK
+PROHIBITED_EGRESS + ANY_NETWORK_TRANSMISSION -> BLOCK
+LOCAL_PROCESS_ONLY + LOCAL_NETWORK -> BLOCK
+FALLBACK_REQUIRES_WEAKER_EGRESS_CLASS -> BLOCK_AND_REPLAN
+TOOL_OR_MCP_DISCOVERY != EGRESS_AUTHORIZATION
+BROWSER_NAVIGATION != DATA_UPLOAD_AUTHORIZATION
+REMOTE_CONTROL_CHANNEL != TASK_DATA_EGRESS_AUTHORIZATION
+TELEMETRY_ENABLED != TELEMETRY_EGRESS_AUTHORIZED
+```
+
+The same effective egress class must survive retries, reassignment, provider fallback, model replacement, worker substitution, and verifier handoff. Any requested relaxation requires a new explicit authority decision; it must never arise from fallback logic.
 
 ## Proposed task object
 
@@ -727,10 +803,13 @@ TaskRecord {
   inputs
   expected_outputs
   candidate_scope
+  active_candidate_id
+  candidate_lineage_refs
   assigned_agent_profile
   selected_model_adapter
   requested_capabilities
   effective_authority_ref
+  effective_data_egress_class
   status
   attempt
   evidence_refs
@@ -753,7 +832,74 @@ COMPLETED_PROVISIONAL
 COMPLETED_TRUSTED
 ```
 
-Only governance-defined evidence can advance `COMPLETED_PROVISIONAL` to `COMPLETED_TRUSTED`.
+Only governance-defined evidence bound to the exact active candidate can advance `COMPLETED_PROVISIONAL` to `COMPLETED_TRUSTED`.
+
+## Proposed candidate identity and lineage model
+
+Candidate identity is immutable and distinct from task scope. Repair, retry, regeneration, artifact mutation, or verifier-directed correction that changes candidate bytes creates a new candidate identity.
+
+```text
+CandidateRecord {
+  candidate_id
+  task_id
+  parent_candidate_id
+  supersedes_candidate_id
+  artifact_digest
+  candidate_state
+  producer_identity
+  attempt
+  created_at
+  authority_snapshot_ref
+  data_egress_class
+}
+```
+
+Candidate states may include:
+
+```text
+PRODUCED
+AWAITING_VERIFICATION
+REPAIR_REQUIRED
+SUPERSEDED
+REJECTED
+ACCEPTED_PROVISIONAL
+ACCEPTED_TRUSTED
+```
+
+Required lineage invariants:
+
+```text
+CANDIDATE_ID = IMMUTABLE
+ARTIFACT_DIGEST_CHANGE -> NEW_CANDIDATE_ID
+REPAIR -> NEW_CANDIDATE_ID
+RETRY_WITH_NEW_OUTPUT -> NEW_CANDIDATE_ID
+SUPERSEDED_CANDIDATE -> NOT_COMPLETION_ELIGIBLE
+EARLIER_RETRY_EVIDENCE -> NOT_REUSABLE_FOR_NEW_CANDIDATE
+VERIFIER_RESULT_CANDIDATE_ID != ACTIVE_CANDIDATE_ID -> REJECT
+VERIFIER_RESULT_ARTIFACT_DIGEST != ACTIVE_ARTIFACT_DIGEST -> REJECT
+COMPLETION_CANDIDATE_ID != ACTIVE_CANDIDATE_ID -> REJECT
+```
+
+`candidate_scope` may describe where candidate effects or artifacts are allowed to exist. It is not identity and must never be used as a substitute for `candidate_id`.
+
+When verification rejects a candidate and the workflow transitions into repair mode:
+
+```text
+CANDIDATE_A
+  -> VERIFICATION_FAIL
+  -> CANDIDATE_A = SUPERSEDED_OR_REPAIR_REQUIRED
+  -> REPAIR
+  -> CANDIDATE_B (new candidate_id, new artifact_digest)
+  -> FRESH_VERIFICATION_BOUND_TO_CANDIDATE_B
+```
+
+Never:
+
+```text
+CANDIDATE_A_PASS_OR_PARTIAL_EVIDENCE
+  -> MUTATE_ARTIFACT
+  -> REUSE_AS_CANDIDATE_B_COMPLETION_EVIDENCE
+```
 
 ## Proposed evidence model
 
@@ -764,6 +910,7 @@ EvidenceRecord {
   evidence_id
   task_id
   candidate_id
+  candidate_artifact_digest
   producer
   evidence_type
   subject_digest
@@ -774,7 +921,23 @@ EvidenceRecord {
 }
 ```
 
-A model statement such as "done" is not evidence of completion.
+Verifier results must carry at minimum:
+
+```text
+VerifierResult {
+  verifier_result_id
+  verifier_identity
+  task_id
+  candidate_id
+  candidate_artifact_digest
+  verification_contract_ref
+  result
+  evidence_refs
+  timestamp
+}
+```
+
+Completion reconciliation must ignore evidence and verifier results from superseded candidates, earlier retry identities, or mismatched artifact digests. A model statement such as "done" is not evidence of completion.
 
 ## Proposed local-first architecture
 
@@ -819,6 +982,18 @@ TOOL_DISCOVERED != TOOL_ENABLED
 TOOL_ENABLED != SIDE_EFFECT_AUTHORIZED
 ```
 
+### Data-egress isolation
+
+The authority decision for an action and the data-egress decision for its payload are separate mandatory checks.
+
+```text
+SIDE_EFFECT_AUTHORIZED != DATA_EGRESS_AUTHORIZED
+NETWORK_REACHABLE != EGRESS_ALLOWED
+LOCAL_NETWORK != LOCAL_PROCESS
+```
+
+All external-capable adapters must enforce the current `DATA_EGRESS_CLASS` before transmitting candidate/task data, including telemetry and fallback paths. The egress class cannot be relaxed by a Coordinator, Worker, model adapter, retry policy, or provider fallback.
+
 ### Memory poisoning resistance
 
 Durable memory must not accept arbitrary model-generated claims as trusted policy facts.
@@ -840,7 +1015,7 @@ Recurring tasks must fail closed when their required capability is no longer aut
 
 ### Team safety
 
-A Coordinator cannot expand a Worker's permissions by assignment. A Worker cannot delegate capabilities it does not possess. A Verifier cannot modify the candidate under review unless the workflow explicitly transitions into repair mode and creates a new candidate identity.
+A Coordinator cannot expand a Worker's permissions by assignment. A Worker cannot delegate capabilities it does not possess. A Verifier cannot modify the candidate under review unless the workflow explicitly transitions into repair mode and creates a new candidate identity. Verifier evidence is valid only for the exact `candidate_id` and artifact digest it reviewed.
 
 ### Local model safety
 
@@ -858,18 +1033,18 @@ Local models remain subject to the same capability, candidate, evidence, and ver
 
 | Mechanism | Evidence strength | WePLD value | Current disposition |
 |---|---|---:|---|
-| Agent Team Leader/Worker/Verifier behavior | Strong official product/engineering evidence | Very high | Behavior + architecture oracle |
-| Goal / long-horizon loop | Strong official docs evidence | Very high | Behavior oracle |
-| Persistent memory | Strong official docs + Mini-Agent source | Very high | Behavior + source oracle |
-| Scheduled tasks | Strong official docs evidence | Very high | Behavior oracle |
-| Skills | Strong docs + public skills source | Very high | Behavior + source oracle; per-skill rights required |
-| Custom agents | Strong official docs evidence | High | Behavior oracle |
-| BYOK/custom models | Strong official docs evidence | Very high | Behavior oracle |
+| Agent Team Leader/Worker/Verifier behavior | Strong official product/engineering evidence [P1, P3, P4] | Very high | Behavior + architecture oracle |
+| Goal / long-horizon loop | Strong official docs evidence [P1] | Very high | Behavior oracle |
+| Persistent memory | Strong official docs [P1] + Mini-Agent source | Very high | Behavior + source oracle |
+| Scheduled tasks | Strong official docs evidence [P1] | Very high | Behavior oracle |
+| Skills | Strong docs [P1] + public skills source | Very high | Behavior + source oracle; per-skill rights required |
+| Custom agents | Strong official docs evidence [P1] | High | Behavior oracle |
+| BYOK/custom models | Strong official docs evidence [P1] | Very high | Behavior oracle |
 | Local `llama.cpp` OpenAI-compatible backend | Strong merged official OpenRoom source | Very high | Source + architecture oracle |
 | Provider-normalized tool calls | Strong OpenRoom source | Very high | Source + architecture oracle |
 | MCP integration | Strong source/docs evidence | High | Tool-edge oracle |
-| Built-in browser | Strong official docs evidence | High | Behavior oracle |
-| Remote control | Strong official docs evidence | Medium/high | Control-plane behavior oracle |
+| Built-in browser | Strong official docs evidence [P1] | High | Behavior oracle |
+| Remote control | Strong official docs evidence [P1] | Medium/high | Control-plane behavior oracle |
 | Complete production Team Engine source | Not established | Potentially very high | Not a current source donor |
 
 ## What WePLD should not copy
@@ -884,6 +1059,8 @@ Local models remain subject to the same capability, candidate, evidence, and ver
 8. Do not let a Verifier mutate and verify the same candidate invisibly.
 9. Do not equate local inference with safe inference.
 10. Do not infer source availability from product behavior.
+11. Do not let provider fallback weaken `DATA_EGRESS_CLASS`.
+12. Do not reuse verification evidence across candidate identities or artifact mutations.
 
 ## Future acquisition questions
 

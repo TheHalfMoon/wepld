@@ -22,6 +22,51 @@ jobs:
           lfs: false
           submodules: false
 
+      - name: Diagnostic materialize exact H0-013 Cargo lock candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.97.1 --profile minimal
+          root="$RUNNER_TEMP/wepld-h0-013-lock-materialization"
+          rm -rf "$root"
+          mkdir -p "$root/src" "$root/.cargo"
+          cat > "$root/Cargo.toml" <<'EOF'
+          [package]
+          name = "wepld-harness-h0"
+          version = "0.0.0"
+          edition = "2024"
+          rust-version = "1.97.1"
+          publish = false
+
+          [workspace]
+          resolver = "3"
+
+          [dependencies]
+          serde = { version = "=1.0.229", default-features = false, features = ["std", "derive"] }
+          serde_json = { version = "=1.0.151", default-features = false, features = ["std"] }
+          sha2 = { version = "=0.11.0", default-features = false }
+          ureq = { version = "=3.4.0", default-features = false, features = ["rustls"] }
+          EOF
+          cat > "$root/.cargo/config.toml" <<'EOF'
+          [build]
+          rustflags = [
+            "--cfg",
+            "sha2_backend=\"soft\"",
+            "--cfg",
+            "sha2_backend_soft=\"compact\"",
+          ]
+          EOF
+          printf '%s\n' '#![forbid(unsafe_code)]' > "$root/src/lib.rs"
+          cargo +1.97.1 generate-lockfile --manifest-path "$root/Cargo.toml"
+          lock_sha="$(sha256sum "$root/Cargo.lock" | awk '{print $1}')"
+          package_count="$(grep -c '^\[\[package\]\]$' "$root/Cargo.lock")"
+          echo "LOCK_SHA256=$lock_sha"
+          echo "LOCK_PACKAGE_COUNT=$package_count"
+          echo "LOCK_BASE64_BEGIN"
+          base64 -w0 "$root/Cargo.lock"
+          echo
+          echo "LOCK_BASE64_END"
+
       - name: Run integrity policy self-tests
         shell: bash
         run: |

@@ -159,10 +159,7 @@ mod tests {
             revision: 7,
         };
         let bytes = canonical_manifest_payload_bytes(&demo).unwrap();
-        assert_eq!(
-            bytes.as_slice(),
-            br#"{"revision":7,"task_id":"task-1"}"#
-        );
+        assert_eq!(bytes.as_slice(), br#"{"revision":7,"task_id":"task-1"}"#);
         assert_eq!(
             canonical_manifest_payload_bytes(&vec![1_u64]).unwrap_err(),
             CanonicalError::ManifestMustBeObject

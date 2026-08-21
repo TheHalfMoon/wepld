@@ -9,10 +9,10 @@ pub mod canonical;
 pub mod identity;
 
 pub use canonical::{
-    CANONICAL_JSON_VERSION, CanonicalError, MANIFEST_HASH_FIELD,
-    canonical_json_bytes, canonical_manifest_payload_bytes,
+    CANONICAL_JSON_VERSION, CanonicalError, MANIFEST_HASH_FIELD, canonical_json_bytes,
+    canonical_manifest_payload_bytes,
 };
 pub use identity::{
-    IdentityDomain, IdentityError, Sha256Identity, TrialIdentityInput,
-    identity_from_canonical, manifest_identity, trial_identity,
+    IdentityDomain, IdentityError, Sha256Identity, TrialIdentityInput, identity_from_canonical,
+    manifest_identity, trial_identity,
 };

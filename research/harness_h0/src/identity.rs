@@ -79,8 +79,7 @@ impl Sha256Identity {
         for (index, slot) in out.iter_mut().enumerate() {
             let at = index * 2;
             let high = hex_nibble(bytes[at]).ok_or(DigestParseError::NonLowercaseHex(at))?;
-            let low = hex_nibble(bytes[at + 1])
-                .ok_or(DigestParseError::NonLowercaseHex(at + 1))?;
+            let low = hex_nibble(bytes[at + 1]).ok_or(DigestParseError::NonLowercaseHex(at + 1))?;
             *slot = (high << 4) | low;
         }
         Ok(Self(out))

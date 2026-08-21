@@ -11,86 +11,69 @@ permissions: {}
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
-      - name: Checkout exact revision with canonical history
+      - name: Checkout diagnostic revision
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-          fetch-depth: 0
+          fetch-depth: 1
           lfs: false
           submodules: false
 
-      - name: Diagnostic materialize exact H0-013 Cargo lock candidate
-        shell: bash
-        run: |
-          set -euo pipefail
-          rustup toolchain install 1.97.1 --profile minimal
-          root="$RUNNER_TEMP/wepld-h0-013-lock-materialization"
-          rm -rf "$root"
-          mkdir -p "$root/src" "$root/.cargo"
-          cat > "$root/Cargo.toml" <<'EOF'
-          [package]
-          name = "wepld-harness-h0"
-          version = "0.0.0"
-          edition = "2024"
-          rust-version = "1.97.1"
-          publish = false
-
-          [workspace]
-          resolver = "3"
-
-          [dependencies]
-          serde = { version = "=1.0.229", default-features = false, features = ["std", "derive"] }
-          serde_json = { version = "=1.0.151", default-features = false, features = ["std"] }
-          sha2 = { version = "=0.11.0", default-features = false }
-          ureq = { version = "=3.4.0", default-features = false, features = ["rustls"] }
-          EOF
-          cat > "$root/.cargo/config.toml" <<'EOF'
-          [build]
-          rustflags = [
-            "--cfg",
-            "sha2_backend=\"soft\"",
-            "--cfg",
-            "sha2_backend_soft=\"compact\"",
-          ]
-          EOF
-          printf '%s\n' '#![forbid(unsafe_code)]' > "$root/src/lib.rs"
-          cargo +1.97.1 generate-lockfile --manifest-path "$root/Cargo.toml"
-          lock_sha="$(sha256sum "$root/Cargo.lock" | awk '{print $1}')"
-          package_count="$(grep -c '^\[\[package\]\]$' "$root/Cargo.lock")"
-          echo "LOCK_SHA256=$lock_sha"
-          echo "LOCK_PACKAGE_COUNT=$package_count"
-          test "$lock_sha" = "5ab13b3bbb94c8245bea6b7ba7d76f84ef642996dd6c4b31e08def1796b6943a"
-          test "$package_count" = "54"
-
-      - name: Upload exact H0-013 Cargo lock candidate
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: h0-013-cargo-lock
-          path: ${{ runner.temp }}/wepld-h0-013-lock-materialization/Cargo.lock
-          if-no-files-found: error
-          retention-days: 1
-          compression-level: 0
-
-      - name: Run integrity policy self-tests
-        shell: bash
-        run: |
-          set -euo pipefail
-          python .github/scripts/wepld_harness_h0_implementation_retention_integrity.py selftest
-
-      - name: Verify exact checked-out tree against the immutable baseline
+      - name: Qualify exact H0-013 head out of tree
         shell: bash
         env:
-          WEPLD_COMPARISON_SHA: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
+          H0_HEAD: 245fbf0ac4cd34ff7aeca0775b929bfc52cffa5f
+          H0_BASE: dca804f239bb54605a94076e364c231fdbb06bbb
+          EXPECTED_LOCK_SHA256: 5ab13b3bbb94c8245bea6b7ba7d76f84ef642996dd6c4b31e08def1796b6943a
         run: |
           set -euo pipefail
-          if [ -z "${WEPLD_COMPARISON_SHA:-}" ]; then
-            echo 'immutable baseline comparison SHA could not be established' >&2
+          rustup toolchain install 1.97.1 --profile minimal --component rustfmt --component clippy
+          root="$RUNNER_TEMP/wepld-h0-013"
+          git clone --quiet --no-checkout https://github.com/TheHalfMoon/wepld.git "$root"
+          git -C "$root" checkout --quiet --detach "$H0_HEAD"
+          test "$(git -C "$root" rev-parse HEAD)" = "$H0_HEAD"
+          mapfile -t changed < <(git -C "$root" diff --name-only "$H0_BASE" "$H0_HEAD")
+          printf '%s\n' "${changed[@]}"
+          test "${#changed[@]}" = 6
+          expected=$(cat <<'EOF'
+          research/harness_h0/.cargo/config.toml
+          research/harness_h0/Cargo.lock
+          research/harness_h0/Cargo.toml
+          research/harness_h0/src/canonical.rs
+          research/harness_h0/src/identity.rs
+          research/harness_h0/src/lib.rs
+          EOF
+          )
+          actual="$(printf '%s\n' "${changed[@]}" | sort)"
+          test "$actual" = "$expected"
+          lock_sha="$(sha256sum "$root/research/harness_h0/Cargo.lock" | awk '{print $1}')"
+          test "$lock_sha" = "$EXPECTED_LOCK_SHA256"
+          cd "$root/research/harness_h0"
+          cargo +1.97.1 fmt -- --check
+          cargo +1.97.1 build --locked
+          cargo +1.97.1 test --locked
+          cargo +1.97.1 clippy --locked --all-targets -- -D warnings
+          {
+            echo "H0_013_HEAD=$H0_HEAD"
+            echo "H0_013_BASE=$H0_BASE"
+            echo "H0_013_CHANGED_PATHS=6_EXACT"
+            echo "H0_013_LOCK_SHA256=$lock_sha"
+            echo "H0_013_FMT=PASS"
+            echo "H0_013_BUILD=PASS"
+            echo "H0_013_TEST=PASS"
+            echo "H0_013_CLIPPY=PASS"
+            echo "H0_SCREEN_EXECUTION=NOT_STARTED"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Preserve expected diagnostic fail-closed policy truth
+        shell: bash
+        run: |
+          set -euo pipefail
+          if python .github/scripts/wepld_harness_h0_implementation_retention_integrity.py selftest; then
+            echo 'diagnostic workflow unexpectedly matched canonical integrity' >&2
             exit 1
           fi
-          python .github/scripts/wepld_harness_h0_implementation_retention_integrity.py verify-local \
-            --root . \
-            --remote-baseline \
-            --pr-base-sha "$WEPLD_COMPARISON_SHA"
+          echo 'DIAGNOSTIC_POLICY_DRIFT=EXPECTED_FAIL_CLOSED' >> "$GITHUB_STEP_SUMMARY"

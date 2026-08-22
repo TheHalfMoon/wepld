@@ -112,8 +112,13 @@ def _activate_predecessor() -> None:
                 "Pictorial/Agile contract repair-v5 predecessor target drifted: "
                 f"expected={REJECTED_TARGET_GIT_BLOB_SHA1} actual={prior.TARGET_GIT_BLOB_SHA1}"
             )
-        if dict(prior.EXPECTED_WORKFLOW_SHA256) != dict(PRIOR_EXPECTED_WORKFLOW_SHA256):
+        current_workflows = dict(prior.EXPECTED_WORKFLOW_SHA256)
+        if current_workflows not in (
+            dict(PRIOR_EXPECTED_WORKFLOW_SHA256),
+            dict(EXPECTED_WORKFLOW_SHA256),
+        ):
             base.fail("Pictorial/Agile contract repair-v5 predecessor workflow hashes drifted")
+        prior.EXPECTED_WORKFLOW_SHA256 = dict(EXPECTED_WORKFLOW_SHA256)
         prior._install_policy()
         prior._require_overlay_identity()
     except (AttributeError, TypeError, ValueError) as exc:
@@ -564,6 +569,7 @@ def _selftest_identity_drift() -> None:
 
 
 def selftest() -> None:
+    _activate_predecessor()
     try:
         prior.selftest()
     except TypeError as exc:

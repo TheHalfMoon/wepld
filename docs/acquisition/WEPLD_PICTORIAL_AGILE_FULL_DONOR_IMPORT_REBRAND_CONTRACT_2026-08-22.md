@@ -168,7 +168,7 @@ The product rebrand must not imply that WePLD authored the upstream work origina
 
 ## Embedded immutable provenance records
 
-These machine-readable records replace separate provenance files during this authorization stage so the candidate remains inside the currently permitted acquisition-document surface. They are immutable evidence inputs for the later full source-map generation.
+These machine-readable records replace separate provenance files during this authorization stage so the candidate remains inside the currently permitted acquisition-document surface. They are immutable evidence inputs for the later full source-map generation. Both records use the same schema; fields that are not applicable are represented explicitly as `null` rather than omitted.
 
 ```json
 {
@@ -200,6 +200,7 @@ These machine-readable records replace separate provenance files during this aut
   "upstream_tree": "5622442d5ff74d21b2cb4349f255d08380f3d69d",
   "upstream_license": "MIT",
   "upstream_license_blob": "28a50fa22639e32febe14e4ffc7a732b0ba8c90a",
+  "upstream_notice_file": null,
   "import_mode": "full_tracked_source_snapshot_derivative_rebrand",
   "user_facing_upstream_brand_allowed": false,
   "legal_provenance_retention_required": true,
@@ -211,12 +212,19 @@ These machine-readable records replace separate provenance files during this aut
 
 ## Source-map requirement
 
-The full import must produce machine-readable provenance maps with, for every upstream tracked path:
+Before any donor source is admitted, the importer must derive a canonical recursive Git-tree inventory independently for each exact pinned upstream tree. For source-accounting purposes, the canonical inventory is the exact set of every tracked non-tree Git entry reachable from that root tree, keyed by `(upstream_path, git_mode, git_object_type, upstream_object_sha)`. Directory/tree entries may be traversed but are not substitutes for their tracked leaf entries. Gitlinks, symlinks, executable blobs, ordinary blobs, and any other tracked non-tree entry must retain their exact Git mode/type/object identity.
+
+For each donor, the provenance map must have exact-set equality with that canonical inventory: exactly one source-map record for every canonical tracked entry and no additional record. Validation must fail closed on any missing entry, duplicate upstream path or identity, path/object-SHA mismatch, mode/type mismatch, record not present in the pinned tree, or otherwise unrecognized record. Counts alone are never sufficient evidence of equality.
+
+The full import must produce machine-readable provenance maps with, for every upstream tracked entry:
 
 ```text
 upstream_repository
 upstream_revision
+upstream_tree
 upstream_path
+upstream_git_mode
+upstream_git_object_type
 upstream_blob_sha
 import_disposition
 wepld_path
@@ -224,7 +232,12 @@ wepld_blob_sha
 renamed_or_modified
 license
 modification_notice_status
+exclusion_reason
 ```
+
+For an imported or WePLD-replaced entry, the destination fields must identify the exact WePLD path and resulting blob identity. For an excluded entry, `import_disposition` must be `excluded`, `wepld_path` must be `null`, `wepld_blob_sha` must be `null`, and `exclusion_reason` must be a non-empty recorded security/license/architecture rationale. An exclusion record still participates in exact-set equality and never removes the upstream entry from accounting.
+
+The exact-set comparison and all fail-closed checks above must pass for **both** pinned donor trees before the source-import candidate can be eligible for admission or a completeness claim.
 
 Expected destination families after explicit source-import policy activation:
 
@@ -239,9 +252,9 @@ No raw upstream project-name directory is allowed in the user-facing component l
 
 ## Import and qualification sequence
 
-1. Freeze exact upstream commits, trees, licenses, and source inventory.
+1. Freeze exact upstream commits, trees, licenses, and canonical recursive source inventories.
 2. Import every tracked file through a deterministic path/name/content transformation into `vendor/pictorial/**` and `vendor/agile/**`.
-3. Generate complete upstream-to-WePLD source maps.
+3. Generate complete upstream-to-WePLD source maps and prove exact-set equality against both pinned recursive Git-tree inventories.
 4. Preserve required licenses/attribution and record modifications.
 5. Disable imported CI/release/hooks/telemetry/network/install execution by default.
 6. Inventory dependencies, lockfiles, package-manager surfaces, executables, scripts, model/provider calls, browser behavior, and remote egress.
@@ -262,8 +275,10 @@ At minimum inspect for:
 (?i)\bimpeccable\b
 (?i)\bspec[-_ ]?kit\b
 (?i)\bspeckit\b
-(?i)\bspecify-cli\b
+(?i)\bspecify[-_ ]cli\b
 ```
+
+The branding gate must include fail-closed negative fixtures proving that user-facing content containing `specify-cli`, `specify_cli`, and `specify cli` is rejected, in addition to coverage for the other prohibited upstream product identities above. Legal/provenance fixtures are the explicit exception and must prove that mandatory attribution remains allowed there.
 
 Pictorial and Agile names must be used consistently in UX, CLI, help, errors, templates, generated project content, docs, settings, and capability discovery.
 

@@ -26,3 +26,4 @@ jobs:
           echo 'MERGE=NEVER'
           echo 'MUTATION_AUTHORITY=NONE'
           echo 'LOCATOR_ONLY=YES'
+          echo 'TARGET_HEAD=aa7ac1239cbed55c255549876e4534265d63949b'

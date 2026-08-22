@@ -1,0 +1,26 @@
+name: diag-pictorial-agile-pr97-admission-305479dc
+
+on:
+  pull_request:
+
+permissions: {}
+
+jobs:
+  locate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Locate exact PR97 pull_request_target run via public API
+        shell: bash
+        run: |
+          set -euo pipefail
+          target_pr=97
+          target_head='305479dc4e00dfbd32056bc8afed645891171e08'
+          api='https://api.github.com/repos/TheHalfMoon/wepld/actions/runs?event=pull_request_target&per_page=100'
+          data="$(curl --fail --silent --show-error --location "$api")"
+          matches="$(printf '%s' "$data" | jq -c --argjson pr "$target_pr" --arg head "$target_head" '[.workflow_runs[] | select(.head_sha == $head and any(.pull_requests[]?; .number == $pr))]')"
+          count="$(printf '%s' "$matches" | jq 'length')"
+          echo "MATCH_COUNT=$count"
+          printf '%s' "$matches" | jq -r '.[] | "RUN_ID=\(.id) RUN_NUMBER=\(.run_number) WORKFLOW=\(.name) EVENT=\(.event) STATUS=\(.status) CONCLUSION=\(.conclusion // "null") IMMUTABLE_HEAD_SHA=\(.head_sha // "") PR_NUMBER=\(.pull_requests[0].number // 0) BASE_SHA=\(.pull_requests[0].base.sha // "")"'
+          test "$count" -eq 1
+          echo 'MERGE=NEVER'

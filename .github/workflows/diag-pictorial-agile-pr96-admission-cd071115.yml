@@ -17,7 +17,7 @@ jobs:
           target_pr=96
           target_head='cd0711159914b92c5f3fcf22159dffba28cae022'
           api='https://api.github.com/repos/TheHalfMoon/wepld/actions/runs?event=pull_request_target&per_page=100'
-          data="$(curl --fail --silent --show-error --location "$api")"
+          data="$(curl --fail --silent --show-error --location --retry 3 --retry-delay 2 --retry-all-errors "$api")"
           matches="$(printf '%s' "$data" | jq -c --argjson pr "$target_pr" --arg head "$target_head" '[.workflow_runs[] | select(.head_sha == $head and any(.pull_requests[]?; .number == $pr))]')"
           count="$(printf '%s' "$matches" | jq 'length')"
           echo "MATCH_COUNT=$count"

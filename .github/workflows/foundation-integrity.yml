@@ -6,7 +6,8 @@ on:
     branches:
       - main
 
-permissions: {}
+permissions:
+  contents: read
 
 jobs:
   verify:
@@ -22,16 +23,26 @@ jobs:
           lfs: false
           submodules: false
 
-      - name: Run integrity policy self-tests
+      - name: Run candidate policy self-tests (non-authoritative on pull requests)
         shell: bash
         run: |
           set -euo pipefail
           python .github/scripts/wepld_pictorial_agile_contract_branding_boundary_repair_v5_integrity.py selftest
 
-      - name: Verify exact checked-out tree against the immutable baseline
+      - name: Record pull-request candidate-policy boundary
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'candidate_policy_authority=NONE'
+          echo 'authoritative_candidate_admission=pull_request_target'
+
+      - name: Verify canonical activation against the immutable predecessor
+        if: github.event_name == 'push'
         shell: bash
         env:
-          WEPLD_COMPARISON_SHA: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+          WEPLD_COMPARISON_SHA: ${{ github.event.before || github.sha }}
         run: |
           set -euo pipefail
           if [ -z "${WEPLD_COMPARISON_SHA:-}" ]; then

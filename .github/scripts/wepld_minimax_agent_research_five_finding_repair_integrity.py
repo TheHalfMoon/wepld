@@ -25,6 +25,7 @@ from __future__ import annotations
 import hashlib
 import sys
 from pathlib import Path
+from typing import Any
 
 import wepld_integrity as base
 
@@ -123,15 +124,38 @@ _INSTALLED = False
 _PRIOR_PRINT_SUCCESS = None
 
 
+def _topology() -> tuple[Any, Any, Any, Any, Any]:
+    """Resolve the inherited owners used by this overlay or fail closed."""
+    try:
+        root = prior.prior.prior.prior
+        shell = root.shell
+        retention = root.retention
+        impl = root.impl
+        desktop = shell.prior
+        execution = desktop.prior
+    except AttributeError as exc:
+        base.fail(
+            "MiniMax five-finding inherited policy topology is missing or stale: "
+            f"{exc}"
+        )
+    return shell, retention, impl, desktop, execution
+
+
 def _is_bootstrap_base(policy_base: base.RepositoryView) -> bool:
     return POLICY_SCRIPT not in _paths(policy_base)
 
 
 def _activate_contract() -> None:
-    prior.TARGET_GIT_BLOB_SHA1 = TARGET_GIT_BLOB_SHA1
-    prior.REJECTED_TARGET_GIT_BLOB_SHA1 = REJECTED_TARGET_GIT_BLOB_SHA1
-    prior.EXPECTED_WORKFLOW_SHA256 = dict(EXPECTED_WORKFLOW_SHA256)
-    prior._activate_contract()
+    try:
+        prior.TARGET_GIT_BLOB_SHA1 = TARGET_GIT_BLOB_SHA1
+        prior.REJECTED_TARGET_GIT_BLOB_SHA1 = REJECTED_TARGET_GIT_BLOB_SHA1
+        prior.EXPECTED_WORKFLOW_SHA256 = dict(EXPECTED_WORKFLOW_SHA256)
+        prior._activate_contract()
+    except AttributeError as exc:
+        base.fail(
+            "MiniMax five-finding inherited contract topology is missing or stale: "
+            f"{exc}"
+        )
 
 
 def _require_prior_policy_base(view: base.RepositoryView) -> None:
@@ -153,7 +177,14 @@ def _require_exact_delta_minimax_five_finding_repair(
     candidate: base.RepositoryView,
     policy_base: base.RepositoryView,
 ) -> None:
-    changed = prior.prior.prior.prior.impl._changed_paths(candidate, policy_base)
+    _, _, impl, _, _ = _topology()
+    try:
+        changed = impl._changed_paths(candidate, policy_base)
+    except AttributeError as exc:
+        base.fail(
+            "MiniMax five-finding inherited change detector is missing or stale: "
+            f"{exc}"
+        )
     bootstrap = _is_bootstrap_base(policy_base)
 
     if bootstrap:
@@ -305,10 +336,11 @@ def _verify_execution_extension_paths(
     candidate: base.RepositoryView,
     policy_base: base.RepositoryView,
 ) -> None:
+    _, _, _, _, execution = _topology()
     _verify_extension_paths_minimax_five_finding_repair(
         candidate,
         policy_base,
-        prior.prior.prior.prior.shell.prior.prior.EXTENSION_CONTROLLED_PATHS,
+        execution.EXTENSION_CONTROLLED_PATHS,
     )
 
 
@@ -316,10 +348,11 @@ def _verify_desktop_extension_paths(
     candidate: base.RepositoryView,
     policy_base: base.RepositoryView,
 ) -> None:
+    _, _, _, desktop, _ = _topology()
     _verify_extension_paths_minimax_five_finding_repair(
         candidate,
         policy_base,
-        prior.prior.prior.prior.shell.prior.EXTENSION_CONTROLLED_PATHS,
+        desktop.EXTENSION_CONTROLLED_PATHS,
     )
 
 
@@ -344,32 +377,42 @@ def _verify_policy_files(view: base.RepositoryView) -> None:
 
 
 def _require_overlay_identity() -> None:
-    if (
-        prior.prior.prior.prior.retention.IMPL_REQUIRE_EXACT_DELTA
-        is not _require_exact_delta_minimax_five_finding_repair
-    ):
-        base.fail("MiniMax five-finding exact-delta delegate drifted")
-    prior.prior.prior.prior.retention._require_exact_delta_hook_identity(
-        prior.prior.prior.prior.retention._require_exact_delta_retention,
-        "minimax-agent-research-five-finding-repair-overlay",
-    )
-    if (
-        prior.prior.prior.prior.shell.validate_allowed_paths
-        is not _validate_allowed_paths_minimax_five_finding_repair
-    ):
-        base.fail("MiniMax five-finding tracked-path hook drifted")
-    if (
-        base.compare_base_controlled
-        is not _compare_base_controlled_minimax_five_finding_repair
-    ):
-        base.fail("MiniMax five-finding base-control hook drifted")
-    if prior.prior.prior.prior.shell.verify_policy_files is not _verify_policy_files:
-        base.fail("MiniMax five-finding policy-file hook drifted")
+    shell, retention, _, desktop, execution = _topology()
+    try:
+        if retention.IMPL_REQUIRE_EXACT_DELTA is not _require_exact_delta_minimax_five_finding_repair:
+            base.fail("MiniMax five-finding exact-delta delegate drifted")
+        retention._require_exact_delta_hook_identity(
+            retention._require_exact_delta_retention,
+            "minimax-agent-research-five-finding-repair-overlay",
+        )
+        if shell.validate_allowed_paths is not _validate_allowed_paths_minimax_five_finding_repair:
+            base.fail("MiniMax five-finding tracked-path hook drifted")
+        if base.compare_base_controlled is not _compare_base_controlled_minimax_five_finding_repair:
+            base.fail("MiniMax five-finding base-control hook drifted")
+        if shell.verify_policy_files is not _verify_policy_files:
+            base.fail("MiniMax five-finding policy-file hook drifted")
+        if desktop.verify_extension_controlled_paths is not _verify_desktop_extension_paths:
+            base.fail("MiniMax five-finding desktop extension hook drifted")
+        if execution.verify_extension_controlled_paths is not _verify_execution_extension_paths:
+            base.fail("MiniMax five-finding execution extension hook drifted")
+        if shell.print_success is not _print_success:
+            base.fail("MiniMax five-finding success-printer hook drifted")
+        if POLICY_SCRIPT not in desktop.EXTENSION_CONTROLLED_PATHS:
+            base.fail("MiniMax five-finding desktop controlled-path registration drifted")
+        if POLICY_SCRIPT not in execution.EXTENSION_CONTROLLED_PATHS:
+            base.fail("MiniMax five-finding execution controlled-path registration drifted")
+        if _PRIOR_PRINT_SUCCESS is None or _PRIOR_PRINT_SUCCESS is not prior._PRIOR_PRINT_SUCCESS:
+            base.fail("MiniMax five-finding prior success-printer delegate drifted")
+    except AttributeError as exc:
+        base.fail(
+            "MiniMax five-finding overlay identity topology is missing or stale: "
+            f"{exc}"
+        )
 
 
 def _print_success(stage: str, mode: str) -> None:
     if _PRIOR_PRINT_SUCCESS is None:
-        base.fail("prior MiniMax review-repair success printer is not installed")
+        base.fail("prior MiniMax research success printer is not installed")
     _PRIOR_PRINT_SUCCESS(stage, mode)
     print(
         "minimax_agent_research_five_finding_repair_authorization="
@@ -403,6 +446,28 @@ def _print_success(stage: str, mode: str) -> None:
     print(f"model_inference={MODEL_INFERENCE}")
 
 
+def _require_prebind_identity(shell: Any, retention: Any, desktop: Any, execution: Any) -> None:
+    """Prove the canonical predecessor owns every hook before rebinding it."""
+    try:
+        expected = (
+            (retention.IMPL_REQUIRE_EXACT_DELTA, prior._require_exact_delta_minimax_review_repair, "exact-delta"),
+            (base.compare_base_controlled, prior._compare_base_controlled_minimax_review_repair, "base-control"),
+            (desktop.verify_extension_controlled_paths, prior._verify_desktop_extension_paths, "desktop-extension"),
+            (execution.verify_extension_controlled_paths, prior._verify_execution_extension_paths, "execution-extension"),
+            (shell.validate_allowed_paths, prior._validate_allowed_paths_minimax_review_repair, "tracked-path"),
+            (shell.verify_policy_files, prior._verify_policy_files, "policy-file"),
+            (shell.print_success, prior._print_success, "success-printer"),
+        )
+    except AttributeError as exc:
+        base.fail(
+            "MiniMax five-finding pre-bind topology is missing or stale: "
+            f"{exc}"
+        )
+    for actual, wanted, label in expected:
+        if actual is not wanted:
+            base.fail(f"MiniMax five-finding pre-bind {label} hook drifted")
+
+
 def _install_policy() -> None:
     global _INSTALLED, _PRIOR_PRINT_SUCCESS
     if _INSTALLED:
@@ -410,41 +475,33 @@ def _install_policy() -> None:
         return
 
     _activate_contract()
-    prior._install_policy()
-    prior._require_overlay_identity()
-    _PRIOR_PRINT_SUCCESS = prior.prior.prior.prior.shell.print_success
+    try:
+        prior._install_policy()
+        prior._require_overlay_identity()
+        shell, retention, _, desktop, execution = _topology()
+        _require_prebind_identity(shell, retention, desktop, execution)
+        underlying_printer = prior._PRIOR_PRINT_SUCCESS
+        if underlying_printer is None or not callable(underlying_printer):
+            base.fail("prior MiniMax research success printer is unavailable")
 
-    prior.prior.prior.prior.retention.IMPL_REQUIRE_EXACT_DELTA = (
-        _require_exact_delta_minimax_five_finding_repair
-    )
-    base.compare_base_controlled = (
-        _compare_base_controlled_minimax_five_finding_repair
-    )
-
-    prior.prior.prior.prior.shell.prior.EXTENSION_CONTROLLED_PATHS = frozenset(
-        set(prior.prior.prior.prior.shell.prior.EXTENSION_CONTROLLED_PATHS)
-        | {POLICY_SCRIPT}
-    )
-    prior.prior.prior.prior.shell.prior.prior.EXTENSION_CONTROLLED_PATHS = (
-        frozenset(
-            set(
-                prior.prior.prior.prior.shell.prior.prior.EXTENSION_CONTROLLED_PATHS
-            )
-            | {POLICY_SCRIPT}
+        desktop_paths = desktop.EXTENSION_CONTROLLED_PATHS
+        execution_paths = execution.EXTENSION_CONTROLLED_PATHS
+    except AttributeError as exc:
+        base.fail(
+            "MiniMax five-finding installer topology is missing or stale: "
+            f"{exc}"
         )
-    )
-    prior.prior.prior.prior.shell.prior.verify_extension_controlled_paths = (
-        _verify_desktop_extension_paths
-    )
-    prior.prior.prior.prior.shell.prior.prior.verify_extension_controlled_paths = (
-        _verify_execution_extension_paths
-    )
 
-    prior.prior.prior.prior.shell.validate_allowed_paths = (
-        _validate_allowed_paths_minimax_five_finding_repair
-    )
-    prior.prior.prior.prior.shell.verify_policy_files = _verify_policy_files
-    prior.prior.prior.prior.shell.print_success = _print_success
+    _PRIOR_PRINT_SUCCESS = underlying_printer
+    retention.IMPL_REQUIRE_EXACT_DELTA = _require_exact_delta_minimax_five_finding_repair
+    base.compare_base_controlled = _compare_base_controlled_minimax_five_finding_repair
+    desktop.EXTENSION_CONTROLLED_PATHS = frozenset(set(desktop_paths) | {POLICY_SCRIPT})
+    execution.EXTENSION_CONTROLLED_PATHS = frozenset(set(execution_paths) | {POLICY_SCRIPT})
+    desktop.verify_extension_controlled_paths = _verify_desktop_extension_paths
+    execution.verify_extension_controlled_paths = _verify_execution_extension_paths
+    shell.validate_allowed_paths = _validate_allowed_paths_minimax_five_finding_repair
+    shell.verify_policy_files = _verify_policy_files
+    shell.print_success = _print_success
 
     _INSTALLED = True
     _require_overlay_identity()
@@ -593,33 +650,96 @@ def _selftest_allowlist_projection() -> None:
 
 def _selftest_overlay_identity() -> None:
     _require_overlay_identity()
+    shell, retention, _, desktop, execution = _topology()
 
-    installed_delta = prior.prior.prior.prior.retention.IMPL_REQUIRE_EXACT_DELTA
-    prior.prior.prior.prior.retention.IMPL_REQUIRE_EXACT_DELTA = (
-        PRIOR_REQUIRE_EXACT_DELTA
-    )
-    try:
-        base.expect_failure_matching(
-            "MiniMax five-finding exact-delta hook identity mismatch",
+    cases = (
+        (
+            retention,
+            "IMPL_REQUIRE_EXACT_DELTA",
+            PRIOR_REQUIRE_EXACT_DELTA,
             "exact-delta delegate drifted",
-            _require_overlay_identity,
-        )
-    finally:
-        prior.prior.prior.prior.retention.IMPL_REQUIRE_EXACT_DELTA = installed_delta
+        ),
+        (
+            shell,
+            "validate_allowed_paths",
+            PRIOR_VALIDATE_ALLOWED_PATHS,
+            "tracked-path hook drifted",
+        ),
+        (
+            desktop,
+            "verify_extension_controlled_paths",
+            prior._verify_desktop_extension_paths,
+            "desktop extension hook drifted",
+        ),
+        (
+            execution,
+            "verify_extension_controlled_paths",
+            prior._verify_execution_extension_paths,
+            "execution extension hook drifted",
+        ),
+        (
+            shell,
+            "print_success",
+            prior._print_success,
+            "success-printer hook drifted",
+        ),
+    )
+    for owner, attribute, replacement, expected_message in cases:
+        installed = getattr(owner, attribute)
+        setattr(owner, attribute, replacement)
+        try:
+            base.expect_failure_matching(
+                f"MiniMax five-finding {attribute} hook identity mismatch",
+                expected_message,
+                _require_overlay_identity,
+            )
+        finally:
+            setattr(owner, attribute, installed)
 
-    installed_allowlist = prior.prior.prior.prior.shell.validate_allowed_paths
-    prior.prior.prior.prior.shell.validate_allowed_paths = (
-        PRIOR_VALIDATE_ALLOWED_PATHS
+    _require_overlay_identity()
+
+
+def _selftest_prebind_identity() -> None:
+    shell, retention, _, desktop, execution = _topology()
+    installed = (
+        retention.IMPL_REQUIRE_EXACT_DELTA,
+        base.compare_base_controlled,
+        desktop.verify_extension_controlled_paths,
+        execution.verify_extension_controlled_paths,
+        shell.validate_allowed_paths,
+        shell.verify_policy_files,
+        shell.print_success,
     )
     try:
+        retention.IMPL_REQUIRE_EXACT_DELTA = prior._require_exact_delta_minimax_review_repair
+        base.compare_base_controlled = prior._compare_base_controlled_minimax_review_repair
+        desktop.verify_extension_controlled_paths = prior._verify_desktop_extension_paths
+        execution.verify_extension_controlled_paths = prior._verify_execution_extension_paths
+        shell.validate_allowed_paths = prior._validate_allowed_paths_minimax_review_repair
+        shell.verify_policy_files = prior._verify_policy_files
+        shell.print_success = prior._print_success
+        _require_prebind_identity(shell, retention, desktop, execution)
+
+        shell.print_success = _print_success
         base.expect_failure_matching(
-            "MiniMax five-finding tracked-path hook identity mismatch",
-            "tracked-path hook drifted",
-            _require_overlay_identity,
+            "MiniMax five-finding pre-bind hook mismatch",
+            "pre-bind success-printer hook drifted",
+            _require_prebind_identity,
+            shell,
+            retention,
+            desktop,
+            execution,
         )
     finally:
-        prior.prior.prior.prior.shell.validate_allowed_paths = installed_allowlist
-
+        (
+            retention.IMPL_REQUIRE_EXACT_DELTA,
+            base.compare_base_controlled,
+            desktop.verify_extension_controlled_paths,
+            execution.verify_extension_controlled_paths,
+            shell.validate_allowed_paths,
+            shell.verify_policy_files,
+            shell.print_success,
+        ) = installed
     _require_overlay_identity()
 
 
@@ -632,10 +752,13 @@ def selftest() -> None:
     _selftest_target_transition()
     _selftest_allowlist_projection()
     _selftest_overlay_identity()
-    if base.REPOSITORY != prior.prior.prior.prior.impl.CANONICAL_REPOSITORY:
+    _selftest_prebind_identity()
+    shell, retention, impl, desktop, execution = _topology()
+    del shell, retention, desktop, execution
+    if base.REPOSITORY != impl.CANONICAL_REPOSITORY:
         base.fail(
             "canonical repository identity drifted: "
-            f"expected={prior.prior.prior.prior.impl.CANONICAL_REPOSITORY} "
+            f"expected={impl.CANONICAL_REPOSITORY} "
             f"actual={base.REPOSITORY}"
         )
     print("wepld MiniMax five-finding repair authorization self-tests: PASS")
@@ -651,7 +774,8 @@ def main(argv: list[str]) -> int:
             return 1
 
     _install_policy()
-    return prior.prior.prior.prior.retention.main(argv)
+    _, retention, _, _, _ = _topology()
+    return retention.main(argv)
 
 
 if __name__ == "__main__":

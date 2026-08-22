@@ -345,6 +345,7 @@ def _require_overlay_identity() -> None:
         retention_exact_delta = retention._require_exact_delta_retention
         desktop_paths = desktop.EXTENSION_CONTROLLED_PATHS
         execution_paths = execution.EXTENSION_CONTROLLED_PATHS
+        prior_print_success = prior._print_success
     except AttributeError as exc:
         base.fail(f"Pictorial/Agile type-drift repair overlay topology is missing: {exc}")
 
@@ -356,6 +357,8 @@ def _require_overlay_identity() -> None:
         base.fail("Pictorial/Agile type-drift repair overlay topology is malformed: hook identity not callable")
     if not callable(retention_exact_delta):
         base.fail("Pictorial/Agile type-drift repair overlay topology is malformed: retention exact-delta not callable")
+    if not callable(prior_print_success):
+        base.fail("Pictorial/Agile type-drift repair prior success-printer is missing or malformed")
 
     safe_desktop_paths = _require_path_set(desktop_paths, "desktop-extension")
     safe_execution_paths = _require_path_set(execution_paths, "execution-extension")
@@ -371,6 +374,8 @@ def _require_overlay_identity() -> None:
         base.fail("Pictorial/Agile type-drift repair execution path registration drifted")
     if _PRIOR_PRINT_SUCCESS is None or not callable(_PRIOR_PRINT_SUCCESS):
         base.fail("Pictorial/Agile type-drift repair prior success-printer is missing or malformed")
+    if _PRIOR_PRINT_SUCCESS is not prior_print_success:
+        base.fail("Pictorial/Agile type-drift repair prior success-printer drifted")
 
 
 def _print_success(stage: str, mode: str) -> None:
@@ -555,6 +560,17 @@ def _selftest_type_drift() -> None:
         )
     finally:
         prior._verify_extension_paths = original_extension_verifier
+
+    original_prior_print_success = prior._print_success
+    prior._print_success = lambda stage, mode: None
+    try:
+        base.expect_failure_matching(
+            "type-drift repair rebound prior success printer",
+            "prior success-printer drifted",
+            _require_overlay_identity,
+        )
+    finally:
+        prior._print_success = original_prior_print_success
 
     _require_overlay_identity()
 

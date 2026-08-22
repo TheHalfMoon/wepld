@@ -1,9 +1,8 @@
 name: diag-patch-pr121-case-normalization
 
 on:
-  push:
-    branches:
-      - diag/pictorial-agile-pr121-admission-349c9d6f
+  pull_request:
+    types: [reopened]
 
 permissions:
   contents: write
@@ -130,5 +129,3 @@ jobs:
           git add -- "$path"
           git commit -m 'fix(ci): normalize activation SHA identity'
           git push origin "HEAD:$branch"
-
-# trigger: bounded-patcher-run-1

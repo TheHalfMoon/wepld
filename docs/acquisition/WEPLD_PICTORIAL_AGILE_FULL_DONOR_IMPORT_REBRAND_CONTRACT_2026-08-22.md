@@ -225,17 +225,19 @@ upstream_tree
 upstream_path
 upstream_git_mode
 upstream_git_object_type
-upstream_blob_sha
+upstream_object_sha
 import_disposition
 wepld_path
-wepld_blob_sha
+wepld_object_sha
 renamed_or_modified
 license
 modification_notice_status
 exclusion_reason
 ```
 
-For an imported or WePLD-replaced entry, the destination fields must identify the exact WePLD path and resulting blob identity. For an excluded entry, `import_disposition` must be `excluded`, `wepld_path` must be `null`, `wepld_blob_sha` must be `null`, and `exclusion_reason` must be a non-empty recorded security/license/architecture rationale. An exclusion record still participates in exact-set equality and never removes the upstream entry from accounting.
+`upstream_object_sha` is the Git object ID from the canonical inventory and therefore applies uniformly to blobs, symlinks, gitlinks, and every other tracked non-tree Git entry. `import_disposition` must be exactly one of `imported`, `replaced`, or `excluded`.
+
+For an `imported` or `replaced` entry, `wepld_path` must be a non-empty destination path, `wepld_object_sha` must be the non-null resulting Git object ID, and `exclusion_reason` must be `null`. For an `excluded` entry, `wepld_path` must be `null`, `wepld_object_sha` must be `null`, and `exclusion_reason` must be a non-empty recorded security/license/architecture rationale. Any other nullability or disposition combination must fail closed. An exclusion record still participates in exact-set equality and never removes the upstream entry from accounting.
 
 The exact-set comparison and all fail-closed checks above must pass for **both** pinned donor trees before the source-import candidate can be eligible for admission or a completeness claim.
 
@@ -273,12 +275,12 @@ At minimum inspect for:
 
 ```text
 (?i)\bimpeccable\b
-(?i)\bspec[-_ ]?kit\b
+(?i)\bspec(?:[-_]|\s)+kit\b
 (?i)\bspeckit\b
-(?i)\bspecify[-_ ]cli\b
+(?i)\bspecify(?:[-_]|\s)+cli\b
 ```
 
-The branding gate must include fail-closed negative fixtures proving that user-facing content containing `specify-cli`, `specify_cli`, and `specify cli` is rejected, in addition to coverage for the other prohibited upstream product identities above. Legal/provenance fixtures are the explicit exception and must prove that mandatory attribution remains allowed there.
+The branding gate must include fail-closed negative fixtures proving that user-facing content containing `specify-cli`, `specify_cli`, `specify cli`, `specify  cli`, and a tab-separated `specify<TAB>cli` is rejected. It must also include whitespace-variant fixtures for the `Spec Kit` family (including multi-space and tab-separated forms), in addition to coverage for the other prohibited upstream product identities above. Legal/provenance fixtures are the explicit exception and must prove that mandatory attribution remains allowed there.
 
 Pictorial and Agile names must be used consistently in UX, CLI, help, errors, templates, generated project content, docs, settings, and capability discovery.
 

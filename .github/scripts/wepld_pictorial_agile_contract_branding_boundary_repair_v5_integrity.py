@@ -489,8 +489,10 @@ def _verify_with_policy_base(
 
 
 def _activation_shas(args: Any) -> tuple[str, str]:
-    policy_base_sha = base.require_comparison_sha(os.environ.get(POLICY_BASE_SHA_ENV))
-    baseline_check_sha = base.require_comparison_sha(args.pr_base_sha)
+    policy_base_sha = base.require_comparison_sha(
+        os.environ.get(POLICY_BASE_SHA_ENV)
+    ).lower()
+    baseline_check_sha = base.require_comparison_sha(args.pr_base_sha).lower()
     if policy_base_sha == baseline_check_sha:
         base.fail("Pictorial/Agile contract repair-v5 activation predecessor equals pushed head")
     return policy_base_sha, baseline_check_sha
@@ -741,12 +743,22 @@ def _selftest_policy_base_forwarding() -> None:
 
 def _selftest_activation_sha_split() -> None:
     class Args:
-        pr_base_sha = "b" * 40
+        pr_base_sha = "B" * 40
+
+    class SameCommitDifferentCaseArgs:
+        pr_base_sha = "A" * 40
 
     previous = os.environ.get(POLICY_BASE_SHA_ENV)
-    os.environ[POLICY_BASE_SHA_ENV] = "a" * 40
+    os.environ[POLICY_BASE_SHA_ENV] = "A" * 40
     try:
         policy_base_sha, baseline_check_sha = _activation_shas(Args())
+        os.environ[POLICY_BASE_SHA_ENV] = "a" * 40
+        base.expect_failure_matching(
+            "contract repair-v5 mixed-case identical activation SHA rejection",
+            "activation predecessor equals pushed head",
+            _activation_shas,
+            SameCommitDifferentCaseArgs(),
+        )
     finally:
         if previous is None:
             os.environ.pop(POLICY_BASE_SHA_ENV, None)
@@ -754,7 +766,7 @@ def _selftest_activation_sha_split() -> None:
             os.environ[POLICY_BASE_SHA_ENV] = previous
 
     if policy_base_sha != "a" * 40 or baseline_check_sha != "b" * 40:
-        base.fail("Pictorial/Agile contract repair-v5 activation SHA split drifted")
+        base.fail("Pictorial/Agile contract repair-v5 activation SHA normalization drifted")
 
     class ProbeClient:
         def __init__(self, status: str) -> None:

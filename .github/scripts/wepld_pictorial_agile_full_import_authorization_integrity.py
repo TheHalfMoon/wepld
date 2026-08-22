@@ -145,12 +145,18 @@ def _is_bootstrap_base(policy_base: base.RepositoryView) -> bool:
 
 def _activate_contract() -> None:
     try:
-        prior.EXPECTED_WORKFLOW_SHA256 = dict(EXPECTED_WORKFLOW_SHA256)
+        existing = prior.EXPECTED_WORKFLOW_SHA256
     except AttributeError as exc:
         base.fail(
             "Pictorial/Agile inherited contract topology is missing or stale: "
             f"{exc}"
         )
+    if not isinstance(existing, dict):
+        base.fail(
+            "Pictorial/Agile inherited contract topology is malformed: "
+            "EXPECTED_WORKFLOW_SHA256 is not a dict"
+        )
+    prior.EXPECTED_WORKFLOW_SHA256 = dict(EXPECTED_WORKFLOW_SHA256)
 
 
 def _require_prior_policy_base(view: base.RepositoryView) -> None:
@@ -602,6 +608,27 @@ def _selftest_workflow_binding() -> None:
             )
 
 
+def _selftest_activation_topology() -> None:
+    """Prove inherited contract activation reads topology before mutation."""
+    original = prior.EXPECTED_WORKFLOW_SHA256
+    try:
+        delattr(prior, "EXPECTED_WORKFLOW_SHA256")
+        base.expect_failure_matching(
+            "Pictorial/Agile activation missing topology",
+            "inherited contract topology is missing or stale",
+            _activate_contract,
+        )
+        prior.EXPECTED_WORKFLOW_SHA256 = ()
+        base.expect_failure_matching(
+            "Pictorial/Agile activation malformed topology",
+            "inherited contract topology is malformed",
+            _activate_contract,
+        )
+    finally:
+        prior.EXPECTED_WORKFLOW_SHA256 = original
+    _activate_contract()
+
+
 def _selftest_bootstrap_delta() -> None:
     root = Path(__file__).resolve().parents[2]
     repository_view = base.LocalRepositoryView(root)
@@ -1011,6 +1038,7 @@ def selftest() -> None:
     prior.selftest()
     _install_policy()
     _selftest_workflow_binding()
+    _selftest_activation_topology()
     _selftest_bootstrap_delta()
     _selftest_target_transition()
     _selftest_allowlist_projection()

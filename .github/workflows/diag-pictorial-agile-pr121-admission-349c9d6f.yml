@@ -1,131 +1,26 @@
-name: diag-patch-pr121-case-normalization
+name: diag-pictorial-agile-pr121-admission-349c9d6f
 
 on:
   pull_request:
-    types: [reopened]
 
-permissions:
-  contents: write
+permissions: {}
 
 jobs:
-  patch:
+  locate:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Checkout exact PR121 branch
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ci/pictorial-agile-contract-branding-boundary-repair-v5-authorization
-          fetch-depth: 0
-
-      - name: Apply exact case-normalization repair
+      - name: Locate exact PR121 trusted admission run by immutable head_sha
         shell: bash
         run: |
           set -euo pipefail
-          expected_head='5b092e4b0d6d7b01d5d321a6533e9a3f27d22a87'
-          expected_main='44417fbcdee3a8e1d82e9e30974486cd4592a1f0'
-          expected_blob='ca604874400229a09dc9ad0f531fe55d4130db24'
-          expected_new_blob='4f893968865cfac3942e3d86561b311564b3fa59'
-          branch='ci/pictorial-agile-contract-branding-boundary-repair-v5-authorization'
-          path='.github/scripts/wepld_pictorial_agile_contract_branding_boundary_repair_v5_integrity.py'
-
-          test "$(git rev-parse HEAD)" = "$expected_head"
-          test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "$expected_main"
-          test "$(git rev-parse "HEAD:$path")" = "$expected_blob"
-
-          python - <<'PY'
-          from pathlib import Path
-          from textwrap import dedent
-
-          path = Path('.github/scripts/wepld_pictorial_agile_contract_branding_boundary_repair_v5_integrity.py')
-          text = path.read_text()
-
-          old_activation = dedent('''\
-          def _activation_shas(args: Any) -> tuple[str, str]:
-              policy_base_sha = base.require_comparison_sha(os.environ.get(POLICY_BASE_SHA_ENV))
-              baseline_check_sha = base.require_comparison_sha(args.pr_base_sha)
-              if policy_base_sha == baseline_check_sha:
-                  base.fail("Pictorial/Agile contract repair-v5 activation predecessor equals pushed head")
-              return policy_base_sha, baseline_check_sha
-          ''')
-          new_activation = dedent('''\
-          def _activation_shas(args: Any) -> tuple[str, str]:
-              policy_base_sha = base.require_comparison_sha(
-                  os.environ.get(POLICY_BASE_SHA_ENV)
-              ).lower()
-              baseline_check_sha = base.require_comparison_sha(args.pr_base_sha).lower()
-              if policy_base_sha == baseline_check_sha:
-                  base.fail("Pictorial/Agile contract repair-v5 activation predecessor equals pushed head")
-              return policy_base_sha, baseline_check_sha
-          ''')
-
-          old_selftest = dedent('''\
-          def _selftest_activation_sha_split() -> None:
-              class Args:
-                  pr_base_sha = "b" * 40
-
-              previous = os.environ.get(POLICY_BASE_SHA_ENV)
-              os.environ[POLICY_BASE_SHA_ENV] = "a" * 40
-              try:
-                  policy_base_sha, baseline_check_sha = _activation_shas(Args())
-              finally:
-                  if previous is None:
-                      os.environ.pop(POLICY_BASE_SHA_ENV, None)
-                  else:
-                      os.environ[POLICY_BASE_SHA_ENV] = previous
-
-              if policy_base_sha != "a" * 40 or baseline_check_sha != "b" * 40:
-                  base.fail("Pictorial/Agile contract repair-v5 activation SHA split drifted")
-
-          ''')
-          new_selftest = dedent('''\
-          def _selftest_activation_sha_split() -> None:
-              class Args:
-                  pr_base_sha = "B" * 40
-
-              class SameCommitDifferentCaseArgs:
-                  pr_base_sha = "A" * 40
-
-              previous = os.environ.get(POLICY_BASE_SHA_ENV)
-              os.environ[POLICY_BASE_SHA_ENV] = "A" * 40
-              try:
-                  policy_base_sha, baseline_check_sha = _activation_shas(Args())
-                  os.environ[POLICY_BASE_SHA_ENV] = "a" * 40
-                  base.expect_failure_matching(
-                      "contract repair-v5 mixed-case identical activation SHA rejection",
-                      "activation predecessor equals pushed head",
-                      _activation_shas,
-                      SameCommitDifferentCaseArgs(),
-                  )
-              finally:
-                  if previous is None:
-                      os.environ.pop(POLICY_BASE_SHA_ENV, None)
-                  else:
-                      os.environ[POLICY_BASE_SHA_ENV] = previous
-
-              if policy_base_sha != "a" * 40 or baseline_check_sha != "b" * 40:
-                  base.fail("Pictorial/Agile contract repair-v5 activation SHA normalization drifted")
-
-          ''')
-
-          replacements = (
-              ('activation', old_activation, new_activation),
-              ('selftest', old_selftest, new_selftest),
-          )
-          for label, old, new in replacements:
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f'{label} old snippet count={count}')
-              text = text.replace(old, new, 1)
-          path.write_text(text)
-          PY
-
-          python -m py_compile "$path"
-          test "$(git hash-object "$path")" = "$expected_new_blob"
-          test "$(git diff --name-only)" = "$path"
-          git diff --check
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- "$path"
-          git commit -m 'fix(ci): normalize activation SHA identity'
-          git push origin "HEAD:$branch"
+          target_pr=121
+          target_head='6631024e59b1c2f6805c56e3bb330af1a4f1582c'
+          api='https://api.github.com/repos/TheHalfMoon/wepld/actions/runs?event=pull_request_target&per_page=100'
+          data="$(curl --fail --silent --show-error --location --retry 3 --retry-delay 2 --retry-all-errors "$api")"
+          matches="$(printf '%s' "$data" | jq -c --argjson pr "$target_pr" --arg head "$target_head" '[.workflow_runs[] | select(.head_sha == $head and .name == "s1-admission-integrity" and any(.pull_requests[]?; .number == $pr))]')"
+          count="$(printf '%s' "$matches" | jq 'length')"
+          echo "MATCH_COUNT=$count"
+          printf '%s' "$matches" | jq -r '.[] | "RUN_ID=\(.id) RUN_NUMBER=\(.run_number) WORKFLOW=\(.name) EVENT=\(.event) STATUS=\(.status) CONCLUSION=\(.conclusion // "null") IMMUTABLE_HEAD_SHA=\(.head_sha // "") PR_NUMBER=\(.pull_requests[0].number // 0) BASE_SHA=\(.pull_requests[0].base.sha // "")"'
+          test "$count" -eq 1
+          echo 'MERGE=NEVER'

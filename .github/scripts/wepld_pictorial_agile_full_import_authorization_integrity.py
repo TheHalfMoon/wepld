@@ -621,6 +621,220 @@ def _selftest_allowlist_projection() -> None:
         PRIOR_VALIDATE_ALLOWED_PATHS = original
 
 
+def _selftest_overlay_identity() -> None:
+    """Prove every new overlay hook and registration fails closed on tamper."""
+    global _PRIOR_PRINT_SUCCESS
+
+    _require_overlay_identity()
+    shell, retention, _, desktop, execution = _topology()
+
+    hook_cases = (
+        (
+            retention,
+            "IMPL_REQUIRE_EXACT_DELTA",
+            PRIOR_REQUIRE_EXACT_DELTA,
+            "exact-delta delegate drifted",
+        ),
+        (
+            base,
+            "compare_base_controlled",
+            prior._compare_base_controlled_minimax_five_finding_repair,
+            "base-control hook drifted",
+        ),
+        (
+            desktop,
+            "verify_extension_controlled_paths",
+            prior._verify_desktop_extension_paths,
+            "desktop extension hook drifted",
+        ),
+        (
+            execution,
+            "verify_extension_controlled_paths",
+            prior._verify_execution_extension_paths,
+            "execution extension hook drifted",
+        ),
+        (
+            shell,
+            "validate_allowed_paths",
+            PRIOR_VALIDATE_ALLOWED_PATHS,
+            "tracked-path hook drifted",
+        ),
+        (
+            shell,
+            "verify_policy_files",
+            prior._verify_policy_files,
+            "policy-file hook drifted",
+        ),
+        (
+            shell,
+            "print_success",
+            prior._print_success,
+            "success-printer hook drifted",
+        ),
+    )
+    for owner, attribute, replacement, expected_message in hook_cases:
+        installed = getattr(owner, attribute)
+        setattr(owner, attribute, replacement)
+        try:
+            base.expect_failure_matching(
+                f"Pictorial/Agile overlay {attribute} tamper",
+                expected_message,
+                _require_overlay_identity,
+            )
+        finally:
+            setattr(owner, attribute, installed)
+
+    original_desktop_paths = desktop.EXTENSION_CONTROLLED_PATHS
+    desktop.EXTENSION_CONTROLLED_PATHS = frozenset(
+        set(original_desktop_paths) - {POLICY_SCRIPT}
+    )
+    try:
+        base.expect_failure_matching(
+            "Pictorial/Agile desktop registration tamper",
+            "desktop controlled-path registration drifted",
+            _require_overlay_identity,
+        )
+    finally:
+        desktop.EXTENSION_CONTROLLED_PATHS = original_desktop_paths
+
+    original_execution_paths = execution.EXTENSION_CONTROLLED_PATHS
+    execution.EXTENSION_CONTROLLED_PATHS = frozenset(
+        set(original_execution_paths) - {POLICY_SCRIPT}
+    )
+    try:
+        base.expect_failure_matching(
+            "Pictorial/Agile execution registration tamper",
+            "execution controlled-path registration drifted",
+            _require_overlay_identity,
+        )
+    finally:
+        execution.EXTENSION_CONTROLLED_PATHS = original_execution_paths
+
+    original_printer = _PRIOR_PRINT_SUCCESS
+    _PRIOR_PRINT_SUCCESS = None
+    try:
+        base.expect_failure_matching(
+            "Pictorial/Agile prior printer delegate tamper",
+            "prior success-printer delegate drifted",
+            _require_overlay_identity,
+        )
+    finally:
+        _PRIOR_PRINT_SUCCESS = original_printer
+
+    _require_overlay_identity()
+
+
+def _selftest_prebind_identity() -> None:
+    """Prove each expected predecessor hook is identity-checked before rebinding."""
+    shell, retention, _, desktop, execution = _topology()
+
+    installed = (
+        retention.IMPL_REQUIRE_EXACT_DELTA,
+        base.compare_base_controlled,
+        desktop.verify_extension_controlled_paths,
+        execution.verify_extension_controlled_paths,
+        shell.validate_allowed_paths,
+        shell.verify_policy_files,
+        shell.print_success,
+    )
+
+    predecessor = (
+        prior._require_exact_delta_minimax_five_finding_repair,
+        prior._compare_base_controlled_minimax_five_finding_repair,
+        prior._verify_desktop_extension_paths,
+        prior._verify_execution_extension_paths,
+        prior._validate_allowed_paths_minimax_five_finding_repair,
+        prior._verify_policy_files,
+        prior._print_success,
+    )
+
+    try:
+        (
+            retention.IMPL_REQUIRE_EXACT_DELTA,
+            base.compare_base_controlled,
+            desktop.verify_extension_controlled_paths,
+            execution.verify_extension_controlled_paths,
+            shell.validate_allowed_paths,
+            shell.verify_policy_files,
+            shell.print_success,
+        ) = predecessor
+
+        _require_prebind_identity(shell, retention, desktop, execution)
+
+        cases = (
+            (
+                retention,
+                "IMPL_REQUIRE_EXACT_DELTA",
+                _require_exact_delta_pictorial_agile,
+                "pre-bind exact-delta hook drifted",
+            ),
+            (
+                base,
+                "compare_base_controlled",
+                _compare_base_controlled_pictorial_agile,
+                "pre-bind base-control hook drifted",
+            ),
+            (
+                desktop,
+                "verify_extension_controlled_paths",
+                _verify_desktop_extension_paths,
+                "pre-bind desktop-extension hook drifted",
+            ),
+            (
+                execution,
+                "verify_extension_controlled_paths",
+                _verify_execution_extension_paths,
+                "pre-bind execution-extension hook drifted",
+            ),
+            (
+                shell,
+                "validate_allowed_paths",
+                _validate_allowed_paths_pictorial_agile,
+                "pre-bind tracked-path hook drifted",
+            ),
+            (
+                shell,
+                "verify_policy_files",
+                _verify_policy_files,
+                "pre-bind policy-file hook drifted",
+            ),
+            (
+                shell,
+                "print_success",
+                _print_success,
+                "pre-bind success-printer hook drifted",
+            ),
+        )
+
+        for owner, attribute, replacement, expected_message in cases:
+            predecessor_value = getattr(owner, attribute)
+            setattr(owner, attribute, replacement)
+            try:
+                base.expect_failure_matching(
+                    f"Pictorial/Agile pre-bind {attribute} tamper",
+                    expected_message,
+                    _require_prebind_identity,
+                    shell,
+                    retention,
+                    desktop,
+                    execution,
+                )
+            finally:
+                setattr(owner, attribute, predecessor_value)
+    finally:
+        (
+            retention.IMPL_REQUIRE_EXACT_DELTA,
+            base.compare_base_controlled,
+            desktop.verify_extension_controlled_paths,
+            execution.verify_extension_controlled_paths,
+            shell.validate_allowed_paths,
+            shell.verify_policy_files,
+            shell.print_success,
+        ) = installed
+
+    _require_overlay_identity()
+
+
 def selftest() -> None:
     _activate_contract()
     prior.selftest()
@@ -629,6 +843,8 @@ def selftest() -> None:
     _selftest_bootstrap_delta()
     _selftest_target_transition()
     _selftest_allowlist_projection()
+    _selftest_overlay_identity()
+    _selftest_prebind_identity()
     _require_overlay_identity()
 
     _, _, impl, _, _ = _topology()

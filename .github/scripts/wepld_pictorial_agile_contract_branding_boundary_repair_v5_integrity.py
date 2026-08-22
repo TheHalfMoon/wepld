@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -460,6 +461,71 @@ def _install_policy() -> None:
     _require_overlay_identity()
 
 
+def _verify_with_policy_base(
+    shell: Any,
+    candidate: base.RepositoryView,
+    policy_base: base.RepositoryView,
+) -> str:
+    try:
+        verifier = shell.verify_view
+    except AttributeError as exc:
+        base.fail(f"Pictorial/Agile contract repair-v5 verify-view topology is missing: {exc}")
+    if not callable(verifier):
+        base.fail("Pictorial/Agile contract repair-v5 verify-view topology is not callable")
+    try:
+        stage = verifier(candidate, policy_base=policy_base)
+    except TypeError as exc:
+        base.fail(f"Pictorial/Agile contract repair-v5 verify-view topology is malformed: {exc}")
+    if not isinstance(stage, str):
+        base.fail("Pictorial/Agile contract repair-v5 verify-view returned a non-string stage")
+    return stage
+
+
+def _verify_local_with_remote_policy_base(args: Any, shell: Any, impl: Any) -> int:
+    if args.command != "verify-local" or not args.remote_baseline:
+        base.fail("Pictorial/Agile contract repair-v5 trusted-base local verifier invoked outside remote-baseline mode")
+
+    comparison_sha = base.require_comparison_sha(args.pr_base_sha)
+    try:
+        canonical_repository = impl.CANONICAL_REPOSITORY
+        desktop_runner = shell.desktop_runner
+        install_desktop_path = desktop_runner._install_desktop_path_attribute
+        verify_remote_baseline = desktop_runner.verify_remote_baseline
+        print_success = shell.print_success
+    except AttributeError as exc:
+        base.fail(f"Pictorial/Agile contract repair-v5 trusted-base local topology is missing: {exc}")
+
+    if canonical_repository != base.REPOSITORY:
+        base.fail(
+            "Pictorial/Agile contract repair-v5 canonical repository drifted: "
+            f"expected={canonical_repository} actual={base.REPOSITORY}"
+        )
+    for func, label in (
+        (install_desktop_path, "desktop path installer"),
+        (verify_remote_baseline, "remote baseline verifier"),
+        (print_success, "success printer"),
+    ):
+        if not callable(func):
+            base.fail(f"Pictorial/Agile contract repair-v5 {label} is not callable")
+
+    try:
+        install_desktop_path()
+    except TypeError as exc:
+        base.fail(f"Pictorial/Agile contract repair-v5 desktop path topology is malformed: {exc}")
+
+    token = os.environ.get(args.github_token_env) or None
+    client = base.GitHubClient(token)
+    candidate = base.LocalRepositoryView(Path(args.root))
+    policy_base = base.RemoteRepositoryView(canonical_repository, comparison_sha, client)
+    stage = _verify_with_policy_base(shell, candidate, policy_base)
+    try:
+        verify_remote_baseline(client, comparison_sha)
+        print_success(stage, "LOCAL_CHECKOUT")
+    except TypeError as exc:
+        base.fail(f"Pictorial/Agile contract repair-v5 trusted-base local topology is malformed: {exc}")
+    return 0
+
+
 def _selftest_workflows() -> None:
     view = base.LocalRepositoryView(Path(__file__).resolve().parents[2])
     for path in BOOTSTRAP_WORKFLOWS:
@@ -553,6 +619,38 @@ def _selftest_deltas() -> None:
     )
 
 
+def _selftest_policy_base_forwarding() -> None:
+    shell, _, _, _, _ = _topology()
+    try:
+        original_verify_view = shell.verify_view
+    except AttributeError as exc:
+        base.fail(f"Pictorial/Agile contract repair-v5 verify-view selftest topology is missing: {exc}")
+    if not callable(original_verify_view):
+        base.fail("Pictorial/Agile contract repair-v5 verify-view selftest topology is not callable")
+
+    candidate = _memory_view({"candidate": b"candidate"})
+    trusted = _memory_view({"trusted": b"trusted"})
+    calls = 0
+
+    def probe(view: base.RepositoryView, *, policy_base: base.RepositoryView | None = None) -> str:
+        nonlocal calls
+        calls += 1
+        if view is not candidate:
+            base.fail("Pictorial/Agile contract repair-v5 policy-base selftest candidate drifted")
+        if policy_base is not trusted:
+            base.fail("Pictorial/Agile contract repair-v5 verify-local skipped trusted policy base")
+        return "POLICY_BASE_BOUND"
+
+    shell.verify_view = probe
+    try:
+        stage = _verify_with_policy_base(shell, candidate, trusted)
+    finally:
+        shell.verify_view = original_verify_view
+
+    if calls != 1 or stage != "POLICY_BASE_BOUND":
+        base.fail("Pictorial/Agile contract repair-v5 policy-base forwarding selftest drifted")
+
+
 def _selftest_identity_drift() -> None:
     original_prior_print_success = prior._print_success
     prior._print_success = lambda stage, mode: None
@@ -586,6 +684,7 @@ def selftest() -> None:
     _install_policy()
     _selftest_workflows()
     _selftest_deltas()
+    _selftest_policy_base_forwarding()
     _selftest_identity_drift()
 
     if REJECTED_TARGET_GIT_BLOB_SHA1 == TARGET_GIT_BLOB_SHA1:
@@ -608,7 +707,12 @@ def main(argv: list[str]) -> int:
             return 0
 
         _install_policy()
-        _, retention, _, _, _ = _topology()
+        shell, retention, impl, _, _ = _topology()
+        if argv and argv[0] == "verify-local":
+            args = base.parse_args(argv)
+            if args.remote_baseline:
+                return _verify_local_with_remote_policy_base(args, shell, impl)
+
         try:
             runner = retention.main
         except AttributeError as exc:

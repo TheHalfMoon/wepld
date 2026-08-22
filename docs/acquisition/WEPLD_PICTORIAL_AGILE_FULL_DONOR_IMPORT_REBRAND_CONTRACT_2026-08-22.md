@@ -166,6 +166,49 @@ Agile's donor is MIT. Redistribution must preserve the MIT copyright and permiss
 
 The product rebrand must not imply that WePLD authored the upstream work originally. Legal/provenance files remain available to maintainers and recipients even though the normal product surface uses only Pictorial and Agile.
 
+## Embedded immutable provenance records
+
+These machine-readable records replace separate provenance files during this authorization stage so the candidate remains inside the currently permitted acquisition-document surface. They are immutable evidence inputs for the later full source-map generation.
+
+```json
+{
+  "component": "Pictorial",
+  "component_role": "WePLD design intelligence and design assurance",
+  "upstream_repository": "pbakaus/impeccable",
+  "upstream_url": "https://github.com/pbakaus/impeccable",
+  "upstream_revision": "56f44523f76efdcec813e67b38ee550e49b16f48",
+  "upstream_tree": "3626999bc9c8be4d31f3028c37c74cf544576d15",
+  "upstream_license": "Apache-2.0",
+  "upstream_license_blob": "bb3f6d23b1f8025514a62a12b51b47d73e3c9aa9",
+  "upstream_notice_file": null,
+  "import_mode": "full_tracked_source_snapshot_derivative_rebrand",
+  "user_facing_upstream_brand_allowed": false,
+  "legal_provenance_retention_required": true,
+  "runtime_authority": "none",
+  "automatic_update": false,
+  "full_path_map_status": "pending_source_import"
+}
+```
+
+```json
+{
+  "component": "Agile",
+  "component_role": "WePLD specification and delivery-method capability",
+  "upstream_repository": "github/spec-kit",
+  "upstream_url": "https://github.com/github/spec-kit",
+  "upstream_revision": "27f50f7e6b618ea14d74dd4037f9e7c60218b16c",
+  "upstream_tree": "5622442d5ff74d21b2cb4349f255d08380f3d69d",
+  "upstream_license": "MIT",
+  "upstream_license_blob": "28a50fa22639e32febe14e4ffc7a732b0ba8c90a",
+  "import_mode": "full_tracked_source_snapshot_derivative_rebrand",
+  "user_facing_upstream_brand_allowed": false,
+  "legal_provenance_retention_required": true,
+  "runtime_authority": "none",
+  "automatic_update": false,
+  "full_path_map_status": "pending_source_import"
+}
+```
+
 ## Source-map requirement
 
 The full import must produce machine-readable provenance maps with, for every upstream tracked path:
@@ -183,13 +226,11 @@ license
 modification_notice_status
 ```
 
-Expected destination families:
+Expected destination families after explicit source-import policy activation:
 
 ```text
 vendor/pictorial/**
 vendor/agile/**
-docs/provenance/PICTORIAL_*.jsonl
-docs/provenance/AGILE_*.jsonl
 legal/third-party/PICTORIAL_*
 legal/third-party/AGILE_*
 ```

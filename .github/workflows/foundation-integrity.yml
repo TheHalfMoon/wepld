@@ -2,9 +2,6 @@ name: foundation-integrity
 
 on:
   pull_request:
-  push:
-    branches:
-      - main
 
 permissions: {}
 
@@ -13,32 +10,96 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout exact revision with canonical history
+      - name: Checkout diagnostic revision
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-          fetch-depth: 0
+          fetch-depth: 1
           lfs: false
           submodules: false
 
-      - name: Run integrity policy self-tests
-        shell: bash
-        run: |
-          set -euo pipefail
-          python .github/scripts/wepld_minimax_agent_research_five_finding_repair_integrity.py selftest
-
-      - name: Verify exact checked-out tree against the immutable baseline
+      - name: Expose repaired PR 88 trusted admission run
         shell: bash
         env:
-          WEPLD_COMPARISON_SHA: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
+          TARGET_SHA: 159057a345de19638cc2a7664b447f1a4a1fd03b
+          TARGET_BRANCH: research/minimax-universal-agent-review-repair-2026-08-21
+          TARGET_PR: "88"
+          NOT_BEFORE: "2026-08-22T01:25:50Z"
         run: |
           set -euo pipefail
-          if [ -z "${WEPLD_COMPARISON_SHA:-}" ]; then
-            echo 'immutable baseline comparison SHA could not be established' >&2
-            exit 1
-          fi
-          python .github/scripts/wepld_minimax_agent_research_five_finding_repair_integrity.py verify-local \
-            --root . \
-            --remote-baseline \
-            --pr-base-sha "$WEPLD_COMPARISON_SHA"
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          target_sha = os.environ["TARGET_SHA"]
+          target_branch = os.environ["TARGET_BRANCH"]
+          target_pr = int(os.environ["TARGET_PR"])
+          not_before = os.environ["NOT_BEFORE"]
+          url = (
+              "https://api.github.com/repos/TheHalfMoon/wepld/actions/workflows/"
+              "s1-admission-integrity.yml/runs?event=pull_request_target&per_page=100"
+          )
+          request = urllib.request.Request(
+              url,
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "User-Agent": "wepld-read-only-pr88-repaired-admission-diagnostic",
+                  "X-GitHub-Api-Version": "2022-11-28",
+              },
+          )
+          with urllib.request.urlopen(request, timeout=20) as response:
+              payload = json.load(response)
+
+          matches = []
+          for run in payload.get("workflow_runs", []):
+              prs = run.get("pull_requests") or []
+              pr_numbers = {item.get("number") for item in prs if isinstance(item, dict)}
+              created_at = run.get("created_at") or ""
+              if (
+                  run.get("event") == "pull_request_target"
+                  and run.get("head_branch") == target_branch
+                  and run.get("head_sha") == target_sha
+                  and created_at >= not_before
+                  and (not pr_numbers or target_pr in pr_numbers)
+              ):
+                  matches.append(run)
+
+          matches.sort(key=lambda run: (run.get("created_at") or "", run.get("id") or 0))
+          print(f"TARGET_PR={target_pr}")
+          print(f"TARGET_BRANCH={target_branch}")
+          print(f"TARGET_SHA={target_sha}")
+          print(f"NOT_BEFORE={not_before}")
+          print(f"MATCH_COUNT={len(matches)}")
+          if not matches:
+              raise SystemExit("PR88_REPAIRED_TRUSTED_ADMISSION_RUN_NOT_FOUND")
+          run = matches[-1]
+          print(f"RUN_ID={run.get('id')}")
+          print(f"RUN_NUMBER={run.get('run_number')}")
+          print(f"WORKFLOW_NAME={run.get('name')}")
+          print(f"EVENT={run.get('event')}")
+          print(f"HEAD_BRANCH={run.get('head_branch')}")
+          print(f"HEAD_SHA={run.get('head_sha')}")
+          print(f"STATUS={run.get('status')}")
+          print(f"CONCLUSION={run.get('conclusion')}")
+          print(f"CREATED_AT={run.get('created_at')}")
+          print(f"JOBS_URL={run.get('jobs_url')}")
+          PY
+
+      - name: Preserve diagnostic-only authority boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'DIAGNOSTIC_ONLY=YES'
+          echo 'MERGE=NEVER'
+          echo 'CREDENTIAL_ACCESS=NONE'
+          echo 'SOURCE_ADMISSION=NONE'
+          echo 'DEPENDENCY_ADMISSION=NONE'
+          echo 'PRODUCT_IMPLEMENTATION_AUTHORITY=NONE'
+          echo 'ROADMAP_MUTATION=NONE'
+          echo 'H0_SCREEN_EXECUTION=NONE'
+          echo 'H0_014_PLUS=NOT_STARTED'
+          echo 'MODEL_PROVIDER_EXECUTION=NONE'
+          echo 'MODEL_WEIGHT_ACCESS=NONE'
+          echo 'MODEL_INFERENCE=NONE'

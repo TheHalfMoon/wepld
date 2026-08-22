@@ -1,0 +1,25 @@
+name: diag-pictorial-agile-pr105-postmerge-foundation-531540b0
+
+on:
+  pull_request:
+
+permissions: {}
+
+jobs:
+  locate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Locate exact post-merge Foundation push run by immutable head_sha
+        shell: bash
+        run: |
+          set -euo pipefail
+          target_head='531540b07e42f50bc1d63e10ea6e0901362732ee'
+          api='https://api.github.com/repos/TheHalfMoon/wepld/actions/runs?event=push&per_page=100'
+          data="$(curl --fail --silent --show-error --location --retry 3 --retry-delay 2 --retry-all-errors "$api")"
+          matches="$(printf '%s' "$data" | jq -c --arg head "$target_head" '[.workflow_runs[] | select(.head_sha == $head and .name == "foundation-integrity" and .event == "push")]')"
+          count="$(printf '%s' "$matches" | jq 'length')"
+          echo "MATCH_COUNT=$count"
+          printf '%s' "$matches" | jq -r '.[] | "RUN_ID=\(.id) RUN_NUMBER=\(.run_number) WORKFLOW=\(.name) EVENT=\(.event) STATUS=\(.status) CONCLUSION=\(.conclusion // "null") IMMUTABLE_HEAD_SHA=\(.head_sha // "")"'
+          test "$count" -eq 1
+          echo 'MERGE=NEVER'

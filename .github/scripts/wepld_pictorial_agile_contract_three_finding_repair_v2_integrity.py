@@ -133,14 +133,21 @@ def _validate_target(candidate: base.RepositoryView) -> None:
 
 
 def _delegate_exact_delta(candidate: base.RepositoryView, policy_base: base.RepositoryView) -> None:
-    if PRIOR_REQUIRE_EXACT_DELTA is not prior._require_exact_delta_pictorial_agile:
+    try:
+        delegated = prior._require_exact_delta_pictorial_agile
+    except AttributeError as exc:
+        base.fail(f"Pictorial/Agile repair inherited exact-delta topology is missing or stale: {exc}")
+    if PRIOR_REQUIRE_EXACT_DELTA is not delegated:
         base.fail("Pictorial/Agile repair inherited exact-delta delegate drifted")
     PRIOR_REQUIRE_EXACT_DELTA(candidate, policy_base)
 
 
 def _require_exact_delta_repair(candidate: base.RepositoryView, policy_base: base.RepositoryView) -> None:
     _, _, impl, _, _ = _topology()
-    changed = impl._changed_paths(candidate, policy_base)
+    try:
+        changed = impl._changed_paths(candidate, policy_base)
+    except AttributeError as exc:
+        base.fail(f"Pictorial/Agile repair changed-path topology is missing or stale: {exc}")
     if _is_bootstrap_base(policy_base):
         if changed == set(BOOTSTRAP_DELTA_PATHS):
             _require_prior_policy_base(policy_base)
@@ -210,17 +217,29 @@ def _verify_extension_paths(candidate: base.RepositoryView, policy_base: base.Re
             base.fail(f"Pictorial/Agile repair controlled workflow changed: {relative}")
     delegated = frozenset(set(controlled) - {POLICY_SCRIPT} - set(BOOTSTRAP_WORKFLOWS))
     if delegated:
-        prior._verify_extension_paths_pictorial_agile(candidate, policy_base, delegated)
+        try:
+            verifier = prior._verify_extension_paths_pictorial_agile
+        except AttributeError as exc:
+            base.fail(f"Pictorial/Agile repair inherited extension topology is missing or stale: {exc}")
+        verifier(candidate, policy_base, delegated)
 
 
 def _verify_execution_extension_paths(candidate: base.RepositoryView, policy_base: base.RepositoryView) -> None:
     _, _, _, _, execution = _topology()
-    _verify_extension_paths(candidate, policy_base, execution.EXTENSION_CONTROLLED_PATHS)
+    try:
+        controlled = execution.EXTENSION_CONTROLLED_PATHS
+    except AttributeError as exc:
+        base.fail(f"Pictorial/Agile repair execution extension topology is missing or stale: {exc}")
+    _verify_extension_paths(candidate, policy_base, controlled)
 
 
 def _verify_desktop_extension_paths(candidate: base.RepositoryView, policy_base: base.RepositoryView) -> None:
     _, _, _, desktop, _ = _topology()
-    _verify_extension_paths(candidate, policy_base, desktop.EXTENSION_CONTROLLED_PATHS)
+    try:
+        controlled = desktop.EXTENSION_CONTROLLED_PATHS
+    except AttributeError as exc:
+        base.fail(f"Pictorial/Agile repair desktop extension topology is missing or stale: {exc}")
+    _verify_extension_paths(candidate, policy_base, controlled)
 
 
 def _project_allowed_paths(paths: set[str]) -> set[str]:
@@ -241,15 +260,18 @@ def _verify_policy_files(view: base.RepositoryView) -> None:
 
 
 def _require_prebind_identity(shell: Any, retention: Any, desktop: Any, execution: Any) -> None:
-    expected = (
-        (retention.IMPL_REQUIRE_EXACT_DELTA, prior._require_exact_delta_pictorial_agile, "exact-delta"),
-        (base.compare_base_controlled, prior._compare_base_controlled_pictorial_agile, "base-control"),
-        (desktop.verify_extension_controlled_paths, prior._verify_desktop_extension_paths, "desktop-extension"),
-        (execution.verify_extension_controlled_paths, prior._verify_execution_extension_paths, "execution-extension"),
-        (shell.validate_allowed_paths, prior._validate_allowed_paths_pictorial_agile, "tracked-path"),
-        (shell.verify_policy_files, prior._verify_policy_files, "policy-file"),
-        (shell.print_success, prior._print_success, "success-printer"),
-    )
+    try:
+        expected = (
+            (retention.IMPL_REQUIRE_EXACT_DELTA, prior._require_exact_delta_pictorial_agile, "exact-delta"),
+            (base.compare_base_controlled, prior._compare_base_controlled_pictorial_agile, "base-control"),
+            (desktop.verify_extension_controlled_paths, prior._verify_desktop_extension_paths, "desktop-extension"),
+            (execution.verify_extension_controlled_paths, prior._verify_execution_extension_paths, "execution-extension"),
+            (shell.validate_allowed_paths, prior._validate_allowed_paths_pictorial_agile, "tracked-path"),
+            (shell.verify_policy_files, prior._verify_policy_files, "policy-file"),
+            (shell.print_success, prior._print_success, "success-printer"),
+        )
+    except AttributeError as exc:
+        base.fail(f"Pictorial/Agile repair pre-bind topology is missing or stale: {exc}")
     for actual, wanted, label in expected:
         if actual is not wanted:
             base.fail(f"Pictorial/Agile repair pre-bind {label} hook drifted")
@@ -257,28 +279,38 @@ def _require_prebind_identity(shell: Any, retention: Any, desktop: Any, executio
 
 def _require_overlay_identity() -> None:
     shell, retention, _, desktop, execution = _topology()
-    if PRIOR_REQUIRE_EXACT_DELTA is not prior._require_exact_delta_pictorial_agile:
+    try:
+        prior_exact_delta = prior._require_exact_delta_pictorial_agile
+        prior_allowed_paths = prior._validate_allowed_paths_pictorial_agile
+        prior_print_success = prior._print_success
+        checks = (
+            (retention.IMPL_REQUIRE_EXACT_DELTA, _require_exact_delta_repair, "exact-delta"),
+            (base.compare_base_controlled, _compare_base_controlled_repair, "base-control"),
+            (desktop.verify_extension_controlled_paths, _verify_desktop_extension_paths, "desktop-extension"),
+            (execution.verify_extension_controlled_paths, _verify_execution_extension_paths, "execution-extension"),
+            (shell.validate_allowed_paths, _validate_allowed_paths_repair, "tracked-path"),
+            (shell.verify_policy_files, _verify_policy_files, "policy-file"),
+            (shell.print_success, _print_success, "success-printer"),
+        )
+        hook_identity = retention._require_exact_delta_hook_identity
+        retention_exact_delta = retention._require_exact_delta_retention
+        desktop_paths = desktop.EXTENSION_CONTROLLED_PATHS
+        execution_paths = execution.EXTENSION_CONTROLLED_PATHS
+    except AttributeError as exc:
+        base.fail(f"Pictorial/Agile repair overlay topology is missing or stale: {exc}")
+    if PRIOR_REQUIRE_EXACT_DELTA is not prior_exact_delta:
         base.fail("Pictorial/Agile repair inherited exact-delta delegate drifted")
-    if PRIOR_VALIDATE_ALLOWED_PATHS is not prior._validate_allowed_paths_pictorial_agile:
+    if PRIOR_VALIDATE_ALLOWED_PATHS is not prior_allowed_paths:
         base.fail("Pictorial/Agile repair inherited allowlist delegate drifted")
-    checks = (
-        (retention.IMPL_REQUIRE_EXACT_DELTA, _require_exact_delta_repair, "exact-delta"),
-        (base.compare_base_controlled, _compare_base_controlled_repair, "base-control"),
-        (desktop.verify_extension_controlled_paths, _verify_desktop_extension_paths, "desktop-extension"),
-        (execution.verify_extension_controlled_paths, _verify_execution_extension_paths, "execution-extension"),
-        (shell.validate_allowed_paths, _validate_allowed_paths_repair, "tracked-path"),
-        (shell.verify_policy_files, _verify_policy_files, "policy-file"),
-        (shell.print_success, _print_success, "success-printer"),
-    )
     for actual, wanted, label in checks:
         if actual is not wanted:
             base.fail(f"Pictorial/Agile repair {label} hook drifted")
-    retention._require_exact_delta_hook_identity(retention._require_exact_delta_retention, "pictorial-agile-contract-three-finding-repair-v2-overlay")
-    if POLICY_SCRIPT not in desktop.EXTENSION_CONTROLLED_PATHS:
+    hook_identity(retention_exact_delta, "pictorial-agile-contract-three-finding-repair-v2-overlay")
+    if POLICY_SCRIPT not in desktop_paths:
         base.fail("Pictorial/Agile repair desktop path registration drifted")
-    if POLICY_SCRIPT not in execution.EXTENSION_CONTROLLED_PATHS:
+    if POLICY_SCRIPT not in execution_paths:
         base.fail("Pictorial/Agile repair execution path registration drifted")
-    if _PRIOR_PRINT_SUCCESS is None or _PRIOR_PRINT_SUCCESS is not prior._print_success:
+    if _PRIOR_PRINT_SUCCESS is None or _PRIOR_PRINT_SUCCESS is not prior_print_success:
         base.fail("Pictorial/Agile repair prior success-printer drifted")
 
 
@@ -376,6 +408,11 @@ def _selftest_projection_and_identity() -> None:
     prior._validate_allowed_paths_pictorial_agile = lambda paths, stage: None
     try:
         base.expect_failure_matching("repair inherited allowlist identity", "inherited allowlist delegate drifted", _require_overlay_identity)
+    finally:
+        prior._validate_allowed_paths_pictorial_agile = original
+    delattr(prior, "_validate_allowed_paths_pictorial_agile")
+    try:
+        base.expect_failure_matching("repair missing overlay topology", "overlay topology is missing or stale", _require_overlay_identity)
     finally:
         prior._validate_allowed_paths_pictorial_agile = original
     _require_overlay_identity()

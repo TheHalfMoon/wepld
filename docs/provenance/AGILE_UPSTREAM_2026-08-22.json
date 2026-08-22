@@ -1,0 +1,16 @@
+{
+  "component": "Agile",
+  "component_role": "WePLD specification and delivery-method capability",
+  "upstream_repository": "github/spec-kit",
+  "upstream_url": "https://github.com/github/spec-kit",
+  "upstream_revision": "27f50f7e6b618ea14d74dd4037f9e7c60218b16c",
+  "upstream_tree": "5622442d5ff74d21b2cb4349f255d08380f3d69d",
+  "upstream_license": "MIT",
+  "upstream_license_blob": "28a50fa22639e32febe14e4ffc7a732b0ba8c90a",
+  "import_mode": "full_tracked_source_snapshot_derivative_rebrand",
+  "user_facing_upstream_brand_allowed": false,
+  "legal_provenance_retention_required": true,
+  "runtime_authority": "none",
+  "automatic_update": false,
+  "full_path_map_status": "pending_source_import"
+}

@@ -569,7 +569,16 @@ def _selftest_identity_drift() -> None:
 
 
 def selftest() -> None:
-    _activate_predecessor()
+    try:
+        current_workflows = dict(prior.EXPECTED_WORKFLOW_SHA256)
+    except (AttributeError, TypeError, ValueError) as exc:
+        base.fail(f"Pictorial/Agile contract repair-v5 predecessor selftest binding is malformed: {exc}")
+    if current_workflows not in (
+        dict(PRIOR_EXPECTED_WORKFLOW_SHA256),
+        dict(EXPECTED_WORKFLOW_SHA256),
+    ):
+        base.fail("Pictorial/Agile contract repair-v5 predecessor selftest workflow hashes drifted")
+    prior.EXPECTED_WORKFLOW_SHA256 = dict(EXPECTED_WORKFLOW_SHA256)
     try:
         prior.selftest()
     except TypeError as exc:

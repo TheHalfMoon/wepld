@@ -51,6 +51,12 @@ MODEL_PROVIDER_EXECUTION = "NONE"
 MODEL_WEIGHT_ACCESS = "NONE"
 MODEL_INFERENCE = "NONE"
 POLICY_BASE_SHA_ENV = "WEPLD_POLICY_BASE_SHA"
+MAX_COMPARE_READ_ATTEMPTS = 3
+TRANSIENT_GITHUB_HTTP_ERRORS = (
+    "HTTP Error 502:",
+    "HTTP Error 503:",
+    "HTTP Error 504:",
+)
 
 
 def _git_blob_sha1(data: bytes) -> str:
@@ -490,20 +496,70 @@ def _activation_shas(args: Any) -> tuple[str, str]:
     return policy_base_sha, baseline_check_sha
 
 
+def _compare_url(
+    canonical_repository: str,
+    policy_base_sha: str,
+    baseline_check_sha: str,
+) -> str:
+    return (
+        f"https://api.github.com/repos/{canonical_repository}/compare/"
+        f"{policy_base_sha}...{baseline_check_sha}"
+    )
+
+
+def _is_transient_compare_failure(exc: base.PolicyError, url: str) -> bool:
+    text = str(exc)
+    prefix = f"GitHub API request failed for {url}:"
+    return text.startswith(prefix) and any(
+        marker in text for marker in TRANSIENT_GITHUB_HTTP_ERRORS
+    )
+
+
+def _read_compare_with_bounded_retry(client: Any, url: str) -> dict[str, Any]:
+    last_error: base.PolicyError | None = None
+    for _attempt in range(MAX_COMPARE_READ_ATTEMPTS):
+        try:
+            response = client.json(url)
+        except base.PolicyError as exc:
+            if not _is_transient_compare_failure(exc, url):
+                raise
+            last_error = exc
+            continue
+        if not isinstance(response, dict):
+            base.fail(
+                "Pictorial/Agile contract repair-v5 compare response is malformed: "
+                f"url={url}"
+            )
+        return response
+    if last_error is None:
+        base.fail(
+            "Pictorial/Agile contract repair-v5 bounded compare retry exhausted "
+            "without an error"
+        )
+    raise last_error
+
+
 def _require_push_activation_ancestry(
     client: Any,
     canonical_repository: str,
     policy_base_sha: str,
     baseline_check_sha: str,
 ) -> None:
-    response = client.json(
-        f"https://api.github.com/repos/{canonical_repository}/compare/"
-        f"{policy_base_sha}...{baseline_check_sha}"
+    url = _compare_url(
+        canonical_repository,
+        policy_base_sha,
+        baseline_check_sha,
     )
-    if response.get("status") != "ahead":
+    response = _read_compare_with_bounded_retry(client, url)
+    status = response.get("status")
+    if status != "ahead":
         base.fail(
             "Pictorial/Agile contract repair-v5 pushed head is not a descendant "
-            "of the immutable activation predecessor"
+            "of the immutable activation predecessor: "
+            f"status={status!r} "
+            f"policy_base_sha={policy_base_sha} "
+            f"baseline_check_sha={baseline_check_sha} "
+            f"compare_url={url}"
         )
 
 
@@ -704,9 +760,11 @@ def _selftest_activation_sha_split() -> None:
         def __init__(self, status: str) -> None:
             self.status = status
             self.url = ""
+            self.calls = 0
 
         def json(self, url: str) -> dict[str, str]:
             self.url = url
+            self.calls += 1
             return {"status": self.status}
 
     probe = ProbeClient("ahead")
@@ -716,22 +774,89 @@ def _selftest_activation_sha_split() -> None:
         "a" * 40,
         "b" * 40,
     )
-    expected_url = (
-        f"https://api.github.com/repos/{base.REPOSITORY}/compare/"
-        f"{'a' * 40}...{'b' * 40}"
-    )
-    if probe.url != expected_url:
-        base.fail("Pictorial/Agile contract repair-v5 activation ancestry URL drifted")
-
-    base.expect_failure_matching(
-        "contract repair-v5 rewritten-history rejection",
-        "pushed head is not a descendant",
-        _require_push_activation_ancestry,
-        ProbeClient("diverged"),
+    expected_url = _compare_url(
         base.REPOSITORY,
         "a" * 40,
         "b" * 40,
     )
+    if probe.url != expected_url or probe.calls != 1:
+        base.fail("Pictorial/Agile contract repair-v5 activation ancestry URL drifted")
+
+    diverged = ProbeClient("diverged")
+    try:
+        _require_push_activation_ancestry(
+            diverged,
+            base.REPOSITORY,
+            "a" * 40,
+            "b" * 40,
+        )
+    except base.PolicyError as exc:
+        message = str(exc)
+        for fragment in (
+            "pushed head is not a descendant",
+            "status='diverged'",
+            f"policy_base_sha={'a' * 40}",
+            f"baseline_check_sha={'b' * 40}",
+            f"compare_url={expected_url}",
+        ):
+            if fragment not in message:
+                base.fail(
+                    "Pictorial/Agile contract repair-v5 ancestry failure evidence "
+                    f"is incomplete: missing={fragment}"
+                )
+    else:
+        base.fail("Pictorial/Agile contract repair-v5 rewritten history was accepted")
+
+    class TransientProbeClient:
+        def __init__(self) -> None:
+            self.calls = 0
+            self.url = ""
+
+        def json(self, url: str) -> dict[str, str]:
+            self.url = url
+            self.calls += 1
+            if self.calls < MAX_COMPARE_READ_ATTEMPTS:
+                raise base.PolicyError(
+                    f"GitHub API request failed for {url}: "
+                    "HTTP Error 503: Service Unavailable"
+                )
+            return {"status": "ahead"}
+
+    transient = TransientProbeClient()
+    _require_push_activation_ancestry(
+        transient,
+        base.REPOSITORY,
+        "a" * 40,
+        "b" * 40,
+    )
+    if transient.url != expected_url or transient.calls != MAX_COMPARE_READ_ATTEMPTS:
+        base.fail("Pictorial/Agile contract repair-v5 transient compare retry drifted")
+
+    class PermanentProbeClient:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def json(self, url: str) -> dict[str, str]:
+            self.calls += 1
+            raise base.PolicyError(
+                f"GitHub API request failed for {url}: HTTP Error 404: Not Found"
+            )
+
+    permanent = PermanentProbeClient()
+    try:
+        _require_push_activation_ancestry(
+            permanent,
+            base.REPOSITORY,
+            "a" * 40,
+            "b" * 40,
+        )
+    except base.PolicyError as exc:
+        if "HTTP Error 404:" not in str(exc):
+            raise
+    else:
+        base.fail("Pictorial/Agile contract repair-v5 permanent compare failure was accepted")
+    if permanent.calls != 1:
+        base.fail("Pictorial/Agile contract repair-v5 retried a non-transient compare failure")
 
 
 def _selftest_identity_drift() -> None:

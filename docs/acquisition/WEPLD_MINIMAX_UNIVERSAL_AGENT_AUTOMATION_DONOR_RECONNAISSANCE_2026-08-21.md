@@ -4,8 +4,8 @@
 DOCUMENT_DATE = 2026-08-21
 DOCUMENT_CLASS = DISCOVERY / DONOR RECONNAISSANCE / FUTURE PRODUCT-ARCHITECTURE INPUT
 RESEARCH_BASE_MAIN = 5d25112d506b0044f2e79756869c009c5b5ba358
-REVIEW_REPAIR_SOURCE_HEAD = 701fcf71185b859d825863a5dfddf55dab9dd0aa
-REVIEW_REPAIR_CLASS = TWO_MAJOR_FINDINGS_PLUS_EVIDENCE_TRACEABILITY_HARDENING
+REVIEW_REPAIR_SOURCE_HEAD = 16d0569c98b952a34a989c9e3248e9404402f8ff
+REVIEW_REPAIR_CLASS = FIVE_MAJOR_FINDINGS_PLUS_PRIOR_EVIDENCE_TRACEABILITY_HARDENING
 CANONICAL_REGISTRY_REVISION = NONE
 FROZEN_402_REGISTRY_MUTATION = NONE
 SOURCE_ADMISSION = NONE
@@ -190,17 +190,32 @@ Goal {
   task_graph_ref
   evidence_requirements
   stop_conditions
+  execution_deadline
+  max_attempts
+  max_model_calls
+  max_tool_calls
+  token_budget
+  cost_budget
+  no_progress_limit
+  cancellation_ref
   status
 }
 ```
 
-Required invariant:
+Required invariants:
 
 ```text
 GOAL_PERSISTENCE != AUTHORITY_PERSISTENCE
+MODEL_STOP_CONDITIONS != GOVERNANCE_EXECUTION_BUDGET
+EXECUTION_BOUNDS = GOVERNANCE_OWNED
+MISSING_REQUIRED_EXECUTION_BOUND -> BLOCK
+EXECUTION_BOUND_EXHAUSTED -> BLOCK_OR_CANCEL
+CANCELLATION_REQUESTED -> NO_NEW_MODEL_OR_TOOL_CALL
 ```
 
 A goal can survive restarts, provider changes, and model changes. Any privileged operation must still re-evaluate effective authority at execution time.
+
+The execution budget is enforced outside the active model. Before every model/provider/tool transition, the orchestrator must re-evaluate the deadline, attempt counters, model-call count, tool-call count, token/cost budgets, no-progress limit, and cancellation state. Model-authored `stop_conditions` may make execution stricter but cannot remove, raise, or bypass governance-owned limits.
 
 ## Persistent memory findings
 
@@ -441,15 +456,53 @@ MODEL
   -> WEPLD_NORMALIZATION
   -> CAPABILITY_CHECK
   -> POLICY_CHECK
+  -> PERSIST_DURABLE_ACTION_INTENT
   -> TOOL_ADAPTER
-  -> RESULT
+  -> RESULT_OR_UNKNOWN_OUTCOME
+  -> RECONCILIATION
   -> EVIDENCE
 ```
+
+Every side-effect-capable action should have an immutable execution identity before the effect is attempted:
+
+```text
+ActionRecord {
+  action_id
+  task_id
+  candidate_id
+  candidate_artifact_digest
+  normalized_capability
+  normalized_arguments_digest
+  destination_identity
+  authority_decision_ref
+  data_egress_class
+  idempotency_key
+  durable_intent_ref
+  result_ref
+  outcome_reconciliation_state
+}
+```
+
+Required invariants:
+
+```text
+ACTION_ID = IMMUTABLE
+PERSIST_INTENT_BEFORE_SIDE_EFFECT = YES
+RETRY_OF_SAME_LOGICAL_EFFECT -> SAME_ACTION_ID
+RETRY_OF_SAME_LOGICAL_EFFECT -> SAME_IDEMPOTENCY_KEY
+NEW_LOGICAL_EFFECT -> NEW_ACTION_ID
+UNKNOWN_OUTCOME -> RECONCILE_BEFORE_RETRY
+UNKNOWN_OUTCOME -> NO_BLIND_NON_IDEMPOTENT_RETRY
+CANDIDATE_IDENTITY != SIDE_EFFECT_DEDUPLICATION_IDENTITY
+```
+
+Where an external system supports idempotency keys, the adapter must pass the stable key. Where it does not, the durable intent/result journal and destination-specific reconciliation must determine whether the effect already occurred before any retry, reassignment, or repair can repeat it. If the outcome cannot be established safely, execution blocks or escalates instead of guessing.
 
 Not:
 
 ```text
 MODEL -> DIRECT_UNGOVERNED_SIDE_EFFECT
+TIMEOUT_AFTER_EXTERNAL_WRITE -> BLIND_RETRY
 ```
 
 This same pattern should apply to browser operations, filesystem changes, terminal commands, project actions, remote integrations, and future application automation.
@@ -513,12 +566,22 @@ CONFIRM
 BLOCK
 ```
 
-With mandatory provenance:
+With mandatory provenance and an exact canonical scope binding:
 
 ```text
+PermissionScope {
+  normalized_capability
+  normalized_arguments_digest
+  destination_identity
+  artifact_digest
+  approver_identity
+  policy_version
+}
+
 PermissionDecision {
   requested_capability
   requested_scope
+  requested_scope_digest
   decision
   governing_rule
   user_confirmation_ref
@@ -526,6 +589,22 @@ PermissionDecision {
   candidate_ref
   expires_at
 }
+```
+
+`requested_scope` is the canonical normalized binding of capability, arguments, destination, artifact, approver identity, and policy version. Its digest is immutable for the decision and cannot be reused for a different task, candidate, artifact, destination, argument set, approver, or policy revision.
+
+Required invariants:
+
+```text
+PERMISSION_SCOPE = EXACT
+PERMISSION_SCOPE = IMMUTABLE
+PERMISSION_DECISION = NON_REUSABLE_OUTSIDE_BOUND_SCOPE
+NORMALIZED_ARGUMENTS_CHANGE -> NEW_PERMISSION_DECISION
+DESTINATION_CHANGE -> NEW_PERMISSION_DECISION
+ARTIFACT_CHANGE -> NEW_PERMISSION_DECISION
+APPROVER_CHANGE -> NEW_PERMISSION_DECISION
+POLICY_VERSION_CHANGE -> NEW_PERMISSION_DECISION
+EXPIRED_PERMISSION -> REEVALUATE
 ```
 
 The model may explain why it wants a capability. The model does not decide whether the capability exists.
@@ -790,6 +869,37 @@ REMOTE_CONTROL_CHANNEL != TASK_DATA_EGRESS_AUTHORIZATION
 TELEMETRY_ENABLED != TELEMETRY_EGRESS_AUTHORIZED
 ```
 
+The effective egress class is derived monotonically from every datum currently in scope, not copied once at task creation.
+
+```text
+EFFECTIVE_DATA_EGRESS_CLASS = STRICTEST_CLASS_JOIN(
+  TASK_INPUT_CLASSES,
+  CANDIDATE_INPUT_CLASSES,
+  MEMORY_INPUT_CLASSES,
+  MCP_RESULT_CLASSES,
+  BROWSER_RESULT_CLASSES,
+  TOOL_RESULT_CLASSES,
+  REMOTE_CONTROL_INPUT_CLASSES
+)
+```
+
+`STRICTEST_CLASS_JOIN` must never return a class less restrictive than any contributing input. When memory, MCP, browser, tool, remote-control, or other runtime input introduces stricter data, the effective class must be upgraded before any subsequent transmission-capable action is evaluated.
+
+Required derivation rules:
+
+```text
+NEW_INPUT_CLASS_STRICTER_THAN_EFFECTIVE -> UPGRADE_BEFORE_NEXT_ACTION
+UNKNOWN_INPUT_CLASS -> BLOCK_PENDING_CLASSIFICATION
+UNCLASSIFIED_TOOL_RESULT -> BLOCK_EGRESS
+UNCLASSIFIED_MEMORY_ITEM -> BLOCK_EGRESS
+UNCLASSIFIED_BROWSER_OR_MCP_RESULT -> BLOCK_EGRESS
+RETRY_OR_REASSIGNMENT -> RECOMPUTE_STRICTEST_CLASS_JOIN
+PROVIDER_FALLBACK -> RECOMPUTE_STRICTEST_CLASS_JOIN
+CLASSIFICATION_UPGRADE -> NO_IMPLICIT_DOWNGRADE
+```
+
+Confirmation may authorize an otherwise confirmation-gated transmission under policy, but confirmation does not silently relabel unknown or more sensitive data as less restrictive.
+
 The same effective egress class must survive retries, reassignment, provider fallback, model replacement, worker substitution, and verifier handoff. Any requested relaxation requires a new explicit authority decision; it must never arise from fallback logic.
 
 ## Proposed task object
@@ -804,6 +914,7 @@ TaskRecord {
   expected_outputs
   candidate_scope
   active_candidate_id
+  active_candidate_version
   candidate_lineage_refs
   assigned_agent_profile
   selected_model_adapter
@@ -878,7 +989,21 @@ EARLIER_RETRY_EVIDENCE -> NOT_REUSABLE_FOR_NEW_CANDIDATE
 VERIFIER_RESULT_CANDIDATE_ID != ACTIVE_CANDIDATE_ID -> REJECT
 VERIFIER_RESULT_ARTIFACT_DIGEST != ACTIVE_ARTIFACT_DIGEST -> REJECT
 COMPLETION_CANDIDATE_ID != ACTIVE_CANDIDATE_ID -> REJECT
+ACTIVE_CANDIDATE_UPDATE = COMPARE_AND_SET(expected_candidate_id, expected_version)
+COMPLETION_ACCEPTANCE = ATOMIC_WITH_ACTIVE_CANDIDATE_CHECK
 ```
+
+The active-candidate pointer and version are governance-owned concurrency state. Any repair, retry, reassignment, or candidate replacement that changes the active candidate increments the version. Completion acceptance must use one transaction, or an equivalent linearizable compare-and-set, that verifies the same `active_candidate_id`, `active_candidate_version`, and artifact digest while committing candidate state and `COMPLETED_TRUSTED`.
+
+```text
+READ_ACTIVE_CANDIDATE
+  -> VALIDATE_EXACT_CANDIDATE_AND_DIGEST
+  -> VALIDATE_BOUND_VERIFIER_EVIDENCE
+  -> COMPARE_AND_SET_ACTIVE_VERSION
+  -> COMMIT_ACCEPTED_TRUSTED_AND_COMPLETED_TRUSTED
+```
+
+If the active candidate or version changes at any point before commit, the completion attempt is stale and must fail closed.
 
 `candidate_scope` may describe where candidate effects or artifacts are allowed to exist. It is not identity and must never be used as a substitute for `candidate_id`.
 
@@ -1061,6 +1186,11 @@ Local models remain subject to the same capability, candidate, evidence, and ver
 10. Do not infer source availability from product behavior.
 11. Do not let provider fallback weaken `DATA_EGRESS_CLASS`.
 12. Do not reuse verification evidence across candidate identities or artifact mutations.
+13. Do not run long-horizon goals without governance-owned execution bounds.
+14. Do not blindly retry externally visible side effects after unknown outcomes.
+15. Do not reuse permission decisions outside their exact canonical scope binding.
+16. Do not let newly introduced sensitive data bypass monotonic egress reclassification.
+17. Do not separate completion validation from the atomic active-candidate state transition.
 
 ## Future acquisition questions
 

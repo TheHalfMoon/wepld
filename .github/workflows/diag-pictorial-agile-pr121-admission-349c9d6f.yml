@@ -25,3 +25,4 @@ jobs:
           test "$count" -eq 1
           echo 'MERGE=NEVER'
           echo 'MUTATION_AUTHORITY=NONE'
+          echo 'LOCATOR_ONLY=YES'

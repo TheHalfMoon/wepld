@@ -37,19 +37,20 @@ jobs:
           echo 'candidate_policy_authority=NONE'
           echo 'authoritative_candidate_admission=pull_request_target'
 
-      - name: Verify canonical activation against the immutable predecessor
+      - name: Verify canonical activation against predecessor and pushed head
         if: github.event_name == 'push'
         shell: bash
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          WEPLD_COMPARISON_SHA: ${{ github.event.before || github.sha }}
+          WEPLD_POLICY_BASE_SHA: ${{ github.event.before }}
+          WEPLD_BASELINE_CHECK_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          if [ -z "${WEPLD_COMPARISON_SHA:-}" ]; then
-            echo 'immutable baseline comparison SHA could not be established' >&2
+          if [ -z "${WEPLD_POLICY_BASE_SHA:-}" ] || [ -z "${WEPLD_BASELINE_CHECK_SHA:-}" ]; then
+            echo 'canonical activation identities could not be established' >&2
             exit 1
           fi
           python .github/scripts/wepld_pictorial_agile_contract_branding_boundary_repair_v5_integrity.py verify-local \
             --root . \
             --remote-baseline \
-            --pr-base-sha "$WEPLD_COMPARISON_SHA"
+            --pr-base-sha "$WEPLD_BASELINE_CHECK_SHA"

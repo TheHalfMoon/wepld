@@ -27,7 +27,7 @@ PRIOR_EXPECTED_WORKFLOW_SHA256 = {
     CONTRACTS_WORKFLOW: "008441e0e17542679c7bdc23e64ad6e2ce57664ed5c65e4842b7d8fbd77500d7",
 }
 EXPECTED_WORKFLOW_SHA256 = {
-    FOUNDATION_WORKFLOW: "967499c729a12bebb7209930f63a0d550745659af55f8dca428b34d7fbf94a67",
+    FOUNDATION_WORKFLOW: "e5f527231d516579f5b957d4fba857dc6f9a118bd52a3d58b48a399f26076685",
     ADMISSION_WORKFLOW: "cff1183a888771fee76fdde063af76b7c964eff488ac050baa35cd0ae841145f",
     CONTRACTS_WORKFLOW: "008441e0e17542679c7bdc23e64ad6e2ce57664ed5c65e4842b7d8fbd77500d7",
 }
@@ -50,6 +50,7 @@ H0_SCREEN_EXECUTION = "NONE"
 MODEL_PROVIDER_EXECUTION = "NONE"
 MODEL_WEIGHT_ACCESS = "NONE"
 MODEL_INFERENCE = "NONE"
+POLICY_BASE_SHA_ENV = "WEPLD_POLICY_BASE_SHA"
 
 
 def _git_blob_sha1(data: bytes) -> str:
@@ -481,11 +482,36 @@ def _verify_with_policy_base(
     return stage
 
 
+def _activation_shas(args: Any) -> tuple[str, str]:
+    policy_base_sha = base.require_comparison_sha(os.environ.get(POLICY_BASE_SHA_ENV))
+    baseline_check_sha = base.require_comparison_sha(args.pr_base_sha)
+    if policy_base_sha == baseline_check_sha:
+        base.fail("Pictorial/Agile contract repair-v5 activation predecessor equals pushed head")
+    return policy_base_sha, baseline_check_sha
+
+
+def _require_push_activation_ancestry(
+    client: Any,
+    canonical_repository: str,
+    policy_base_sha: str,
+    baseline_check_sha: str,
+) -> None:
+    response = client.json(
+        f"https://api.github.com/repos/{canonical_repository}/compare/"
+        f"{policy_base_sha}...{baseline_check_sha}"
+    )
+    if response.get("status") != "ahead":
+        base.fail(
+            "Pictorial/Agile contract repair-v5 pushed head is not a descendant "
+            "of the immutable activation predecessor"
+        )
+
+
 def _verify_local_with_remote_policy_base(args: Any, shell: Any, impl: Any) -> int:
     if args.command != "verify-local" or not args.remote_baseline:
         base.fail("Pictorial/Agile contract repair-v5 trusted-base local verifier invoked outside remote-baseline mode")
 
-    comparison_sha = base.require_comparison_sha(args.pr_base_sha)
+    policy_base_sha, baseline_check_sha = _activation_shas(args)
     try:
         canonical_repository = impl.CANONICAL_REPOSITORY
         desktop_runner = shell.desktop_runner
@@ -498,7 +524,7 @@ def _verify_local_with_remote_policy_base(args: Any, shell: Any, impl: Any) -> i
     if canonical_repository != base.REPOSITORY:
         base.fail(
             "Pictorial/Agile contract repair-v5 canonical repository drifted: "
-            f"expected={canonical_repository} actual={base.REPOSITORY}"
+            f"expected={base.REPOSITORY} actual={canonical_repository}"
         )
     for func, label in (
         (install_desktop_path, "desktop path installer"),
@@ -515,11 +541,17 @@ def _verify_local_with_remote_policy_base(args: Any, shell: Any, impl: Any) -> i
 
     token = os.environ.get(args.github_token_env) or None
     client = base.GitHubClient(token)
+    _require_push_activation_ancestry(
+        client,
+        canonical_repository,
+        policy_base_sha,
+        baseline_check_sha,
+    )
     candidate = base.LocalRepositoryView(Path(args.root))
-    policy_base = base.RemoteRepositoryView(canonical_repository, comparison_sha, client)
+    policy_base = base.RemoteRepositoryView(canonical_repository, policy_base_sha, client)
     stage = _verify_with_policy_base(shell, candidate, policy_base)
     try:
-        verify_remote_baseline(client, comparison_sha)
+        verify_remote_baseline(client, baseline_check_sha)
         print_success(stage, "LOCAL_CHECKOUT")
     except TypeError as exc:
         base.fail(f"Pictorial/Agile contract repair-v5 trusted-base local topology is malformed: {exc}")
@@ -651,6 +683,57 @@ def _selftest_policy_base_forwarding() -> None:
         base.fail("Pictorial/Agile contract repair-v5 policy-base forwarding selftest drifted")
 
 
+def _selftest_activation_sha_split() -> None:
+    class Args:
+        pr_base_sha = "b" * 40
+
+    previous = os.environ.get(POLICY_BASE_SHA_ENV)
+    os.environ[POLICY_BASE_SHA_ENV] = "a" * 40
+    try:
+        policy_base_sha, baseline_check_sha = _activation_shas(Args())
+    finally:
+        if previous is None:
+            os.environ.pop(POLICY_BASE_SHA_ENV, None)
+        else:
+            os.environ[POLICY_BASE_SHA_ENV] = previous
+
+    if policy_base_sha != "a" * 40 or baseline_check_sha != "b" * 40:
+        base.fail("Pictorial/Agile contract repair-v5 activation SHA split drifted")
+
+    class ProbeClient:
+        def __init__(self, status: str) -> None:
+            self.status = status
+            self.url = ""
+
+        def json(self, url: str) -> dict[str, str]:
+            self.url = url
+            return {"status": self.status}
+
+    probe = ProbeClient("ahead")
+    _require_push_activation_ancestry(
+        probe,
+        base.REPOSITORY,
+        "a" * 40,
+        "b" * 40,
+    )
+    expected_url = (
+        f"https://api.github.com/repos/{base.REPOSITORY}/compare/"
+        f"{'a' * 40}...{'b' * 40}"
+    )
+    if probe.url != expected_url:
+        base.fail("Pictorial/Agile contract repair-v5 activation ancestry URL drifted")
+
+    base.expect_failure_matching(
+        "contract repair-v5 rewritten-history rejection",
+        "pushed head is not a descendant",
+        _require_push_activation_ancestry,
+        ProbeClient("diverged"),
+        base.REPOSITORY,
+        "a" * 40,
+        "b" * 40,
+    )
+
+
 def _selftest_identity_drift() -> None:
     original_prior_print_success = prior._print_success
     prior._print_success = lambda stage, mode: None
@@ -685,6 +768,7 @@ def selftest() -> None:
     _selftest_workflows()
     _selftest_deltas()
     _selftest_policy_base_forwarding()
+    _selftest_activation_sha_split()
     _selftest_identity_drift()
 
     if REJECTED_TARGET_GIT_BLOB_SHA1 == TARGET_GIT_BLOB_SHA1:

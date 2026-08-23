@@ -52,11 +52,6 @@ MODEL_WEIGHT_ACCESS = "NONE"
 MODEL_INFERENCE = "NONE"
 POLICY_BASE_SHA_ENV = "WEPLD_POLICY_BASE_SHA"
 MAX_COMPARE_READ_ATTEMPTS = 3
-TRANSIENT_GITHUB_HTTP_ERRORS = (
-    "HTTP Error 502:",
-    "HTTP Error 503:",
-    "HTTP Error 504:",
-)
 
 
 def _git_blob_sha1(data: bytes) -> str:
@@ -512,9 +507,14 @@ def _compare_url(
 def _is_transient_compare_failure(exc: base.PolicyError, url: str) -> bool:
     text = str(exc)
     prefix = f"GitHub API request failed for {url}:"
-    return text.startswith(prefix) and any(
-        marker in text for marker in TRANSIENT_GITHUB_HTTP_ERRORS
-    )
+    if not text.startswith(prefix):
+        return False
+    detail = text[len(prefix):].lstrip()
+    http_marker = "HTTP Error "
+    if not detail.startswith(http_marker):
+        return True
+    code_text = detail[len(http_marker):len(http_marker) + 3]
+    return code_text.isdigit() and 500 <= int(code_text) <= 599
 
 
 def _read_compare_with_bounded_retry(client: Any, url: str) -> dict[str, Any]:
@@ -843,6 +843,30 @@ def _selftest_activation_sha_split() -> None:
     )
     if transient.url != expected_url or transient.calls != MAX_COMPARE_READ_ATTEMPTS:
         base.fail("Pictorial/Agile contract repair-v5 transient compare retry drifted")
+
+    class NetworkTransientProbeClient:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def json(self, url: str) -> dict[str, str]:
+            self.calls += 1
+            if self.calls < MAX_COMPARE_READ_ATTEMPTS:
+                raise base.PolicyError(
+                    f"GitHub API request failed for {url}: timed out"
+                )
+            return {"status": "ahead"}
+
+    network_transient = NetworkTransientProbeClient()
+    _require_push_activation_ancestry(
+        network_transient,
+        base.REPOSITORY,
+        "a" * 40,
+        "b" * 40,
+    )
+    if network_transient.calls != MAX_COMPARE_READ_ATTEMPTS:
+        base.fail(
+            "Pictorial/Agile contract repair-v5 non-HTTP transient compare retry drifted"
+        )
 
     class PermanentProbeClient:
         def __init__(self) -> None:

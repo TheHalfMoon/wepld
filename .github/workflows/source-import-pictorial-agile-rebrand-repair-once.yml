@@ -4,6 +4,7 @@ on:
   pull_request:
     types: [synchronize]
     paths:
+      - "docs/acquisition/tools/restore_source_map_missing_outputs.py"
       - "docs/acquisition/tools/repair_pictorial_agile_rebrand.py"
       - "docs/acquisition/tools/repair_pictorial_agile_rebrand_stdlib.py"
       - ".github/workflows/source-import-pictorial-agile-rebrand-repair-once.yml"
@@ -29,7 +30,7 @@ jobs:
         run: |
           set -euo pipefail
           test "${{ github.event.pull_request.base.sha }}" = "2ab2fae14bc3b3b1f1e9bc2059972456955aeff7"
-          test "$(git rev-parse HEAD^)" = "61a6739a785e7ad430753d34f59ff855d86e3722"
+          test "$(git rev-parse HEAD^)" = "f2ee5033ddf571bf0fbeeceddb1c38f8f716a2ff"
           live_main="$(git ls-remote origin refs/heads/main | cut -f1)"
           test "$live_main" = "2ab2fae14bc3b3b1f1e9bc2059972456955aeff7"
           test -f docs/acquisition/WEPLD_PICTORIAL_AGILE_FULL_DONOR_IMPORT_REBRAND_CONTRACT_2026-08-22.md
@@ -37,6 +38,15 @@ jobs:
           test -f docs/acquisition/source-maps/agile-source-map-2026-08-23.jsonl
           test -d vendor/pictorial
           test -d vendor/agile
+
+      - name: Restore any source-map outputs omitted by imported ignore rules
+        shell: bash
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          set -euo pipefail
+          python3 -m py_compile docs/acquisition/tools/restore_source_map_missing_outputs.py
+          python3 docs/acquisition/tools/restore_source_map_missing_outputs.py
 
       - name: Run fail-closed dependency-free rebrand repair
         shell: bash
@@ -48,22 +58,14 @@ jobs:
           python3 -m py_compile docs/acquisition/tools/repair_pictorial_agile_rebrand_stdlib.py
           python3 docs/acquisition/tools/repair_pictorial_agile_rebrand_stdlib.py
 
-      - name: Prove mutation confinement and remove one-shot workflow
+      - name: Force-stage mapped vendor outputs and remove one-shot workflow
         shell: bash
         run: |
           set -euo pipefail
-          changed="$(git status --short | sed -E 's/^.. //' || true)"
-          if [ -n "$changed" ]; then
-            while IFS= read -r p; do
-              case "$p" in
-                vendor/pictorial/*|vendor/agile/*|legal/third-party/*|docs/acquisition/*) ;;
-                *) echo "FAIL_CLOSED_UNEXPECTED_REPAIR_PATH=$p" >&2; exit 1 ;;
-              esac
-            done <<< "$changed"
-          fi
           rm .github/workflows/source-import-pictorial-agile-rebrand-repair-once.yml
-          git add -A vendor/pictorial vendor/agile legal/third-party docs/acquisition
-          git add -A .github/workflows/source-import-pictorial-agile-rebrand-repair-once.yml
+          git add -f -A -- vendor/pictorial vendor/agile
+          git add -A -- legal/third-party docs/acquisition .github/workflows/source-import-pictorial-agile-rebrand-repair-once.yml
+
           staged="$(git diff --cached --name-only)"
           test -n "$staged"
           while IFS= read -r p; do
@@ -72,15 +74,106 @@ jobs:
               *) echo "FAIL_CLOSED_UNEXPECTED_STAGED_PATH=$p" >&2; exit 1 ;;
             esac
           done <<< "$staged"
+
           test ! -e .github/workflows/source-import-pictorial-agile-rebrand-repair-once.yml
+          test -z "$(git diff --name-only)"
+          test -z "$(git ls-files --others --exclude-standard)"
+
+      - name: Prove Git index exact-set and object identity against source maps
+        shell: bash
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+
+          raw = subprocess.check_output(["git", "ls-files", "-s", "-z"])
+          index = {}
+          for rec in raw.split(b"\0"):
+              if not rec:
+                  continue
+              meta, path_b = rec.split(b"\t", 1)
+              mode_b, sha_b, stage_b = meta.split()
+              if stage_b != b"0":
+                  raise SystemExit(f"FAIL_CLOSED_NONZERO_INDEX_STAGE={path_b!r}")
+              path = path_b.decode("utf-8", "surrogateescape")
+              index[path] = (mode_b.decode(), sha_b.decode())
+
+          summary = {}
+          for slug, expected_count in (("pictorial", 3267), ("agile", 545)):
+              mp = Path(f"docs/acquisition/source-maps/{slug}-source-map-2026-08-23.jsonl")
+              rows = [json.loads(line) for line in mp.read_text().splitlines() if line]
+              if len(rows) != expected_count:
+                  raise SystemExit(f"FAIL_CLOSED_SOURCE_MAP_COUNT_{slug.upper()}={len(rows)}")
+
+              expected_vendor = set()
+              missing = []
+              mismatch = []
+              for row in rows:
+                  if row["import_disposition"] == "excluded":
+                      if row["wepld_path"] is not None or row["wepld_object_sha"] is not None:
+                          raise SystemExit(f"FAIL_CLOSED_MALFORMED_EXCLUSION={row['upstream_path']}")
+                      continue
+                  path = row["wepld_path"]
+                  if path.startswith(f"vendor/{slug}/"):
+                      expected_vendor.add(path)
+                  actual = index.get(path)
+                  expected = (row["upstream_git_mode"], row["wepld_object_sha"])
+                  if actual is None:
+                      missing.append(path)
+                  elif actual != expected:
+                      mismatch.append({"path": path, "expected": expected, "actual": actual})
+
+              actual_vendor = {p for p in index if p.startswith(f"vendor/{slug}/")}
+              extras = sorted(actual_vendor - expected_vendor)
+              omissions = sorted(expected_vendor - actual_vendor)
+              if missing or mismatch or extras or omissions:
+                  raise SystemExit(json.dumps({
+                      "status": "FAIL_CLOSED_INDEX_SOURCE_MAP_MISMATCH",
+                      "component": slug,
+                      "missing": missing[:50],
+                      "mismatch": mismatch[:50],
+                      "vendor_extras": extras[:50],
+                      "vendor_omissions": omissions[:50],
+                  }, sort_keys=True))
+              summary[slug] = {
+                  "source_map_records": len(rows),
+                  "mapped_vendor_paths": len(expected_vendor),
+                  "index_exact_set": True,
+                  "index_object_identity": True,
+              }
+
+          evidence = {
+              "status": "PASS",
+              "head_under_validation": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+              "source_map_to_git_index": summary,
+              "dependency_admission": "NONE",
+              "dependencies_installed": False,
+              "donor_workflow_execution": "NONE",
+          }
+          Path("docs/acquisition/WEPLD_PICTORIAL_AGILE_INDEX_EXACT_SET_EVIDENCE_2026-08-23.json").write_text(
+              json.dumps(evidence, indent=2, sort_keys=True) + "\n"
+          )
+          print(json.dumps(evidence, sort_keys=True))
+          PY
+
+          # Evidence file was produced after the first staging pass; stage and then
+          # prove it did not change any source-map-controlled vendor object.
+          git add -- docs/acquisition/WEPLD_PICTORIAL_AGILE_INDEX_EXACT_SET_EVIDENCE_2026-08-23.json
+          test -z "$(git diff --name-only)"
 
       - name: Commit source-import rebrand repair with race check
         shell: bash
         run: |
           set -euo pipefail
+          live_main="$(git ls-remote origin refs/heads/main | cut -f1)"
+          test "$live_main" = "2ab2fae14bc3b3b1f1e9bc2059972456955aeff7"
           remote_head="$(git ls-remote origin "refs/heads/${{ github.head_ref }}" | cut -f1)"
           test "$remote_head" = "${{ github.event.pull_request.head.sha }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "fix(acquisition): reconcile Pictorial and Agile rebrand findings"
+          git commit -m "fix(acquisition): reconcile committed source-map and rebrand findings"
           git push origin "HEAD:${{ github.head_ref }}"

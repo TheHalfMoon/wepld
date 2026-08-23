@@ -34,7 +34,7 @@ jobs:
           test "$(git merge-base "${EXPECTED_MAIN}" HEAD)" = "${EXPECTED_MAIN}"
           test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "${EXPECTED_MAIN}"
 
-      - name: Repair known notice collision and import pinned snapshots
+      - name: Repair known rebrand edge cases and import pinned snapshots
         run: |
           set -euo pipefail
           cd repo
@@ -42,11 +42,30 @@ jobs:
           from pathlib import Path
           path = Path("docs/acquisition/tools/import_pictorial_agile_source_snapshot.py")
           text = path.read_text(encoding="utf-8")
-          old = "integration from pinned pbakaus/impeccable source."
-          new = "integration from the pinned upstream source."
-          if text.count(old) != 1:
+
+          old_notice = "integration from pinned pbakaus/impeccable source."
+          new_notice = "integration from the pinned upstream source."
+          if text.count(old_notice) != 1:
               raise SystemExit("FAIL_CLOSED_EXPECTED_NOTICE_LITERAL_NOT_UNIQUE")
-          path.write_text(text.replace(old, new), encoding="utf-8")
+          text = text.replace(old_notice, new_notice)
+
+          old_path_tail = '''    for a, b in (\n        (".specify", ".agile"),\n'''
+          if text.count(old_path_tail) != 1:
+              raise SystemExit("FAIL_CLOSED_AGILE_PATH_TRANSFORM_ANCHOR")
+
+          path_return_anchor = '''        ("SPECKIT", "AGILE"), ("Speckit", "Agile"), ("speckit", "agile"),\n    ):\n        path = path.replace(a, b)\n    return path\n\n\ndef tmap'''
+          path_return_replacement = '''        ("SPECKIT", "AGILE"), ("Speckit", "Agile"), ("speckit", "agile"),\n    ):\n        path = path.replace(a, b)\n    path = re.sub(r"(?i)spec(?:[-_]|\\s)+kit", "agile", path)\n    path = re.sub(r"(?i)speckit", "agile", path)\n    path = re.sub(r"(?i)specify(?:[-_]|\\s)+cli", "wepld-agile", path)\n    return path\n\n\ndef tmap'''
+          if text.count(path_return_anchor) != 1:
+              raise SystemExit("FAIL_CLOSED_AGILE_PATH_RETURN_ANCHOR")
+          text = text.replace(path_return_anchor, path_return_replacement)
+
+          text_return_anchor = '''            "agile", text,\n        )\n    return text\n\n\ndef apache_notice'''
+          text_return_replacement = '''            "agile", text,\n        )\n        text = re.sub(r"(?i)spec(?:[-_]|\\s)+kit", "Agile", text)\n        text = re.sub(r"(?i)speckit", "Agile", text)\n        text = re.sub(r"(?i)specify(?:[-_]|\\s)+cli", "wepld-agile", text)\n    return text\n\n\ndef apache_notice'''
+          if text.count(text_return_anchor) != 1:
+              raise SystemExit("FAIL_CLOSED_AGILE_TEXT_RETURN_ANCHOR")
+          text = text.replace(text_return_anchor, text_return_replacement)
+
+          path.write_text(text, encoding="utf-8")
           PY
           python3 docs/acquisition/tools/import_pictorial_agile_source_snapshot.py
 

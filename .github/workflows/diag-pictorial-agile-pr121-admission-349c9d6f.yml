@@ -10,17 +10,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Locate exact PR121 trusted admission run by immutable head_sha
+      - name: Locate exact canonical Foundation push runs
         shell: bash
         run: |
           set -euo pipefail
-          target_pr=121
-          target_head='27922812bc0655b4c2979f0dca11bacc51be2245'
-          api='https://api.github.com/repos/TheHalfMoon/wepld/actions/runs?event=pull_request_target&per_page=100'
+          api='https://api.github.com/repos/TheHalfMoon/wepld/actions/runs?event=push&per_page=100'
           data="$(curl --fail --silent --show-error --location --retry 3 --retry-delay 2 --retry-all-errors "$api")"
-          matches="$(printf '%s' "$data" | jq -c --argjson pr "$target_pr" --arg head "$target_head" '[.workflow_runs[] | select(.head_sha == $head and .name == "s1-admission-integrity" and any(.pull_requests[]?; .number == $pr))]')"
-          count="$(printf '%s' "$matches" | jq 'length')"
-          echo "MATCH_COUNT=$count"
-          printf '%s' "$matches" | jq -r '.[] | "RUN_ID=\(.id) RUN_NUMBER=\(.run_number) WORKFLOW=\(.name) EVENT=\(.event) STATUS=\(.status) CONCLUSION=\(.conclusion // "null") IMMUTABLE_HEAD_SHA=\(.head_sha // "") PR_NUMBER=\(.pull_requests[0].number // 0) BASE_SHA=\(.pull_requests[0].base.sha // "")"'
-          test "$count" -ge 1
+          for target_head in \
+            'f96f0ede324ebe95e81b7525279603e8a5e40ac8' \
+            '871e509a45c2c7701b2d2f24e16230a1b97ba426'
+          do
+            matches="$(printf '%s' "$data" | jq -c --arg head "$target_head" '[.workflow_runs[] | select(.head_sha == $head and .name == "foundation-integrity" and .event == "push")]')"
+            count="$(printf '%s' "$matches" | jq 'length')"
+            echo "TARGET_HEAD=$target_head MATCH_COUNT=$count"
+            printf '%s' "$matches" | jq -r '.[] | "RUN_ID=\(.id) RUN_NUMBER=\(.run_number) WORKFLOW=\(.name) EVENT=\(.event) STATUS=\(.status) CONCLUSION=\(.conclusion // "null") HEAD_SHA=\(.head_sha // "") HEAD_BRANCH=\(.head_branch // "")"'
+            test "$count" -eq 1
+          done
           echo 'MERGE=NEVER'

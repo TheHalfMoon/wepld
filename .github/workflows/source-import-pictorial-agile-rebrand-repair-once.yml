@@ -1,0 +1,97 @@
+name: one-shot Pictorial Agile rebrand repair
+
+on:
+  pull_request:
+    types: [synchronize]
+    paths:
+      - "docs/acquisition/tools/repair_pictorial_agile_rebrand.py"
+      - ".github/workflows/source-import-pictorial-agile-rebrand-repair-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: >-
+      github.event.pull_request.number == 136 &&
+      github.head_ref == 'import/pictorial-agile-full-source-snapshot-2026-08-23'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact source-import candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+
+      - name: Prove exact bootstrap and canonical main
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.base.sha }}" = "2ab2fae14bc3b3b1f1e9bc2059972456955aeff7"
+          test "$(git rev-parse HEAD^)" = "832ad7675a2c5632a7798962c50d9361de70c4fb"
+          live_main="$(git ls-remote origin refs/heads/main | cut -f1)"
+          test "$live_main" = "2ab2fae14bc3b3b1f1e9bc2059972456955aeff7"
+          test -f docs/acquisition/WEPLD_PICTORIAL_AGILE_FULL_DONOR_IMPORT_REBRAND_CONTRACT_2026-08-22.md
+          test -f docs/acquisition/source-maps/pictorial-source-map-2026-08-23.jsonl
+          test -f docs/acquisition/source-maps/agile-source-map-2026-08-23.jsonl
+          test -d vendor/pictorial
+          test -d vendor/agile
+
+      - name: Verify local-only visual renderer is already present
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v magick >/dev/null 2>&1; then
+            magick -version | head -n 2
+          elif command -v convert >/dev/null 2>&1; then
+            convert -version | head -n 2
+          else
+            echo "FAIL_CLOSED_IMAGEMAGICK_HOST_TOOL_NOT_AVAILABLE" >&2
+            exit 1
+          fi
+
+      - name: Run fail-closed deterministic rebrand repair
+        shell: bash
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          set -euo pipefail
+          python3 -m py_compile docs/acquisition/tools/repair_pictorial_agile_rebrand.py
+          python3 docs/acquisition/tools/repair_pictorial_agile_rebrand.py
+
+      - name: Prove mutation confinement and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed="$(git status --short | sed -E 's/^.. //' || true)"
+          if [ -n "$changed" ]; then
+            while IFS= read -r p; do
+              case "$p" in
+                vendor/pictorial/*|vendor/agile/*|legal/third-party/*|docs/acquisition/*) ;;
+                *) echo "FAIL_CLOSED_UNEXPECTED_REPAIR_PATH=$p" >&2; exit 1 ;;
+              esac
+            done <<< "$changed"
+          fi
+          rm .github/workflows/source-import-pictorial-agile-rebrand-repair-once.yml
+          git add -A vendor/pictorial vendor/agile legal/third-party docs/acquisition
+          git add -A .github/workflows/source-import-pictorial-agile-rebrand-repair-once.yml
+          staged="$(git diff --cached --name-only)"
+          test -n "$staged"
+          while IFS= read -r p; do
+            case "$p" in
+              vendor/pictorial/*|vendor/agile/*|legal/third-party/*|docs/acquisition/*|.github/workflows/source-import-pictorial-agile-rebrand-repair-once.yml) ;;
+              *) echo "FAIL_CLOSED_UNEXPECTED_STAGED_PATH=$p" >&2; exit 1 ;;
+            esac
+          done <<< "$staged"
+          test ! -e .github/workflows/source-import-pictorial-agile-rebrand-repair-once.yml
+
+      - name: Commit source-import rebrand repair with race check
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_head="$(git ls-remote origin "refs/heads/${{ github.head_ref }}" | cut -f1)"
+          test "$remote_head" = "${{ github.event.pull_request.head.sha }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(acquisition): reconcile Pictorial and Agile rebrand findings"
+          git push origin "HEAD:${{ github.head_ref }}"

@@ -15,7 +15,7 @@ jobs:
         run: |
           set -euo pipefail
           target_pr=121
-          target_head='c51a46a20277ef5efe5ad61b2c05c574653f28b6'
+          target_head='27922812bc0655b4c2979f0dca11bacc51be2245'
           api='https://api.github.com/repos/TheHalfMoon/wepld/actions/runs?event=pull_request_target&per_page=100'
           data="$(curl --fail --silent --show-error --location --retry 3 --retry-delay 2 --retry-all-errors "$api")"
           matches="$(printf '%s' "$data" | jq -c --argjson pr "$target_pr" --arg head "$target_head" '[.workflow_runs[] | select(.head_sha == $head and .name == "s1-admission-integrity" and any(.pull_requests[]?; .number == $pr))]')"

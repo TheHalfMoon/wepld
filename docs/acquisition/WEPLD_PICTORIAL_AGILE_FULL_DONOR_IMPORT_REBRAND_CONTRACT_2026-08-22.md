@@ -274,13 +274,13 @@ Outside dedicated legal/provenance records and legally required preserved notice
 At minimum inspect for:
 
 ```text
-(?i)\bimpeccable\b
-(?i)\bspec(?:[-_]|\s)+kit\b
-(?i)\bspeckit\b
-(?i)\bspecify(?:[-_]|\s)+cli\b
+(?i)impeccable
+(?i)spec(?:[-_]|\s)+kit
+(?i)speckit
+(?i)specify(?:[-_]|\s)+cli
 ```
 
-The branding gate must include fail-closed negative fixtures proving that user-facing content containing `specify-cli`, `specify_cli`, `specify cli`, `specify  cli`, and a tab-separated `specify<TAB>cli` is rejected. It must also include whitespace-variant fixtures for the `Spec Kit` family (including multi-space and tab-separated forms), in addition to coverage for the other prohibited upstream product identities above. Legal/provenance fixtures are the explicit exception and must prove that mandatory attribution remains allowed there.
+The branding gate must include fail-closed negative fixtures proving that user-facing content containing `specify-cli`, `specify_cli`, `specify cli`, `specify  cli`, a tab-separated `specify<TAB>cli`, `specify_cli_adapter`, `speckit2`, `speckit_extension`, and `spec-kit2` is rejected. It must also include whitespace-variant fixtures for the `Spec Kit` family (including multi-space and tab-separated forms), in addition to embedded/prefix/suffix coverage for the other prohibited upstream product identities above. Legal/provenance fixtures are the explicit exception and must prove that mandatory attribution remains allowed there.
 
 Pictorial and Agile names must be used consistently in UX, CLI, help, errors, templates, generated project content, docs, settings, and capability discovery.
 

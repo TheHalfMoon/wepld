@@ -34,10 +34,20 @@ jobs:
           test "$(git merge-base "${EXPECTED_MAIN}" HEAD)" = "${EXPECTED_MAIN}"
           test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "${EXPECTED_MAIN}"
 
-      - name: Import pinned source snapshots without donor execution
+      - name: Repair known notice collision and import pinned snapshots
         run: |
           set -euo pipefail
           cd repo
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("docs/acquisition/tools/import_pictorial_agile_source_snapshot.py")
+          text = path.read_text(encoding="utf-8")
+          old = "integration from pinned pbakaus/impeccable source."
+          new = "integration from the pinned upstream source."
+          if text.count(old) != 1:
+              raise SystemExit("FAIL_CLOSED_EXPECTED_NOTICE_LITERAL_NOT_UNIQUE")
+          path.write_text(text.replace(old, new), encoding="utf-8")
+          PY
           python3 docs/acquisition/tools/import_pictorial_agile_source_snapshot.py
 
       - name: Commit source-only candidate and remove one-shot workflow
@@ -54,7 +64,7 @@ jobs:
 
           while IFS= read -r path; do
             case "$path" in
-              vendor/pictorial/*|vendor/agile/*|legal/third-party/PICTORIAL_*|legal/third-party/AGILE_*|docs/acquisition/source-maps/*|docs/acquisition/WEPLD_PICTORIAL_AGILE_SOURCE_IMPORT_REPORT_2026-08-23.md|docs/acquisition/WEPLD_PICTORIAL_AGILE_SOURCE_IMPORT_SURFACE_INVENTORY_2026-08-23.json|.github/workflows/source-import-pictorial-agile-once.yml)
+              vendor/pictorial/*|vendor/agile/*|legal/third-party/PICTORIAL_*|legal/third-party/AGILE_*|docs/acquisition/source-maps/*|docs/acquisition/WEPLD_PICTORIAL_AGILE_SOURCE_IMPORT_REPORT_2026-08-23.md|docs/acquisition/WEPLD_PICTORIAL_AGILE_SOURCE_IMPORT_SURFACE_INVENTORY_2026-08-23.json|docs/acquisition/tools/import_pictorial_agile_source_snapshot.py|.github/workflows/source-import-pictorial-agile-once.yml)
                 ;;
               *)
                 echo "FAIL_CLOSED_UNEXPECTED_CHANGED_PATH=${path}"

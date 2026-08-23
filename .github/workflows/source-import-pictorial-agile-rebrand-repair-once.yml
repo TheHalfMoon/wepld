@@ -5,6 +5,7 @@ on:
     types: [synchronize]
     paths:
       - "docs/acquisition/tools/repair_pictorial_agile_rebrand.py"
+      - "docs/acquisition/tools/repair_pictorial_agile_rebrand_stdlib.py"
       - ".github/workflows/source-import-pictorial-agile-rebrand-repair-once.yml"
 
 permissions:
@@ -28,7 +29,7 @@ jobs:
         run: |
           set -euo pipefail
           test "${{ github.event.pull_request.base.sha }}" = "2ab2fae14bc3b3b1f1e9bc2059972456955aeff7"
-          test "$(git rev-parse HEAD^)" = "832ad7675a2c5632a7798962c50d9361de70c4fb"
+          test "$(git rev-parse HEAD^)" = "61a6739a785e7ad430753d34f59ff855d86e3722"
           live_main="$(git ls-remote origin refs/heads/main | cut -f1)"
           test "$live_main" = "2ab2fae14bc3b3b1f1e9bc2059972456955aeff7"
           test -f docs/acquisition/WEPLD_PICTORIAL_AGILE_FULL_DONOR_IMPORT_REBRAND_CONTRACT_2026-08-22.md
@@ -37,27 +38,15 @@ jobs:
           test -d vendor/pictorial
           test -d vendor/agile
 
-      - name: Verify local-only visual renderer is already present
-        shell: bash
-        run: |
-          set -euo pipefail
-          if command -v magick >/dev/null 2>&1; then
-            magick -version | head -n 2
-          elif command -v convert >/dev/null 2>&1; then
-            convert -version | head -n 2
-          else
-            echo "FAIL_CLOSED_IMAGEMAGICK_HOST_TOOL_NOT_AVAILABLE" >&2
-            exit 1
-          fi
-
-      - name: Run fail-closed deterministic rebrand repair
+      - name: Run fail-closed dependency-free rebrand repair
         shell: bash
         env:
           PYTHONDONTWRITEBYTECODE: "1"
         run: |
           set -euo pipefail
           python3 -m py_compile docs/acquisition/tools/repair_pictorial_agile_rebrand.py
-          python3 docs/acquisition/tools/repair_pictorial_agile_rebrand.py
+          python3 -m py_compile docs/acquisition/tools/repair_pictorial_agile_rebrand_stdlib.py
+          python3 docs/acquisition/tools/repair_pictorial_agile_rebrand_stdlib.py
 
       - name: Prove mutation confinement and remove one-shot workflow
         shell: bash

@@ -23,6 +23,6 @@ describe('skill detector bundle', () => {
     const critique = fs.readFileSync(path.join(ROOT, 'skill/reference/critique.md'), 'utf-8');
 
     expect(critique).toContain('node {{scripts_path}}/detect.mjs --json [target]');
-    expect(critique).not.toContain('npx pictorial detect');
+    expect(critique).not.toContain('npx @wepld/pictorial detect');
   });
 });

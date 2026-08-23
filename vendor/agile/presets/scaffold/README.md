@@ -8,7 +8,7 @@ A custom preset for Agile. Copy this directory and customize it to create your o
 |----------|------|-------------|
 | `spec-template` | template | Custom feature specification template (overrides core and extensions) |
 | `myext-template` | template | Override of the myext extension's report template |
-| `agile.agile` | command | Custom specification command (overrides core) |
+| `agile.specify` | command | Custom specification command (overrides core) |
 | `agile.myext.myextcmd` | command | Override of the myext extension's myextcmd command |
 
 ## Development
@@ -16,9 +16,9 @@ A custom preset for Agile. Copy this directory and customize it to create your o
 1. Copy this directory: `cp -r presets/scaffold my-preset`
 2. Edit `preset.yml` — set your preset's ID, name, description, and templates
 3. Add or modify templates in `templates/`
-4. Test locally: `specify preset add --dev ./my-preset`
-5. Verify resolution: `specify preset resolve spec-template`
-6. Remove when done testing: `specify preset remove my-preset`
+4. Test locally: `agile preset add --dev ./my-preset`
+5. Verify resolution: `agile preset resolve spec-template`
+6. Remove when done testing: `agile preset remove my-preset`
 
 ## Manifest Reference (`preset.yml`)
 
@@ -34,7 +34,7 @@ Required fields:
 ## Template Types
 
 - **template** — Document scaffolds (spec-template.md, plan-template.md, tasks-template.md, etc.)
-- **command** — AI agent workflow prompts (e.g. agile.agile, agile.plan)
+- **command** — AI agent workflow prompts (e.g. agile.specify, agile.plan)
 - **script** — Custom scripts (reserved for future use)
 
 ## Publishing

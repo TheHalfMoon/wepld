@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 
 from agile_cli import _install_shared_infra
-from agile_cli.shared_infra import SPECIFY_GITIGNORE_CONTENT
+from agile_cli.shared_infra import AGILE_GITIGNORE_CONTENT
 
 
 def _install(project: Path, **kwargs) -> None:
@@ -100,4 +100,4 @@ def test_force_restores_managed_content(tmp_path: Path) -> None:
     gitignore.write_text("# my customization\n", encoding="utf-8")
 
     _install(project, force=True)
-    assert gitignore.read_text(encoding="utf-8") == SPECIFY_GITIGNORE_CONTENT
+    assert gitignore.read_text(encoding="utf-8") == AGILE_GITIGNORE_CONTENT

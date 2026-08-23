@@ -424,7 +424,7 @@ def check():
     if not any(agent_results.values()):
         console.print("[dim]Tip: Install a coding agent for the best experience[/dim]")
 
-    console.print("[dim]Tip: Run 'specify self check' to verify you have the latest CLI version[/dim]")
+    console.print("[dim]Tip: Run 'agile self check' to verify you have the latest CLI version[/dim]")
 
 
 def _feature_capabilities() -> dict[str, bool]:
@@ -532,7 +532,7 @@ from ._project import _resolve_init_dir_override as _resolve_init_dir_override  
 def _require_specify_project() -> Path:
     """Return the project root if it is a agile project, else exit.
 
-    Honors the ``SPECIFY_INIT_DIR`` override (same validation rules as the shell
+    Honors the ``AGILE_INIT_DIR`` override (same validation rules as the shell
     scripts) so a member project can be targeted from a monorepo root without
     ``cd``. This is the resolution chokepoint for *every* project-scoped
     subcommand — ``integration``, ``extension``, ``workflow``, ``preset``, and the
@@ -548,7 +548,7 @@ def _require_specify_project() -> Path:
         return project_root
     err_console.print("[red]Error:[/red] Not a Agile project (no .agile/ directory)")
     err_console.print(
-        "Run this command from a Agile project root or set SPECIFY_INIT_DIR to one."
+        "Run this command from a Agile project root or set AGILE_INIT_DIR to one."
     )
     raise typer.Exit(1)
 

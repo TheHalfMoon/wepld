@@ -1,4 +1,4 @@
-"""Installer execution, verification, and error-path tests for `specify self upgrade`."""
+"""Installer execution, verification, and error-path tests for `agile self upgrade`."""
 
 import errno
 import subprocess
@@ -434,7 +434,7 @@ class TestInstallerFailed:
     def test_installer_timeout_prints_timeout_specific_message(
         self, uv_tool_argv0, clean_environ, monkeypatch
     ):
-        monkeypatch.setenv("SPECIFY_UPGRADE_TIMEOUT_SECS", "12")
+        monkeypatch.setenv("AGILE_UPGRADE_TIMEOUT_SECS", "12")
         with patch("agile_cli.authentication.http.urllib.request.urlopen") as mock_urlopen, patch(
             "agile_cli._version.shutil.which", return_value="uv"
         ), patch("agile_cli._version.subprocess.run") as mock_run, patch(
@@ -448,12 +448,12 @@ class TestInstallerFailed:
         assert result.exit_code == 124
         out = strip_ansi(result.output)
         assert "Upgrade timed out while waiting for the installer subprocess." in out
-        assert "SPECIFY_UPGRADE_TIMEOUT_SECS=12" in out
+        assert "AGILE_UPGRADE_TIMEOUT_SECS=12" in out
 
     def test_non_finite_timeout_warns_and_runs_without_timeout(
         self, uv_tool_argv0, clean_environ, monkeypatch
     ):
-        monkeypatch.setenv("SPECIFY_UPGRADE_TIMEOUT_SECS", "nan")
+        monkeypatch.setenv("AGILE_UPGRADE_TIMEOUT_SECS", "nan")
         with patch("agile_cli.authentication.http.urllib.request.urlopen") as mock_urlopen, patch(
             "agile_cli._version.shutil.which", return_value="uv"
         ), patch("agile_cli._version.subprocess.run") as mock_run, patch(
@@ -467,7 +467,7 @@ class TestInstallerFailed:
             result = runner.invoke(app, ["self", "upgrade"])
 
         assert result.exit_code == 0
-        assert "Ignoring invalid SPECIFY_UPGRADE_TIMEOUT_SECS='nan'" in strip_ansi(
+        assert "Ignoring invalid AGILE_UPGRADE_TIMEOUT_SECS='nan'" in strip_ansi(
             result.output
         )
         assert mock_run.call_args_list[0].kwargs["timeout"] is None

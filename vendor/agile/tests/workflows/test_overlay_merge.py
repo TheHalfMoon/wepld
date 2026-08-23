@@ -19,7 +19,7 @@ from agile_cli.workflows.overlays.schema import Overlay, OverlayEdit
 
 def _step(id: str, **kwargs: Any) -> dict[str, Any]:  # noqa: A002
     """Build a minimal step dict with the given id."""
-    return {"id": id, "type": "command", "command": "agile.agile", **kwargs}
+    return {"id": id, "type": "command", "command": "agile.specify", **kwargs}
 
 
 def _layer(overlay: Overlay, source: str) -> OverlayLayer:

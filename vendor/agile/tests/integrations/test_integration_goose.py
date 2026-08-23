@@ -98,20 +98,20 @@ class TestGooseCliDispatch:
 
     def test_build_exec_args_is_not_none(self):
         integration = get_integration("goose")
-        assert integration.build_exec_args("/agile.agile") is not None
+        assert integration.build_exec_args("/agile.specify") is not None
 
     def test_slash_command_maps_to_recipe(self):
         integration = get_integration("goose")
-        args = integration.build_exec_args("/agile.agile", output_json=False)
+        args = integration.build_exec_args("/agile.specify", output_json=False)
         assert args[1] == "run"
         assert "--recipe" in args
-        assert args[args.index("--recipe") + 1] == ".goose/recipes/agile.agile.yaml"
+        assert args[args.index("--recipe") + 1] == ".goose/recipes/agile.specify.yaml"
         # No trailing args -> no --params
         assert "--params" not in args
 
     def test_slash_command_arguments_map_to_params(self):
         integration = get_integration("goose")
-        args = integration.build_exec_args("/agile.agile add auth", output_json=False)
+        args = integration.build_exec_args("/agile.specify add auth", output_json=False)
         assert args[args.index("--params") + 1] == "args=add auth"
 
     def test_dotted_extension_command_maps_to_recipe(self):
@@ -178,6 +178,6 @@ class TestGooseCliDispatch:
         created = integration.setup(tmp_path, manifest, script_type="sh")
         assert created
 
-        args = integration.build_exec_args("/agile.agile hello")
+        args = integration.build_exec_args("/agile.specify hello")
         recipe = args[args.index("--recipe") + 1]
         assert (tmp_path / recipe).is_file(), f"{recipe} was not installed by setup()"

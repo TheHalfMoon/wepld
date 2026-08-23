@@ -46,7 +46,7 @@ def _write_feature_json(
 def _clean_env() -> dict[str, str]:
     env = os.environ.copy()
     for key in list(env):
-        if key.startswith("SPECIFY_"):
+        if key.startswith("AGILE_"):
             env.pop(key)
     return env
 
@@ -100,13 +100,13 @@ def test_paths_only_succeeds_on_non_spec_branch(prereq_repo: Path) -> None:
 
 @requires_bash
 def test_paths_only_succeeds_on_spec_branch(prereq_repo: Path) -> None:
-    """--paths-only must also work when feature.json and SPECIFY_FEATURE agree."""
+    """--paths-only must also work when feature.json and AGILE_FEATURE agree."""
     feat = prereq_repo / "specs" / "001-my-feature"
     feat.mkdir(parents=True, exist_ok=True)
     _write_feature_json(prereq_repo)
     script = prereq_repo / ".agile" / "scripts" / "bash" / "check-prerequisites.sh"
     env = _clean_env()
-    env["SPECIFY_FEATURE"] = "001-my-feature"
+    env["AGILE_FEATURE"] = "001-my-feature"
     result = subprocess.run(
         ["bash", str(script), "--json", "--paths-only"],
         cwd=prereq_repo,
@@ -134,16 +134,16 @@ def test_paths_only_succeeds_on_spec_branch(prereq_repo: Path) -> None:
 def test_current_branch_falls_back_to_feature_dir_basename(
     prereq_repo: Path, use_env_var: bool, specify_feature: str | None, expected_branch: str
 ) -> None:
-    """With no SPECIFY_FEATURE, BRANCH falls back to the feature directory
-    basename (from feature.json or SPECIFY_FEATURE_DIRECTORY) instead of being
-    emitted empty. If SPECIFY_FEATURE is set, it remains authoritative (#3026)."""
+    """With no AGILE_FEATURE, BRANCH falls back to the feature directory
+    basename (from feature.json or AGILE_FEATURE_DIRECTORY) instead of being
+    emitted empty. If AGILE_FEATURE is set, it remains authoritative (#3026)."""
     feat = prereq_repo / "specs" / "001-my-feature"
     feat.mkdir(parents=True, exist_ok=True)
     env = _clean_env()
     if specify_feature:
-        env["SPECIFY_FEATURE"] = specify_feature
+        env["AGILE_FEATURE"] = specify_feature
     if use_env_var:
-        env["SPECIFY_FEATURE_DIRECTORY"] = "specs/001-my-feature"
+        env["AGILE_FEATURE_DIRECTORY"] = "specs/001-my-feature"
     else:
         _write_feature_json(prereq_repo)
     script = prereq_repo / ".agile" / "scripts" / "bash" / "check-prerequisites.sh"
@@ -219,7 +219,7 @@ def test_paths_only_does_not_persist_feature_json(prereq_repo: Path) -> None:
 
     script = prereq_repo / ".agile" / "scripts" / "bash" / "check-prerequisites.sh"
     env = _clean_env()
-    env["SPECIFY_FEATURE_DIRECTORY"] = "specs/002-other"
+    env["AGILE_FEATURE_DIRECTORY"] = "specs/002-other"
     result = subprocess.run(
         ["bash", str(script), "--json", "--paths-only"],
         cwd=prereq_repo,
@@ -249,7 +249,7 @@ def test_normal_mode_still_persists_feature_json(prereq_repo: Path) -> None:
 
     script = prereq_repo / ".agile" / "scripts" / "bash" / "check-prerequisites.sh"
     env = _clean_env()
-    env["SPECIFY_FEATURE_DIRECTORY"] = "specs/002-other"
+    env["AGILE_FEATURE_DIRECTORY"] = "specs/002-other"
     result = subprocess.run(
         ["bash", str(script), "--json"],
         cwd=prereq_repo,
@@ -301,16 +301,16 @@ def test_ps_paths_only_succeeds_on_non_spec_branch(prereq_repo: Path) -> None:
 def test_ps_current_branch_falls_back_to_feature_dir_basename(
     prereq_repo: Path, use_env_var: bool, specify_feature: str | None, expected_branch: str
 ) -> None:
-    """With no SPECIFY_FEATURE, BRANCH falls back to the feature directory
-    basename (from feature.json or SPECIFY_FEATURE_DIRECTORY) instead of being
-    emitted empty. If SPECIFY_FEATURE is set, it remains authoritative (#3026)."""
+    """With no AGILE_FEATURE, BRANCH falls back to the feature directory
+    basename (from feature.json or AGILE_FEATURE_DIRECTORY) instead of being
+    emitted empty. If AGILE_FEATURE is set, it remains authoritative (#3026)."""
     feat = prereq_repo / "specs" / "001-my-feature"
     feat.mkdir(parents=True, exist_ok=True)
     env = _clean_env()
     if specify_feature:
-        env["SPECIFY_FEATURE"] = specify_feature
+        env["AGILE_FEATURE"] = specify_feature
     if use_env_var:
-        env["SPECIFY_FEATURE_DIRECTORY"] = "specs/001-my-feature"
+        env["AGILE_FEATURE_DIRECTORY"] = "specs/001-my-feature"
     else:
         _write_feature_json(prereq_repo)
     script = prereq_repo / ".agile" / "scripts" / "powershell" / "check-prerequisites.ps1"
@@ -330,7 +330,7 @@ def test_ps_current_branch_falls_back_to_feature_dir_basename(
 
 @pytest.mark.skipif(not (HAS_PWSH or _WINDOWS_POWERSHELL), reason="no PowerShell available")
 def test_ps_paths_only_succeeds_on_spec_branch(prereq_repo: Path) -> None:
-    """-PathsOnly must also work when feature.json and SPECIFY_FEATURE agree."""
+    """-PathsOnly must also work when feature.json and AGILE_FEATURE agree."""
     subprocess.run(
         ["git", "checkout", "-q", "-b", "001-my-feature"],
         cwd=prereq_repo,
@@ -342,7 +342,7 @@ def test_ps_paths_only_succeeds_on_spec_branch(prereq_repo: Path) -> None:
     script = prereq_repo / ".agile" / "scripts" / "powershell" / "check-prerequisites.ps1"
     exe = "pwsh" if HAS_PWSH else _WINDOWS_POWERSHELL
     env = _clean_env()
-    env["SPECIFY_FEATURE"] = "001-my-feature"
+    env["AGILE_FEATURE"] = "001-my-feature"
     result = subprocess.run(
         [exe, "-NoProfile", "-File", str(script), "-Json", "-PathsOnly"],
         cwd=prereq_repo,
@@ -438,7 +438,7 @@ def test_ps_paths_only_does_not_persist_feature_json(prereq_repo: Path) -> None:
     script = prereq_repo / ".agile" / "scripts" / "powershell" / "check-prerequisites.ps1"
     exe = "pwsh" if HAS_PWSH else _WINDOWS_POWERSHELL
     env = _clean_env()
-    env["SPECIFY_FEATURE_DIRECTORY"] = "specs/002-other"
+    env["AGILE_FEATURE_DIRECTORY"] = "specs/002-other"
     result = subprocess.run(
         [exe, "-NoProfile", "-File", str(script), "-Json", "-PathsOnly"],
         cwd=prereq_repo,
@@ -472,7 +472,7 @@ def test_ps_normal_mode_still_persists_feature_json(prereq_repo: Path) -> None:
     script = prereq_repo / ".agile" / "scripts" / "powershell" / "check-prerequisites.ps1"
     exe = "pwsh" if HAS_PWSH else _WINDOWS_POWERSHELL
     env = _clean_env()
-    env["SPECIFY_FEATURE_DIRECTORY"] = "specs/002-other"
+    env["AGILE_FEATURE_DIRECTORY"] = "specs/002-other"
     result = subprocess.run(
         [exe, "-NoProfile", "-File", str(script), "-Json"],
         cwd=prereq_repo,

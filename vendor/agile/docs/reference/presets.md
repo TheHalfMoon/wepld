@@ -5,7 +5,7 @@ Presets customize how Agile works — overriding templates, commands, and termin
 ## Search Available Presets
 
 ```bash
-specify preset search [query]
+agile preset search [query]
 ```
 
 | Option     | Description          |
@@ -18,7 +18,7 @@ Searches all active catalogs for presets matching the query. Without a query, li
 ## Install a Preset
 
 ```bash
-specify preset add [<preset_id>]
+agile preset add [<preset_id>]
 ```
 
 | Option           | Description                                              |
@@ -34,7 +34,7 @@ Installs a preset from the catalog, a URL, or a local directory. Preset commands
 ## Remove a Preset
 
 ```bash
-specify preset remove <preset_id>
+agile preset remove <preset_id>
 ```
 
 Removes an installed preset and cleans up its registered commands.
@@ -42,7 +42,7 @@ Removes an installed preset and cleans up its registered commands.
 ## List Installed Presets
 
 ```bash
-specify preset list
+agile preset list
 ```
 
 Lists installed presets with their versions, descriptions, template counts, and current status.
@@ -52,7 +52,7 @@ Presets are printed in **resolution/precedence order**: the highest-precedence p
 ## Preset Info
 
 ```bash
-specify preset info <preset_id>
+agile preset info <preset_id>
 ```
 
 Shows detailed information about an installed or available preset, including its templates, metadata, and tags.
@@ -60,7 +60,7 @@ Shows detailed information about an installed or available preset, including its
 ## Resolve a File
 
 ```bash
-specify preset resolve <name>
+agile preset resolve <name>
 ```
 
 Shows which file will be used for a given name by tracing the full resolution stack. Useful for debugging when multiple presets provide the same file.
@@ -68,8 +68,8 @@ Shows which file will be used for a given name by tracing the full resolution st
 ## Enable / Disable a Preset
 
 ```bash
-specify preset enable <preset_id>
-specify preset disable <preset_id>
+agile preset enable <preset_id>
+agile preset disable <preset_id>
 ```
 
 Disable a preset without removing it. Disabled presets are skipped during file resolution but their commands remain registered. Re-enable with `enable`.
@@ -77,7 +77,7 @@ Disable a preset without removing it. Disabled presets are skipped during file r
 ## Set Preset Priority
 
 ```bash
-specify preset set-priority <preset_id> <priority>
+agile preset set-priority <preset_id> <priority>
 ```
 
 Changes the resolution priority of an installed preset. Lower numbers take precedence. When multiple presets provide the same file, the one with the lowest priority number wins.
@@ -89,7 +89,7 @@ Preset catalogs control where `search` and `add` look for presets. Catalogs are 
 ### List Catalogs
 
 ```bash
-specify preset catalog list
+agile preset catalog list
 ```
 
 Shows all active catalogs with their priorities and install permissions.
@@ -97,7 +97,7 @@ Shows all active catalogs with their priorities and install permissions.
 ### Add a Catalog
 
 ```bash
-specify preset catalog add <url>
+agile preset catalog add <url>
 ```
 
 | Option                                       | Description                                        |
@@ -112,7 +112,7 @@ Adds a catalog to the project's `.agile/preset-catalogs.yml`.
 ### Remove a Catalog
 
 ```bash
-specify preset catalog remove <name>
+agile preset catalog remove <name>
 ```
 
 Removes a catalog from the project configuration.
@@ -141,7 +141,7 @@ catalogs:
 
 Presets can provide command files, template files (like `plan-template.md`), and script files. Each file name is evaluated independently against the priority stack, so different files can come from different layers.
 
-Templates and scripts are looked up from the stack when Agile needs them. Commands use the same stack for replacement and composition, but are materialized into the active integration's directory only, instead of being re-resolved by agents or written to every detected agent directory (#2948). During preset install, Agile registers command files for the preset being installed against the currently active integration; post-install and post-removal reconciliation then recomputes and writes the effective command content for affected command names based on the active stack. Install and rescaffold remain active-only, but removal may also update previously targeted inactive directories recorded by the removed preset to restore the surviving command or skill layer. A non-active installed integration does not otherwise receive these command files until it becomes the default — `specify integration use <key>` (or `switch <key>`) rescaffolds enabled presets for the newly active integration. Agents do not re-resolve the stack each time they run a command.
+Templates and scripts are looked up from the stack when Agile needs them. Commands use the same stack for replacement and composition, but are materialized into the active integration's directory only, instead of being re-resolved by agents or written to every detected agent directory (#2948). During preset install, Agile registers command files for the preset being installed against the currently active integration; post-install and post-removal reconciliation then recomputes and writes the effective command content for affected command names based on the active stack. Install and rescaffold remain active-only, but removal may also update previously targeted inactive directories recorded by the removed preset to restore the surviving command or skill layer. A non-active installed integration does not otherwise receive these command files until it becomes the default — `agile integration use <key>` (or `switch <key>`) rescaffolds enabled presets for the newly active integration. Agents do not re-resolve the stack each time they run a command.
 
 By default, files use a **replace** strategy: the first match in the priority stack wins and is used entirely. Templates and commands can also use composition strategies: **prepend** places preset content before lower-priority content, **append** places it after lower-priority content, and **wrap** replaces `{CORE_TEMPLATE}` with lower-priority content. Scripts support **replace** and **wrap**; script wrappers use `$CORE_SCRIPT` as the placeholder.
 
@@ -199,8 +199,8 @@ flowchart TB
 ### Example
 
 ```bash
-specify preset add compliance --priority 5
-specify preset add team-workflow --priority 10
+agile preset add compliance --priority 5
+agile preset add team-workflow --priority 10
 ```
 
 For any file that both provide, `compliance` wins (priority 5 < 10). For files only one provides, that one is used. For files neither provides, the core default is used.
@@ -209,17 +209,17 @@ For any file that both provide, `compliance` wins (priority 5 < 10). For files o
 
 ### Can I use multiple presets at the same time?
 
-Yes. Presets stack by priority — each file is resolved independently from the highest-priority source that provides it. Use `specify preset set-priority` to control the order.
+Yes. Presets stack by priority — each file is resolved independently from the highest-priority source that provides it. Use `agile preset set-priority` to control the order.
 
 ### How do I see which file is actually being used?
 
-Run `specify preset resolve <name>` to trace the resolution stack and see which file wins.
+Run `agile preset resolve <name>` to trace the resolution stack and see which file wins.
 
 ### What's the difference between disabling and removing a preset?
 
-**Disabling** (`specify preset disable`) keeps the preset installed but excludes it from future template and script resolution. Previously registered commands remain available in your AI coding agent until preset removal, so use removal when you need command changes to stop taking effect. Disabling is useful for temporarily testing template/script behavior without a preset, or comparing template/script output with and without it. Re-enable anytime with `specify preset enable`.
+**Disabling** (`agile preset disable`) keeps the preset installed but excludes it from future template and script resolution. Previously registered commands remain available in your AI coding agent until preset removal, so use removal when you need command changes to stop taking effect. Disabling is useful for temporarily testing template/script behavior without a preset, or comparing template/script output with and without it. Re-enable anytime with `agile preset enable`.
 
-**Removing** (`specify preset remove`) fully uninstalls the preset — deletes its files, unregisters its commands from your AI coding agent, and removes it from the registry.
+**Removing** (`agile preset remove`) fully uninstalls the preset — deletes its files, unregisters its commands from your AI coding agent, and removes it from the registry.
 
 ### Who maintains presets?
 

@@ -1,4 +1,4 @@
-"""Shared fixtures and helpers for `specify self upgrade` tests.
+"""Shared fixtures and helpers for `agile self upgrade` tests.
 
 These helpers patch subprocess, PATH lookup, and release-tag resolution so
 the focused test modules stay isolated from the real environment.

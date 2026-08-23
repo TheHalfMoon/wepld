@@ -5,10 +5,10 @@
  * Pictorial CLI
  *
  * Usage:
- *   npx pictorial detect [file-or-dir-or-url...]
- *   npx pictorial ignores <list|add-file|add-value|remove-...>
- *   npx pictorial help|install|update
- *   npx pictorial --help
+ *   npx @wepld/pictorial detect [file-or-dir-or-url...]
+ *   npx @wepld/pictorial ignores <list|add-file|add-value|remove-...>
+ *   npx @wepld/pictorial help|install|update
+ *   npx @wepld/pictorial --help
  */
 
 import { readFileSync, existsSync } from 'node:fs';
@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SKILL_COMMANDS = new Set(['help', 'install', 'link', 'update', 'check']);
 
-// Is this a detect target (the `npx pictorial src/` shorthand) or a mistyped
+// Is this a detect target (the `npx @wepld/pictorial src/` shorthand) or a mistyped
 // command? Flags, URLs, path-shaped args, and real files/dirs (e.g. an
 // extension-less `Dockerfile`) are targets; anything else is an unknown command.
 function looksLikeDetectTarget(arg) {
@@ -74,14 +74,14 @@ Compatibility:
     const { run } = await import('./commands/skills.mjs');
     await run(args);
   } else if (looksLikeDetectTarget(command)) {
-    // Default: treat as detect arguments (allow `npx pictorial src/` shorthand)
+    // Default: treat as detect arguments (allow `npx @wepld/pictorial src/` shorthand)
     process.argv = [process.argv[0], process.argv[1], ...args];
     const { detectCli } = await import('../engine/detect-antipatterns.mjs');
     await detectCli();
   } else if (command === 'init') {
     // The follow-up mistake from issue #472: `/pictorial init` belongs in an AI
     // coding agent's chat, and a user who typed it into their shell is likely to
-    // retry it here as `npx pictorial init`.
+    // retry it here as `npx @wepld/pictorial init`.
     console.error(`"init" is not a CLI command. Type /pictorial init in your AI coding agent's chat (Claude Code, Cursor, Codex, ...), not in this terminal.`);
     process.exit(1);
   } else {

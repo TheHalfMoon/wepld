@@ -52,7 +52,7 @@ The trace is the source of truth, not the model's free-form reply.
 | 6 | PRODUCT.md + DESIGN.md + a minimal `index.html`; prompt is `/pictorial polish` | loads `reference/polish.md` |
 | 7 | same fixture; prompt is `/pictorial audit` | loads `reference/audit.md` |
 | 8 | PRODUCT.md + DESIGN.md + a SvelteKit scaffold (`src/app.css`, components, `+page.svelte`); prompt is `/pictorial polish src/routes/+page.svelte` | reads at least one project code file (CSS / component / page) — not just the skill's reference files |
-| 9 | PRODUCT.md + `index.html` + a seeded update cache with a newer version (`skillVersion` copy-mode so `context.mjs` has a `SKILL.md` to version-check against); prompt is `/pictorial polish index.html` | `context.mjs` runs and its output carries the `UPDATE_AVAILABLE` directive (proven via captured bash output); the agent does **not** auto-run `npx pictorial update` (it must ask first) |
+| 9 | PRODUCT.md + `index.html` + a seeded update cache with a newer version (`skillVersion` copy-mode so `context.mjs` has a `SKILL.md` to version-check against); prompt is `/pictorial polish index.html` | `context.mjs` runs and its output carries the `UPDATE_AVAILABLE` directive (proven via captured bash output); the agent does **not** auto-run `npx @wepld/pictorial update` (it must ask first) |
 | 10 | no PRODUCT.md + a minimal `index.html`; prompt is `/pictorial polish index.html` | runs `context.mjs`, loads `reference/polish.md`, and does **not** divert into `reference/init.md` |
 | 11 | empty workspace; prompt is `/pictorial shape ...` | runs `context.mjs`; resolves `reference/init.md` before planning the surface |
 | 12 | empty workspace; prompt is natural-language build intent with no command word | runs `context.mjs`; resolves `reference/init.md` before implementation |
@@ -140,7 +140,7 @@ Scenarios 9 and 15 both failed on sonnet when this baseline was first measured,
 and the two causes are worth keeping because neither was where it looked:
 
 - **9 was a real defect in the directive.** `UPDATE_AVAILABLE` said to ask the
-  user, then "If they agree, run `npx pictorial update`", then to continue
+  user, then "If they agree, run `npx @wepld/pictorial update`", then to continue
   without waiting. With no wait there is no agreement to read, so the command
   was the only concrete instruction left standing and sonnet ran it. Fixed by
   removing the command from the turn entirely rather than by strengthening the

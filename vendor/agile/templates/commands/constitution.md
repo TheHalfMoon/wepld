@@ -2,7 +2,7 @@
 description: Create or update the project constitution from interactive or provided principle inputs.
 handoffs:
   - label: Build Specification
-    agent: agile.agile
+    agent: agile.specify
     prompt: Implement the feature specification based on the updated constitution. I want to build...
 scripts:
   sh: scripts/bash/resolve-template.sh constitution-template --json
@@ -34,7 +34,7 @@ and commands read the constitution at runtime and are not modified here.
   making changes.
 - After completing the constitution update, include a `Next Actions` section for each deferred
   intent. List the original intent and suggest the appropriate follow-up Agile command, such
-  as `__AGILE_COMMAND_SPECIFY__`, without invoking it.
+  as `__AGILE_COMMAND_AGILE__`, without invoking it.
 - If there are no non-governance intents, omit the `Next Actions` section.
 
 ## Pre-Execution Checks

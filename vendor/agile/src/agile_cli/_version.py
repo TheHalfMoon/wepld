@@ -32,7 +32,7 @@ from rich.markup import escape as _escape_markup
 from ._download_security import MAX_JSON_METADATA_BYTES, read_response_limited
 from ._console import console
 
-GITHUB_API_LATEST = "https://api.github.com/repos/github/agile/releases/latest"
+GITHUB_API_LATEST = "https://api.github.com/repos/TheHalfMoon/wepld/releases/latest"
 _RESOLUTION_FAILURE_OFFLINE = "offline or timeout"
 _RESOLUTION_FAILURE_RATE_LIMITED = (
     "rate limited (configure ~/.agile/auth.json with a GitHub token)"
@@ -57,7 +57,7 @@ def _get_installed_version() -> str:
 
     Uses importlib.metadata so the value reflects what was actually installed
     by pip/uv/pipx — not a value read from pyproject.toml. This is
-    intentional for `specify self check`, which should reason about the
+    intentional for `agile self check`, which should reason about the
     installed distribution rather than a source-tree fallback. Callers must
     treat the sentinel string 'unknown' as an indeterminate value (see FR-020).
     """
@@ -201,7 +201,7 @@ _RESOLUTION_FAILURE_CATEGORIES: frozenset[str] = frozenset(
 
 
 class _InstallMethod(str, Enum):
-    """Install-method classification for `specify self upgrade`."""
+    """Install-method classification for `agile self upgrade`."""
 
     UV_TOOL = "uv-tool"
     PIPX = "pipx"
@@ -750,9 +750,9 @@ def _build_upgrade_plan(
 
 
 def _warn_invalid_upgrade_timeout(timeout_raw: str) -> None:
-    """Warn that SPECIFY_UPGRADE_TIMEOUT_SECS could not be applied."""
+    """Warn that AGILE_UPGRADE_TIMEOUT_SECS could not be applied."""
     console.print(
-        f"Ignoring invalid SPECIFY_UPGRADE_TIMEOUT_SECS={timeout_raw!r}; "
+        f"Ignoring invalid AGILE_UPGRADE_TIMEOUT_SECS={timeout_raw!r}; "
         "running without a timeout.",
         soft_wrap=True,
     )
@@ -777,7 +777,7 @@ def _run_installer(plan: _UpgradePlan) -> _InstallerResult:
 
     Timeout: by default the subprocess runs with no timeout — installer
     operations (dependency resolution, large wheel downloads) can legitimately
-    take many minutes. Set the env var SPECIFY_UPGRADE_TIMEOUT_SECS to an
+    take many minutes. Set the env var AGILE_UPGRADE_TIMEOUT_SECS to an
     integer/float to enforce a hard cap. On timeout, the orchestrator maps
     `_InstallerResultKind.TIMEOUT` to user-facing exit code `124`. A real
     installer process that exits 124 is returned as EXITED with returncode 124.
@@ -814,7 +814,7 @@ def _run_installer(plan: _UpgradePlan) -> _InstallerResult:
     elif shutil.which(installer_name) is None:
         return _InstallerResult(_InstallerResultKind.MISSING)
 
-    timeout_raw = os.environ.get("SPECIFY_UPGRADE_TIMEOUT_SECS")
+    timeout_raw = os.environ.get("AGILE_UPGRADE_TIMEOUT_SECS")
     timeout: float | None = None
     if timeout_raw is not None:
         try:
@@ -1081,13 +1081,13 @@ def _emit_failure(
                 "internal routing error: installer-timeout requires plan to be set"
             )
         argv_str = _render_argv(plan.installer_argv) if plan.installer_argv else ""
-        timeout_value = os.environ.get("SPECIFY_UPGRADE_TIMEOUT_SECS", "(unknown)")
+        timeout_value = os.environ.get("AGILE_UPGRADE_TIMEOUT_SECS", "(unknown)")
         console.print(
             "Upgrade timed out while waiting for the installer subprocess.",
             soft_wrap=True,
         )
         console.print(
-            f"Configured timeout: SPECIFY_UPGRADE_TIMEOUT_SECS={timeout_value}",
+            f"Configured timeout: AGILE_UPGRADE_TIMEOUT_SECS={timeout_value}",
             soft_wrap=True,
         )
         console.print(
@@ -1152,8 +1152,8 @@ def self_check() -> None:
     """Check whether a newer wepld-agile release is available. Read-only.
 
     This command only checks for updates; it does not modify your installation.
-    Use `specify self upgrade` to actually perform the upgrade once you've seen
-    the result here, or `specify self upgrade --dry-run` to preview the
+    Use `agile self upgrade` to actually perform the upgrade once you've seen
+    the result here, or `agile self upgrade --dry-run` to preview the
     installer command without running it.
     """
 
@@ -1198,14 +1198,14 @@ def self_check() -> None:
         )
         console.print(f"  pipx install --force {_manual_source_spec(manual_tag)}")
         console.print("\nIf this install can still be detected:")
-        console.print("  specify self upgrade")
+        console.print("  agile self upgrade")
         return
 
     latest_normalized = _normalize_tag(manual_tag)
     if _is_newer(latest_normalized, installed):
         console.print(f"[green]Update available:[/green] {installed} → {latest_display}")
         console.print("\nTo upgrade:")
-        console.print("  specify self upgrade")
+        console.print("  agile self upgrade")
         console.print("\nManual fallback:")
         console.print(
             f"  uv tool install wepld-agile --force --from {_manual_source_spec(manual_tag)}"
@@ -1242,7 +1242,7 @@ def self_upgrade(
 
     Bare invocation executes immediately with no confirmation prompt, matching
     pip install -U / uv tool upgrade / npm update conventions. Use --dry-run
-    to preview without mutating anything. See `specify self check` for the
+    to preview without mutating anything. See `agile self check` for the
     non-destructive read-only counterpart.
 
     Detection classifies the runtime into uv-tool / pipx / uvx (ephemeral) /
@@ -1260,13 +1260,13 @@ def self_upgrade(
              propagated verbatim
       3      installer binary not found on PATH, or resolved installer path is
              missing / non-executable
-      124    internal installer timeout when SPECIFY_UPGRADE_TIMEOUT_SECS is set,
+      124    internal installer timeout when AGILE_UPGRADE_TIMEOUT_SECS is set,
              or a real installer exit code 124 propagated verbatim; scripts
              should treat 124 as ambiguous and inspect the failure message
       other  installer exit code propagated verbatim
 
     Environment variables:
-      SPECIFY_UPGRADE_TIMEOUT_SECS  Optional integer/float seconds. Caps how
+      AGILE_UPGRADE_TIMEOUT_SECS  Optional integer/float seconds. Caps how
         long the installer subprocess may run. Unset (default) means no
         timeout — interrupt with Ctrl+C if the installer hangs.
     """

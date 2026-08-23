@@ -225,7 +225,7 @@ class CommandRegistrar:
         )
 
         return text.replace(".agile/.agile/", ".agile/").replace(
-            ".agile.agile/", ".agile/"
+            ".agile.specify/", ".agile/"
         )
 
     @staticmethod
@@ -1041,7 +1041,7 @@ class CommandRegistrar:
 
                     warnings.warn(
                         f"Found legacy '{legacy}' directory for "
-                        f"{agent_name}. Run 'specify integration "
+                        f"{agent_name}. Run 'agile integration "
                         f"upgrade {agent_name}' to migrate to "
                         f"'{agent_config['dir']}'.",
                         stacklevel=3,

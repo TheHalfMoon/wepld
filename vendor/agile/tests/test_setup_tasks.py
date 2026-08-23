@@ -94,12 +94,12 @@ def _write_integration_state(repo: Path, integration: str = "claude", separator:
 
 def _clean_env() -> dict[str, str]:
     """
-    Return os.environ with all SPECIFY_* variables stripped so the scripts
+    Return os.environ with all AGILE_* variables stripped so the scripts
     rely purely on feature.json and on-disk feature directories set up by each fixture.
     """
     env = os.environ.copy()
     for key in list(env):
-        if key.startswith("SPECIFY_"):
+        if key.startswith("AGILE_"):
             env.pop(key)
     return env
 
@@ -680,7 +680,7 @@ def test_setup_tasks_bash_passes_custom_branch_when_feature_json_valid(
 def test_setup_tasks_bash_errors_without_feature_context(
     tasks_repo: Path,
 ) -> None:
-    """Without feature.json or SPECIFY_FEATURE_DIRECTORY, setup-tasks.sh must error."""
+    """Without feature.json or AGILE_FEATURE_DIRECTORY, setup-tasks.sh must error."""
     main_feat = tasks_repo / "specs" / "main"
     main_feat.mkdir(parents=True, exist_ok=True)
     (main_feat / "spec.md").write_text("# spec\n", encoding="utf-8")
@@ -968,7 +968,7 @@ def test_setup_tasks_ps_passes_custom_branch_when_feature_json_valid(
 def test_setup_tasks_ps_errors_without_feature_context(
     tasks_repo: Path,
 ) -> None:
-    """Without feature.json or SPECIFY_FEATURE_DIRECTORY, setup-tasks.ps1 must error."""
+    """Without feature.json or AGILE_FEATURE_DIRECTORY, setup-tasks.ps1 must error."""
     main_feat = tasks_repo / "specs" / "main"
     main_feat.mkdir(parents=True, exist_ok=True)
     (main_feat / "spec.md").write_text("# spec\n", encoding="utf-8")

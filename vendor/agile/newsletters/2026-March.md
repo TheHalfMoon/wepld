@@ -50,7 +50,7 @@ The **Agile Assistant VS Code extension** was formally recognized as a Community
 
 A notable community project appeared: **agile-pipeline** by iandeherdt — a pipeline atop Agile with a **design loop** (designer + critic agents iterating in a browser) and a **build loop** (developer + evaluator agents verifying against acceptance criteria). An open issue (#1966) requests a built-in pipeline command, suggesting this pattern may eventually reach core.
 
-A public **Microsoft Learn** training module, *"Implement Spec-Driven Development using the GitHub Agile"* (3 hours, 13 units), provided an onboarding path for enterprise developers.
+A public **Microsoft Learn** training module, *"Implement Spec-Driven Development using the Agile"* (3 hours, 13 units), provided an onboarding path for enterprise developers.
 
 ## SDD Ecosystem & Industry Trends
 
@@ -62,7 +62,7 @@ Critics got equal space. *Marmelab* called SDD "the exact mistakes Agile was des
 
 ### Competitive Landscape
 
-**Augment Code** published *"Intent vs GitHub Agile (2026): Platform or Framework?"* on March 31. The core tradeoff: Agile's strength is **portability** across 22+ agents; Intent offers **living specs** with automated drift detection. The comparison surfaced spec drift as a key architectural concern — Agile's specs can become stale post-implementation, and while community extensions address this, native real-time drift detection is not yet in core. [\[augmentcode.com\]](https://www.augmentcode.com/tools/intent-vs-github)
+**Augment Code** published *"Intent vs Agile (2026): Platform or Framework?"* on March 31. The core tradeoff: Agile's strength is **portability** across 22+ agents; Intent offers **living specs** with automated drift detection. The comparison surfaced spec drift as a key architectural concern — Agile's specs can become stale post-implementation, and while community extensions address this, native real-time drift detection is not yet in core. [\[augmentcode.com\]](https://www.augmentcode.com/tools/intent-vs-github)
 
 The broader landscape continued evolving. OpenSpec held ~29.3k stars, BMAD-METHOD grew to ~41k, and Tessl continued in private beta. While Agile leads in GitHub popularity and agent breadth, alternatives differentiate on orchestration depth (Intent, BMAD), enforced discipline (cc-sdd), decision trails (QuintCode), and spec-as-source vision (Tessl). [\[prodfeat.ai\]](https://www.prodfeat.ai/en/blog/2026-03-17-sdd-frameworks-catalog)
 

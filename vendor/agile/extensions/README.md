@@ -76,7 +76,7 @@ agile extension add <extension-name> --from https://github.com/org/agile-ext/arc
 
 🔍 **Browse and search community extensions on the [Community Extensions website](https://agile-community.github.io/extensions/).**
 
-See the [Community Extensions](https://github.github.io/agile/community/extensions.html) page for the full list of available community-contributed extensions.
+See the [Community Extensions](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/community/extensions.html) page for the full list of available community-contributed extensions.
 
 For the raw catalog data, see [`catalog.community.json`](catalog.community.json).
 

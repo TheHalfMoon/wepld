@@ -5,13 +5,13 @@
  *
  * Regression guard for the silent-broken-bundle outage: archiver v8's ESM
  * change made createProviderZip fail without throwing, so the build shipped a
- * 0-byte universal.zip and every `npx pictorial install` failed with
+ * 0-byte universal.zip and every `npx @wepld/pictorial install` failed with
  * "End-of-central-directory signature not found". Nothing covered the zip
  * writer, so the suite stayed green. These tests exercise the real writer and
  * round-trip through the same unpacker the CLI uses (extractZip, backed by
  * fflate). The many-file extraction test additionally guards the Node v24.16.0
  * / v26.1.0+ silent partial-extraction regression (nodejs/node#63487) that
- * made `npx pictorial install` exit 0 after writing only a fraction of the
+ * made `npx @wepld/pictorial install` exit 0 after writing only a fraction of the
  * bundle.
  */
 
@@ -107,7 +107,7 @@ describe('release bundle zip writer', () => {
     // Guards nodejs/node#63487: extract-zip's yauzl/fd-slicer read stack stalls
     // on Node v24.16.0 / v26.1.0+ (pause/resume on a destroyed stream became a
     // no-op), so extraction stops early, its promise never settles, and --
-    // because nothing else keeps the event loop alive -- `npx pictorial install`
+    // because nothing else keeps the event loop alive -- `npx @wepld/pictorial install`
     // exits 0 with no error, silently installing a fraction of the bundle. This
     // fixture carries 84 files (well past the ~31 entry stall point), so a
     // unpacker that stops early fails the count assertion here instead of

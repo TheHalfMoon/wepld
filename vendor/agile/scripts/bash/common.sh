@@ -24,11 +24,11 @@ find_specify_root() {
     return 1
 }
 
-# Resolve an explicit SPECIFY_INIT_DIR project override (the directory that
+# Resolve an explicit AGILE_INIT_DIR project override (the directory that
 # *contains* .agile/), for non-interactive / CI use — e.g. running a Agile
 # command against a member project from a monorepo root without cd.
 #
-# Precondition: SPECIFY_INIT_DIR is non-empty. Echoes the validated absolute
+# Precondition: AGILE_INIT_DIR is non-empty. Echoes the validated absolute
 # project root, or prints an error and returns 1. Strict by design: the path
 # must exist and contain .agile/, with no silent fallback to cwd or the
 # script-location default (which would silently write to the wrong project).
@@ -40,12 +40,12 @@ resolve_specify_init_dir() {
     # Normalize: relative paths resolve against $(pwd); a trailing slash collapses.
     # CDPATH="" so a relative value cannot be resolved against the caller's CDPATH
     # (which would also echo to stdout and corrupt the captured path).
-    if ! init_root="$(CDPATH="" cd -- "$SPECIFY_INIT_DIR" 2>/dev/null && pwd)"; then
-        echo "ERROR: SPECIFY_INIT_DIR does not point to an existing directory: $SPECIFY_INIT_DIR" >&2
+    if ! init_root="$(CDPATH="" cd -- "$AGILE_INIT_DIR" 2>/dev/null && pwd)"; then
+        echo "ERROR: AGILE_INIT_DIR does not point to an existing directory: $AGILE_INIT_DIR" >&2
         return 1
     fi
     if [[ ! -d "$init_root/.agile" ]]; then
-        echo "ERROR: SPECIFY_INIT_DIR is not a Agile project (no .agile/ directory): $init_root" >&2
+        echo "ERROR: AGILE_INIT_DIR is not a Agile project (no .agile/ directory): $init_root" >&2
         return 1
     fi
     printf '%s\n' "$init_root"
@@ -55,7 +55,7 @@ resolve_specify_init_dir() {
 # This prevents using a parent repository when agile is initialized in a subdirectory
 get_repo_root() {
     # Explicit project override wins (see resolve_specify_init_dir).
-    if [[ -n "${SPECIFY_INIT_DIR:-}" ]]; then
+    if [[ -n "${AGILE_INIT_DIR:-}" ]]; then
         resolve_specify_init_dir
         return
     fi
@@ -74,11 +74,11 @@ get_repo_root() {
 
 # Get current feature name from explicit state only.
 # Returns the feature identifier or empty string if none is set.
-# Feature state is set by SPECIFY_FEATURE (from create-new-feature or
+# Feature state is set by AGILE_FEATURE (from create-new-feature or
 # the git extension) or implicitly via .agile/feature.json.
 get_current_branch() {
-    if [[ -n "${SPECIFY_FEATURE:-}" ]]; then
-        echo "$SPECIFY_FEATURE"
+    if [[ -n "${AGILE_FEATURE:-}" ]]; then
+        echo "$AGILE_FEATURE"
         return
     fi
 
@@ -170,7 +170,7 @@ get_feature_paths() {
         shift
     fi
 
-    # Split decl/assignment so a SPECIFY_INIT_DIR validation failure in
+    # Split decl/assignment so a AGILE_INIT_DIR validation failure in
     # get_repo_root propagates as a hard error instead of being masked by `local`.
     local repo_root
     repo_root=$(get_repo_root) || return 1
@@ -178,18 +178,18 @@ get_feature_paths() {
     current_branch=$(get_current_branch)
 
     # Resolve feature directory.  Priority:
-    #   1. SPECIFY_FEATURE_DIRECTORY env var (explicit override)
+    #   1. AGILE_FEATURE_DIRECTORY env var (explicit override)
     #   2. .agile/feature.json "feature_directory" key (persisted by specify command)
     #   3. Error — no feature context available
     local feature_dir
-    if [[ -n "${SPECIFY_FEATURE_DIRECTORY:-}" ]]; then
-        feature_dir="$SPECIFY_FEATURE_DIRECTORY"
+    if [[ -n "${AGILE_FEATURE_DIRECTORY:-}" ]]; then
+        feature_dir="$AGILE_FEATURE_DIRECTORY"
         # Normalize relative paths to absolute under repo root
         [[ "$feature_dir" != /* ]] && feature_dir="$repo_root/$feature_dir"
         # Persist to feature.json so future sessions without the env var still
         # work — unless the caller opted out for read-only resolution (#3025).
         if [[ "$no_persist" != true ]]; then
-            _persist_feature_json "$repo_root" "$SPECIFY_FEATURE_DIRECTORY"
+            _persist_feature_json "$repo_root" "$AGILE_FEATURE_DIRECTORY"
         fi
     elif [[ -f "$repo_root/.agile/feature.json" ]]; then
         local _fd
@@ -199,16 +199,16 @@ get_feature_paths() {
             # Normalize relative paths to absolute under repo root
             [[ "$feature_dir" != /* ]] && feature_dir="$repo_root/$feature_dir"
         else
-            echo "ERROR: Feature directory not found. Set SPECIFY_FEATURE_DIRECTORY or ensure .agile/feature.json contains feature_directory." >&2
+            echo "ERROR: Feature directory not found. Set AGILE_FEATURE_DIRECTORY or ensure .agile/feature.json contains feature_directory." >&2
             return 1
         fi
     else
-        echo "ERROR: Feature directory not found. Set SPECIFY_FEATURE_DIRECTORY or run the specify command to create .agile/feature.json." >&2
+        echo "ERROR: Feature directory not found. Set AGILE_FEATURE_DIRECTORY or run the specify command to create .agile/feature.json." >&2
         return 1
     fi
 
-    # When no branch context exists (no SPECIFY_FEATURE, feature resolved via
-    # SPECIFY_FEATURE_DIRECTORY or feature.json), fall back to the feature
+    # When no branch context exists (no AGILE_FEATURE, feature resolved via
+    # AGILE_FEATURE_DIRECTORY or feature.json), fall back to the feature
     # directory basename so CURRENT_BRANCH is a usable identifier rather than
     # an empty, misleading value (issue #3026).
     if [[ -z "$current_branch" ]]; then
@@ -237,8 +237,8 @@ has_jq() {
 
 get_invoke_separator() {
     local repo_root="${1:-$(get_repo_root)}"
-    if [[ "${_SPECIFY_INVOKE_SEPARATOR_CACHE_REPO_ROOT:-}" == "$repo_root" && -n "${_SPECIFY_INVOKE_SEPARATOR_CACHE_VALUE:-}" ]]; then
-        printf '%s\n' "$_SPECIFY_INVOKE_SEPARATOR_CACHE_VALUE"
+    if [[ "${_AGILE_INVOKE_SEPARATOR_CACHE_REPO_ROOT:-}" == "$repo_root" && -n "${_AGILE_INVOKE_SEPARATOR_CACHE_VALUE:-}" ]]; then
+        printf '%s\n' "$_AGILE_INVOKE_SEPARATOR_CACHE_VALUE"
         return 0
     fi
 
@@ -342,8 +342,8 @@ PY
         fi
     fi
 
-    _SPECIFY_INVOKE_SEPARATOR_CACHE_REPO_ROOT="$repo_root"
-    _SPECIFY_INVOKE_SEPARATOR_CACHE_VALUE="$separator"
+    _AGILE_INVOKE_SEPARATOR_CACHE_REPO_ROOT="$repo_root"
+    _AGILE_INVOKE_SEPARATOR_CACHE_VALUE="$separator"
     printf '%s\n' "$separator"
 }
 
@@ -351,12 +351,12 @@ format_agile_command() {
     local command_name="$1"
     local repo_root="${2:-$(get_repo_root)}"
     local separator
-    if [[ "${_SPECIFY_INVOKE_SEPARATOR_CACHE_REPO_ROOT:-}" == "$repo_root" && -n "${_SPECIFY_INVOKE_SEPARATOR_CACHE_VALUE:-}" ]]; then
-        separator="$_SPECIFY_INVOKE_SEPARATOR_CACHE_VALUE"
+    if [[ "${_AGILE_INVOKE_SEPARATOR_CACHE_REPO_ROOT:-}" == "$repo_root" && -n "${_AGILE_INVOKE_SEPARATOR_CACHE_VALUE:-}" ]]; then
+        separator="$_AGILE_INVOKE_SEPARATOR_CACHE_VALUE"
     else
         separator=$(get_invoke_separator "$repo_root")
-        _SPECIFY_INVOKE_SEPARATOR_CACHE_REPO_ROOT="$repo_root"
-        _SPECIFY_INVOKE_SEPARATOR_CACHE_VALUE="$separator"
+        _AGILE_INVOKE_SEPARATOR_CACHE_REPO_ROOT="$repo_root"
+        _AGILE_INVOKE_SEPARATOR_CACHE_VALUE="$separator"
     fi
 
     command_name="${command_name#/}"

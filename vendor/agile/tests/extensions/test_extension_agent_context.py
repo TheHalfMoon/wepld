@@ -751,7 +751,7 @@ _MDC_CONTEXT_FILE = ".cursor/rules/specify-rules.mdc"
 class TestPlanDiscovery:
     """Mtime fallback must find plans in nested spec layouts (#3024).
 
-    Repos using SPECIFY_FEATURE_DIRECTORY place plans at
+    Repos using AGILE_FEATURE_DIRECTORY place plans at
     ``specs/<scope>/<feature>/plan.md``; a one-level ``specs/*/plan.md``
     glob never matches those.
     """

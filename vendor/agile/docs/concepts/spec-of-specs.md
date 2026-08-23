@@ -1,7 +1,7 @@
 # Spec of Specs
 
 When a feature is too large to run through a single
-`/agile.agile` → `/agile.plan` → `/agile.tasks` → `/agile.implement`
+`/agile.specify` → `/agile.plan` → `/agile.tasks` → `/agile.implement`
 cycle without the model losing track mid-implementation, you can break it into a
 **roadmap** of smaller, independently-specified sub-features. This is the "spec of
 specs" approach: one up-front pass decomposes a massive feature into self-contained
@@ -40,7 +40,7 @@ Treat this as a lightweight planning conversation with your agent, not a full sp
 
 The roadmap is deliberately shallow: it names and orders the sub-features but does
 **not** design them. The design happens when each slice runs through its own
-`/agile.agile`.
+`/agile.specify`.
 
 ## The roadmap artifact
 
@@ -78,7 +78,7 @@ With the roadmap in hand, work through the entries one at a time using the norma
 Agile flow — nothing new to learn:
 
 1. Pick the next roadmap entry whose dependencies are already `done` (or have none).
-2. Run `/agile.agile` for just that slice, describing only its intent and scope
+2. Run `/agile.specify` for just that slice, describing only its intent and scope
    from the roadmap entry. Because the slice is bounded, its spec, plan, and tasks
    stay well within the context window.
 3. Run `/agile.plan`, `/agile.tasks`, and `/agile.implement` for that slice as

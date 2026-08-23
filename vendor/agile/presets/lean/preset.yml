@@ -15,10 +15,10 @@ requires:
 provides:
   templates:
     - type: "command"
-      name: "agile.agile"
-      file: "commands/agile.agile.md"
+      name: "agile.specify"
+      file: "commands/agile.specify.md"
       description: "Lean specify - create spec.md from a feature description"
-      replaces: "agile.agile"
+      replaces: "agile.specify"
 
     - type: "command"
       name: "agile.plan"

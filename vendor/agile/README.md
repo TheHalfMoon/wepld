@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="https://raw.githubusercontent.com/github/agile/main/media/logo_large.webp" alt="Agile Logo" width="200" height="200"/>
+    <img src="https://raw.githubusercontent.com/TheHalfMoon/wepld/main/vendor/agile/media/agile-logo-large.svg" alt="Agile Logo" width="200" height="200"/>
     <h1>🌱 Agile</h1>
     <h3><em>Define what to build before building it — with any AI coding agent.</em></h3>
 </div>
@@ -9,10 +9,10 @@
 </p>
 
 <p align="center">
-    <a href="https://github.com/TheHalfMoon/wepld/releases/latest"><img src="https://img.shields.io/github/v/release/github/agile" alt="Latest Release"/></a>
-    <a href="https://github.com/TheHalfMoon/wepld/stargazers"><img src="https://img.shields.io/github/stars/github/agile?style=social" alt="GitHub stars"/></a>
-    <a href="https://github.com/TheHalfMoon/wepld/blob/main/LICENSE"><img src="https://img.shields.io/github/license/github/agile" alt="License"/></a>
-    <a href="https://github.github.io/agile/"><img src="https://img.shields.io/badge/docs-GitHub_Pages-blue" alt="Documentation"/></a>
+    <a href="https://github.com/TheHalfMoon/wepld/releases/latest"><img src="https://img.shields.io/github/v/release/TheHalfMoon/wepld" alt="Latest Release"/></a>
+    <a href="https://github.com/TheHalfMoon/wepld/stargazers"><img src="https://img.shields.io/github/stars/TheHalfMoon/wepld?style=social" alt="GitHub stars"/></a>
+    <a href="https://github.com/TheHalfMoon/wepld/blob/main/LICENSE"><img src="https://img.shields.io/github/license/TheHalfMoon/wepld" alt="License"/></a>
+    <a href="https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/"><img src="https://img.shields.io/badge/docs-GitHub_Pages-blue" alt="Documentation"/></a>
 </p>
 
 <p align="center">
@@ -161,19 +161,19 @@ To check for updates or upgrade the installed CLI, use the self-management comma
 
 ```bash
 # Check whether a newer release is available (read-only — does not modify anything)
-specify self check
+agile self check
 
 # Preview what would run, without actually upgrading
-specify self upgrade --dry-run
+agile self upgrade --dry-run
 
 # Upgrade in place to the latest stable release (auto-detects uv tool vs pipx install)
-specify self upgrade
+agile self upgrade
 
 # Or pin a specific release tag (replace vX.Y.Z[suffix] with your desired release tag)
-specify self upgrade --tag vX.Y.Z[suffix]
+agile self upgrade --tag vX.Y.Z[suffix]
 ```
 
-Bare `specify self upgrade` executes immediately, matching the no-prompt behavior of commands like `pip install -U` and `npm update`. For `uv tool` installs, it runs `uv tool install wepld-agile --force --from <git ref>` under the hood so pinned release tags work, including dev, alpha/beta/rc, or build metadata suffixes. `uvx` (ephemeral) runs and source checkouts are detected and produce path-specific guidance instead of running an installer. Set `SPECIFY_UPGRADE_TIMEOUT_SECS` to cap how long the installer subprocess may run (default: no timeout — interrupt with `Ctrl+C` if needed).
+Bare `agile self upgrade` executes immediately, matching the no-prompt behavior of commands like `pip install -U` and `npm update`. For `uv tool` installs, it runs `uv tool install wepld-agile --force --from <git ref>` under the hood so pinned release tags work, including dev, alpha/beta/rc, or build metadata suffixes. `uvx` (ephemeral) runs and source checkouts are detected and produce path-specific guidance instead of running an installer. Set `AGILE_UPGRADE_TIMEOUT_SECS` to cap how long the installer subprocess may run (default: no timeout — interrupt with `Ctrl+C` if needed).
 
 ### 3. Establish project principles
 
@@ -187,10 +187,10 @@ Use the **`/agile.constitution`** command to create your project's governing pri
 
 ### 4. Create the spec
 
-Use the **`/agile.agile`** command to describe what you want to build. Focus on the **what** and **why**, not the tech stack.
+Use the **`/agile.specify`** command to describe what you want to build. Focus on the **what** and **why**, not the tech stack.
 
 ```bash
-/agile.agile Build an application that can help me organize my photos in separate photo albums. Albums are grouped by date and can be re-organized by dragging and dropping on the main page. Albums are never in other nested albums. Within each album, photos are previewed in a tile-like interface.
+/agile.specify Build an application that can help me organize my photos in separate photo albums. Albums are grouped by date and can be re-organized by dragging and dropping on the main page. Albums are never in other nested albums. Within each album, photos are previewed in a tile-like interface.
 ```
 
 ### 5. Create a technical implementation plan
@@ -223,17 +223,17 @@ For detailed step-by-step instructions, see our [comprehensive guide](./spec-dri
 
 Want to see Agile in action? Watch our [video overview](https://www.youtube.com/watch?v=a9eR1xsfvHg&pp=0gcJCckJAYcqIYzv)!
 
-[![Agile video header](https://raw.githubusercontent.com/github/agile/main/media/agile-video-header.jpg)](https://www.youtube.com/watch?v=a9eR1xsfvHg&pp=0gcJCckJAYcqIYzv)
+[![Agile video header](https://raw.githubusercontent.com/TheHalfMoon/wepld/main/vendor/agile/media/agile-video-header.svg)](https://www.youtube.com/watch?v=a9eR1xsfvHg&pp=0gcJCckJAYcqIYzv)
 
 ## 🌍 Community
 
-Explore community-contributed resources on the [Agile docs site](https://github.github.io/agile/):
+Explore community-contributed resources on the [Agile docs site](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/):
 
-- [Extensions](https://github.github.io/agile/community/extensions.html) — commands, hooks, and capabilities
-- [Presets](https://github.github.io/agile/community/presets.html) — template and terminology overrides
-- [Bundles](https://github.github.io/agile/community/bundles.html) — role and team stacks composed from existing components
-- [Walkthroughs](https://github.github.io/agile/community/walkthroughs.html) — end-to-end SDD scenarios
-- [Friends](https://github.github.io/agile/community/friends.html) — projects that extend or build on Agile
+- [Extensions](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/community/extensions.html) — commands, hooks, and capabilities
+- [Presets](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/community/presets.html) — template and terminology overrides
+- [Bundles](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/community/bundles.html) — role and team stacks composed from existing components
+- [Walkthroughs](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/community/walkthroughs.html) — end-to-end SDD scenarios
+- [Friends](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/community/friends.html) — projects that extend or build on Agile
 
 > [!NOTE]
 > Community contributions are independently created and maintained by their respective authors. Review source code before installation and use at your own discretion.
@@ -242,9 +242,9 @@ Want to contribute? See the [Extension Publishing Guide](extensions/EXTENSION-PU
 
 ## 🤖 Supported AI Coding Agent Integrations
 
-Agile works with 30+ AI coding agents — both CLI tools and IDE-based assistants. See the full list with notes and usage details in the [Supported AI Coding Agent Integrations](https://github.github.io/agile/reference/integrations.html) guide.
+Agile works with 30+ AI coding agents — both CLI tools and IDE-based assistants. See the full list with notes and usage details in the [Supported AI Coding Agent Integrations](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/reference/integrations.html) guide.
 
-Run `specify integration list` to see all available integrations in your installed version.
+Run `agile integration list` to see all available integrations in your installed version.
 
 ## Available Slash Commands
 
@@ -257,7 +257,7 @@ Essential commands for the Spec-Driven Development workflow:
 | Command                  | Agent Skill            | Description                                                                |
 | ------------------------ | ---------------------- | -------------------------------------------------------------------------- |
 | `/agile.constitution`  | `agile-constitution` | Create or update project governing principles and development guidelines   |
-| `/agile.agile`       | `agile-specify`      | Define what you want to build (requirements and user stories)              |
+| `/agile.specify`       | `agile-specify`      | Define what you want to build (requirements and user stories)              |
 | `/agile.plan`          | `agile-plan`         | Create technical implementation plans with your chosen tech stack          |
 | `/agile.tasks`         | `agile-tasks`        | Generate actionable task lists for implementation                          |
 | `/agile.taskstoissues` | `agile-taskstoissues`| Convert generated task lists into GitHub issues for tracking and execution |
@@ -276,7 +276,7 @@ Additional commands for enhanced quality and validation:
 
 ## 🔧 Agile CLI Reference
 
-For full command details, options, and examples, see the [CLI Reference](https://github.github.io/agile/reference/overview.html).
+For full command details, options, and examples, see the [CLI Reference](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/reference/overview.html).
 
 ## 🧩 Making Agile Your Own: Extensions & Presets
 
@@ -291,7 +291,7 @@ Agile can be tailored to your needs through two complementary systems — **exte
 
 - **Templates** are resolved at **runtime** — Agile walks the stack top-down and uses the first match.
 - Project-local overrides (`.agile/templates/overrides/`) let you make one-off adjustments for a single project without creating a full preset.
-- **Extension/preset commands** are applied at **install time** — when you run `agile extension add` or `specify preset add`, command files are written into agent directories (e.g., `.claude/commands/`).
+- **Extension/preset commands** are applied at **install time** — when you run `agile extension add` or `agile preset add`, command files are written into agent directories (e.g., `.claude/commands/`).
 - If multiple presets or extensions provide the same command, the highest-priority version wins. On removal, the next-highest-priority version is restored automatically.
 - If no overrides or customizations exist, Agile uses its core defaults.
 
@@ -309,7 +309,7 @@ agile extension add <extension-name>
 
 For example, extensions could add Jira integration, post-implementation code review, V-Model test traceability, or project health diagnostics.
 
-See the [Extensions reference](https://github.github.io/agile/reference/extensions.html) for the full command guide. Browse the [community extensions](https://github.github.io/agile/community/extensions.html) for what's available.
+See the [Extensions reference](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/reference/extensions.html) for the full command guide. Browse the [community extensions](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/community/extensions.html) for what's available.
 
 ### Presets — Customize Existing Workflows
 
@@ -317,15 +317,15 @@ Use **presets** when you want to change *how* Agile works without adding new cap
 
 ```bash
 # Search available presets
-specify preset search
+agile preset search
 
 # Install a preset
-specify preset add <preset-name>
+agile preset add <preset-name>
 ```
 
 For example, presets could restructure spec templates to require regulatory traceability, adapt the workflow to fit the methodology you use (e.g., Agile, Kanban, Waterfall, jobs-to-be-done, or domain-driven design), add mandatory security review gates to plans, enforce test-first task ordering, or localize the entire workflow to a different language. The [pirate-speak demo](https://github.com/mnriem/agile-pirate-speak-preset-demo) shows just how deep the customization can go. Multiple presets can be stacked with priority ordering.
 
-See the [Presets reference](https://github.github.io/agile/reference/presets.html) for the full command guide, including resolution order and priority stacking.
+See the [Presets reference](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/reference/presets.html) for the full command guide, including resolution order and priority stacking.
 
 ## 📦 Bundles: Role-Based Setups
 
@@ -374,7 +374,7 @@ Four ready-to-read example bundle manifests live under
 [`examples/bundles/`](examples/bundles/) (product manager, business analyst,
 security researcher, developer). These are bundle packaging examples, not
 filled generated feature specs; for end-to-end community examples, see the
-[community walkthroughs](https://github.github.io/agile/community/walkthroughs.html).
+[community walkthroughs](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/community/walkthroughs.html).
 
 Key guarantees: `info` shows exactly what `install` adds (transparency);
 installs are idempotent and confined to the project root; `remove` never touches
@@ -454,7 +454,7 @@ If you encounter issues with an agent, please open an issue so we can refine the
 ## 📖 Learn More
 
 - **[Complete Spec-Driven Development Methodology](./spec-driven.md)** - Deep dive into the full process
-- **[Quick Start Guide](https://github.github.io/agile/quickstart.html)** - Step-by-step implementation walkthrough
+- **[Quick Start Guide](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/quickstart.html)** - Step-by-step implementation walkthrough
 
 ---
 

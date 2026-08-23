@@ -4,7 +4,7 @@ description: "Apply a go / needs-clarification / kill gate and hand survivors of
 
 # Decide: Go, Clarify, or Kill
 
-Render the **verdict** on an assessed idea and record it at `.agile/assessments/<slug>/decision.md`. This is the gate between discovery and delivery: a **go** hands the idea off to `__AGILE_COMMAND_SPECIFY__`; a **kill** stops it with a documented reason; **needs-clarification** sends it back to an earlier stage. Killing ideas here is a success, not a failure — that is the entire point of an assessment pipeline.
+Render the **verdict** on an assessed idea and record it at `.agile/assessments/<slug>/decision.md`. This is the gate between discovery and delivery: a **go** hands the idea off to `__AGILE_COMMAND_AGILE__`; a **kill** stops it with a documented reason; **needs-clarification** sends it back to an earlier stage. Killing ideas here is a success, not a failure — that is the entire point of an assessment pipeline.
 
 Decide **judges; it does not spec or build.** It weighs the evidence already gathered and commits to a defensible call.
 
@@ -39,7 +39,7 @@ $ARGUMENTS
    - **needs-clarification** — promising but blocked on specific unknowns. List exactly what must be answered and which stage to revisit.
    - **kill** — not worth building now. State the decisive reason plainly (weak problem, better alternative exists, cost > value, out of scope, superseded).
 3. **Record the rationale** so the decision is auditable months later. Any `unknown` score must be acknowledged, not glossed.
-4. **Define the handoff (go only)**: summarize what `__AGILE_COMMAND_SPECIFY__` should receive — the problem statement, the recommended option, in/out of scope, success metrics, and open questions carried forward.
+4. **Define the handoff (go only)**: summarize what `__AGILE_COMMAND_AGILE__` should receive — the problem statement, the recommended option, in/out of scope, success metrics, and open questions carried forward.
 
 Write `ASSESS_DIR/decision.md`:
 
@@ -71,7 +71,7 @@ Write `ASSESS_DIR/decision.md`:
 - **Blocking questions**: [NEEDS CLARIFICATION: …]
 - **Revisit stage**: intake | research | define | shape
 
-## If go — Handoff to `__AGILE_COMMAND_SPECIFY__`
+## If go — Handoff to `__AGILE_COMMAND_AGILE__`
 
 - **Problem**: <one-line problem statement>
 - **Chosen approach**: <recommended concept option>
@@ -84,7 +84,7 @@ Write `ASSESS_DIR/decision.md`:
 - The slug (own line) and the **verdict** stated clearly.
 - The path `.agile/assessments/<ASSESS_SLUG>/decision.md`.
 - The next step, by verdict:
-  - **go** → `__AGILE_COMMAND_SPECIFY__` using the handoff summary as its input.
+  - **go** → `__AGILE_COMMAND_AGILE__` using the handoff summary as its input.
   - **needs-clarification** → re-run the named stage (e.g. `__AGILE_COMMAND_ASSESS_RESEARCH__ slug=<ASSESS_SLUG>`).
   - **kill** → none; the assessment is closed. The record remains for future reference.
 
@@ -92,6 +92,6 @@ Write `ASSESS_DIR/decision.md`:
 
 - Never modify source files — read only, and write inside `.agile/assessments/<slug>/`.
 - Never over-claim a `go`: if the evidence is thin or no concept was shaped, the honest verdict is `needs-clarification`, not `go`.
-- Never write a specification here — a `go` only *hands off* to `__AGILE_COMMAND_SPECIFY__`; it does not pre-empt it.
+- Never write a specification here — a `go` only *hands off* to `__AGILE_COMMAND_AGILE__`; it does not pre-empt it.
 - Never bury a `kill` — state the decisive reason plainly so the decision can be understood and revisited later.
 - Never overwrite an existing `decision.md` without confirmation.

@@ -253,16 +253,16 @@ if [ "$_common_loaded" != "true" ]; then
     exit 1
 fi
 
-# SPECIFY_INIT_DIR is resolved (and validated) by the core resolver. If only the
+# AGILE_INIT_DIR is resolved (and validated) by the core resolver. If only the
 # minimal git-common.sh was loaded, or an older core common.sh without the
 # resolver was loaded, refuse rather than silently falling back to the wrong root.
-if [ -n "${SPECIFY_INIT_DIR:-}" ] && ! type resolve_specify_init_dir >/dev/null 2>&1; then
-    echo "Error: SPECIFY_INIT_DIR requires updated Agile core scripts (common.sh with resolve_specify_init_dir), which were not found." >&2
+if [ -n "${AGILE_INIT_DIR:-}" ] && ! type resolve_specify_init_dir >/dev/null 2>&1; then
+    echo "Error: AGILE_INIT_DIR requires updated Agile core scripts (common.sh with resolve_specify_init_dir), which were not found." >&2
     exit 1
 fi
 
 # Resolve repository root. When the core scripts are present, get_repo_root
-# honors SPECIFY_INIT_DIR (the explicit project override for non-interactive /
+# honors AGILE_INIT_DIR (the explicit project override for non-interactive /
 # CI use) and hard-fails on an invalid value with no silent fallback.
 if type get_repo_root >/dev/null 2>&1; then
     REPO_ROOT=$(get_repo_root) || exit 1
@@ -587,7 +587,7 @@ if [ "$DRY_RUN" != true ]; then
         >&2 echo "[specify] Warning: Git repository not detected; skipped branch creation for $BRANCH_NAME"
     fi
 
-    printf '# To persist: export SPECIFY_FEATURE=%q\n' "$BRANCH_NAME" >&2
+    printf '# To persist: export AGILE_FEATURE=%q\n' "$BRANCH_NAME" >&2
 fi
 
 if $JSON_MODE; then
@@ -621,6 +621,6 @@ else
     echo "BRANCH_NAME: $BRANCH_NAME"
     echo "FEATURE_NUM: $FEATURE_NUM"
     if [ "$DRY_RUN" != true ]; then
-        printf '# To persist in your shell: export SPECIFY_FEATURE=%q\n' "$BRANCH_NAME"
+        printf '# To persist in your shell: export AGILE_FEATURE=%q\n' "$BRANCH_NAME"
     fi
 fi

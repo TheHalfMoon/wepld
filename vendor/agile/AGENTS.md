@@ -2,7 +2,7 @@
 
 ## About Agile and Specify
 
-**GitHub Agile** is a comprehensive toolkit for implementing Spec-Driven Development (SDD) - a methodology that emphasizes creating clear specifications before implementation. The toolkit includes templates, scripts, and workflows that guide development teams through a structured approach to building software.
+**Agile** is a comprehensive toolkit for implementing Spec-Driven Development (SDD) - a methodology that emphasizes creating clear specifications before implementation. The toolkit includes templates, scripts, and workflows that guide development teams through a structured approach to building software.
 
 **Agile CLI** is the command-line interface that bootstraps projects with the Agile framework. It sets up the necessary directory structures, templates, and AI agent integrations to support the Spec-Driven Development workflow.
 
@@ -64,7 +64,7 @@ manifest.record_file("commands/agile.plan.md", processed_content)
 manifest.record_existing(".vscode/settings.json")
 ```
 
-The manifest is persisted at `.agile/integrations/<key>.manifest.json` (one per integration, keyed by `key`) and stores a SHA-256 hash per file. When the user runs `specify integration uninstall <key>`, `teardown()` delegates to `manifest.uninstall()`, which removes only files whose current hash still matches the recorded value — so files the user later edited by hand are skipped, not clobbered (use `specify integration uninstall <key> --force` to remove modified tracked files anyway).
+The manifest is persisted at `.agile/integrations/<key>.manifest.json` (one per integration, keyed by `key`) and stores a SHA-256 hash per file. When the user runs `agile integration uninstall <key>`, `teardown()` delegates to `manifest.uninstall()`, which removes only files whose current hash still matches the recorded value — so files the user later edited by hand are skipped, not clobbered (use `agile integration uninstall <key> --force` to remove modified tracked files anyway).
 
 ### Why this matters
 
@@ -244,7 +244,7 @@ agile init my-project --integration <key>
 ls -R my-project/.kilo/commands/
 
 # Uninstall cleanly
-cd my-project && specify integration uninstall <key>
+cd my-project && agile integration uninstall <key>
 ```
 
 Each integration also has a dedicated test file at `tests/integrations/test_integration_<key>.py`. Note that hyphens in the key are replaced with underscores in the filename (e.g., key `cursor-agent` → `test_integration_cursor_agent.py`, key `kiro-cli` → `test_integration_kiro_cli.py`). Run it with:

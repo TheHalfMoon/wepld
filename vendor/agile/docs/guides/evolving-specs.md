@@ -23,10 +23,10 @@ For the conceptual model definitions, see
 Use flow-forward when each feature directory should remain a historical record.
 
 When you add another feature or make a substantial follow-up change, create a
-new feature spec through your installed `/agile.agile` command and continue
+new feature spec through your installed `/agile.specify` command and continue
 through the standard flow:
 
-1. Run `/agile.agile` to create a new feature directory under `specs/`.
+1. Run `/agile.specify` to create a new feature directory under `specs/`.
 2. Run `/agile.plan` to define the implementation approach.
 3. Run `/agile.tasks` to derive the work breakdown.
 4. Run `/agile.implement` and review the resulting code and artifact diffs.

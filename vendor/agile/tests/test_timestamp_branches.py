@@ -475,11 +475,11 @@ class TestGetFeaturePathsSinglePrefix:
     def test_bash_specify_feature_prefixed_requires_explicit_feature_context(
         self, tmp_path: Path
     ):
-        """SPECIFY_FEATURE alone no longer triggers path lookup in bash."""
+        """AGILE_FEATURE alone no longer triggers path lookup in bash."""
         (tmp_path / ".agile").mkdir()
         (tmp_path / "specs" / "001-target-spec").mkdir(parents=True)
         cmd = (
-            f'cd "{tmp_path}" && export SPECIFY_FEATURE="feat/001-other" && '
+            f'cd "{tmp_path}" && export AGILE_FEATURE="feat/001-other" && '
             f'source "{COMMON_SH}" && get_feature_paths'
         )
         result = subprocess.run(
@@ -494,7 +494,7 @@ class TestGetFeaturePathsSinglePrefix:
     def test_ps_specify_feature_prefixed_requires_explicit_feature_context(
         self, git_repo: Path
     ):
-        """PowerShell also requires feature.json or SPECIFY_FEATURE_DIRECTORY."""
+        """PowerShell also requires feature.json or AGILE_FEATURE_DIRECTORY."""
         common_ps = PROJECT_ROOT / "scripts" / "powershell" / "common.ps1"
         spec_dir = git_repo / "specs" / "001-ps-prefix-spec"
         spec_dir.mkdir(parents=True)
@@ -504,7 +504,7 @@ class TestGetFeaturePathsSinglePrefix:
             cwd=git_repo,
             capture_output=True,
             text=True,
-            env={**os.environ, "SPECIFY_FEATURE": "feat/001-other"},
+            env={**os.environ, "AGILE_FEATURE": "feat/001-other"},
         )
         assert result.returncode != 0
         assert "Feature directory not found" in (result.stderr + result.stdout)
@@ -516,8 +516,8 @@ class TestGetFeaturePathsSinglePrefix:
 @requires_bash
 class TestGetCurrentBranch:
     def test_env_var(self):
-        """Test 12: get_current_branch returns SPECIFY_FEATURE env var."""
-        result = source_and_call("get_current_branch", env={"SPECIFY_FEATURE": "my-custom-branch"})
+        """Test 12: get_current_branch returns AGILE_FEATURE env var."""
+        result = source_and_call("get_current_branch", env={"AGILE_FEATURE": "my-custom-branch"})
         assert result.stdout.strip() == "my-custom-branch"
 
 
@@ -1211,11 +1211,11 @@ class TestGitBranchNameOverridePowerShell:
 
 
 class TestFeatureDirectoryResolution:
-    """Tests for SPECIFY_FEATURE_DIRECTORY and .agile/feature.json resolution."""
+    """Tests for AGILE_FEATURE_DIRECTORY and .agile/feature.json resolution."""
 
     @requires_bash
     def test_env_var_overrides_branch_lookup(self, git_repo: Path):
-        """SPECIFY_FEATURE_DIRECTORY env var takes priority over branch-based lookup."""
+        """AGILE_FEATURE_DIRECTORY env var takes priority over branch-based lookup."""
         custom_dir = git_repo / "my-custom-specs" / "my-feature"
         custom_dir.mkdir(parents=True)
 
@@ -1224,7 +1224,7 @@ class TestFeatureDirectoryResolution:
             cwd=git_repo,
             capture_output=True,
             text=True,
-            env={**os.environ, "SPECIFY_FEATURE_DIRECTORY": str(custom_dir)},
+            env={**os.environ, "AGILE_FEATURE_DIRECTORY": str(custom_dir)},
         )
         assert result.returncode == 0, result.stderr
         assert str(custom_dir) in result.stdout
@@ -1282,7 +1282,7 @@ class TestFeatureDirectoryResolution:
             cwd=git_repo,
             capture_output=True,
             text=True,
-            env={**os.environ, "SPECIFY_FEATURE_DIRECTORY": str(env_dir)},
+            env={**os.environ, "AGILE_FEATURE_DIRECTORY": str(env_dir)},
         )
         assert result.returncode == 0, result.stderr
         for line in result.stdout.splitlines():
@@ -1310,7 +1310,7 @@ class TestFeatureDirectoryResolution:
 
     @pytest.mark.skipif(not _has_pwsh(), reason="pwsh not installed")
     def test_ps_env_var_overrides_branch_lookup(self, git_repo: Path):
-        """PowerShell: SPECIFY_FEATURE_DIRECTORY env var takes priority."""
+        """PowerShell: AGILE_FEATURE_DIRECTORY env var takes priority."""
         common_ps = PROJECT_ROOT / "scripts" / "powershell" / "common.ps1"
         custom_dir = git_repo / "my-custom-specs" / "ps-feature"
         custom_dir.mkdir(parents=True)
@@ -1321,7 +1321,7 @@ class TestFeatureDirectoryResolution:
             cwd=git_repo,
             capture_output=True,
             text=True,
-            env={**os.environ, "SPECIFY_FEATURE_DIRECTORY": str(custom_dir)},
+            env={**os.environ, "AGILE_FEATURE_DIRECTORY": str(custom_dir)},
         )
         assert result.returncode == 0, result.stderr
         for line in result.stdout.splitlines():

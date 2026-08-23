@@ -81,7 +81,7 @@ class TestIntegrationBase:
         created = i.setup(project, IntegrationManifest("stub", project))
         assert len(created) == 2
         assert (project / ".stub" / "commands" / "agile.plan.md").exists()
-        assert (project / ".stub" / "commands" / "agile.agile.md").exists()
+        assert (project / ".stub" / "commands" / "agile.specify.md").exists()
 
     def test_install_delegates_to_setup(self, tmp_path):
         i = StubIntegration()
@@ -339,9 +339,9 @@ class TestResolveCommandRefs:
         assert "/agile-plan" not in result
 
     def test_multiple_placeholders(self):
-        text = "__AGILE_COMMAND_SPECIFY__ then __AGILE_COMMAND_PLAN__ then __AGILE_COMMAND_TASKS__"
+        text = "__AGILE_COMMAND_AGILE__ then __AGILE_COMMAND_PLAN__ then __AGILE_COMMAND_TASKS__"
         result = IntegrationBase.resolve_command_refs(text, ".")
-        assert result == "/agile.agile then /agile.plan then /agile.tasks"
+        assert result == "/agile.specify then /agile.plan then /agile.tasks"
 
     def test_extension_command_dot(self):
         text = "Run __AGILE_COMMAND_GIT_COMMIT__ to commit."

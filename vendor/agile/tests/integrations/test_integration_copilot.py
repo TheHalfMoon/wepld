@@ -174,10 +174,10 @@ class TestCopilotCommandsMode:
         m = IntegrationManifest("copilot", tmp_path)
         copilot.setup(tmp_path, m, parsed_options={"commands": True})
 
-        specify_file = tmp_path / ".github" / "agents" / "agile.agile.agent.md"
+        specify_file = tmp_path / ".github" / "agents" / "agile.specify.agent.md"
         content = specify_file.read_text(encoding="utf-8")
 
-        assert "specify preset resolve spec-template" in content
+        assert "agile preset resolve spec-template" in content
         assert "resolved active `spec-template`" in content
         assert "Copy `.agile/templates/spec-template.md`" not in content
         assert "Load `.agile/templates/spec-template.md`" not in content
@@ -190,7 +190,7 @@ class TestCopilotCommandsMode:
 
         copilot.setup(tmp_path, m, parsed_options={"commands": True})
 
-        specify_file = tmp_path / ".github" / "agents" / "agile.agile.agent.md"
+        specify_file = tmp_path / ".github" / "agents" / "agile.specify.agent.md"
         content = specify_file.read_text(encoding="utf-8")
         assert "Create or update the feature specification" in content
         assert "preset override content" not in content
@@ -203,7 +203,7 @@ class TestCopilotCommandsMode:
 
         preset_dir = tmp_path / ".agile" / "presets" / "demo"
         (preset_dir / "commands").mkdir(parents=True, exist_ok=True)
-        (preset_dir / "commands" / "agile.agile.md").write_text(
+        (preset_dir / "commands" / "agile.specify.md").write_text(
             "preset override content\n",
             encoding="utf-8",
         )
@@ -214,7 +214,7 @@ class TestCopilotCommandsMode:
 
         copilot.setup(tmp_path, m, parsed_options={"commands": True})
 
-        specify_file = tmp_path / ".github" / "agents" / "agile.agile.agent.md"
+        specify_file = tmp_path / ".github" / "agents" / "agile.specify.agent.md"
         content = specify_file.read_text(encoding="utf-8")
         assert "preset override content" in content
         assert "Create or update the feature specification" not in content
@@ -256,7 +256,7 @@ class TestCopilotCommandsMode:
             ".github/agents/agile.converge.agent.md",
             ".github/agents/agile.implement.agent.md",
             ".github/agents/agile.plan.agent.md",
-            ".github/agents/agile.agile.agent.md",
+            ".github/agents/agile.specify.agent.md",
             ".github/agents/agile.tasks.agent.md",
             ".github/agents/agile.taskstoissues.agent.md",
             ".github/prompts/agile.analyze.prompt.md",
@@ -266,7 +266,7 @@ class TestCopilotCommandsMode:
             ".github/prompts/agile.converge.prompt.md",
             ".github/prompts/agile.implement.prompt.md",
             ".github/prompts/agile.plan.prompt.md",
-            ".github/prompts/agile.agile.prompt.md",
+            ".github/prompts/agile.specify.prompt.md",
             ".github/prompts/agile.tasks.prompt.md",
             ".github/prompts/agile.taskstoissues.prompt.md",
             ".vscode/settings.json",
@@ -321,7 +321,7 @@ class TestCopilotCommandsMode:
             ".github/agents/agile.converge.agent.md",
             ".github/agents/agile.implement.agent.md",
             ".github/agents/agile.plan.agent.md",
-            ".github/agents/agile.agile.agent.md",
+            ".github/agents/agile.specify.agent.md",
             ".github/agents/agile.tasks.agent.md",
             ".github/agents/agile.taskstoissues.agent.md",
             ".github/prompts/agile.analyze.prompt.md",
@@ -331,7 +331,7 @@ class TestCopilotCommandsMode:
             ".github/prompts/agile.converge.prompt.md",
             ".github/prompts/agile.implement.prompt.md",
             ".github/prompts/agile.plan.prompt.md",
-            ".github/prompts/agile.agile.prompt.md",
+            ".github/prompts/agile.specify.prompt.md",
             ".github/prompts/agile.tasks.prompt.md",
             ".github/prompts/agile.taskstoissues.prompt.md",
             ".vscode/settings.json",

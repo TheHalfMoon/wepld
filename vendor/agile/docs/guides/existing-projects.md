@@ -57,7 +57,7 @@ Describe both the requested outcome and the compatibility boundaries that must
 remain intact:
 
 ```text
-/agile.agile Add CSV export to the existing orders page. Preserve current
+/agile.specify Add CSV export to the existing orders page. Preserve current
 filters and authorization behavior. Export only the rows visible to the signed-in
 user, and do not change the existing JSON API response.
 ```

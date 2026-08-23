@@ -4,7 +4,7 @@ description: "Use when the user wants to design, redesign, shape, critique, audi
 argument-hint: "[{{command_hint}}] [target]"
 user-invocable: true
 allowed-tools:
-  - Bash(npx pictorial *)
+  - Bash(npx @wepld/pictorial *)
   - Bash(node {{scripts_path}}/*)
 license: Apache 2.0
 ---

@@ -22,7 +22,7 @@ propagating constitution-driven changes to dependent Agile artifacts.
 - If an instruction could be either constitution content or a non-governance intent, ask for
   clarification before making changes.
 - After updating the constitution, list each deferred intent in a `Next Actions` section with an
-  appropriate follow-up Agile command, such as `__AGILE_COMMAND_SPECIFY__`, but do not
+  appropriate follow-up Agile command, such as `__AGILE_COMMAND_AGILE__`, but do not
   invoke it.
 - Omit `Next Actions` when there are no non-governance intents.
 

@@ -5,7 +5,7 @@ version: 4.1.1
 user-invocable: true
 license: Apache 2.0
 allowed-tools:
-  - Bash(npx pictorial *)
+  - Bash(npx @wepld/pictorial *)
   - Bash(node .vibe/skills/pictorial/scripts/*)
 ---
 <!-- Modified by WePLD on 2026-08-23: deterministic Pictorial rebrand/path integration from the pinned upstream source. -->

@@ -1,6 +1,6 @@
 # Preset Publishing Guide
 
-This guide explains how to publish your preset to the Agile preset catalog, making it discoverable by `specify preset search`.
+This guide explains how to publish your preset to the Agile preset catalog, making it discoverable by `agile preset search`.
 
 ## Table of Contents
 
@@ -19,10 +19,10 @@ Before publishing a preset, ensure you have:
 
 1. **Valid Preset**: A working preset with a valid `preset.yml` manifest
 2. **Git Repository**: Preset hosted on GitHub (or other public git hosting)
-3. **Documentation**: A preset-scoped README.md that explains how to use **this preset**, including a valid `specify preset add ...` install command (see [Usage README Requirements](#usage-readme-requirements))
+3. **Documentation**: A preset-scoped README.md that explains how to use **this preset**, including a valid `agile preset add ...` install command (see [Usage README Requirements](#usage-readme-requirements))
 4. **License**: Open source license file (MIT, Apache 2.0, etc.)
 5. **Versioning**: Semantic versioning (e.g., 1.0.0)
-6. **Testing**: Preset tested on real projects with `specify preset add --dev`
+6. **Testing**: Preset tested on real projects with `agile preset add --dev`
 
 ---
 
@@ -45,7 +45,7 @@ your-preset/
 │   └── ...
 │
 └── commands/                  # Command overrides (optional)
-    └── agile.agile.md
+    └── agile.specify.md
 ```
 
 Start from the [scaffold](scaffold/) if you're creating a new preset.
@@ -90,26 +90,26 @@ tags:                              # 2-5 relevant tags
 - ✅ `repository` URL is valid and public
 - ✅ All template and command files exist in the preset directory
 - ✅ Template names are lowercase with hyphens only
-- ✅ Command names use dot notation (e.g. `agile.agile`)
+- ✅ Command names use dot notation (e.g. `agile.specify`)
 - ✅ Tags are lowercase and descriptive
 
 ### 3. Test Locally
 
 ```bash
 # Install from local directory
-specify preset add --dev /path/to/your-preset
+agile preset add --dev /path/to/your-preset
 
 # Verify templates resolve from your preset
-specify preset resolve spec-template
+agile preset resolve spec-template
 
 # Verify preset info
-specify preset info your-preset
+agile preset info your-preset
 
 # List installed presets
-specify preset list
+agile preset list
 
 # Remove when done testing
-specify preset remove your-preset
+agile preset remove your-preset
 ```
 
 If your preset includes command overrides, verify they appear in the agent directories:
@@ -144,7 +144,7 @@ https://github.com/your-org/agile-preset-your-preset/archive/refs/tags/v1.0.0.zi
 ### 5. Test Installation from Archive
 
 ```bash
-specify preset add --from https://github.com/your-org/agile-preset-your-preset/archive/refs/tags/v1.0.0.zip
+agile preset add --from https://github.com/your-org/agile-preset-your-preset/archive/refs/tags/v1.0.0.zip
 ```
 
 ### Usage README Requirements
@@ -154,7 +154,7 @@ The catalog `documentation` field must point at a README that explains how to us
 
 The submission workflow **mechanically enforces** that the linked README is a GitHub-hosted
 URL whose path ends with `README.md`, resolves to a readable file, and contains at least one
-valid `specify preset add ...` command. The remaining items (preferring a preset-scoped README
+valid `agile preset add ...` command. The remaining items (preferring a preset-scoped README
 in monorepos, covering the minimum structure) are expectations a human reviewer checks —
 follow them so your submission isn't sent back for changes.
 
@@ -166,17 +166,17 @@ follow them so your submission isn't sent back for changes.
   it *before* downloading the release artifact — it's fine for the same file to also ship
   inside the release ZIP.
 - **Include a valid Agile CLI install command** *(enforced)*. The linked README must
-  contain at least one `specify preset add ...` invocation. Preferably use the
+  contain at least one `agile preset add ...` invocation. Preferably use the
   catalog-install form whose URL matches your Download URL:
 
   ```bash
   # <download-url> is the same URL you submit as the catalog Download URL —
   # either the tag archive or a release asset, e.g.:
-  specify preset add --from https://github.com/<org>/<repo>/archive/refs/tags/vX.Y.Z.zip
-  specify preset add --from https://github.com/<org>/<repo>/releases/download/vX.Y.Z/<id>-X.Y.Z.zip
+  agile preset add --from https://github.com/<org>/<repo>/archive/refs/tags/vX.Y.Z.zip
+  agile preset add --from https://github.com/<org>/<repo>/releases/download/vX.Y.Z/<id>-X.Y.Z.zip
   ```
 
-  `specify preset add <id>` and `specify preset add --dev <path>` are also accepted, but the
+  `agile preset add <id>` and `agile preset add --dev <path>` are also accepted, but the
   `--from <download-url>` form is the clearest signal that the README documents this exact
   preset release.
 - **Cover the minimum structure** so a reader can decide whether the preset fits:
@@ -184,7 +184,7 @@ follow them so your submission isn't sent back for changes.
   - The install command using Agile CLI syntax (above)
   - When to use it / when not to use it
 
-A submission whose linked README lacks a valid `specify preset add ...` command **fails
+A submission whose linked README lacks a valid `agile preset add ...` command **fails
 validation** (workflow check 2d) and will not be added until corrected.
 
 ---
@@ -217,7 +217,7 @@ Edit `presets/catalog.community.json` and add your preset.
 {
   "schema_version": "1.0",
   "updated_at": "2026-03-10T00:00:00Z",
-  "catalog_url": "https://raw.githubusercontent.com/github/agile/main/presets/catalog.community.json",
+  "catalog_url": "https://raw.githubusercontent.com/TheHalfMoon/wepld/main/vendor/agile/presets/catalog.community.json",
   "presets": {
     "your-preset": {
       "name": "Your Preset Name",
@@ -285,11 +285,11 @@ git push origin add-your-preset
 
 ### Checklist
 - [ ] Valid preset.yml manifest
-- [ ] Usage README with a valid `specify preset add ...` command, linked from `documentation` (preset-scoped README recommended for monorepos)
+- [ ] Usage README with a valid `agile preset add ...` command, linked from `documentation` (preset-scoped README recommended for monorepos)
 - [ ] LICENSE file included
 - [ ] GitHub release created
-- [ ] Preset tested with `specify preset add --dev`
-- [ ] Templates resolve correctly (`specify preset resolve`)
+- [ ] Preset tested with `agile preset add --dev`
+- [ ] Templates resolve correctly (`agile preset resolve`)
 - [ ] Commands register to agent directories (if applicable)
 - [ ] Commands match template sections (command + template are coherent)
 - [ ] Added to presets/catalog.community.json
@@ -312,17 +312,17 @@ After submission, maintainers will review:
 2. **Template quality** — templates are useful and well-structured
 3. **Command coherence** — commands reference sections that exist in templates
 4. **Security** — no malicious content, safe file operations
-5. **Documentation** — the README linked from `documentation` explains how to use *this* preset and contains a valid `specify preset add ...` command
+5. **Documentation** — the README linked from `documentation` explains how to use *this* preset and contains a valid `agile preset add ...` command
 
 > **Reviewer note:** the workflow can mechanically check *structure* (the linked README
-> resolves and contains a valid `specify preset add ...` snippet; when that snippet uses the
+> resolves and contains a valid `agile preset add ...` snippet; when that snippet uses the
 > `--from <url>` form, its URL must match the submitted download URL exactly — other accepted
-> forms like `specify preset add <id>` don't reference the download URL at all). Whether the
+> forms like `agile preset add <id>` don't reference the download URL at all). Whether the
 > README genuinely documents *this* preset is partly a content judgment, so a human reviewer
 > should still confirm the linked doc isn't just a funnel to a separate product or CLI before
 > approving.
 
-Once verified, `verified: true` is set and the preset appears in `specify preset search`.
+Once verified, `verified: true` is set and the preset appears in `agile preset search`.
 
 ---
 

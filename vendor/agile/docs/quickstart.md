@@ -10,13 +10,13 @@ Commands are shown here in `/agile.*` form, but the exact invocation depends on 
 ## Recommended Process
 
 > [!TIP]
-> **Context Awareness**: Agile tracks the active feature by the feature directory recorded in `.agile/feature.json` (overridable with the `SPECIFY_FEATURE_DIRECTORY` environment variable). Commands resolve the feature from that state, **not** from the checked-out Git branch — no Git required. The opt-in **git** extension adds numbered feature branches (e.g. `001-feature-name`) for organizing work in version control, but the active feature is still whichever directory that state points to; `git checkout` alone does not change it. To point commands at a different feature, update `.agile/feature.json` (or set `SPECIFY_FEATURE_DIRECTORY`).
+> **Context Awareness**: Agile tracks the active feature by the feature directory recorded in `.agile/feature.json` (overridable with the `AGILE_FEATURE_DIRECTORY` environment variable). Commands resolve the feature from that state, **not** from the checked-out Git branch — no Git required. The opt-in **git** extension adds numbered feature branches (e.g. `001-feature-name`) for organizing work in version control, but the active feature is still whichever directory that state points to; `git checkout` alone does not change it. To point commands at a different feature, update `.agile/feature.json` (or set `AGILE_FEATURE_DIRECTORY`).
 
 After installing Agile, each command below is a step in the process. Two paths are common:
 
 **Shorter path** — for smaller features:
 
-1. `/agile.agile`
+1. `/agile.specify`
 2. `/agile.plan`
 3. `/agile.tasks`
 4. `/agile.implement`
@@ -25,7 +25,7 @@ After installing Agile, each command below is a step in the process. Two paths a
 **Full path** — for production features, adding `/agile.clarify`, `/agile.checklist`, and `/agile.analyze` as quality gates:
 
 1. `/agile.constitution`
-2. `/agile.agile`
+2. `/agile.specify`
 3. `/agile.clarify`
 4. `/agile.plan`
 5. `/agile.checklist`
@@ -59,12 +59,12 @@ Establishes the project's guiding principles, which every later step is evaluate
 /agile.constitution Taskify is a "Security-First" application. All user inputs must be validated. We use a microservices architecture. Code must be fully documented.
 ```
 
-### Step 2: `/agile.agile` — describe what to build
+### Step 2: `/agile.specify` — describe what to build
 
 Creates the feature specification from a natural-language description. Focus on the **what** and **why**, not the tech stack.
 
 ```text
-/agile.agile Develop Taskify, a team productivity platform where predefined users create projects, assign tasks, comment, and move tasks across Kanban columns (To Do, In Progress, In Review, Done). Five users (one product manager, four engineers), three sample projects, no login for this first phase.
+/agile.specify Develop Taskify, a team productivity platform where predefined users create projects, assign tasks, comment, and move tasks across Kanban columns (To Do, In Progress, In Review, Done). Five users (one product manager, four engineers), three sample projects, no login for this first phase.
 ```
 
 ### Step 3: `/agile.clarify` — resolve ambiguities
@@ -109,7 +109,7 @@ Reports conflicts, gaps, and ambiguities across `spec.md`, `plan.md`, and `tasks
 
 ### Step 8: `/agile.implement` — build it
 
-Executes the tasks in `tasks.md` in dependency order. Before implementation, it reads checklist checkbox state as a gate and asks before proceeding if any checklist items are unchecked; it does not change any checklist files or markers. The built-in `checklists/requirements.md` checklist is maintained by `/agile.agile` and `/agile.clarify`, while custom checklists remain reviewer-owned. Run it once to build everything, or scope it to one phase at a time for large features.
+Executes the tasks in `tasks.md` in dependency order. Before implementation, it reads checklist checkbox state as a gate and asks before proceeding if any checklist items are unchecked; it does not change any checklist files or markers. The built-in `checklists/requirements.md` checklist is maintained by `/agile.specify` and `/agile.clarify`, while custom checklists remain reviewer-owned. Run it once to build everything, or scope it to one phase at a time for large features.
 
 ```text
 /agile.implement

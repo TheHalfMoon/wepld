@@ -336,7 +336,7 @@ def _manifest_owner(key: str) -> str:
 def _manifest_suggestion(key: str, default_key: str | None) -> str:
     if key == _SHARED_MANIFEST_KEY:
         if default_key and default_key in INTEGRATION_REGISTRY:
-            return f"Run `specify integration upgrade {default_key}` to regenerate shared managed files."
+            return f"Run `agile integration upgrade {default_key}` to regenerate shared managed files."
         return (
             "Run `agile init --here --force --integration <key>` to regenerate "
             "shared managed files."
@@ -346,7 +346,7 @@ def _manifest_suggestion(key: str, default_key: str | None) -> str:
             "Upgrade Agile, reinstall with a supported CLI version, "
             f"or remove the stale integration entry from {INTEGRATION_JSON}."
         )
-    return f"Run `specify integration upgrade {key}` or reinstall the integration."
+    return f"Run `agile integration upgrade {key}` or reinstall the integration."
 
 
 def build_integration_status_report(project_root: Path) -> dict[str, Any]:
@@ -376,7 +376,7 @@ def build_integration_status_report(project_root: Path) -> dict[str, Any]:
                 "integration-state-missing",
                 f"{INTEGRATION_JSON} is missing.",
                 path=INTEGRATION_JSON,
-                suggestion="Run `specify integration install <key>` to install an integration.",
+                suggestion="Run `agile integration install <key>` to install an integration.",
             )
         )
         return _build_report(None, [], findings, {}, None)
@@ -417,7 +417,7 @@ def build_integration_status_report(project_root: Path) -> dict[str, Any]:
                 "warning",
                 "no-installed-integrations",
                 "No installed integrations are recorded.",
-                suggestion="Run `specify integration install <key>` to install one.",
+                suggestion="Run `agile integration install <key>` to install one.",
             )
         )
 
@@ -428,7 +428,7 @@ def build_integration_status_report(project_root: Path) -> dict[str, Any]:
                 "error",
                 "default-integration-missing",
                 "No default integration is recorded.",
-                suggestion="Run `specify integration use <key>` after choosing an installed integration.",
+                suggestion="Run `agile integration use <key>` after choosing an installed integration.",
             )
         )
 
@@ -442,7 +442,7 @@ def build_integration_status_report(project_root: Path) -> dict[str, Any]:
                     "in installed_integrations."
                 ),
                 integration=raw_default_not_installed,
-                suggestion="Run `specify integration use <key>` for an installed integration, or reinstall the default integration.",
+                suggestion="Run `agile integration use <key>` for an installed integration, or reinstall the default integration.",
             )
         )
 
@@ -481,8 +481,8 @@ def build_integration_status_report(project_root: Path) -> dict[str, Any]:
                     + ", ".join(sorted(unsafe))
                 ),
                 suggestion=(
-                    "Use `specify integration use <key>` to change defaults, "
-                    "or `specify integration switch <key>` only when replacing integrations."
+                    "Use `agile integration use <key>` to change defaults, "
+                    "or `agile integration switch <key>` only when replacing integrations."
                 ),
             )
         )
@@ -597,7 +597,7 @@ def build_integration_status_report(project_root: Path) -> dict[str, Any]:
                     "managed-files-modified",
                     f"{len(modified)} managed file(s) were modified for {owner}.",
                     integration=key,
-                    suggestion="Review the changes before running `specify integration upgrade --force`.",
+                    suggestion="Review the changes before running `agile integration upgrade --force`.",
                 )
             )
 

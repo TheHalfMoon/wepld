@@ -422,7 +422,7 @@ inputs:
 
 steps:
   - id: specify
-    command: agile.agile
+    command: agile.specify
     integration: "{{ inputs.integration }}"
     input:
       args: "{{ inputs.spec }}"

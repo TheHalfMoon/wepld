@@ -58,7 +58,7 @@
 		"git.autofetch": true,
 		"chat.promptFilesRecommendations": {
 			"agile.constitution": true,
-			"agile.agile": true,
+			"agile.specify": true,
 			"agile.plan": true,
 			"agile.tasks": true,
 			"agile.implement": true

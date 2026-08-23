@@ -28,7 +28,7 @@ const COMPONENTS = {
     artifacts: ['dist/universal.zip'],
     postReleaseHint: null,
     tweetHeader: (v) => `Pictorial v${v} is out.`,
-    tweetCta: 'Install / update: npx pictorial install',
+    tweetCta: 'Install / update: npx @wepld/pictorial install',
   },
   cli: {
     manifest: 'package.json',
@@ -233,7 +233,7 @@ try {
 
 console.log(`\n✓ ${cfg.label} ${version} released as ${tag}`);
 
-// npx pictorial update serves from github.com/TheHalfMoon/wepld, not from this release:
+// npx @wepld/pictorial update serves from github.com/TheHalfMoon/wepld, not from this release:
 // the site must be redeployed (its deploy overlays public main first). Warn
 // loudly when the served version lags so a release never silently strands
 // update users on old content again (the 4.0.0 release did exactly that).
@@ -245,7 +245,7 @@ if (component === 'skill' && !dryRun) {
       console.log(`✓ github.com/TheHalfMoon/wepld serves ${served}`);
     } else {
       console.log(`\n⚠ github.com/TheHalfMoon/wepld still serves ${served}, not ${version}.`);
-      console.log('  npx pictorial update users get the OLD version until the site redeploys:');
+      console.log('  npx @wepld/pictorial update users get the OLD version until the site redeploys:');
       console.log('  cd ../pictorial-site && bun run deploy');
     }
   } catch {

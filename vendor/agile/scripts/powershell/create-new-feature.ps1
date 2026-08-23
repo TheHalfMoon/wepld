@@ -287,13 +287,13 @@ if (-not $DryRun) {
     Save-FeatureJson -RepoRoot $repoRoot -FeatureDirectory $featureDir
 
     # Set environment variables for the current session
-    $env:SPECIFY_FEATURE = $branchName
-    $env:SPECIFY_FEATURE_DIRECTORY = $featureDir
+    $env:AGILE_FEATURE = $branchName
+    $env:AGILE_FEATURE_DIRECTORY = $featureDir
 
     $quotedBranchName = "'" + $branchName.Replace("'", "''") + "'"
     $quotedFeatureDir = "'" + $featureDir.Replace("'", "''") + "'"
-    $featureAssignment = '$env:SPECIFY_FEATURE = ' + $quotedBranchName
-    $directoryAssignment = '$env:SPECIFY_FEATURE_DIRECTORY = ' + $quotedFeatureDir
+    $featureAssignment = '$env:AGILE_FEATURE = ' + $quotedBranchName
+    $directoryAssignment = '$env:AGILE_FEATURE_DIRECTORY = ' + $quotedFeatureDir
     [Console]::Error.WriteLine("# To persist: $featureAssignment")
     [Console]::Error.WriteLine("#              $directoryAssignment")
 }

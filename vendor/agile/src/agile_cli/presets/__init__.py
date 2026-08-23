@@ -170,7 +170,7 @@ def _substitute_core_template(
 
     Args:
         body: Preset command body (may contain {CORE_TEMPLATE} placeholder).
-        cmd_name: Full command name (e.g. "agile.git.feature" or "agile.agile").
+        cmd_name: Full command name (e.g. "agile.git.feature" or "agile.specify").
         project_root: Project root path.
         registrar: CommandRegistrar instance for parse_frontmatter.
 
@@ -486,7 +486,7 @@ class PresetManifest:
 
             # Validate template name format
             if tmpl["type"] == "command":
-                # Commands use dot notation (e.g. agile.agile)
+                # Commands use dot notation (e.g. agile.specify)
                 if not re.match(r'^[a-z0-9.-]+$', tmpl["name"]):
                     raise PresetValidationError(
                         f"Invalid command name '{tmpl['name']}': "
@@ -1312,7 +1312,7 @@ class PresetManager:
                 warnings.warn(
                     f"Post-rescaffold reconciliation failed for '{agent_name}': "
                     f"{exc}. Agent command files may be stale; re-run "
-                    f"'specify integration use {agent_name}' or reinstall "
+                    f"'agile integration use {agent_name}' or reinstall "
                     f"affected presets to refresh.",
                     stacklevel=2,
                 )
@@ -2723,7 +2723,7 @@ class PresetManager:
             if composed_file.exists():
                 source_file = composed_file
 
-            # Derive the short command name (e.g. "agile" from "agile.agile")
+            # Derive the short command name (e.g. "agile" from "agile.specify")
             raw_short_name = cmd_name
             if raw_short_name.startswith("agile."):
                 raw_short_name = raw_short_name[len("agile."):]
@@ -3304,7 +3304,7 @@ class PresetManager:
             f"its restore source '{source_file}' could not be read "
             f"({exc.__class__.__name__}: {exc}). The skill was left in place "
             f"rather than deleted. Fix or remove that file and re-run "
-            f"'specify preset add'/'specify preset remove' to refresh it.",
+            f"'agile preset add'/'agile preset remove' to refresh it.",
             stacklevel=2,
         )
 
@@ -3584,7 +3584,7 @@ class PresetManager:
             if not force:
                 raise PresetError(
                     f"Preset '{manifest.id}' is already installed. "
-                    f"Use 'specify preset remove {manifest.id}' first."
+                    f"Use 'agile preset remove {manifest.id}' first."
                 )
             self.remove(manifest.id)
 
@@ -4046,7 +4046,7 @@ class PresetManager:
                 warnings.warn(
                     f"Post-removal reconciliation failed for {pack_id}: {exc}. "
                     f"Agent command files may be stale; reinstall affected presets "
-                    f"or run 'specify preset add' to refresh.",
+                    f"or run 'agile preset add' to refresh.",
                     stacklevel=2,
                 )
 
@@ -4135,8 +4135,8 @@ class PresetCatalog:
     mirroring the extension catalog system.
     """
 
-    DEFAULT_CATALOG_URL = "https://raw.githubusercontent.com/github/agile/main/presets/catalog.json"
-    COMMUNITY_CATALOG_URL = "https://raw.githubusercontent.com/github/agile/main/presets/catalog.community.json"
+    DEFAULT_CATALOG_URL = "https://raw.githubusercontent.com/TheHalfMoon/wepld/main/vendor/agile/presets/catalog.json"
+    COMMUNITY_CATALOG_URL = "https://raw.githubusercontent.com/TheHalfMoon/wepld/main/vendor/agile/presets/catalog.community.json"
     CACHE_DURATION = 3600  # 1 hour in seconds
 
     def __init__(self, project_root: Path):
@@ -4848,7 +4848,7 @@ class PresetCatalog:
             raise PresetError(
                 f"Preset '{pack_id}' is bundled with agile and has no download URL. "
                 f"It should be installed from the local package. "
-                f"Use 'specify preset add {pack_id}' to install from the bundled package, "
+                f"Use 'agile preset add {pack_id}' to install from the bundled package, "
                 f"or reinstall agile if the bundled files are missing: {REINSTALL_COMMAND}"
             )
 
@@ -5185,7 +5185,7 @@ class PresetResolver:
     def _core_stem(template_name: str) -> Optional[str]:
         """Extract the stem for core command lookup.
 
-        Commands use dot notation (e.g. ``agile.agile``), but core
+        Commands use dot notation (e.g. ``agile.specify``), but core
         command files are named by stem (e.g. ``specify.md``).  Returns
         the stem if *template_name* follows the ``agile.<stem>`` pattern,
         or ``None`` otherwise.

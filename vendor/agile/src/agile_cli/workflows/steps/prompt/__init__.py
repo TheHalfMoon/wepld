@@ -15,7 +15,7 @@ class PromptStep(StepBase):
     """Send a free-form prompt to an integration CLI.
 
     Unlike ``CommandStep`` which invokes an installed Agile command
-    by name (e.g. ``/agile.agile`` or ``/agile-specify``),
+    by name (e.g. ``/agile.specify`` or ``/agile-specify``),
     ``PromptStep`` sends an arbitrary inline ``prompt:`` string
     directly to the CLI.  This is useful for ad-hoc instructions
     that don't map to a registered command.

@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="./media/logo_large.webp" alt="Agile Logo" width="200" height="200"/>
+    <img src="./media/agile-logo-large.svg" alt="Agile Logo" width="200" height="200"/>
     <h1>🌱 Agile</h1>
     <h3><em>在动手编码之前，先定义要构建什么 —— 适配任意 AI 编码助手。</em></h3>
 </div>
@@ -9,10 +9,10 @@
 </p>
 
 <p align="center">
-    <a href="https://github.com/TheHalfMoon/wepld/releases/latest"><img src="https://img.shields.io/github/v/release/github/agile" alt="Latest Release"/></a>
-    <a href="https://github.com/TheHalfMoon/wepld/stargazers"><img src="https://img.shields.io/github/stars/github/agile?style=social" alt="GitHub stars"/></a>
-    <a href="https://github.com/TheHalfMoon/wepld/blob/main/LICENSE"><img src="https://img.shields.io/github/license/github/agile" alt="License"/></a>
-    <a href="https://github.github.io/agile/"><img src="https://img.shields.io/badge/docs-GitHub_Pages-blue" alt="Documentation"/></a>
+    <a href="https://github.com/TheHalfMoon/wepld/releases/latest"><img src="https://img.shields.io/github/v/release/TheHalfMoon/wepld" alt="Latest Release"/></a>
+    <a href="https://github.com/TheHalfMoon/wepld/stargazers"><img src="https://img.shields.io/github/stars/TheHalfMoon/wepld?style=social" alt="GitHub stars"/></a>
+    <a href="https://github.com/TheHalfMoon/wepld/blob/main/LICENSE"><img src="https://img.shields.io/github/license/TheHalfMoon/wepld" alt="License"/></a>
+    <a href="https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/"><img src="https://img.shields.io/badge/docs-GitHub_Pages-blue" alt="Documentation"/></a>
 </p>
 
 <p align="center">
@@ -74,19 +74,19 @@ cd my-project
 
 ```bash
 # 检查是否有更新版本可用（只读操作 —— 不会修改任何内容）
-specify self check
+agile self check
 
 # 预览升级将执行的操作，但不实际升级
-specify self upgrade --dry-run
+agile self upgrade --dry-run
 
 # 就地升级到最新稳定版（自动识别 uv tool 与 pipx 安装方式）
-specify self upgrade
+agile self upgrade
 
 # 或锁定到指定的发布标签（将 vX.Y.Z[suffix] 替换为你想要的标签）
-specify self upgrade --tag vX.Y.Z[suffix]
+agile self upgrade --tag vX.Y.Z[suffix]
 ```
 
-直接运行 `specify self upgrade` 会立即执行，与 `pip install -U`、`npm update` 等命令一样无需额外确认。对于 `uv tool` 安装的情况，它在底层会执行 `uv tool install wepld-agile --force --from <git ref>`，因此锁定的发布标签同样有效，包括 dev、alpha/beta/rc 或带构建元数据的后缀。`uvx`（临时运行）和源码检出会被自动识别，此时会给出针对具体路径的操作建议，而不会执行安装程序。可通过设置 `SPECIFY_UPGRADE_TIMEOUT_SECS` 来限制安装子进程的最长运行时间（默认无超时限制 —— 必要时用 `Ctrl+C` 中断）。
+直接运行 `agile self upgrade` 会立即执行，与 `pip install -U`、`npm update` 等命令一样无需额外确认。对于 `uv tool` 安装的情况，它在底层会执行 `uv tool install wepld-agile --force --from <git ref>`，因此锁定的发布标签同样有效，包括 dev、alpha/beta/rc 或带构建元数据的后缀。`uvx`（临时运行）和源码检出会被自动识别，此时会给出针对具体路径的操作建议，而不会执行安装程序。可通过设置 `AGILE_UPGRADE_TIMEOUT_SECS` 来限制安装子进程的最长运行时间（默认无超时限制 —— 必要时用 `Ctrl+C` 中断）。
 
 ### 3. 确立项目准则
 
@@ -100,10 +100,10 @@ specify self upgrade --tag vX.Y.Z[suffix]
 
 ### 4. 编写规范
 
-使用 **`/agile.agile`** 命令描述你想构建什么。聚焦于**做什么**和**为什么做**，而不是技术栈。
+使用 **`/agile.specify`** 命令描述你想构建什么。聚焦于**做什么**和**为什么做**，而不是技术栈。
 
 ```bash
-/agile.agile Build an application that can help me organize my photos in separate photo albums. Albums are grouped by date and can be re-organized by dragging and dropping on the main page. Albums are never in other nested albums. Within each album, photos are previewed in a tile-like interface.
+/agile.specify Build an application that can help me organize my photos in separate photo albums. Albums are grouped by date and can be re-organized by dragging and dropping on the main page. Albums are never in other nested albums. Within each album, photos are previewed in a tile-like interface.
 ```
 
 ### 5. 制定技术实现方案
@@ -136,17 +136,17 @@ specify self upgrade --tag vX.Y.Z[suffix]
 
 想看看 Agile 的实际效果？观看我们的[视频概览](https://www.youtube.com/watch?v=a9eR1xsfvHg&pp=0gcJCckJAYcqIYzv)！
 
-[![Agile video header](/media/agile-video-header.jpg)](https://www.youtube.com/watch?v=a9eR1xsfvHg&pp=0gcJCckJAYcqIYzv)
+[![Agile video header](/media/agile-video-header.svg)](https://www.youtube.com/watch?v=a9eR1xsfvHg&pp=0gcJCckJAYcqIYzv)
 
 ## 🌍 社区
 
-在 [Agile 文档站点](https://github.github.io/agile/)上探索由社区贡献的资源：
+在 [Agile 文档站点](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/)上探索由社区贡献的资源：
 
-- [扩展（Extensions）](https://github.github.io/agile/community/extensions.html) —— 命令、钩子与各类能力
-- [预设（Presets）](https://github.github.io/agile/community/presets.html) —— 模板与术语覆盖
-- [捆绑包（Bundles）](https://github.github.io/agile/community/bundles.html) —— 由现有组件组合而成的角色与团队技术栈
-- [实战演练（Walkthroughs）](https://github.github.io/agile/community/walkthroughs.html) —— 端到端的 SDD 场景
-- [伙伴项目（Friends）](https://github.github.io/agile/community/friends.html) —— 扩展 Agile 或基于它构建的项目
+- [扩展（Extensions）](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/community/extensions.html) —— 命令、钩子与各类能力
+- [预设（Presets）](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/community/presets.html) —— 模板与术语覆盖
+- [捆绑包（Bundles）](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/community/bundles.html) —— 由现有组件组合而成的角色与团队技术栈
+- [实战演练（Walkthroughs）](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/community/walkthroughs.html) —— 端到端的 SDD 场景
+- [伙伴项目（Friends）](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/community/friends.html) —— 扩展 Agile 或基于它构建的项目
 
 > [!NOTE]
 > 社区贡献由各自的作者独立创建和维护。请在安装前审阅源代码，并自行斟酌使用。
@@ -155,9 +155,9 @@ specify self upgrade --tag vX.Y.Z[suffix]
 
 ## 🤖 支持的 AI 编码助手集成
 
-Agile 可与 30 多个 AI 编码助手协作 —— 既包括 CLI 工具，也包括基于 IDE 的助手。完整列表以及相关说明和使用细节，请参阅[支持的 AI 编码助手集成](https://github.github.io/agile/reference/integrations.html)指南。
+Agile 可与 30 多个 AI 编码助手协作 —— 既包括 CLI 工具，也包括基于 IDE 的助手。完整列表以及相关说明和使用细节，请参阅[支持的 AI 编码助手集成](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/reference/integrations.html)指南。
 
-运行 `specify integration list` 可查看当前安装版本中所有可用的集成。
+运行 `agile integration list` 可查看当前安装版本中所有可用的集成。
 
 ## 可用的斜杠命令
 
@@ -170,7 +170,7 @@ Agile 可与 30 多个 AI 编码助手协作 —— 既包括 CLI 工具，也�
 | 命令                     | 助手技能               | 说明                                                       |
 | ------------------------ | ---------------------- | ---------------------------------------------------------- |
 | `/agile.constitution`  | `agile-constitution` | 创建或更新项目的治理准则和开发指南                         |
-| `/agile.agile`       | `agile-specify`      | 定义你想构建什么（需求与用户故事）                         |
+| `/agile.specify`       | `agile-specify`      | 定义你想构建什么（需求与用户故事）                         |
 | `/agile.plan`          | `agile-plan`         | 结合所选技术栈制定技术实现方案                             |
 | `/agile.tasks`         | `agile-tasks`        | 生成可执行的实现任务清单                                   |
 | `/agile.taskstoissues` | `agile-taskstoissues`| 将生成的任务清单转换为 GitHub issue，便于跟踪与执行        |
@@ -189,7 +189,7 @@ Agile 可与 30 多个 AI 编码助手协作 —— 既包括 CLI 工具，也�
 
 ## 🔧 Agile CLI 参考
 
-完整的命令详情、选项与示例，请参阅 [CLI 参考文档](https://github.github.io/agile/reference/overview.html)。
+完整的命令详情、选项与示例，请参阅 [CLI 参考文档](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/reference/overview.html)。
 
 ## 🧩 打造你自己的 Agile：扩展与预设
 
@@ -204,7 +204,7 @@ Agile 可通过两套互补的机制进行深度定制 —— **扩展（extensi
 
 - **模板**在**运行时**解析 —— Agile 从高到低遍历优先级栈，使用第一个匹配项。
 - 项目本地覆盖（`.agile/templates/overrides/`）允许对单个项目做一次性调整，无需创建完整的预设。
-- **扩展/预设命令**在**安装时**生效 —— 当你运行 `agile extension add` 或 `specify preset add` 时，命令文件会被写入助手目录（如 `.claude/commands/`）。
+- **扩展/预设命令**在**安装时**生效 —— 当你运行 `agile extension add` 或 `agile preset add` 时，命令文件会被写入助手目录（如 `.claude/commands/`）。
 - 若多个预设或扩展提供了同一命令，优先级最高的版本生效。移除时，次优先级的版本会自动恢复。
 - 若不存在任何覆盖或自定义，Agile 使用核心默认配置。
 
@@ -222,7 +222,7 @@ agile extension add <extension-name>
 
 举例来说，扩展可以添加 Jira 集成、实现后代码审查、V 模型测试追溯性，或项目健康诊断等功能。
 
-完整命令指南请参阅[扩展参考文档](https://github.github.io/agile/reference/extensions.html)。浏览[社区扩展](https://github.github.io/agile/community/extensions.html)了解现有资源。
+完整命令指南请参阅[扩展参考文档](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/reference/extensions.html)。浏览[社区扩展](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/community/extensions.html)了解现有资源。
 
 ### 预设 —— 定制现有工作流
 
@@ -230,15 +230,15 @@ agile extension add <extension-name>
 
 ```bash
 # 搜索可用预设
-specify preset search
+agile preset search
 
 # 安装预设
-specify preset add <preset-name>
+agile preset add <preset-name>
 ```
 
 举例来说，预设可以重构规范模板以要求监管追溯性，将工作流适配为你所用的方法论（如敏捷、看板、瀑布、用户任务驱动或领域驱动设计），在方案中添加强制安全审查关卡，强制要求测试优先的任务排序，或将整个工作流本地化为其他语言。[海盗语演示](https://github.com/mnriem/agile-pirate-speak-preset-demo)充分展示了定制的深度。多个预设可按优先级叠加使用。
 
-完整命令指南以及解析顺序和优先级叠加说明，请参阅[预设参考文档](https://github.github.io/agile/reference/presets.html)。
+完整命令指南以及解析顺序和优先级叠加说明，请参阅[预设参考文档](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/reference/presets.html)。
 
 ## 📦 捆绑包：面向角色的一键配置
 
@@ -344,7 +344,7 @@ agile bundle build --path ./my-bundle         # 生成带版本的 .zip 产物
 ## 📖 深入了解
 
 - **[完整的规范驱动开发方法论](./spec-driven.md)** —— 深入了解整个流程
-- **[快速上手指南](https://github.github.io/agile/quickstart.html)** —— 分步实现演练
+- **[快速上手指南](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/quickstart.html)** —— 分步实现演练
 
 ---
 

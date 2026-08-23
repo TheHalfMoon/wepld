@@ -347,11 +347,11 @@ class TestCreateFeatureBranchParity:
     def test_shell_specific_persist_hint_can_be_ignored_for_parity(self):
         bash_stderr = (
             "[specify] Warning\n"
-            "# To persist: export SPECIFY_FEATURE=feature/name\n"
+            "# To persist: export AGILE_FEATURE=feature/name\n"
         )
         windows_stderr = (
             "[specify] Warning\n"
-            "# To persist: $env:SPECIFY_FEATURE = 'feature/name'\n"
+            "# To persist: $env:AGILE_FEATURE = 'feature/name'\n"
         )
 
         assert _without_persist_hint(bash_stderr) == _without_persist_hint(
@@ -365,13 +365,13 @@ class TestCreateFeatureBranchParity:
         bash_result = subprocess.CompletedProcess(
             args=[], returncode=0, stdout="", stderr=(
                 "[specify] Warning\n"
-                "# To persist: export SPECIFY_FEATURE=feature/name\n"
+                "# To persist: export AGILE_FEATURE=feature/name\n"
             )
         )
         py_result = subprocess.CompletedProcess(
             args=[], returncode=0, stdout="", stderr=(
                 "[specify] Warning\n"
-                "# To persist: $env:SPECIFY_FEATURE = 'feature/name'\n"
+                "# To persist: $env:AGILE_FEATURE = 'feature/name'\n"
             )
         )
 
@@ -390,7 +390,7 @@ class TestCreateFeatureBranchParity:
         # discovery (and cwd-based discovery, since we run from elsewhere)
         # would resolve host_proj, not target_proj. host_proj has no specs
         # (next number 001); target_proj already has 007-existing (next
-        # number 008). Only honoring SPECIFY_INIT_DIR produces 008, so this
+        # number 008). Only honoring AGILE_INIT_DIR produces 008, so this
         # proves the env var -- not script location or cwd -- controls
         # resolution.
         host_proj = _setup_py_project(tmp_path / "host")
@@ -401,7 +401,7 @@ class TestCreateFeatureBranchParity:
         p = _run_py(
             "create-new-feature-branch", host_proj,
             "--json", "--dry-run", "init dir feature",
-            env_extra={"SPECIFY_INIT_DIR": str(target_proj)},
+            env_extra={"AGILE_INIT_DIR": str(target_proj)},
             run_cwd=elsewhere,
         )
         assert p.returncode == 0
@@ -415,10 +415,10 @@ class TestCreateFeatureBranchParity:
         p = _run_py(
             "create-new-feature-branch", py_proj,
             "--json", "desc word",
-            env_extra={"SPECIFY_INIT_DIR": str(py_proj)},
+            env_extra={"AGILE_INIT_DIR": str(py_proj)},
         )
         assert p.returncode == 1
-        assert "SPECIFY_INIT_DIR requires updated Agile core scripts" in p.stderr
+        assert "AGILE_INIT_DIR requires updated Agile core scripts" in p.stderr
 
 
 @requires_bash

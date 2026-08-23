@@ -71,7 +71,7 @@ Notes:
 
 | Harness | Edit hook | Startup hook | Manifest location | Notes |
 |---------|:---------:|:------------:|-------------------|-------|
-| Claude Code | Yes (`PostToolUse`) | No | `.claude/settings.json` | Project-local settings entry installed by `npx pictorial skills install/update`. Runs `.claude/skills/pictorial/scripts/hook.mjs`. |
+| Claude Code | Yes (`PostToolUse`) | No | `.claude/settings.json` | Project-local settings entry installed by `npx @wepld/pictorial skills install/update`. Runs `.claude/skills/pictorial/scripts/hook.mjs`. |
 | Codex CLI | Yes (`PostToolUse`) | No | `.codex/hooks.json` | Project-local manifest installed with the `.agents/skills/pictorial` payload. Runs `.agents/skills/pictorial/scripts/hook.mjs` from the git root. Requires normal `/hooks` trust approval. |
 | Cursor | Yes (`preToolUse`) | No | `.cursor/hooks.json` | Project-level manifest installed with `.cursor/skills/pictorial`. Runs `hook-before-edit.mjs` to block bad proposed writes before they land. Reloads on save; restart Cursor if hooks do not pick up. |
 | Grok Build | Yes (`PostToolUse`) | No | `.grok/hooks/pictorial.json` | Project-local manifest installed with `.grok/skills/pictorial`. Claude-compatible matchers (`Edit\|Write\|MultiEdit`) alias to Grok tools. Also runs a Stop deep pass. Requires `/hooks-trust` or `--trust`. Plugin installs use `plugin/hooks/hooks.json` with `${CLAUDE_PLUGIN_ROOT}` (aliased to `GROK_PLUGIN_ROOT`). |

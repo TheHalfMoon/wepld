@@ -29,7 +29,7 @@ def find_specify_root(start_dir: Path | None = None) -> Path | None:
 
 
 def resolve_specify_init_dir() -> Path:
-    raw = os.environ.get("SPECIFY_INIT_DIR", "")
+    raw = os.environ.get("AGILE_INIT_DIR", "")
     candidate = Path(raw)
     if not candidate.is_absolute():
         candidate = Path.cwd() / candidate
@@ -37,19 +37,19 @@ def resolve_specify_init_dir() -> Path:
         init_root = candidate.resolve(strict=True)
     except OSError:
         print(
-            f"ERROR: SPECIFY_INIT_DIR does not point to an existing directory: {raw}",
+            f"ERROR: AGILE_INIT_DIR does not point to an existing directory: {raw}",
             file=sys.stderr,
         )
         raise SystemExit(1)
     if not init_root.is_dir():
         print(
-            f"ERROR: SPECIFY_INIT_DIR does not point to an existing directory: {raw}",
+            f"ERROR: AGILE_INIT_DIR does not point to an existing directory: {raw}",
             file=sys.stderr,
         )
         raise SystemExit(1)
     if not (init_root / ".agile").is_dir():
         print(
-            "ERROR: SPECIFY_INIT_DIR is not a Agile project "
+            "ERROR: AGILE_INIT_DIR is not a Agile project "
             f"(no .agile/ directory): {init_root}",
             file=sys.stderr,
         )
@@ -58,7 +58,7 @@ def resolve_specify_init_dir() -> Path:
 
 
 def get_repo_root(script_file: Path | None = None) -> Path:
-    if os.environ.get("SPECIFY_INIT_DIR"):
+    if os.environ.get("AGILE_INIT_DIR"):
         return resolve_specify_init_dir()
 
     specify_root = find_specify_root()
@@ -76,7 +76,7 @@ def get_repo_root(script_file: Path | None = None) -> Path:
 
 
 def get_current_branch() -> str:
-    return os.environ.get("SPECIFY_FEATURE", "")
+    return os.environ.get("AGILE_FEATURE", "")
 
 
 def read_feature_json_feature_directory(repo_root: Path) -> str:
@@ -139,7 +139,7 @@ def get_feature_paths(
     repo_root = get_repo_root(script_file)
     current_branch = get_current_branch()
 
-    feature_dir_raw = os.environ.get("SPECIFY_FEATURE_DIRECTORY", "")
+    feature_dir_raw = os.environ.get("AGILE_FEATURE_DIRECTORY", "")
     if feature_dir_raw:
         feature_dir = Path(feature_dir_raw)
         if not feature_dir.is_absolute():
@@ -150,7 +150,7 @@ def get_feature_paths(
         stored = read_feature_json_feature_directory(repo_root)
         if not stored:
             print(
-                "ERROR: Feature directory not found. Set SPECIFY_FEATURE_DIRECTORY "
+                "ERROR: Feature directory not found. Set AGILE_FEATURE_DIRECTORY "
                 "or ensure .agile/feature.json contains feature_directory.",
                 file=sys.stderr,
             )
@@ -160,7 +160,7 @@ def get_feature_paths(
             feature_dir = repo_root / feature_dir
     else:
         print(
-            "ERROR: Feature directory not found. Set SPECIFY_FEATURE_DIRECTORY "
+            "ERROR: Feature directory not found. Set AGILE_FEATURE_DIRECTORY "
             "or run the specify command to create .agile/feature.json.",
             file=sys.stderr,
         )

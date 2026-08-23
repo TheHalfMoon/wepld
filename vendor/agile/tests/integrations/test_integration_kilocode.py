@@ -20,7 +20,7 @@ class TestKilocodeIntegration(MarkdownIntegrationTests):
         """Extension commands still register into legacy Kilo projects."""
         legacy_dir = tmp_path / ".kilocode" / "workflows"
         legacy_dir.mkdir(parents=True)
-        (legacy_dir / "agile.agile.md").write_text(
+        (legacy_dir / "agile.specify.md").write_text(
             "# existing", encoding="utf-8"
         )
 

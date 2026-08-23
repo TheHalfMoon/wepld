@@ -1,7 +1,7 @@
-"""Tests for the `specify self` sub-app (`self check` and `self upgrade`).
+"""Tests for the `agile self` sub-app (`self check` and `self upgrade`).
 
 Network isolation contract (SC-004 / FR-014): every test that exercises
-`specify self check` or `_fetch_latest_release_tag()` MUST mock the outbound
+`agile self check` or `_fetch_latest_release_tag()` MUST mock the outbound
 urllib path so no real call reaches api.github.com. Production always uses an
 isolated `build_opener`; this module's autouse fixture routes its `open()` back
 through the locally mocked `urlopen`. Tests for non-network `self upgrade`
@@ -43,7 +43,7 @@ _RATE_LIMITED_REASON = (
 
 def _http_error(code: int, message: str = "error") -> urllib.error.HTTPError:
     return urllib.error.HTTPError(
-        url="https://api.github.com/repos/github/agile/releases/latest",
+        url="https://api.github.com/repos/TheHalfMoon/wepld/releases/latest",
         code=code,
         msg=message,
         hdrs={},  # type: ignore[arg-type]
@@ -159,7 +159,7 @@ class TestUserStory1:
         assert "Latest release: v0.7.4" in output
         assert "0.7.4" in output
         assert "git+https://github.com/TheHalfMoon/wepld.git@v0.7.4" in output
-        assert "specify self upgrade" in output
+        assert "agile self upgrade" in output
         assert "pipx install --force git+https://github.com/TheHalfMoon/wepld.git@v0.7.4" in output
 
     def test_unknown_installed_uses_placeholder_when_latest_tag_is_invalid(self):

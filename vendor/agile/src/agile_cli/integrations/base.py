@@ -320,11 +320,11 @@ class IntegrationBase(ABC):
 
         The CLI tools discover and execute commands from installed files
         on disk.  This method builds the invocation string the CLI
-        expects — e.g. ``"/agile.agile my-feature"`` for markdown
+        expects — e.g. ``"/agile.specify my-feature"`` for markdown
         agents or ``"/agile-specify my-feature"`` for skills agents.
 
         *command_name* may be a full dotted name like
-        ``"agile.agile"``, an extension command like
+        ``"agile.specify"``, an extension command like
         ``"agile.git.commit"``, or a bare stem like ``"agile"``.
         """
         stem = command_name

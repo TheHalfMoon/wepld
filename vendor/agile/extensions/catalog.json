@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "updated_at": "2026-07-17T00:00:00Z",
-  "catalog_url": "https://raw.githubusercontent.com/github/agile/main/extensions/catalog.json",
+  "catalog_url": "https://raw.githubusercontent.com/TheHalfMoon/wepld/main/vendor/agile/extensions/catalog.json",
   "extensions": {
     "agent-context": {
       "name": "Coding Agent Context",
@@ -21,7 +21,7 @@
       "name": "Idea Assessment Pipeline",
       "id": "assess",
       "version": "1.0.0",
-      "description": "Assess an idea before Spec-Driven Development via intake, research, define, shape, and decide. A go verdict hands off to /agile.agile; a kill closes it. Lives under .agile/assessments/<slug>/",
+      "description": "Assess an idea before Spec-Driven Development via intake, research, define, shape, and decide. A go verdict hands off to /agile.specify; a kill closes it. Lives under .agile/assessments/<slug>/",
       "author": "agile-core",
       "repository": "https://github.com/TheHalfMoon/wepld",
       "bundled": true,

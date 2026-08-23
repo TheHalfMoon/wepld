@@ -77,10 +77,10 @@ class IntegrationCatalog(CatalogStackBase):
     """Manages integration catalog fetching, caching, and searching."""
 
     DEFAULT_CATALOG_URL = (
-        "https://raw.githubusercontent.com/github/agile/main/integrations/catalog.json"
+        "https://raw.githubusercontent.com/TheHalfMoon/wepld/main/vendor/agile/integrations/catalog.json"
     )
     COMMUNITY_CATALOG_URL = (
-        "https://raw.githubusercontent.com/github/agile/main/integrations/catalog.community.json"
+        "https://raw.githubusercontent.com/TheHalfMoon/wepld/main/vendor/agile/integrations/catalog.community.json"
     )
     CACHE_DURATION = 3600  # 1 hour
     CONFIG_FILENAME = "integration-catalogs.yml"

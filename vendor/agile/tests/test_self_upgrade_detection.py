@@ -1,4 +1,4 @@
-"""Detection, argv assembly, and dry-run tests for `specify self upgrade`."""
+"""Detection, argv assembly, and dry-run tests for `agile self upgrade`."""
 
 import importlib.metadata
 import json
@@ -293,7 +293,7 @@ class TestPrefixExpansion:
         assert expanded == prefix_path.resolve()
 
     def test_unresolved_posix_variable_is_rejected(self):
-        assert agile_cli._version._expand_prefix("$SPECIFY_MISSING/wepld-agile/") is None
+        assert agile_cli._version._expand_prefix("$AGILE_MISSING/wepld-agile/") is None
 
     def test_absolute_prefix_resolve_oserror_is_rejected(self, tmp_path):
         prefix = str(tmp_path / "wepld-agile")

@@ -78,10 +78,10 @@ tension is the main thing to understand before installing:
   model has no drift because it reads the live constitution every run.
 
 - **Edits to composed files do not survive reconciliation.** If the rest of your SDD flow is
-  preset/extension-managed, the commands it materializes (`agile.plan`, `agile.agile`,
+  preset/extension-managed, the commands it materializes (`agile.plan`, `agile.specify`,
   `agile.tasks`, `agile.analyze`, `agile.implement`, …) are recomputed from the stack. Any
   guidance propagated into them is clobbered the next time the stack reconciles — on
-  `specify integration use <key>` / `switch`, `specify integration upgrade`, or any preset/extension
+  `agile integration use <key>` / `switch`, `agile integration upgrade`, or any preset/extension
   install or remove. The same applies to templates owned by another preset/extension. This is why
   the preset restricts itself to project-local files; propagation is reliable **only** for
   artifacts you own outright.
@@ -99,20 +99,20 @@ prefer the default runtime-resolution model.
 
 ```bash
 # constitution-sync is a bundled preset — no download needed
-specify preset add constitution-sync
+agile preset add constitution-sync
 ```
 
 ## Development
 
 ```bash
 # Test from local directory
-specify preset add --dev ./presets/constitution-sync
+agile preset add --dev ./presets/constitution-sync
 
 # Verify the wrapped command resolves
-specify preset resolve agile.constitution
+agile preset resolve agile.constitution
 
 # Remove when done
-specify preset remove constitution-sync
+agile preset remove constitution-sync
 ```
 
 ## Migrating back to the default

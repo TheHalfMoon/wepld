@@ -6,7 +6,7 @@ user-invocable: true
 argument-hint: "[shape · audit|critique · animate|bolder|colorize|delight|layout|overdrive|quieter|typeset · adapt|clarify|distill · harden|onboard|optimize|polish · init|document|extract|live] [target]"
 license: Apache 2.0
 allowed-tools:
-  - Bash(npx pictorial *)
+  - Bash(npx @wepld/pictorial *)
   - Bash(node .rovodev/skills/pictorial/scripts/*)
 ---
 <!-- Modified by WePLD on 2026-08-23: deterministic Pictorial rebrand/path integration from the pinned upstream source. -->

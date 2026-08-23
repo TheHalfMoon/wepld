@@ -279,7 +279,7 @@ class TestMultiInstallSafeContracts:
         (issue #3471).
 
         Before the fix, co-installing kiro-cli alongside another integration
-        left ``specify integration status`` permanently in ERROR
+        left ``agile integration status`` permanently in ERROR
         (``unsafe-multi-install``) with no way to acknowledge it. The
         parametrized isolation/manifest contracts above already exercise
         kiro-cli once the flag is set; this pins the declaration itself so a

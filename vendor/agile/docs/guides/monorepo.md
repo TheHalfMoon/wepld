@@ -43,18 +43,18 @@ slash commands. Root resolution finds the nearest `.agile/`.
 
 ```bash
 cd apps/web
-# then run /agile.agile, /agile.plan, … in your agent
+# then run /agile.specify, /agile.plan, … in your agent
 ```
 
 ## Targeting a member project from the repo root
 
 For non-interactive or CI runs where you do not want to `cd`, set
-**`SPECIFY_INIT_DIR`** to the member project root (the directory *containing*
+**`AGILE_INIT_DIR`** to the member project root (the directory *containing*
 `.agile/`). Relative paths resolve against the current directory.
 
 ```bash
 # operate on apps/web from the monorepo root (no cd required)
-export SPECIFY_INIT_DIR=apps/web
+export AGILE_INIT_DIR=apps/web
 ```
 
 The path must exist and contain `.agile/`. If it does not, the command
@@ -64,42 +64,42 @@ nonexistent path is reported as you typed it; a path that exists but is not a
 Agile project is reported as its resolved absolute path:
 
 ```text
-# SPECIFY_INIT_DIR=apps/wbe  (typo: no such directory)
-ERROR: SPECIFY_INIT_DIR does not point to an existing directory: apps/wbe
+# AGILE_INIT_DIR=apps/wbe  (typo: no such directory)
+ERROR: AGILE_INIT_DIR does not point to an existing directory: apps/wbe
 
-# SPECIFY_INIT_DIR=apps  (exists, but has no .agile/ of its own)
-ERROR: SPECIFY_INIT_DIR is not a Agile project (no .agile/ directory): /home/you/my-monorepo/apps
+# AGILE_INIT_DIR=apps  (exists, but has no .agile/ of its own)
+ERROR: AGILE_INIT_DIR is not a Agile project (no .agile/ directory): /home/you/my-monorepo/apps
 ```
 
-`SPECIFY_INIT_DIR` selects the **project**; `SPECIFY_FEATURE_DIRECTORY` selects
+`AGILE_INIT_DIR` selects the **project**; `AGILE_FEATURE_DIRECTORY` selects
 the **feature** within it. They compose: set both to pick a project and a
 feature non-interactively. See the
-[`SPECIFY_INIT_DIR` reference](../reference/core.md#environment-variables) for
+[`AGILE_INIT_DIR` reference](../reference/core.md#environment-variables) for
 the full contract and the two-axes model.
 
 The `agile` CLI's project-scoped subcommands honor the same variable, so they
 target a member project from the root without `cd` too:
 
 ```bash
-export SPECIFY_INIT_DIR=apps/web
+export AGILE_INIT_DIR=apps/web
 specify workflow list          # lists apps/web's workflows
-specify integration status     # reports apps/web's integration
+agile integration status     # reports apps/web's integration
 ```
 
 The validation rules are the same: the path must exist and contain `.agile/`,
 with no fallback to the current directory.
 
-## How `SPECIFY_INIT_DIR` reaches your agent
+## How `AGILE_INIT_DIR` reaches your agent
 
-`SPECIFY_INIT_DIR` is read by the shell scripts that the slash commands invoke
+`AGILE_INIT_DIR` is read by the shell scripts that the slash commands invoke
 (`get_repo_root` in Bash, `Get-RepoRoot` in PowerShell). It takes effect only
 when it is present in the environment of the shell that runs those scripts.
 
 - **Scripted / CI runs:** export it in the same shell that drives the commands;
   it is reliable there.
 - **Interactive agents:** whether an exported variable reaches the shell tool an
-  agent uses is agent-specific. Export `SPECIFY_INIT_DIR` *before* launching the
-  agent, and verify once (e.g. run `/agile.agile` and confirm the new feature
+  agent uses is agent-specific. Export `AGILE_INIT_DIR` *before* launching the
+  agent, and verify once (e.g. run `/agile.specify` and confirm the new feature
   landed under the intended project's `specs/`).
 
 ## Git in a monorepo

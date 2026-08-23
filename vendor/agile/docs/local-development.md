@@ -68,21 +68,21 @@ uvx --from git+https://github.com/TheHalfMoon/wepld.git@your-feature-branch agil
 If you're in another directory, use an absolute path instead of `.`:
 
 ```bash
-uvx --from /mnt/c/GitHub/agile specify --help
-uvx --from /mnt/c/GitHub/agile agile init demo-anywhere --integration copilot --ignore-agent-tools --script sh
+uvx --from /mnt/c/TheHalfMoon/wepld specify --help
+uvx --from /mnt/c/TheHalfMoon/wepld agile init demo-anywhere --integration copilot --ignore-agent-tools --script sh
 ```
 
 Set an environment variable for convenience:
 
 ```bash
-export AGILE_SRC=/mnt/c/GitHub/agile
+export AGILE_SRC=/mnt/c/TheHalfMoon/wepld
 uvx --from "$AGILE_SRC" agile init demo-env --integration copilot --ignore-agent-tools --script ps
 ```
 
 (Optional) Define a shell function:
 
 ```bash
-specify-dev() { uvx --from /mnt/c/GitHub/agile specify "$@"; }
+specify-dev() { uvx --from /mnt/c/TheHalfMoon/wepld specify "$@"; }
 # Then
 specify-dev --help
 ```
@@ -104,10 +104,10 @@ Use the integration scaffold command to create the initial Python package and
 test skeleton for a new built-in integration:
 
 ```bash
-specify integration scaffold my-agent --type markdown
-specify integration scaffold my-agent --type toml
-specify integration scaffold my-agent --type yaml
-specify integration scaffold my-agent --type skills
+agile integration scaffold my-agent --type markdown
+agile integration scaffold my-agent --type toml
+agile integration scaffold my-agent --type yaml
+agile integration scaffold my-agent --type skills
 ```
 
 Hyphenated keys are converted to Python-safe package names, for example
@@ -170,7 +170,7 @@ Or copy only the modified CLI portion if you want a lighter sandbox.
 | Run CLI directly | `python -m src.agile_cli --help` |
 | Editable install | `uv pip install -e .` then `specify ...` |
 | Local uvx run (repo root) | `uvx --from . specify ...` |
-| Local uvx run (abs path) | `uvx --from /mnt/c/GitHub/agile specify ...` |
+| Local uvx run (abs path) | `uvx --from /mnt/c/TheHalfMoon/wepld specify ...` |
 | Git branch uvx | `uvx --from git+URL@branch specify ...` |
 | Build wheel | `uv build` |
 

@@ -1,4 +1,4 @@
-"""specify integration list/status/use/search/info + catalog list/add/remove command handlers."""
+"""agile integration list/status/use/search/info + catalog list/add/remove command handlers."""
 from __future__ import annotations
 
 import json
@@ -121,7 +121,7 @@ def integration_list(
         console.print(f"[dim]Installed integrations:[/dim] [cyan]{', '.join(sorted(installed_keys))}[/cyan]")
     else:
         console.print("\n[yellow]No integration currently installed.[/yellow]")
-        console.print("Install one with: [cyan]specify integration install <key>[/cyan]")
+        console.print("Install one with: [cyan]agile integration install <key>[/cyan]")
 
 
 def _print_integration_status_report(report: dict[str, Any]) -> None:
@@ -221,7 +221,7 @@ def integration_use(
         if installed_keys:
             console.print(f"[yellow]Installed integrations:[/yellow] {', '.join(installed_keys)}")
         else:
-            console.print("Install one with: [cyan]specify integration install <key>[/cyan]")
+            console.print("Install one with: [cyan]agile integration install <key>[/cyan]")
         raise typer.Exit(1)
 
     integration = get_integration(key)
@@ -241,7 +241,7 @@ def integration_use(
         refresh_templates_force=force,
         refresh_hint=(
             "To overwrite customizations, re-run with "
-            f"[cyan]specify integration use {key} --force[/cyan]."
+            f"[cyan]agile integration use {key} --force[/cyan]."
         ),
     )
     _register_extensions_for_agent(
@@ -313,7 +313,7 @@ def integration_search(
             console.print("\nTry:")
             console.print("  • Broader search terms")
             console.print("  • Remove filters")
-            console.print("  • specify integration search (show all)")
+            console.print("  • agile integration search (show all)")
         return
 
     console.print(f"\n[green]Found {len(results)} integration(s):[/green]\n")
@@ -349,11 +349,11 @@ def integration_search(
         if iid_value == installed_key:
             console.print("\n  [green]✓ Installed[/green] (currently active)")
         elif iid_value in INTEGRATION_REGISTRY:
-            console.print(f"\n  [cyan]Install:[/cyan] specify integration install {iid}")
+            console.print(f"\n  [cyan]Install:[/cyan] agile integration install {iid}")
         elif install_allowed:
             console.print(
                 "\n  [yellow]Found in catalog.[/yellow] Only built-in integration IDs "
-                "can be installed with 'specify integration install'."
+                "can be installed with 'agile integration install'."
             )
         else:
             console.print(
@@ -459,7 +459,7 @@ def integration_info(
             console.print("\nTry again when online, or use a built-in integration ID directly.")
     else:
         console.print(f"[red]Error:[/red] Integration '{safe_integration_id}' not found")
-        console.print("\nTry: specify integration search")
+        console.print("\nTry: agile integration search")
     raise typer.Exit(1)
 
 

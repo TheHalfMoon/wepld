@@ -234,7 +234,7 @@ class HermesIntegration(SkillsIntegration):
 
         Global skills are always removed on teardown — this matches the
         standard integration behaviour where all files created by the
-        integration are removed on ``specify integration uninstall``.
+        integration are removed on ``agile integration uninstall``.
         """
 
         # Delegate to manifest for project-local tracked files (scripts,

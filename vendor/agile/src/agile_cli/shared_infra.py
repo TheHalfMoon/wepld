@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 # version control while leaving shareable project files (specs, constitution,
 # templates, scripts, extension config) tracked. Patterns are relative to the
 # ``.agile/`` directory the file lives in.
-SPECIFY_GITIGNORE_CONTENT = """\
+AGILE_GITIGNORE_CONTENT = """\
 # Machine-local Agile state — not meant to be shared.
 # Managed by the Agile CLI; safe to edit (your changes are preserved on refresh).
 
@@ -639,7 +639,7 @@ def install_shared_infra(
             write, bucket = _decide_overwrite(gitignore_rel, gitignore_dst)
             if write:
                 planned_templates.append(
-                    (gitignore_dst, gitignore_rel, SPECIFY_GITIGNORE_CONTENT)
+                    (gitignore_dst, gitignore_rel, AGILE_GITIGNORE_CONTENT)
                 )
             elif bucket == "preserved":
                 preserved_user_files.append(gitignore_rel)
@@ -675,7 +675,7 @@ def install_shared_infra(
             console.print(
                 "To refresh shared infrastructure, run "
                 "[cyan]agile init --here --force[/cyan] or "
-                "[cyan]specify integration upgrade --force[/cyan]."
+                "[cyan]agile integration upgrade --force[/cyan]."
             )
 
     if symlinked_files:

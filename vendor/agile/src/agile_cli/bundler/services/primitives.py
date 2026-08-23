@@ -189,7 +189,7 @@ class _PresetKindManager:
             raise BundlerError(
                 f"Preset '{component.id}' is not bundled and network access is "
                 f"disabled; re-run without --offline or install it first with "
-                f"'specify preset add {component.id}'."
+                f"'agile preset add {component.id}'."
             )
 
         from ...presets import PresetCatalog

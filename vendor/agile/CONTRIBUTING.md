@@ -75,7 +75,7 @@ Including the issue or PR number makes branches traceable — especially useful 
 
 When working on agile:
 
-1. Test changes with the `agile` CLI commands (`/agile.agile`, `/agile.plan`, `/agile.tasks`) in your coding agent of choice
+1. Test changes with the `agile` CLI commands (`/agile.specify`, `/agile.plan`, `/agile.tasks`) in your coding agent of choice
 2. Verify templates are working correctly in `templates/` directory
 3. Test script functionality in the `scripts/` directory
 4. Ensure memory files (`memory/constitution.md`) are updated if major process changes are made
@@ -172,7 +172,7 @@ Any change that affects a slash command's behavior requires manually testing tha
 1. **Identify affected commands** — use the [prompt below](#determining-which-tests-to-run) to have your agent analyze your changed files and determine which commands need testing.
 2. **Set up a test project** — scaffold from your local branch (see [Testing setup](#testing-setup)).
 3. **Run each affected command** — invoke it in your agent, verify it completes successfully, and confirm it produces the expected output (files created, scripts executed, artifacts populated).
-4. **Run prerequisites first** — commands that depend on earlier commands (e.g., `/agile.tasks` requires `/agile.plan` which requires `/agile.agile`) must be run in order.
+4. **Run prerequisites first** — commands that depend on earlier commands (e.g., `/agile.tasks` requires `/agile.plan` which requires `/agile.specify`) must be run in order.
 5. **Report results** — paste the [reporting template](#reporting-results) into your PR with pass/fail for each command tested.
 
 #### Reporting results
@@ -202,7 +202,7 @@ invokes. Use these mapping rules:
 - templates/commands/X.md → the command it defines
 - scripts/bash/Y.sh or scripts/powershell/Y.ps1 → every command that invokes that script (grep templates/commands/ for the script name). Also check transitive dependencies: if the changed script is sourced by other scripts (e.g., common.sh is sourced by create-new-feature.sh, check-prerequisites.sh, setup-plan.sh), then every command invoking those downstream scripts is also affected
 - templates/Z-template.md → every command that consumes that template during execution
-- src/agile_cli/*.py → CLI commands (`agile init`, `agile check`, `agile extension *`, `specify preset *`); test the affected CLI command and, for init/scaffolding changes, at minimum test /agile.agile
+- src/agile_cli/*.py → CLI commands (`agile init`, `agile check`, `agile extension *`, `agile preset *`); test the affected CLI command and, for init/scaffolding changes, at minimum test /agile.specify
 - extensions/X/commands/* → the extension command it defines
 - extensions/X/scripts/* → every extension command that invokes that script
 - extensions/X/extension.yml or config-template.yml → every command in that extension. Also check if the manifest defines hooks (look for `hooks:` entries like `before_specify`, `after_implement`, etc.) — if so, the core commands those hooks attach to are also affected

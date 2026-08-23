@@ -55,8 +55,8 @@ class TestJunieIntegration(MarkdownIntegrationTests):
             ("plan", "agile-plan.md"),
             ("agile.plan", "agile-plan.md"),
             ("agile.git.commit", "agile-git-commit.md"),
-            ("agile", "agile-agile.md"),
-            ("agilefoo", "agile-agilefoo.md"),
+            ("agile", "agile-specify.md"),
+            ("agilefoo", "agile-specifyfoo.md"),
         ],
     )
 

@@ -432,14 +432,14 @@ def main(argv: list[str]) -> int:
     project_root = _find_project_root(SCRIPT_DIR)
     core = _load_core_common(project_root)
 
-    # SPECIFY_INIT_DIR is resolved (and validated) by the core resolver. If the
+    # AGILE_INIT_DIR is resolved (and validated) by the core resolver. If the
     # core helpers were not found, refuse rather than silently falling back to
     # the wrong root.
-    if os.environ.get("SPECIFY_INIT_DIR") and (
+    if os.environ.get("AGILE_INIT_DIR") and (
         core is None or not hasattr(core, "resolve_specify_init_dir")
     ):
         _err(
-            "Error: SPECIFY_INIT_DIR requires updated Agile core scripts "
+            "Error: AGILE_INIT_DIR requires updated Agile core scripts "
             "(common.py with resolve_specify_init_dir), which were not found."
         )
         return 1
@@ -608,7 +608,7 @@ def main(argv: list[str]) -> int:
                 f"creation for {branch_name}"
             )
 
-        _err(f"# To persist: {_persist_hint('SPECIFY_FEATURE', branch_name)}")
+        _err(f"# To persist: {_persist_hint('AGILE_FEATURE', branch_name)}")
 
     if args.json_mode:
         payload: dict[str, object] = {
@@ -624,7 +624,7 @@ def main(argv: list[str]) -> int:
         if not args.dry_run:
             print(
                 "# To persist in your shell: "
-                f"{_persist_hint('SPECIFY_FEATURE', branch_name)}"
+                f"{_persist_hint('AGILE_FEATURE', branch_name)}"
             )
 
     return 0

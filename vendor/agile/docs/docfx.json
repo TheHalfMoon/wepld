@@ -64,8 +64,8 @@
     "globalMetadata": {
       "_appTitle": "Agile Documentation",
       "_appName": "Agile",
-      "_appLogoPath": "images/agile-logo.webp",
-      "_appFaviconPath": "images/agile-logo.webp",
+      "_appLogoPath": "images/agile-logo.svg",
+      "_appFaviconPath": "images/agile-logo.svg",
       "_appFooter": "Agile - A specification-driven development toolkit",
       "_enableSearch": true,
       "_disableContribution": false,

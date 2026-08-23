@@ -1,4 +1,4 @@
-"""Non-upgradable path guidance tests for `specify self upgrade`."""
+"""Non-upgradable path guidance tests for `agile self upgrade`."""
 
 from unittest.mock import patch
 

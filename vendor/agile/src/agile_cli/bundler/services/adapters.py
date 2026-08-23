@@ -23,7 +23,7 @@ from ..models.catalog import CatalogSource
 from ..models.manifest import ComponentRef
 
 COMMUNITY_CATALOG_URL = (
-    "https://raw.githubusercontent.com/github/agile/main/"
+    "https://raw.githubusercontent.com/TheHalfMoon/wepld/main/vendor/agile/"
     "bundles/catalog.community.json"
 )
 

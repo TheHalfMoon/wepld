@@ -75,7 +75,7 @@ class TestWorkflowResolver:
         data = {
             "schema_version": "1.0",
             "workflow": {"id": "wf", "name": "WF", "version": "1.0.0"},
-            "steps": [{"id": "a", "type": "command", "command": "agile.agile"}],
+            "steps": [{"id": "a", "type": "command", "command": "agile.specify"}],
         }
         _write_workflow(project_dir, "wf", data)
 
@@ -90,8 +90,8 @@ class TestWorkflowResolver:
             "schema_version": "1.0",
             "workflow": {"id": "wf", "name": "WF", "version": "1.0.0"},
             "steps": [
-                {"id": "a", "type": "command", "command": "agile.agile"},
-                {"id": "b", "type": "command", "command": "agile.agile"},
+                {"id": "a", "type": "command", "command": "agile.specify"},
+                {"id": "b", "type": "command", "command": "agile.specify"},
             ],
         }
         _write_workflow(project_dir, "wf", data)
@@ -121,7 +121,7 @@ class TestWorkflowResolver:
         data = {
             "schema_version": "1.0",
             "workflow": {"id": "wf", "name": "WF", "version": "1.0.0"},
-            "steps": [{"id": "a", "type": "command", "command": "agile.agile"}],
+            "steps": [{"id": "a", "type": "command", "command": "agile.specify"}],
         }
         _write_workflow(project_dir, "wf", data)
         _write_overlay(
@@ -169,7 +169,7 @@ class TestWorkflowResolver:
         data = {
             "schema_version": "1.0",
             "workflow": {"id": "wf", "name": "WF", "version": "1.0.0"},
-            "steps": [{"id": "a", "type": "command", "command": "agile.agile"}],
+            "steps": [{"id": "a", "type": "command", "command": "agile.specify"}],
         }
         _write_workflow(project_dir, "wf", data)
         _write_overlay(
@@ -224,7 +224,7 @@ class TestWorkflowResolver:
         data = {
             "schema_version": "1.0",
             "workflow": {"id": "wf", "name": "WF", "version": "1.0.0"},
-            "steps": [{"id": "a", "type": "command", "command": "agile.agile"}],
+            "steps": [{"id": "a", "type": "command", "command": "agile.specify"}],
         }
         _write_workflow(project_dir, "wf", data)
         _write_overlay(
@@ -247,7 +247,7 @@ class TestWorkflowResolver:
         data = {
             "schema_version": "1.0",
             "workflow": {"id": "wf", "name": "WF", "version": "1.0.0"},
-            "steps": [{"id": "a", "type": "command", "command": "agile.agile"}],
+            "steps": [{"id": "a", "type": "command", "command": "agile.specify"}],
         }
         _write_workflow(project_dir, "wf", data)
         _write_overlay(
@@ -277,7 +277,7 @@ class TestWorkflowResolver:
         data = {
             "schema_version": "1.0",
             "workflow": {"id": "wf", "name": "WF", "version": "1.0.0"},
-            "steps": [{"id": "a", "type": "command", "command": "agile.agile"}],
+            "steps": [{"id": "a", "type": "command", "command": "agile.specify"}],
         }
         _write_workflow(project_dir, "wf", data)
         _write_overlay(
@@ -310,7 +310,7 @@ class TestWorkflowResolver:
         data = {
             "schema_version": "1.0",
             "workflow": {"id": "wf", "name": "WF", "version": "1.0.0"},
-            "steps": [{"id": "a", "type": "command", "command": "agile.agile"}],
+            "steps": [{"id": "a", "type": "command", "command": "agile.specify"}],
         }
         _write_workflow(project_dir, "wf", data)
         _write_overlay(
@@ -344,7 +344,7 @@ class TestWorkflowResolver:
         data = {
             "schema_version": "1.0",
             "workflow": {"id": "wf", "name": "WF", "version": "1.0.0"},
-            "steps": [{"id": "a", "type": "command", "command": "agile.agile"}],
+            "steps": [{"id": "a", "type": "command", "command": "agile.specify"}],
         }
         _write_workflow(project_dir, "wf", data)
         _write_overlay(
@@ -375,7 +375,7 @@ class TestWorkflowResolver:
         data = {
             "schema_version": "1.0",
             "workflow": {"id": "wf", "name": "WF", "version": "1.0.0"},
-            "steps": [{"id": "a", "type": "command", "command": "agile.agile"}],
+            "steps": [{"id": "a", "type": "command", "command": "agile.specify"}],
         }
         _write_workflow(project_dir, "wf", data)
 
@@ -415,7 +415,7 @@ class TestWorkflowResolver:
         data = {
             "schema_version": "1.0",
             "workflow": {"id": "wf", "name": "WF", "version": "1.0.0"},
-            "steps": [{"id": "a", "type": "command", "command": "agile.agile"}],
+            "steps": [{"id": "a", "type": "command", "command": "agile.specify"}],
         }
         _write_workflow(project_dir, "wf", data)
 
@@ -452,7 +452,7 @@ class TestWorkflowResolver:
         data = {
             "schema_version": "1.0",
             "workflow": {"id": "wf", "name": "WF", "version": "1.0.0"},
-            "steps": [{"id": "a", "type": "command", "command": "agile.agile"}],
+            "steps": [{"id": "a", "type": "command", "command": "agile.specify"}],
         }
         _write_workflow(project_dir, "wf", data)
         overlay_dir = project_dir / ".agile" / "workflows" / "overlays" / "wf"
@@ -468,7 +468,7 @@ class TestWorkflowResolver:
         data = {
             "schema_version": "1.0",
             "workflow": {"id": "wf", "name": "WF", "version": "1.0.0"},
-            "steps": [{"id": "a", "type": "command", "command": "agile.agile"}],
+            "steps": [{"id": "a", "type": "command", "command": "agile.specify"}],
         }
         _write_workflow(project_dir, "wf", data)
         _write_overlay(
@@ -509,7 +509,7 @@ class TestWorkflowResolver:
         data = {
             "schema_version": "1.0",
             "workflow": {"id": "wf", "name": "WF", "version": "1.0.0"},
-            "steps": [{"id": "a", "type": "command", "command": "agile.agile"}],
+            "steps": [{"id": "a", "type": "command", "command": "agile.specify"}],
         }
         _write_workflow(project_dir, "wf", data)
         _write_overlay(

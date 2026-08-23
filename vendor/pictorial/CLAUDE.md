@@ -73,7 +73,7 @@ Pictorial writes files into user projects, so a released version has to cope wit
 
 ## Repo split: public product vs private service (pictorial-site)
 
-As of v4 the repo holds only the open-source product layer: the skill, CLI, extension, their tests, and the build that generates provider outputs. Everything service-side lives in the private repo `pbakaus/pictorial-site` (checked out at `~/code/pictorial-site`): the github.com/TheHalfMoon/wepld site, the review labs, the concept/composition catalogs and reviews, the world-card image pipeline and R2 publish, the Cloudflare Pages Functions (including `/api/roll` and `/api/chosen`), and `docs/WORLD-CATALOG-AUTHORING.md`.
+As of v4 the repo holds only the open-source product layer: the skill, CLI, extension, their tests, and the build that generates provider outputs. Everything service-side lives in the private repo `TheHalfMoon/wepld-site` (checked out at `~/code/pictorial-site`): the github.com/TheHalfMoon/wepld site, the review labs, the concept/composition catalogs and reviews, the world-card image pipeline and R2 publish, the Cloudflare Pages Functions (including `/api/roll` and `/api/chosen`), and `docs/WORLD-CATALOG-AUTHORING.md`.
 
 Consequences here:
 
@@ -216,11 +216,11 @@ PICTORIAL_SKILL_BEHAVIOR_VERBOSE=1 bun run test:skill-behavior    # dump per-sce
 The CLI lives in this repo under `cli/`: `cli/bin/` (entry + sub-commands), `cli/engine/` (the detect-antipatterns rule engine + browser variant), `cli/lib/` (helpers shared by CLI and Cloudflare Pages Functions). Published to npm as `pictorial`.
 
 ```bash
-npx pictorial detect [file-or-dir-or-url...]   # detect anti-patterns
-npx pictorial detect --fast --json src/         # regex-only, JSON output
-npx pictorial live                              # start browser overlay server
-npx pictorial skills install                    # install skills
-npx pictorial --help                            # show help
+npx @wepld/pictorial detect [file-or-dir-or-url...]   # detect anti-patterns
+npx @wepld/pictorial detect --fast --json src/         # regex-only, JSON output
+npx @wepld/pictorial live                              # start browser overlay server
+npx @wepld/pictorial skills install                    # install skills
+npx @wepld/pictorial --help                            # show help
 ```
 
 The browser detector (`cli/engine/detect-antipatterns-browser.js`) is generated from the main engine. After changing `cli/engine/detect-antipatterns.mjs`, rebuild it:

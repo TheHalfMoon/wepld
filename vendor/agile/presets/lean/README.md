@@ -10,7 +10,7 @@ Use Lean when you want the structured specify → plan → tasks → implement p
 
 | Command | Output | Description |
 |---------|--------|-------------|
-| `agile.agile` | `spec.md` | Create a specification from a feature description |
+| `agile.specify` | `spec.md` | Create a specification from a feature description |
 | `agile.plan` | `plan.md` | Create an implementation plan from the spec |
 | `agile.tasks` | `tasks.md` | Create dependency-ordered tasks from spec and plan |
 | `agile.implement` | *(code)* | Execute all tasks in order, marking progress |
@@ -24,20 +24,20 @@ Lean overrides the five core workflow commands with self-contained prompts that 
 
 ```bash
 # Lean is a bundled preset — no download needed
-specify preset add lean
+agile preset add lean
 ```
 
 ## Development
 
 ```bash
 # Test from local directory
-specify preset add --dev ./presets/lean
+agile preset add --dev ./presets/lean
 
 # Verify commands resolve
-specify preset resolve agile.agile
+agile preset resolve agile.specify
 
 # Remove when done
-specify preset remove lean
+agile preset remove lean
 ```
 
 ## License

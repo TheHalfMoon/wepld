@@ -336,7 +336,7 @@ async function detectCli() {
                 process.stderr.write(
                   `\n${fwConfig.name} dev server detected on localhost:${fwConfig.port}.\n` +
                   `For more accurate results, scan the running site:\n` +
-                  `  npx pictorial detect http://localhost:${fwConfig.port}\n\n`
+                  `  npx @wepld/pictorial detect http://localhost:${fwConfig.port}\n\n`
                 );
               } else if (probe.listening && !probe.matched) {
                 process.stderr.write(
@@ -347,7 +347,7 @@ async function detectCli() {
                 process.stderr.write(
                   `\n${fwConfig.name} project detected (${path.basename(fwConfig.configPath)}).\n` +
                   `Start the dev server and scan via URL for best results:\n` +
-                  `  npx pictorial detect http://localhost:${fwConfig.port}\n\n`
+                  `  npx @wepld/pictorial detect http://localhost:${fwConfig.port}\n\n`
                 );
               }
             }

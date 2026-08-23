@@ -651,7 +651,7 @@ describe('github sheriff', () => {
 
   it('parses aggressive stale windows from CLI args', () => {
     const parsed = parseArgs([
-      '--repo', 'pbakaus/pictorial',
+      '--repo', 'TheHalfMoon/wepld',
       '--apply',
       '--warning-days', '7',
       '--close-days', '14',
@@ -659,7 +659,7 @@ describe('github sheriff', () => {
     ]);
 
     assert.equal(parsed.apply, true);
-    assert.equal(parsed.repo, 'pbakaus/pictorial');
+    assert.equal(parsed.repo, 'TheHalfMoon/wepld');
     assert.equal(parsed.warningDays, 7);
     assert.equal(parsed.closeDays, 14);
     assert.deepEqual(parsed.maintainers, ['pbakaus', 'other']);

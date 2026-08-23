@@ -11,7 +11,7 @@
 ## Installation
 
 > [!IMPORTANT]
-> Agile is distributed through two official channels, both published and maintained by the Agile maintainers: the [github/agile](https://github.com/TheHalfMoon/wepld) GitHub repository (source installs) and the [`wepld-agile`](https://pypi.org/project/wepld-agile/) package on [PyPI](https://pypi.org/project/wepld-agile/). Either route is supported for normal installs — use the commands shown below. After installing, run `agile version` as a local version/runtime sanity check. It confirms that the `agile` command is available and reports its version, but it does not prove whether the executable came from PyPI or GitHub. For offline or air-gapped environments, locally built wheels created from this repository are also valid.
+> Agile is distributed through two official channels, both published and maintained by the Agile maintainers: the [TheHalfMoon/wepld](https://github.com/TheHalfMoon/wepld) GitHub repository (source installs) and the [`wepld-agile`](https://pypi.org/project/wepld-agile/) package on [PyPI](https://pypi.org/project/wepld-agile/). Either route is supported for normal installs — use the commands shown below. After installing, run `agile version` as a local version/runtime sanity check. It confirms that the `agile` command is available and reports its version, but it does not prove whether the executable came from PyPI or GitHub. For offline or air-gapped environments, locally built wheels created from this repository are also valid.
 
 Agile supports two install routes:
 
@@ -62,7 +62,7 @@ Run directly without installing — see the [One-time usage (uvx)](install/one-t
 - **pipx** — see the [pipx installation guide](install/pipx.md)
 - **Enterprise / Air-Gapped** — see the [air-gapped installation guide](install/air-gapped.md)
 
-### Specify Integration
+### agile Integration
 
 Interactive terminals prompt you to choose a coding agent integration during initialization. Non-interactive sessions, such as CI or piped runs, default to GitHub Copilot unless you pass `--integration`.
 
@@ -113,11 +113,11 @@ agile version
 
 This confirms that the `agile` command is available and reporting the expected version. It does not prove whether that executable came from PyPI or GitHub.
 
-**Stay current:** Run `specify self check` periodically to learn whether a newer release is available — it is read-only and never modifies your installation. When you are ready to upgrade, follow the [Upgrade Guide](./upgrade.md).
+**Stay current:** Run `agile self check` periodically to learn whether a newer release is available — it is read-only and never modifies your installation. When you are ready to upgrade, follow the [Upgrade Guide](./upgrade.md).
 
 After initialization, you should see the following commands available in your coding agent:
 
-- `/agile.agile` - Create specifications
+- `/agile.specify` - Create specifications
 - `/agile.plan` - Generate implementation plans
 - `/agile.tasks` - Break down into actionable tasks
 - `/agile.implement` - Execute implementation tasks

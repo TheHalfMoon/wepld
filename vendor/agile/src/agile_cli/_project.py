@@ -11,7 +11,7 @@ from ._console import err_console
 
 
 def _resolve_init_dir_override() -> Path | None:
-    """Resolve the ``SPECIFY_INIT_DIR`` project override for the Python CLI.
+    """Resolve the ``AGILE_INIT_DIR`` project override for the Python CLI.
 
     Applies the same validation rules as the shell resolver
     (``resolve_specify_init_dir`` in ``scripts/bash/common.sh``): the value names
@@ -28,12 +28,12 @@ def _resolve_init_dir_override() -> Path | None:
 
     Note: this canonicalizes symlinks via :meth:`Path.resolve` (physical path),
     whereas the shell ``cd -- "$X" && pwd`` keeps the logical path. The two agree
-    for non-symlinked paths; a symlinked ``SPECIFY_INIT_DIR`` can resolve to
+    for non-symlinked paths; a symlinked ``AGILE_INIT_DIR`` can resolve to
     different strings across the surfaces. The canonical form is the safer choice
     here (a stable project identity), so this is a deliberate, documented variance,
     not a parity guarantee on the resolved string.
     """
-    raw = os.environ.get("SPECIFY_INIT_DIR", "")
+    raw = os.environ.get("AGILE_INIT_DIR", "")
     if not raw:
         return None
     # Relative values resolve against cwd; an absolute value stands alone (Path's
@@ -42,12 +42,12 @@ def _resolve_init_dir_override() -> Path | None:
     init_root = (Path.cwd() / raw).resolve()
     if not init_root.is_dir():
         err_console.print(
-            f"[red]Error:[/red] SPECIFY_INIT_DIR does not point to an existing directory: {raw}"
+            f"[red]Error:[/red] AGILE_INIT_DIR does not point to an existing directory: {raw}"
         )
         raise typer.Exit(1)
     if not (init_root / ".agile").is_dir():
         err_console.print(
-            f"[red]Error:[/red] SPECIFY_INIT_DIR is not a Agile project (no .agile/ directory): {init_root}"
+            f"[red]Error:[/red] AGILE_INIT_DIR is not a Agile project (no .agile/ directory): {init_root}"
         )
         raise typer.Exit(1)
     return init_root

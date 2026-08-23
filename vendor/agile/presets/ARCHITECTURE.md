@@ -34,7 +34,7 @@ flowchart TD
 | 3 | Extension | `.agile/extensions/<id>/templates/` | Extension-provided templates |
 | 4 (lowest) | Core | `.agile/templates/` | Shipped defaults |
 
-When multiple presets are installed, they're sorted by their `priority` field (lower number = higher precedence). This is set via `--priority` on `specify preset add`.
+When multiple presets are installed, they're sorted by their `priority` field (lower number = higher precedence). This is set via `--priority` on `agile preset add`.
 
 The resolution is implemented three times to ensure consistency:
 - **Python**: `PresetResolver` in `src/agile_cli/presets.py`
@@ -78,13 +78,13 @@ When a preset is installed with `type: "command"` entries, the `PresetManager` r
 
 ```mermaid
 flowchart TD
-    A["specify preset add my-preset"] --> B{Preset has type: command?}
+    A["agile preset add my-preset"] --> B{Preset has type: command?}
     B -- No --> Z["done (templates only)"]
     B -- Yes --> C{Extension command?}
     C -- "agile.myext.cmd\n(3+ dot segments)" --> D{Extension installed?}
     D -- No --> E["skip (extension not active)"]
     D -- Yes --> F["register command"]
-    C -- "agile.agile\n(core command)" --> F
+    C -- "agile.specify\n(core command)" --> F
     F --> G["detect agent directories"]
     G --> H[".claude/commands/"]
     G --> I[".gemini/commands/"]
@@ -104,7 +104,7 @@ flowchart TD
 
 Command names follow the pattern `agile.<ext-id>.<cmd-name>`. When a command has 3+ dot segments, the system extracts the extension ID and checks if `.agile/extensions/<ext-id>/` exists. If the extension isn't installed, the command is skipped — preventing orphan files referencing non-existent extensions.
 
-Core commands (e.g. `agile.agile`, with only 2 segments) are always registered.
+Core commands (e.g. `agile.specify`, with only 2 segments) are always registered.
 
 ### Agent format rendering
 
@@ -118,13 +118,13 @@ The `CommandRegistrar` renders commands differently per agent:
 
 ### Cleanup on removal
 
-When `specify preset remove` is called, the registered commands are read from the registry metadata and the corresponding files are deleted from each agent directory, including Copilot companion `.prompt.md` files.
+When `agile preset remove` is called, the registered commands are read from the registry metadata and the corresponding files are deleted from each agent directory, including Copilot companion `.prompt.md` files.
 
 ## Catalog System
 
 ```mermaid
 flowchart TD
-    A["specify preset search"] --> B["PresetCatalog.get_active_catalogs()"]
+    A["agile preset search"] --> B["PresetCatalog.get_active_catalogs()"]
     B --> C{AGILE_PRESET_CATALOG_URL set?}
     C -- Yes --> D["single custom catalog"]
     C -- No --> E{.agile/preset-catalogs.yml exists?}
@@ -157,7 +157,7 @@ presets/
 │   ├── preset.yml                          # Example manifest
 │   ├── README.md                           # Guide for customizing the scaffold
 │   ├── commands/
-│   │   ├── agile.agile.md              # Core command override example
+│   │   ├── agile.specify.md              # Core command override example
 │   │   └── agile.myext.myextcmd.md       # Extension command override example
 │   └── templates/
 │       ├── spec-template.md                # Core template override example
@@ -165,7 +165,7 @@ presets/
 └── self-test/                              # Self-test preset (overrides all core templates)
     ├── preset.yml
     ├── commands/
-    │   └── agile.agile.md
+    │   └── agile.specify.md
     └── templates/
         ├── spec-template.md
         ├── plan-template.md
@@ -182,6 +182,6 @@ src/agile_cli/
 │                    #   command files to agent directories
 ├── presets.py       # PresetManifest, PresetRegistry, PresetManager,
 │                    #   PresetCatalog, PresetCatalogEntry, PresetResolver
-└── __init__.py      # CLI commands: specify preset list/add/remove/search/
-                     #   resolve/info, specify preset catalog list/add/remove
+└── __init__.py      # CLI commands: agile preset list/add/remove/search/
+                     #   resolve/info, agile preset catalog list/add/remove
 ```

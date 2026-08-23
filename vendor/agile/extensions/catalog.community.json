@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "updated_at": "2026-08-21T00:00:00Z",
-  "catalog_url": "https://raw.githubusercontent.com/github/agile/main/extensions/catalog.community.json",
+  "catalog_url": "https://raw.githubusercontent.com/TheHalfMoon/wepld/main/vendor/agile/extensions/catalog.community.json",
   "extensions": {
     "adrkit": {
       "name": "adrkit — decision memory for spec-driven development",
@@ -1583,7 +1583,7 @@
     "dotdog": {
       "name": "Dotdog",
       "id": "dotdog",
-      "description": "Import GitHub Agile artifacts into local knowledge graphs for validation, analysis, search, and MCP queries.",
+      "description": "Import Agile artifacts into local knowledge graphs for validation, analysis, search, and MCP queries.",
       "author": "specdog",
       "version": "0.9.0",
       "download_url": "https://github.com/specdog/dotdog/releases/download/v0.9.0/dotdog-agile-extension-v0.9.0.zip",
@@ -1788,7 +1788,7 @@
     "figma-starter": {
       "name": "Figma Starter",
       "id": "figma-starter",
-      "description": "Turns a Figma section's screens into per-screen spec.md files, an app-level user-stories.md, and a build-order.md, then hands off to /agile.agile.",
+      "description": "Turns a Figma section's screens into per-screen spec.md files, an app-level user-stories.md, and a build-order.md, then hands off to /agile.specify.",
       "author": "WaveMaker",
       "version": "1.0.0",
       "download_url": "https://github.com/wavemaker/agile-figma-starter/archive/refs/tags/v1.0.0.zip",
@@ -2450,7 +2450,7 @@
     "keel": {
       "name": "Keel Discovery",
       "id": "keel",
-      "description": "Evidence-backed discovery upstream of /agile.agile, plus round-trip drift auditing after implementation.",
+      "description": "Evidence-backed discovery upstream of /agile.specify, plus round-trip drift auditing after implementation.",
       "author": "Keel Discovery",
       "version": "0.2.0",
       "download_url": "https://github.com/keeldiscovery/agile-keel/archive/refs/tags/v0.2.0.zip",

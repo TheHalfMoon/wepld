@@ -72,7 +72,7 @@ inputs:
 
 steps:
   - id: step-one
-    command: agile.agile
+    command: agile.specify
     input:
       args: "{{ inputs.spec }}"
 
@@ -1020,13 +1020,13 @@ class TestCommandStep:
         )
         config = {
             "id": "test",
-            "command": "agile.agile",
+            "command": "agile.specify",
             "input": {"args": "{{ inputs.name }}"},
         }
         with patch("agile_cli.workflows.steps.command.shutil.which", return_value=None):
             result = step.execute(config, ctx)
         assert result.status == StepStatus.FAILED
-        assert result.output["command"] == "agile.agile"
+        assert result.output["command"] == "agile.specify"
         assert result.output["integration"] == "claude"
         assert result.output["input"]["args"] == "login"
 
@@ -1174,14 +1174,14 @@ class TestCommandStep:
 
         step = CommandStep()
         res = step.execute(
-            {"id": "c", "command": "agile.agile", "integration": ["claude"]},
+            {"id": "c", "command": "agile.specify", "integration": ["claude"]},
             StepContext(),
         )
         assert res.status is StepStatus.FAILED
         assert "'integration' must be a string" in (res.error or "")
         # non-string model likewise fails before build_exec_args
         res = step.execute(
-            {"id": "c", "command": "agile.agile", "integration": "claude", "model": ["m"]},
+            {"id": "c", "command": "agile.specify", "integration": "claude", "model": ["m"]},
             StepContext(),
         )
         assert res.status is StepStatus.FAILED
@@ -1203,13 +1203,13 @@ class TestCommandStep:
         step = CommandStep()
         ctx = StepContext(default_integration="claude", default_model="sonnet")
         res = step.execute(
-            {"id": "c", "command": "agile.agile", "integration": falsey}, ctx
+            {"id": "c", "command": "agile.specify", "integration": falsey}, ctx
         )
         assert res.status is StepStatus.FAILED, falsey
         assert "'integration' must be a string" in (res.error or ""), falsey
         # a falsey non-string model likewise reaches the guard
         res = step.execute(
-            {"id": "c", "command": "agile.agile", "model": falsey}, ctx
+            {"id": "c", "command": "agile.specify", "model": falsey}, ctx
         )
         assert res.status is StepStatus.FAILED, falsey
         assert "'model' must be a string" in (res.error or ""), falsey
@@ -1295,7 +1295,7 @@ class TestCommandStep:
         )
         config = {
             "id": "test",
-            "command": "agile.agile",
+            "command": "agile.specify",
             "input": {"args": "{{ inputs.name }}"},
         }
         with patch("agile_cli.workflows.steps.command.shutil.which", return_value=None):
@@ -1318,7 +1318,7 @@ class TestCommandStep:
         )
         config = {
             "id": "test",
-            "command": "agile.agile",
+            "command": "agile.specify",
             "input": {"args": "{{ inputs.name }}"},
         }
 
@@ -1365,7 +1365,7 @@ class TestCommandStep:
         )
         config = {
             "id": "test",
-            "command": "agile.agile",
+            "command": "agile.specify",
             "input": {"args": "{{ inputs.name }}"},
         }
 
@@ -1399,7 +1399,7 @@ class TestCommandStep:
         )
         config = {
             "id": "test",
-            "command": "agile.agile",
+            "command": "agile.specify",
             "input": {"args": "test"},
         }
 
@@ -3537,7 +3537,7 @@ class TestDoWhileStep:
             "id": "cycle",
             "condition": "{{ false }}",
             "max_iterations": 3,
-            "steps": [{"id": "refine", "command": "agile.agile"}],
+            "steps": [{"id": "refine", "command": "agile.specify"}],
         }
         result = step.execute(config, ctx)
         assert len(result.next_steps) == 1
@@ -4456,7 +4456,7 @@ workflow:
   version: "1.0.0"
 steps:
   - id: step-one
-    command: agile.agile
+    command: agile.specify
 """)
         errors = validate_workflow(definition)
         assert any("workflow.id" in e for e in errors)
@@ -4471,7 +4471,7 @@ workflow:
   version: "1.0.0"
 steps:
   - id: step-one
-    command: agile.agile
+    command: agile.specify
 """)
         errors = validate_workflow(definition)
         assert any("lowercase alphanumeric" in e for e in errors)
@@ -4486,7 +4486,7 @@ workflow:
   version: "1.0.0"
 steps:
   - id: step-one
-    command: agile.agile
+    command: agile.specify
 """)
         errors = validate_workflow(definition)
         assert any("lowercase alphanumeric" in e for e in errors)
@@ -4501,7 +4501,7 @@ workflow:
   version: "1.0.0"
 steps:
   - id: step-one
-    command: agile.agile
+    command: agile.specify
 """)
         errors = validate_workflow(definition)
         assert any("workflow.id" in e and "string" in e for e in errors)
@@ -4516,7 +4516,7 @@ workflow:
   version: "1.0.0"
 steps:
   - id: step-one
-    command: agile.agile
+    command: agile.specify
 """)
         errors = validate_workflow(definition)
         assert any("workflow.name" in e and "string" in e for e in errors)
@@ -4531,7 +4531,7 @@ workflow:
   version: 1.0
 steps:
   - id: step-one
-    command: agile.agile
+    command: agile.specify
 """)
         errors = validate_workflow(definition)
         assert any("workflow.version" in e and "quote" in e for e in errors)
@@ -4546,7 +4546,7 @@ workflow:
   version: "1.0.0\\n"
 steps:
   - id: step-one
-    command: agile.agile
+    command: agile.specify
 """)
         errors = validate_workflow(definition)
         assert any("semantic version" in e for e in errors)
@@ -4561,7 +4561,7 @@ workflow:
   version: "1.0.0"
 steps:
   - id: 123
-    command: agile.agile
+    command: agile.specify
 """)
         errors = validate_workflow(definition)
         assert any("Step ID" in e and "string" in e for e in errors)
@@ -4576,7 +4576,7 @@ workflow:
   version: 0.0
 steps:
   - id: 0
-    command: agile.agile
+    command: agile.specify
 """)
         errors = validate_workflow(definition)
         assert any("'workflow.id' must be a string" in e for e in errors)
@@ -4596,7 +4596,7 @@ workflow:
   version: "1.0.0"
 steps:
   - id: step-one
-    command: agile.agile
+    command: agile.specify
 """)
         errors = validate_workflow(definition)
         assert errors == []
@@ -4629,7 +4629,7 @@ steps:
                     "version": "1.0.0",
                     field: bad_value,
                 },
-                "steps": [{"id": "step-one", "command": "agile.agile"}],
+                "steps": [{"id": "step-one", "command": "agile.specify"}],
             }
         )
 
@@ -4657,7 +4657,7 @@ steps:
                     "version": "1.0.0",
                     **defaults,
                 },
-                "steps": [{"id": "step-one", "command": "agile.agile"}],
+                "steps": [{"id": "step-one", "command": "agile.specify"}],
             }
         )
 
@@ -4680,7 +4680,7 @@ steps:
                     "model": None,
                     "options": None,
                 },
-                "steps": [{"id": "step-one", "command": "agile.agile"}],
+                "steps": [{"id": "step-one", "command": "agile.specify"}],
             }
         )
 
@@ -4712,7 +4712,7 @@ workflow:
   version: "1.0.0"
 steps:
   - id: same-id
-    command: agile.agile
+    command: agile.specify
   - id: same-id
     command: agile.plan
 """)
@@ -4771,7 +4771,7 @@ steps:
     condition: "{{ true }}"
     then:
       - id: nested-a
-        command: agile.agile
+        command: agile.specify
     else:
       - id: nested-b
         command: agile.plan
@@ -4792,7 +4792,7 @@ inputs:
     type: array
 steps:
   - id: step-one
-    command: agile.agile
+    command: agile.specify
 """)
         errors = validate_workflow(definition)
         assert any("invalid type" in e.lower() for e in errors)
@@ -4811,7 +4811,7 @@ requires:
     any: ["claude", "gemini"]
 steps:
   - id: step-one
-    command: agile.agile
+    command: agile.specify
 """)
         errors = validate_workflow(definition)
         assert errors == []
@@ -4827,7 +4827,7 @@ workflow:
 requires: "claude"
 steps:
   - id: step-one
-    command: agile.agile
+    command: agile.specify
 """)
         errors = validate_workflow(definition)
         assert any("'requires' must be a mapping" in e for e in errors)
@@ -4845,7 +4845,7 @@ requires:
   typo_key: true
 steps:
   - id: step-one
-    command: agile.agile
+    command: agile.specify
 """)
         errors = validate_workflow(definition)
         assert any("typo_key" in e and "requires" in e for e in errors)
@@ -4893,7 +4893,7 @@ workflow:
 requires: []
 steps:
   - id: step-one
-    command: agile.agile
+    command: agile.specify
 """)
         errors = validate_workflow(definition)
         assert any("'requires' must be a mapping" in e for e in errors)
@@ -4914,7 +4914,7 @@ workflow:
 requires:
 steps:
   - id: step-one
-    command: agile.agile
+    command: agile.specify
 """)
         errors = validate_workflow(definition)
         assert any("'requires' must be a mapping" in e for e in errors)
@@ -4934,7 +4934,7 @@ workflow:
   version: "1.0.0"
 steps:
   - id: step-one
-    command: agile.agile
+    command: agile.specify
 """)
         errors = validate_workflow(definition)
         assert not any("requires" in e for e in errors)
@@ -5403,7 +5403,7 @@ inputs:
     default: "test"
 steps:
   - id: step-one
-    command: agile.agile
+    command: agile.specify
     input:
       args: "{{ inputs.name }}"
 """
@@ -5414,7 +5414,7 @@ steps:
 
         assert state.status == RunStatus.FAILED
         assert "step-one" in state.step_results
-        assert state.step_results["step-one"]["output"]["command"] == "agile.agile"
+        assert state.step_results["step-one"]["output"]["command"] == "agile.specify"
         assert state.step_results["step-one"]["output"]["input"]["args"] == "login"
 
     def test_execute_rejects_invalid_origin_before_creating_run_state(
@@ -5552,7 +5552,7 @@ inputs:
     required: true
 steps:
   - id: step-one
-    command: agile.agile
+    command: agile.specify
     input:
       args: "{{ inputs.name }}"
 """
@@ -6461,7 +6461,7 @@ workflow:
   integration: claude
 steps:
   - id: tag-artifact
-    command: agile.agile
+    command: agile.specify
     input:
       args: "{{ context.run_id }}"
 """)
@@ -8515,7 +8515,7 @@ inputs:
 steps:
   - id: specify
     type: shell
-    run: "echo agile.agile {{ inputs.feature }}"
+    run: "echo agile.specify {{ inputs.feature }}"
 
   - id: check-scope
     type: if
@@ -10065,7 +10065,7 @@ workflow:
 
 steps:
   - id: step-one
-    command: agile.agile
+    command: agile.specify
 """,
             encoding="utf-8",
         )
@@ -10194,7 +10194,7 @@ workflow:
   version: "1.0.0"
 steps:
   - id: step-one
-    command: agile.agile
+    command: agile.specify
 """.strip()
             + "\n",
             encoding="utf-8",

@@ -74,7 +74,7 @@ The key is treating specifications as the source of truth, with code as the gene
 
 The SDD methodology is significantly enhanced through three powerful commands that automate the specification → planning → tasking workflow:
 
-### The `/agile.agile` Command
+### The `/agile.specify` Command
 
 This command transforms a simple feature description (the user-prompt) into a complete, structured specification with automatic repository management:
 
@@ -121,7 +121,7 @@ Total: ~12 hours of documentation work
 
 ```bash
 # Step 1: Create the feature specification (5 minutes)
-/agile.agile Real-time chat system with message history and user presence
+/agile.specify Real-time chat system with message history and user presence
 
 # This automatically:
 # - Creates branch "003-chat-system"

@@ -55,7 +55,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Outline
 
-The text the user typed after `__AGILE_COMMAND_SPECIFY__` in the triggering message **is** the feature description. Assume you always have it available in this conversation even if `{ARGS}` appears literally below. Do not ask the user to repeat it unless they provided an empty command.
+The text the user typed after `__AGILE_COMMAND_AGILE__` in the triggering message **is** the feature description. Assume you always have it available in this conversation even if `{ARGS}` appears literally below. Do not ask the user to repeat it unless they provided an empty command.
 
 Given that feature description, do this:
 
@@ -79,34 +79,34 @@ Given that feature description, do this:
 
 3. **Create the spec feature directory**:
 
-   Specs live under the default `specs/` directory unless the user explicitly provides `SPECIFY_FEATURE_DIRECTORY`.
+   Specs live under the default `specs/` directory unless the user explicitly provides `AGILE_FEATURE_DIRECTORY`.
 
-   **Resolution order for `SPECIFY_FEATURE_DIRECTORY`**:
-   1. If the user explicitly provided `SPECIFY_FEATURE_DIRECTORY` (e.g., via environment variable, argument, or configuration), use it as-is
+   **Resolution order for `AGILE_FEATURE_DIRECTORY`**:
+   1. If the user explicitly provided `AGILE_FEATURE_DIRECTORY` (e.g., via environment variable, argument, or configuration), use it as-is
    2. Otherwise, auto-generate it under `specs/`:
       - Check `.agile/init-options.json` for `feature_numbering` (preferred) or `branch_numbering` (deprecated, migration only — will be removed in a future release)
       - If `"timestamp"`: prefix is `YYYYMMDD-HHMMSS` (current timestamp)
       - If `"sequential"` or absent: prefix is `NNN` (next available 3-digit number after scanning existing directories in `specs/`)
       - Construct the directory name: `<prefix>-<short-name>` (e.g., `003-user-auth` or `20260319-143022-user-auth`)
-      - Set `SPECIFY_FEATURE_DIRECTORY` to `specs/<directory-name>`
+      - Set `AGILE_FEATURE_DIRECTORY` to `specs/<directory-name>`
       - If `branch_numbering` was used (and `feature_numbering` was absent), emit a one-line warning: "⚠️ `branch_numbering` in init-options.json is deprecated. Rename to `feature_numbering`."
 
    **Create the directory and spec file**:
-   - `mkdir -p SPECIFY_FEATURE_DIRECTORY`
-   - Resolve the active `spec-template` through the Agile preset/template resolution stack (equivalent to `specify preset resolve spec-template`)
-   - Copy the resolved `spec-template` file to `SPECIFY_FEATURE_DIRECTORY/spec.md` as the starting point
-   - Set `SPEC_FILE` to `SPECIFY_FEATURE_DIRECTORY/spec.md`
+   - `mkdir -p AGILE_FEATURE_DIRECTORY`
+   - Resolve the active `spec-template` through the Agile preset/template resolution stack (equivalent to `agile preset resolve spec-template`)
+   - Copy the resolved `spec-template` file to `AGILE_FEATURE_DIRECTORY/spec.md` as the starting point
+   - Set `SPEC_FILE` to `AGILE_FEATURE_DIRECTORY/spec.md`
    - Persist the resolved path to `.agile/feature.json`:
      ```json
      {
        "feature_directory": "<resolved feature dir>"
      }
      ```
-     Write the actual resolved directory path value (for example, `specs/003-user-auth`), not the literal string `SPECIFY_FEATURE_DIRECTORY`.
+     Write the actual resolved directory path value (for example, `specs/003-user-auth`), not the literal string `AGILE_FEATURE_DIRECTORY`.
      This allows downstream commands (`__AGILE_COMMAND_PLAN__`, `__AGILE_COMMAND_TASKS__`, etc.) to locate the feature directory without relying on git branch name conventions.
 
    **IMPORTANT**:
-   - You must only create one feature per `__AGILE_COMMAND_SPECIFY__` invocation
+   - You must only create one feature per `__AGILE_COMMAND_AGILE__` invocation
    - The spec directory name and the git branch name are independent — they may be the same but that is the user's choice
    - The spec directory and file are always created by this command, never by the hook
 
@@ -143,7 +143,7 @@ Given that feature description, do this:
 
 8. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
 
-   a. **Create Spec Quality Checklist**: Generate a checklist file at `SPECIFY_FEATURE_DIRECTORY/checklists/requirements.md` using the checklist template structure with these validation items:
+   a. **Create Spec Quality Checklist**: Generate a checklist file at `AGILE_FEATURE_DIRECTORY/checklists/requirements.md` using the checklist template structure with these validation items:
 
       ```markdown
       # Specification Quality Checklist: [FEATURE NAME]
@@ -270,7 +270,7 @@ Check if `.agile/extensions.yml` exists in the project root.
 ## Completion Report
 
 Report completion to the user with:
-- `SPECIFY_FEATURE_DIRECTORY` — the feature directory path
+- `AGILE_FEATURE_DIRECTORY` — the feature directory path
 - `SPEC_FILE` — the spec file path
 - Checklist results summary
 - Readiness for the next phase (`__AGILE_COMMAND_CLARIFY__` or `__AGILE_COMMAND_PLAN__`)

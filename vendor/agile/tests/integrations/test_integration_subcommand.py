@@ -1,4 +1,4 @@
-"""Tests for ``specify integration`` subcommand (list, install, uninstall, switch)."""
+"""Tests for ``agile integration`` subcommand (list, install, uninstall, switch)."""
 
 import json
 import os
@@ -836,7 +836,7 @@ class TestIntegrationStatus:
         assert result.exit_code != 0
         assert "unsafe-multi-install" in result.output
         assert "Multi-install safe: no" in result.output
-        assert "specify integration switch <key>" in result.output
+        assert "agile integration switch <key>" in result.output
 
     def test_status_treats_unknown_multi_install_as_unsafe(self, claude_project):
         from agile_cli.integrations.manifest import IntegrationManifest
@@ -1049,10 +1049,10 @@ class TestIntegrationInstall:
         plain = strip_ansi(result.output)
         assert "already installed" in plain
         normalized = " ".join(plain.split())
-        assert "specify integration upgrade copilot" in normalized
+        assert "agile integration upgrade copilot" in normalized
         assert "already the default integration" in normalized
         assert "No files were changed" in normalized
-        assert "specify integration uninstall copilot" not in normalized
+        assert "agile integration uninstall copilot" not in normalized
 
     def test_install_already_installed_non_default_guides_use(self, tmp_path):
         project = _init_project(tmp_path, "claude")
@@ -1072,9 +1072,9 @@ class TestIntegrationInstall:
         output = strip_ansi(result.output)
         normalized = " ".join(output.split())
         assert "already installed" in normalized
-        assert "specify integration use codex" in normalized
-        assert "specify integration upgrade codex" in normalized
-        assert "specify integration uninstall codex" not in normalized
+        assert "agile integration use codex" in normalized
+        assert "agile integration upgrade codex" in normalized
+        assert "agile integration uninstall codex" not in normalized
 
     def test_install_different_when_one_exists(self, tmp_path):
         project = _init_project(tmp_path, "copilot")
@@ -1090,7 +1090,7 @@ class TestIntegrationInstall:
         assert "Default integration: copilot" in plain
         normalized = " ".join(plain.split())
         assert "To replace the default integration" in normalized
-        assert "specify integration switch claude" in normalized
+        assert "agile integration switch claude" in normalized
         assert "To install 'claude' alongside" in normalized
         assert "retry the same install command with --force" in normalized
 
@@ -1203,7 +1203,7 @@ class TestIntegrationInstall:
         assert "multi-install safe" in plain
         normalized = " ".join(plain.split())
         assert "To replace the default integration" in normalized
-        assert "specify integration switch claude" in normalized
+        assert "agile integration switch claude" in normalized
         assert "To install 'claude' alongside" in normalized
         assert "retry the same install command with --force" in normalized
 
@@ -1274,7 +1274,7 @@ class TestIntegrationInstall:
         script = project / ".agile" / "scripts" / "bash" / "check-prerequisites.sh"
         script_content = script.read_text(encoding="utf-8")
         assert "/agile-specify" in script_content
-        assert "/agile.agile" not in script_content
+        assert "/agile.specify" not in script_content
 
     def test_install_dollar_skill_into_bare_project_gets_native_shared_refs(
         self, tmp_path
@@ -1875,7 +1875,7 @@ class TestIntegrationUse:
 
         preset_src = tmp_path / "cmd-preset"
         (preset_src / "commands").mkdir(parents=True)
-        (preset_src / "commands" / "agile.agile.md").write_text(
+        (preset_src / "commands" / "agile.specify.md").write_text(
             "---\ndescription: Overridden specify\n---\nOverridden content\n",
             encoding="utf-8",
         )
@@ -1892,8 +1892,8 @@ class TestIntegrationUse:
                 "templates": [
                     {
                         "type": "command",
-                        "name": "agile.agile",
-                        "file": "commands/agile.agile.md",
+                        "name": "agile.specify",
+                        "file": "commands/agile.specify.md",
                     }
                 ]
             },
@@ -1947,7 +1947,7 @@ class TestIntegrationUse:
         def _make_preset(pack_id: str, content: str) -> Path:
             src = tmp_path / pack_id
             (src / "commands").mkdir(parents=True)
-            (src / "commands" / "agile.agile.md").write_text(
+            (src / "commands" / "agile.specify.md").write_text(
                 f"---\ndescription: {pack_id}\n---\n{content}\n",
                 encoding="utf-8",
             )
@@ -1964,8 +1964,8 @@ class TestIntegrationUse:
                     "templates": [
                         {
                             "type": "command",
-                            "name": "agile.agile",
-                            "file": "commands/agile.agile.md",
+                            "name": "agile.specify",
+                            "file": "commands/agile.specify.md",
                         }
                     ]
                 },
@@ -2054,7 +2054,7 @@ class TestIntegrationUse:
             use_gemini = runner.invoke(app, ["integration", "use", "gemini"], catch_exceptions=False)
             assert use_gemini.exit_code == 0, use_gemini.output
             normalized = " ".join(use_gemini.output.split())
-            assert "specify integration use gemini --force" in normalized
+            assert "agile integration use gemini --force" in normalized
             assert template.read_text(encoding="utf-8") == "custom template with /agile-plan\n"
 
             force_use = runner.invoke(app, [
@@ -2229,7 +2229,7 @@ class TestIntegrationSwitch:
             project / ".github" / "skills" / "agile-plan" / "SKILL.md"
         ).exists()
         assert "/agile-specify" in shared_script.read_text(encoding="utf-8")
-        assert "/agile.agile" not in shared_script.read_text(encoding="utf-8")
+        assert "/agile.specify" not in shared_script.read_text(encoding="utf-8")
 
         # integration.json updated
         data = json.loads((project / ".agile" / "integration.json").read_text(encoding="utf-8"))
@@ -2470,7 +2470,7 @@ class TestIntegrationSwitch:
 
         preset_src = tmp_path / "switch-cleanup-preset"
         (preset_src / "commands").mkdir(parents=True)
-        (preset_src / "commands" / "agile.agile.md").write_text(
+        (preset_src / "commands" / "agile.specify.md").write_text(
             "---\ndescription: Custom preset command\n---\nOverridden content\n",
             encoding="utf-8",
         )
@@ -2487,8 +2487,8 @@ class TestIntegrationSwitch:
                 "templates": [
                     {
                         "type": "command",
-                        "name": "agile.agile",
-                        "file": "commands/agile.agile.md",
+                        "name": "agile.specify",
+                        "file": "commands/agile.specify.md",
                     }
                 ]
             },
@@ -2500,7 +2500,7 @@ class TestIntegrationSwitch:
         result = _run_in_project(project, ["preset", "add", "--dev", str(preset_src)])
         assert result.exit_code == 0, f"preset add failed: {result.output}"
 
-        auggie_cmd = project / ".augment" / "commands" / "agile.agile.md"
+        auggie_cmd = project / ".augment" / "commands" / "agile.specify.md"
         assert auggie_cmd.exists(), "sanity: preset command registered for auggie"
 
         registry_path = project / ".agile" / "presets" / ".registry"
@@ -2522,7 +2522,7 @@ class TestIntegrationSwitch:
             "extension cleanup on this same code path (#2948)"
         )
 
-        opencode_cmd = project / ".opencode" / "commands" / "agile.agile.md"
+        opencode_cmd = project / ".opencode" / "commands" / "agile.specify.md"
         assert opencode_cmd.exists(), "preset command should be registered for the new agent"
 
         registered = json.loads(registry_path.read_text(encoding="utf-8"))[
@@ -2990,7 +2990,7 @@ class TestIntegrationUpgrade:
         customized_script = project / ".agile" / "scripts" / "bash" / "setup-tasks.sh"
 
         assert "/agile.plan" in template.read_text(encoding="utf-8")
-        assert "/agile.agile" in managed_script.read_text(encoding="utf-8")
+        assert "/agile.specify" in managed_script.read_text(encoding="utf-8")
         customized_before = customized_script.read_text(encoding="utf-8") + "\n# user customization\n"
         customized_script.write_text(customized_before, encoding="utf-8")
 
@@ -3003,7 +3003,7 @@ class TestIntegrationUpgrade:
         assert "/agile-plan" in template.read_text(encoding="utf-8")
         managed_content = managed_script.read_text(encoding="utf-8")
         assert "/agile-specify" in managed_content
-        assert "/agile.agile" not in managed_content
+        assert "/agile.specify" not in managed_content
         assert customized_script.read_text(encoding="utf-8") == customized_before
 
     def test_upgrade_preserves_historical_copilot_commands_without_options(
@@ -4040,7 +4040,7 @@ class TestIntegrationUpgrade:
         The fix threads ``force=True`` from ``integration_upgrade()`` down to
         ``_register_extension_skills`` so the guard is bypassed and the extension
         content is re-composed on top of the just-regenerated directory. This test
-        exercises the full ``specify integration upgrade`` command path and fails
+        exercises the full ``agile integration upgrade`` command path and fails
         without the fix (the skill is never recreated).
         """
         project = _init_project(

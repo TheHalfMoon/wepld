@@ -806,7 +806,7 @@ class TestInitIntegrationFlag:
         assert "agile init --here --force" in plain
         # Rich may wrap long lines; normalize whitespace for the second command
         normalized = " ".join(plain.split())
-        assert "specify integration upgrade --force" in normalized
+        assert "agile integration upgrade --force" in normalized
 
     def test_shared_infra_warns_when_manifest_cannot_be_loaded(self, tmp_path, capsys):
         """Invalid shared manifests warn before falling back to a new manifest."""
@@ -1502,7 +1502,7 @@ class TestSharedInfraCommandRefs:
 
         content = self._combined_script_content(project, script_type)
         assert "__AGILE_COMMAND_" not in content
-        assert "/agile.agile" in content
+        assert "/agile.specify" in content
         assert "/agile.plan" in content
         assert "/agile.tasks" in content
         assert "/agile-specify" not in content
@@ -1525,7 +1525,7 @@ class TestSharedInfraCommandRefs:
         assert "/agile-specify" in content
         assert "/agile-plan" in content
         assert "/agile-tasks" in content
-        assert "/agile.agile" not in content
+        assert "/agile.specify" not in content
         assert "/agile.plan" not in content
         assert "/agile.tasks" not in content
 
@@ -1599,7 +1599,7 @@ class TestSharedInfraCommandRefs:
 
         script_content = self._combined_script_content(project, "sh")
         assert "/agile-specify" in script_content
-        assert "/agile.agile" not in script_content
+        assert "/agile.specify" not in script_content
 
     def test_full_init_copilot_resolves_page_templates(self, tmp_path):
         """Default Copilot skills mode produces hyphen refs in page templates."""
@@ -1630,7 +1630,7 @@ class TestSharedInfraCommandRefs:
 
         script_content = self._combined_script_content(project, "sh")
         assert "/agile-specify" in script_content
-        assert "/agile.agile" not in script_content
+        assert "/agile.specify" not in script_content
 
     def test_full_init_copilot_commands_resolves_page_templates(self, tmp_path):
         """Copilot --commands produces dot refs in page templates."""
@@ -1661,7 +1661,7 @@ class TestSharedInfraCommandRefs:
         assert "__AGILE_COMMAND_" not in content
 
         script_content = self._combined_script_content(project, "sh")
-        assert "/agile.agile" in script_content
+        assert "/agile.specify" in script_content
         assert "/agile-specify" not in script_content
 
 
@@ -2085,7 +2085,7 @@ class TestIntegrationCatalogDiscoveryCLI:
         assert "Found 2 integration(s)" in result.output
         assert "acme-coder" in result.output
         assert "stellar-agent" in result.output
-        assert "specify integration install stellar-agent" not in normalized_output
+        assert "agile integration install stellar-agent" not in normalized_output
         assert "Only built-in integration IDs can be installed" in normalized_output
 
     def test_search_validates_integration_json_before_catalog_lookup(
@@ -2160,7 +2160,7 @@ class TestIntegrationCatalogDiscoveryCLI:
         )
         assert result.exit_code == 0, result.output
         assert "No integrations found" in result.output
-        assert "specify integration search" in result.output
+        assert "agile integration search" in result.output
 
     def test_search_marks_discovery_only_entry(self, tmp_path, monkeypatch):
         project = self._make_project(tmp_path)

@@ -609,7 +609,7 @@ class TestCreateFeatureBash:
         assert not (project / "specs" / data["BRANCH_NAME"]).exists()
 
     def test_specify_init_dir_without_core_errors(self, tmp_path: Path):
-        """With no core scripts (only git-common.sh loaded), a set SPECIFY_INIT_DIR
+        """With no core scripts (only git-common.sh loaded), a set AGILE_INIT_DIR
         hard-errors instead of silently falling back to the walk-up project root."""
         project = _setup_project(tmp_path, git=False)
         # Simulate a no-core install: drop core common.sh so only git-common.sh loads.
@@ -617,13 +617,13 @@ class TestCreateFeatureBash:
         result = _run_bash(
             "create-new-feature-branch.sh", project,
             "--json", "--short-name", "x", "X feature",
-            env_extra={"SPECIFY_INIT_DIR": str(project)},
+            env_extra={"AGILE_INIT_DIR": str(project)},
         )
         assert result.returncode != 0
         assert "requires updated Agile core scripts" in result.stderr
 
     def test_specify_init_dir_with_stale_core_errors(self, tmp_path: Path):
-        """With an older core common.sh, a set SPECIFY_INIT_DIR must hard-error
+        """With an older core common.sh, a set AGILE_INIT_DIR must hard-error
         instead of calling the stale get_repo_root that ignores the override."""
         project = _setup_project(tmp_path, git=False)
         (project / "scripts" / "bash" / "common.sh").write_text(
@@ -633,7 +633,7 @@ class TestCreateFeatureBash:
         result = _run_bash(
             "create-new-feature-branch.sh", project,
             "--json", "--short-name", "x", "X feature",
-            env_extra={"SPECIFY_INIT_DIR": str(tmp_path / "missing")},
+            env_extra={"AGILE_INIT_DIR": str(tmp_path / "missing")},
         )
         assert result.returncode != 0
         assert "requires updated Agile core scripts" in result.stderr
@@ -699,8 +699,8 @@ class TestCreateFeaturePowerShell:
         assert "HAS_GIT" not in rt.stdout
 
     def test_persist_hint_matches_twins(self, tmp_path: Path):
-        """The non-JSON SPECIFY_FEATURE hint must use the '# To persist in your
-        shell: $env:SPECIFY_FEATURE = '<name>' form — matching the core
+        """The non-JSON AGILE_FEATURE hint must use the '# To persist in your
+        shell: $env:AGILE_FEATURE = '<name>' form — matching the core
         create-new-feature.ps1 twin and the bash/python twins of this script —
         not the old 'environment variable set to:' wording (the env var is only
         set in this child process, so the actionable output is the persist hint)."""
@@ -711,7 +711,7 @@ class TestCreateFeaturePowerShell:
         )
         assert result.returncode == 0, result.stderr
         assert "# To persist in your shell:" in result.stdout
-        assert "$env:SPECIFY_FEATURE = '001-persist'" in result.stdout
+        assert "$env:AGILE_FEATURE = '001-persist'" in result.stdout
         assert "environment variable set to:" not in result.stdout
 
     def test_help_documents_branch_prefix(self, tmp_path: Path):
@@ -950,12 +950,12 @@ class TestCreateFeaturePowerShell:
         assert "FEATURE_NUM" in data
 
     def test_specify_init_dir_without_core_errors(self, tmp_path: Path):
-        """With no core scripts (only git-common.ps1 loaded), a set SPECIFY_INIT_DIR
+        """With no core scripts (only git-common.ps1 loaded), a set AGILE_INIT_DIR
         hard-errors instead of silently falling back to the walk-up project root."""
         project = _setup_project(tmp_path, git=False)
         (project / "scripts" / "powershell" / "common.ps1").unlink()
         script = project / ".agile" / "extensions" / "git" / "scripts" / "powershell" / "create-new-feature-branch.ps1"
-        env = {**os.environ, **_GIT_ENV, "SPECIFY_INIT_DIR": str(project)}
+        env = {**os.environ, **_GIT_ENV, "AGILE_INIT_DIR": str(project)}
         result = subprocess.run(
             ["pwsh", "-NoProfile", "-File", str(script), "-Json", "-ShortName", "x", "X feature"],
             cwd=project,
@@ -967,7 +967,7 @@ class TestCreateFeaturePowerShell:
         assert "requires updated Agile core scripts" in result.stderr
 
     def test_specify_init_dir_with_stale_core_errors(self, tmp_path: Path):
-        """With an older core common.ps1, a set SPECIFY_INIT_DIR must hard-error
+        """With an older core common.ps1, a set AGILE_INIT_DIR must hard-error
         instead of calling the stale Get-RepoRoot that ignores the override."""
         project = _setup_project(tmp_path, git=False)
         (project / "scripts" / "powershell" / "common.ps1").write_text(
@@ -975,7 +975,7 @@ class TestCreateFeaturePowerShell:
             encoding="utf-8",
         )
         script = project / ".agile" / "extensions" / "git" / "scripts" / "powershell" / "create-new-feature-branch.ps1"
-        env = {**os.environ, **_GIT_ENV, "SPECIFY_INIT_DIR": str(tmp_path / "missing")}
+        env = {**os.environ, **_GIT_ENV, "AGILE_INIT_DIR": str(tmp_path / "missing")}
         result = subprocess.run(
             ["pwsh", "-NoProfile", "-File", str(script), "-Json", "-ShortName", "x", "X feature"],
             cwd=project,

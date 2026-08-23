@@ -44,6 +44,6 @@ If NOT on a feature branch:
 ## Graceful Degradation
 
 If Git is not installed or the directory is not a Git repository:
-- Check the `SPECIFY_FEATURE` environment variable as a fallback
+- Check the `AGILE_FEATURE` environment variable as a fallback
 - If set, validate that value against the naming patterns
 - If not set, skip validation with a warning

@@ -52,7 +52,7 @@ class TestExtensionLayout:
         """assess is a standalone pipeline: it must not register lifecycle
         hooks (e.g. before_specify). Discovery and specification stay
         separate processes; the only coupling is the forward decide ->
-        /agile.agile handoff described in the commands."""
+        /agile.specify handoff described in the commands."""
         manifest = yaml.safe_load(
             (EXT_DIR / "extension.yml").read_text(encoding="utf-8")
         )

@@ -840,13 +840,13 @@ def test_all_variants_non_dry_text_mode_match(tmp_path: Path) -> None:
     )
     ps_stdout = normalize_repo_paths(ps.stdout, ps_repo)
     ps_stderr = normalize_repo_paths(ps.stderr, ps_repo)
-    assert "$env:SPECIFY_FEATURE = '007-x'" in ps_stdout
+    assert "$env:AGILE_FEATURE = '007-x'" in ps_stdout
     assert (
-        "$env:SPECIFY_FEATURE_DIRECTORY = '<REPO>/specs/007-x'" in ps_stdout
+        "$env:AGILE_FEATURE_DIRECTORY = '<REPO>/specs/007-x'" in ps_stdout
     )
-    assert "$env:SPECIFY_FEATURE = '007-x'" in ps_stderr
+    assert "$env:AGILE_FEATURE = '007-x'" in ps_stderr
     assert (
-        "$env:SPECIFY_FEATURE_DIRECTORY = '<REPO>/specs/007-x'" in ps_stderr
+        "$env:AGILE_FEATURE_DIRECTORY = '<REPO>/specs/007-x'" in ps_stderr
     )
 
 
@@ -869,7 +869,7 @@ def test_python_persist_hints_match_bash_for_spaced_repo_path(
     assert normalize_repo_paths(bash.stderr, bash_repo) == normalize_repo_paths(
         py.stderr, py_repo
     )
-    assert "export SPECIFY_FEATURE_DIRECTORY='<REPO>/specs/007-x'" in (
+    assert "export AGILE_FEATURE_DIRECTORY='<REPO>/specs/007-x'" in (
         normalize_repo_paths(py.stderr, py_repo)
     )
 
@@ -878,8 +878,8 @@ def test_python_powershell_persistence_assignments_escape_quotes() -> None:
     assert create_new_feature._persistence_assignments(
         "007-x", r"C:\repo\O'Brien", powershell=True
     ) == (
-        "$env:SPECIFY_FEATURE = '007-x'",
-        "$env:SPECIFY_FEATURE_DIRECTORY = 'C:\\repo\\O''Brien'",
+        "$env:AGILE_FEATURE = '007-x'",
+        "$env:AGILE_FEATURE_DIRECTORY = 'C:\\repo\\O''Brien'",
     )
 
 

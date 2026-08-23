@@ -33,7 +33,7 @@ BANNER = """
 ╚══════╝╚═╝     ╚══════╝ ╚═════╝╚═╝╚═╝        ╚═╝
 """
 
-TAGLINE = "GitHub Agile - Spec-Driven Development Toolkit"
+TAGLINE = "Agile - Spec-Driven Development Toolkit"
 
 console = Console(highlight=False)
 

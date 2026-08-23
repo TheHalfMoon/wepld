@@ -24,22 +24,22 @@ function Find-SpecifyRoot {
     }
 }
 
-# Resolve an explicit SPECIFY_INIT_DIR project override (the directory that
+# Resolve an explicit AGILE_INIT_DIR project override (the directory that
 # *contains* .agile/), for non-interactive / CI use -- e.g. running a Agile
 # command against a member project from a monorepo root without cd.
 #
-# Precondition: $env:SPECIFY_INIT_DIR is set. Returns the validated project root,
+# Precondition: $env:AGILE_INIT_DIR is set. Returns the validated project root,
 # or writes an error and exits 1 unless -ReturnNullOnError is set. Strict by
 # design: the path must exist and
 # contain .agile/, with no silent fallback. (An empty string is falsy, so the
-# caller's `if ($env:SPECIFY_INIT_DIR)` guard treats empty as unset.)
+# caller's `if ($env:AGILE_INIT_DIR)` guard treats empty as unset.)
 #
 # This is the single resolver: bundled extensions inherit it by sourcing core
 # (e.g. the git extension's create-new-feature-branch) rather than duplicating it.
 function Resolve-SpecifyInitDir {
     param([switch]$ReturnNullOnError)
 
-    $initDir = $env:SPECIFY_INIT_DIR
+    $initDir = $env:AGILE_INIT_DIR
     # Normalize: relative paths resolve against the current directory.
     if (-not [System.IO.Path]::IsPathRooted($initDir)) {
         $initDir = Join-Path (Get-Location).Path $initDir
@@ -49,7 +49,7 @@ function Resolve-SpecifyInitDir {
     # directory; otherwise a file value would slip through to the less accurate
     # "not a Agile project" error below.
     if (-not $resolved -or -not (Test-Path -LiteralPath $resolved.Path -PathType Container)) {
-        [Console]::Error.WriteLine("ERROR: SPECIFY_INIT_DIR does not point to an existing directory: $($env:SPECIFY_INIT_DIR)")
+        [Console]::Error.WriteLine("ERROR: AGILE_INIT_DIR does not point to an existing directory: $($env:AGILE_INIT_DIR)")
         if ($ReturnNullOnError) { return $null }
         exit 1
     }
@@ -67,7 +67,7 @@ function Resolve-SpecifyInitDir {
         $initRoot = $resolved.Path
     }
     if (-not (Test-Path -LiteralPath (Join-Path $initRoot '.agile') -PathType Container)) {
-        [Console]::Error.WriteLine("ERROR: SPECIFY_INIT_DIR is not a Agile project (no .agile/ directory): $initRoot")
+        [Console]::Error.WriteLine("ERROR: AGILE_INIT_DIR is not a Agile project (no .agile/ directory): $initRoot")
         if ($ReturnNullOnError) { return $null }
         exit 1
     }
@@ -80,7 +80,7 @@ function Get-RepoRoot {
     param([switch]$ReturnNullOnError)
 
     # Explicit project override wins (see Resolve-SpecifyInitDir).
-    if ($env:SPECIFY_INIT_DIR) {
+    if ($env:AGILE_INIT_DIR) {
         return (Resolve-SpecifyInitDir -ReturnNullOnError:$ReturnNullOnError)
     }
 
@@ -97,10 +97,10 @@ function Get-RepoRoot {
 
 function Get-CurrentBranch {
     # Return feature name from explicit state only.
-    # Feature state is set by SPECIFY_FEATURE (from create-new-feature or
+    # Feature state is set by AGILE_FEATURE (from create-new-feature or
     # the git extension) or implicitly via .agile/feature.json.
-    if ($env:SPECIFY_FEATURE) {
-        return $env:SPECIFY_FEATURE
+    if ($env:AGILE_FEATURE) {
+        return $env:AGILE_FEATURE
     }
 
     # No explicit feature set - return empty to signal "unknown".
@@ -171,12 +171,12 @@ function Get-FeaturePathsEnv {
     $currentBranch = Get-CurrentBranch
 
     # Resolve feature directory.  Priority:
-    #   1. SPECIFY_FEATURE_DIRECTORY env var (explicit override)
+    #   1. AGILE_FEATURE_DIRECTORY env var (explicit override)
     #   2. .agile/feature.json "feature_directory" key (persisted by specify command)
     #   3. Error - no feature context available
     $featureJson = Join-Path $repoRoot '.agile/feature.json'
-    if ($env:SPECIFY_FEATURE_DIRECTORY) {
-        $featureDir = $env:SPECIFY_FEATURE_DIRECTORY
+    if ($env:AGILE_FEATURE_DIRECTORY) {
+        $featureDir = $env:AGILE_FEATURE_DIRECTORY
         # Normalize relative paths to absolute under repo root
         if (-not [System.IO.Path]::IsPathRooted($featureDir)) {
             $featureDir = Join-Path $repoRoot $featureDir
@@ -184,14 +184,14 @@ function Get-FeaturePathsEnv {
         # Persist to feature.json so future sessions without the env var still
         # work - unless the caller opted out for read-only resolution (#3025).
         if (-not $NoPersist) {
-            Save-FeatureJson -RepoRoot $repoRoot -FeatureDirectory $env:SPECIFY_FEATURE_DIRECTORY
+            Save-FeatureJson -RepoRoot $repoRoot -FeatureDirectory $env:AGILE_FEATURE_DIRECTORY
         }
     } elseif (Test-Path $featureJson) {
         $featureJsonRaw = Get-Content -LiteralPath $featureJson -Raw
         try {
             $featureConfig = $featureJsonRaw | ConvertFrom-Json
         } catch {
-            [Console]::Error.WriteLine("ERROR: Feature directory not found. Set SPECIFY_FEATURE_DIRECTORY or ensure .agile/feature.json contains feature_directory.")
+            [Console]::Error.WriteLine("ERROR: Feature directory not found. Set AGILE_FEATURE_DIRECTORY or ensure .agile/feature.json contains feature_directory.")
             if ($ReturnNullOnError) { return $null }
             exit 1
         }
@@ -202,18 +202,18 @@ function Get-FeaturePathsEnv {
                 $featureDir = Join-Path $repoRoot $featureDir
             }
         } else {
-            [Console]::Error.WriteLine("ERROR: Feature directory not found. Set SPECIFY_FEATURE_DIRECTORY or ensure .agile/feature.json contains feature_directory.")
+            [Console]::Error.WriteLine("ERROR: Feature directory not found. Set AGILE_FEATURE_DIRECTORY or ensure .agile/feature.json contains feature_directory.")
             if ($ReturnNullOnError) { return $null }
             exit 1
         }
     } else {
-        [Console]::Error.WriteLine("ERROR: Feature directory not found. Set SPECIFY_FEATURE_DIRECTORY or run the specify command to create .agile/feature.json.")
+        [Console]::Error.WriteLine("ERROR: Feature directory not found. Set AGILE_FEATURE_DIRECTORY or run the specify command to create .agile/feature.json.")
         if ($ReturnNullOnError) { return $null }
         exit 1
     }
 
-    # When no branch context exists (no SPECIFY_FEATURE, feature resolved via
-    # SPECIFY_FEATURE_DIRECTORY or feature.json), fall back to the feature
+    # When no branch context exists (no AGILE_FEATURE, feature resolved via
+    # AGILE_FEATURE_DIRECTORY or feature.json), fall back to the feature
     # directory basename so CURRENT_BRANCH is a usable identifier rather than
     # an empty, misleading value (issue #3026).
     if (-not $currentBranch) {

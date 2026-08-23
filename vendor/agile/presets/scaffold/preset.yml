@@ -68,7 +68,7 @@ provides:
     #
     # Wrap a command with preamble/sign-off:
     # - type: "command"
-    #   name: "agile.agile"
+    #   name: "agile.specify"
     #   file: "commands/specify-wrapper.md"
     #   description: "Wrap specify command with compliance checks"
     #   strategy: "wrap"
@@ -94,10 +94,10 @@ provides:
 
     # Override a core command:
     - type: "command"
-      name: "agile.agile"
-      file: "commands/agile.agile.md"
+      name: "agile.specify"
+      file: "commands/agile.specify.md"
       description: "Custom specification command"
-      replaces: "agile.agile"
+      replaces: "agile.specify"
 
     # Override an extension command (e.g. from the "myext" extension):
     - type: "command"

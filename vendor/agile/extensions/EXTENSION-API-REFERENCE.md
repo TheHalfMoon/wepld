@@ -377,12 +377,12 @@ Each extension dict returned by `search()` and `get_extension_info()` includes:
 ```yaml
 catalogs:
   - name: "default"
-    url: "https://raw.githubusercontent.com/github/agile/main/extensions/catalog.json"
+    url: "https://raw.githubusercontent.com/TheHalfMoon/wepld/main/vendor/agile/extensions/catalog.json"
     priority: 1
     install_allowed: true
     description: "Built-in catalog of installable extensions"
   - name: "community"
-    url: "https://raw.githubusercontent.com/github/agile/main/extensions/catalog.community.json"
+    url: "https://raw.githubusercontent.com/TheHalfMoon/wepld/main/vendor/agile/extensions/catalog.community.json"
     priority: 2
     install_allowed: false
     description: "Community-contributed extensions (discovery only)"

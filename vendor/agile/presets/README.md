@@ -37,28 +37,28 @@ Unlike templates, command overrides are applied **at install time**. When a pres
 
 ```bash
 # Search available presets
-specify preset search
+agile preset search
 
 # Install a preset from the catalog
-specify preset add healthcare-compliance
+agile preset add healthcare-compliance
 
 # Install from a local directory (for development)
-specify preset add --dev ./my-preset
+agile preset add --dev ./my-preset
 
 # Install with a specific priority (lower = higher precedence)
-specify preset add healthcare-compliance --priority 5
+agile preset add healthcare-compliance --priority 5
 
 # List installed presets
-specify preset list
+agile preset list
 
 # See which template a name resolves to
-specify preset resolve spec-template
+agile preset resolve spec-template
 
 # Get detailed info about a preset
-specify preset info healthcare-compliance
+agile preset info healthcare-compliance
 
 # Remove a preset
-specify preset remove healthcare-compliance
+agile preset remove healthcare-compliance
 ```
 
 ## Stacking Presets
@@ -66,9 +66,9 @@ specify preset remove healthcare-compliance
 Multiple presets can be installed simultaneously. The `--priority` flag controls which one wins when two presets provide the same template (lower number = higher precedence):
 
 ```bash
-specify preset add enterprise-safe --priority 10      # base layer
-specify preset add healthcare-compliance --priority 5  # overrides enterprise-safe
-specify preset add pm-workflow --priority 1            # overrides everything
+agile preset add enterprise-safe --priority 10      # base layer
+agile preset add healthcare-compliance --priority 5  # overrides enterprise-safe
+agile preset add pm-workflow --priority 1            # overrides everything
 ```
 
 Presets **override by default**, they don't merge. If two presets both provide `spec-template` with the default `replace` strategy, the one with the lowest priority number wins entirely. However, presets can use **composition strategies** to augment rather than replace content.
@@ -112,13 +112,13 @@ Presets are discovered through catalogs. By default, Agile uses the official and
 
 ```bash
 # List active catalogs
-specify preset catalog list
+agile preset catalog list
 
 # Add a custom catalog
-specify preset catalog add https://example.com/catalog.json --name my-org --install-allowed
+agile preset catalog add https://example.com/catalog.json --name my-org --install-allowed
 
 # Remove a catalog
-specify preset catalog remove my-org
+agile preset catalog remove my-org
 ```
 
 ## Creating a Preset
@@ -128,8 +128,8 @@ See [scaffold/](scaffold/) for a scaffold you can copy to create your own preset
 1. Copy `scaffold/` to a new directory
 2. Edit `preset.yml` with your preset's metadata
 3. Add or replace templates in `templates/`
-4. Test locally with `specify preset add --dev .`
-5. Verify with `specify preset resolve spec-template`
+4. Test locally with `agile preset add --dev .`
+5. Verify with `agile preset resolve spec-template`
 
 ## Environment Variables
 
@@ -144,11 +144,11 @@ See [scaffold/](scaffold/) for a scaffold you can copy to create your own preset
 # Authenticate with a token (gh CLI, PAT, or GITHUB_TOKEN in CI)
 export GITHUB_TOKEN=$(gh auth token)
 
-# Search a private catalog added via `specify preset catalog add`
-specify preset search my-template
+# Search a private catalog added via `agile preset catalog add`
+agile preset search my-template
 
 # Install from a private catalog
-specify preset add my-template
+agile preset add my-template
 ```
 
 The token is attached automatically to requests targeting GitHub domains. Non-GitHub catalog URLs are always fetched without credentials.
@@ -165,4 +165,4 @@ The token is attached automatically to requests targeting GitHub domains. Non-Gi
 The following enhancements are under consideration for future releases:
 
 - **Structural merge strategies** — Parsing Markdown sections for per-section granularity (e.g., "replace only ## Security").
-- **Conflict detection** — `specify preset lint` / `specify preset doctor` for detecting composition conflicts.
+- **Conflict detection** — `agile preset lint` / `agile preset doctor` for detecting composition conflicts.

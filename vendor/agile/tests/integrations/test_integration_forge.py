@@ -437,7 +437,7 @@ class TestForgeCommandRegistrar:
         )
 
     def test_git_extension_command_uses_hyphen_notation(self, tmp_path):
-        """Verify the git extension's feature command uses /agile-specify (not /agile.agile) for Forge."""
+        """Verify the git extension's feature command uses /agile-specify (not /agile.specify) for Forge."""
         from pathlib import Path
         from agile_cli.agents import CommandRegistrar
 
@@ -474,10 +474,10 @@ class TestForgeCommandRegistrar:
         content = forge_cmd.read_text(encoding="utf-8")
         assert "/agile-specify" in content, (
             "Expected '/agile-specify' (hyphen) in generated Forge git.feature command body, "
-            "but it was not found. Check that __AGILE_COMMAND_SPECIFY__ is resolved correctly."
+            "but it was not found. Check that __AGILE_COMMAND_AGILE__ is resolved correctly."
         )
-        assert "/agile.agile" not in content, (
-            "Found '/agile.agile' (dot notation) in generated Forge git.feature command body. "
+        assert "/agile.specify" not in content, (
+            "Found '/agile.specify' (dot notation) in generated Forge git.feature command body. "
             "Forge requires hyphen notation for ZSH compatibility."
         )
 

@@ -231,7 +231,7 @@ class TestPresetManifest:
         authoring slip: unquoted ``version: 1.0`` parses as a float and ``id: 2``
         as an int. TypeError is not a PresetValidationError, so it escaped
         list_installed()'s "Corrupted preset" fallback and made
-        `specify preset list` exit 1 with a raw traceback, hiding every healthy
+        `agile preset list` exit 1 with a raw traceback, hiding every healthy
         preset too. The sibling IntegrationDescriptor already type-checks the
         same four fields.
         """
@@ -3823,11 +3823,11 @@ class TestSelfTestPreset:
         manifest = PresetManifest(SELF_TEST_PRESET_DIR / "preset.yml")
         commands = [t for t in manifest.templates if t["type"] == "command"]
         assert len(commands) >= 1
-        assert commands[0]["name"] == "agile.agile"
+        assert commands[0]["name"] == "agile.specify"
 
     def test_self_test_command_file_exists(self):
         """Verify the self-test command file exists on disk."""
-        cmd_path = SELF_TEST_PRESET_DIR / "commands" / "agile.agile.md"
+        cmd_path = SELF_TEST_PRESET_DIR / "commands" / "agile.specify.md"
         assert cmd_path.exists()
         content = cmd_path.read_text()
         assert "preset:self-test" in content
@@ -3858,7 +3858,7 @@ class TestSelfTestPreset:
         install_self_test_preset(manager)
 
         # Check the command was registered in TOML format
-        cmd_file = gemini_dir / "agile.agile.toml"
+        cmd_file = gemini_dir / "agile.specify.toml"
         assert cmd_file.exists(), "Command not registered in .gemini/commands/"
         content = cmd_file.read_text()
         assert "prompt" in content  # TOML format has a prompt field
@@ -4834,7 +4834,7 @@ class TestPresetSkills:
         # Also create the claude commands dir so commands get registered
         (project_dir / ".claude" / "skills").mkdir(parents=True, exist_ok=True)
 
-        # Install self-test preset (has a command override for agile.agile)
+        # Install self-test preset (has a command override for agile.specify)
         manager = PresetManager(project_dir)
         install_self_test_preset(manager)
 
@@ -4934,7 +4934,7 @@ class TestPresetSkills:
         silently discarding argument-hint and leaking its value into description.
         """
         core_arg_hint = "Describe the feature you want to specify"
-        preset_description = "Wrapped agile.agile — extra project context added"
+        preset_description = "Wrapped agile.specify — extra project context added"
         self._write_init_options(project_dir, ai="claude")
         skills_dir = project_dir / ".claude" / "skills"
         self._create_skill(skills_dir, "agile-specify")
@@ -4955,7 +4955,7 @@ class TestPresetSkills:
         preset_dir = temp_dir / "wrap-hint-preset"
         preset_dir.mkdir()
         (preset_dir / "commands").mkdir()
-        (preset_dir / "commands" / "agile.agile.md").write_text(
+        (preset_dir / "commands" / "agile.specify.md").write_text(
             "---\n"
             f'description: "{preset_description}"\n'
             "strategy: wrap\n"
@@ -4976,8 +4976,8 @@ class TestPresetSkills:
                 "templates": [
                     {
                         "type": "command",
-                        "name": "agile.agile",
-                        "file": "commands/agile.agile.md",
+                        "name": "agile.specify",
+                        "file": "commands/agile.specify.md",
                         "strategy": "wrap",
                     }
                 ]
@@ -5006,7 +5006,7 @@ class TestPresetSkills:
         """Wrap inheritance must carry argument-hint for a command NOT in ARGUMENT_HINTS.
 
         Regression guard for issue #3991. The companion test above wraps
-        ``agile.agile``, whose stem is in Claude's ``ARGUMENT_HINTS`` map, so
+        ``agile.specify``, whose stem is in Claude's ``ARGUMENT_HINTS`` map, so
         the string-injection fallback in ``post_process_skill_content`` re-adds
         ``argument-hint`` even when wrap composition drops it — masking the bug.
         This test wraps an extension-like command (``agile.myfeature``) that is
@@ -5097,9 +5097,9 @@ class TestPresetSkills:
         preset_dir = self._create_command_preset(
             temp_dir,
             "cmdref-install",
-            "agile.agile",
+            "agile.specify",
             "Override specify",
-            "Run `__AGILE_COMMAND_SPECIFY__` then `__AGILE_COMMAND_PLAN__`.\n",
+            "Run `__AGILE_COMMAND_AGILE__` then `__AGILE_COMMAND_PLAN__`.\n",
         )
 
         manager = PresetManager(project_dir)
@@ -5127,7 +5127,7 @@ class TestPresetSkills:
         preset_dir = self._create_command_preset(
             temp_dir,
             "cmdref-restore",
-            "agile.agile",
+            "agile.specify",
             "Override specify",
             "Override body\n",
         )
@@ -5156,7 +5156,7 @@ class TestPresetSkills:
         preset_dir = self._create_command_preset(
             temp_dir,
             "dollar-cmdref-restore",
-            "agile.agile",
+            "agile.specify",
             "Override specify",
             "Override body\n",
         )
@@ -5184,7 +5184,7 @@ class TestPresetSkills:
         # so the skill is restored exclusively via the reconcile override branch.
         overrides_dir = project_dir / ".agile" / "templates" / "overrides"
         overrides_dir.mkdir(parents=True, exist_ok=True)
-        (overrides_dir / "agile.agile.md").write_text(
+        (overrides_dir / "agile.specify.md").write_text(
             "---\ndescription: Override specify\n---\n\n"
             "Then run `__AGILE_COMMAND_PLAN__`.\n"
         )
@@ -5192,7 +5192,7 @@ class TestPresetSkills:
         preset_dir = self._create_command_preset(
             temp_dir,
             "cmdref-reconcile",
-            "agile.agile",
+            "agile.specify",
             "Preset specify",
             "Preset body\n",
         )
@@ -5201,7 +5201,7 @@ class TestPresetSkills:
         manager.remove("cmdref-reconcile")
 
         content = (skills_dir / "agile-specify" / "SKILL.md").read_text()
-        assert "override:agile.agile" in content, "skill should be restored from the project override"
+        assert "override:agile.specify" in content, "skill should be restored from the project override"
         assert "__AGILE_COMMAND_" not in content, "raw command token leaked on reconcile"
         assert "/agile-plan" in content
 
@@ -5875,26 +5875,26 @@ class TestPresetSkills:
     def test_kimi_legacy_dotted_skill_override_still_applies(self, project_dir, temp_dir):
         """Preset overrides should still target legacy dotted-named skill dirs.
 
-        This exercises legacy *naming* (``agile.agile``) under the current
+        This exercises legacy *naming* (``agile.specify``) under the current
         ``.kimi-code/`` base — distinct from the legacy ``.kimi/`` *location*.
         """
         self._write_init_options(project_dir, ai="kimi")
         skills_dir = project_dir / ".kimi-code" / "skills"
-        self._create_skill(skills_dir, "agile.agile", body="untouched")
+        self._create_skill(skills_dir, "agile.specify", body="untouched")
 
         (project_dir / ".kimi-code" / "commands").mkdir(parents=True, exist_ok=True)
 
         manager = PresetManager(project_dir)
         install_self_test_preset(manager)
 
-        skill_file = skills_dir / "agile.agile" / "SKILL.md"
+        skill_file = skills_dir / "agile.specify" / "SKILL.md"
         assert skill_file.exists()
         content = skill_file.read_text()
         assert "preset:self-test" in content
-        assert "name: agile.agile" in content
+        assert "name: agile.specify" in content
 
         metadata = manager.registry.get("self-test")
-        assert "agile.agile" in metadata.get("registered_skills", {}).get("kimi", [])
+        assert "agile.specify" in metadata.get("registered_skills", {}).get("kimi", [])
 
     def test_kimi_legacy_dotted_skill_reconciles_priority_winner(
         self, project_dir, temp_dir
@@ -5902,7 +5902,7 @@ class TestPresetSkills:
         """Reconciliation must carry forward recorded legacy skill names."""
         self._write_init_options(project_dir, ai="kimi")
         skills_dir = project_dir / ".kimi-code" / "skills"
-        self._create_skill(skills_dir, "agile.agile", body="untouched")
+        self._create_skill(skills_dir, "agile.specify", body="untouched")
         (project_dir / ".kimi-code" / "commands").mkdir(
             parents=True, exist_ok=True
         )
@@ -5910,14 +5910,14 @@ class TestPresetSkills:
         higher_dir = self._create_command_preset(
             temp_dir,
             "higher-kimi-preset",
-            "agile.agile",
+            "agile.specify",
             "Higher preset",
             "Higher body",
         )
         lower_dir = self._create_command_preset(
             temp_dir,
             "lower-kimi-preset",
-            "agile.agile",
+            "agile.specify",
             "Lower preset",
             "Lower body",
         )
@@ -5925,17 +5925,17 @@ class TestPresetSkills:
         manager.install_from_directory(higher_dir, "0.1.5", priority=10)
         manager.install_from_directory(lower_dir, "0.1.5", priority=20)
 
-        skill_file = skills_dir / "agile.agile" / "SKILL.md"
+        skill_file = skills_dir / "agile.specify" / "SKILL.md"
         for preset_id in ("higher-kimi-preset", "lower-kimi-preset"):
             manager.registry.update(
                 preset_id,
-                {"registered_skills": {"kimi": ["agile.agile"]}},
+                {"registered_skills": {"kimi": ["agile.specify"]}},
             )
         skill_file.write_text(
-            "---\nname: agile.agile\n---\n\nLower body\n",
+            "---\nname: agile.specify\n---\n\nLower body\n",
             encoding="utf-8",
         )
-        manager._reconcile_skills(["agile.agile"])
+        manager._reconcile_skills(["agile.specify"])
 
         assert "Higher body" in skill_file.read_text(encoding="utf-8"), (
             "reconciliation must replace lower-priority raw content in a "
@@ -5948,7 +5948,7 @@ class TestPresetSkills:
         """Project overrides must update the recorded legacy path in place."""
         self._write_init_options(project_dir, ai="kimi")
         skills_dir = project_dir / ".kimi-code" / "skills"
-        self._create_skill(skills_dir, "agile.agile", body="untouched")
+        self._create_skill(skills_dir, "agile.specify", body="untouched")
         (project_dir / ".kimi-code" / "commands").mkdir(
             parents=True, exist_ok=True
         )
@@ -5956,7 +5956,7 @@ class TestPresetSkills:
         preset_dir = self._create_command_preset(
             temp_dir,
             "kimi-override-preset",
-            "agile.agile",
+            "agile.specify",
             "Preset",
             "Preset body",
         )
@@ -5964,7 +5964,7 @@ class TestPresetSkills:
         manager.install_from_directory(preset_dir, "0.1.5")
         manager.registry.update(
             "kimi-override-preset",
-            {"registered_skills": {"kimi": ["agile.agile"]}},
+            {"registered_skills": {"kimi": ["agile.specify"]}},
         )
         modern_skill_dir = skills_dir / "agile-specify"
         if modern_skill_dir.exists():
@@ -5974,14 +5974,14 @@ class TestPresetSkills:
             project_dir / ".agile" / "templates" / "overrides"
         )
         overrides_dir.mkdir(parents=True)
-        (overrides_dir / "agile.agile.md").write_text(
+        (overrides_dir / "agile.specify.md").write_text(
             "---\ndescription: Project override\n---\n\nOverride body\n",
             encoding="utf-8",
         )
 
-        manager._reconcile_skills(["agile.agile"])
+        manager._reconcile_skills(["agile.specify"])
 
-        legacy_file = skills_dir / "agile.agile" / "SKILL.md"
+        legacy_file = skills_dir / "agile.specify" / "SKILL.md"
         assert "Override body" in legacy_file.read_text(encoding="utf-8")
         assert not modern_skill_dir.exists(), (
             "legacy-only ownership must not create an untracked modern path"
@@ -6066,7 +6066,7 @@ class TestPresetSkills:
         preset_dir = temp_dir / "kimi-placeholder-override"
         preset_dir.mkdir()
         (preset_dir / "commands").mkdir()
-        (preset_dir / "commands" / "agile.agile.md").write_text(
+        (preset_dir / "commands" / "agile.specify.md").write_text(
             "---\n"
             "description: Kimi placeholder override\n"
             "scripts:\n"
@@ -6088,8 +6088,8 @@ class TestPresetSkills:
                 "templates": [
                     {
                         "type": "command",
-                        "name": "agile.agile",
-                        "file": "commands/agile.agile.md",
+                        "name": "agile.specify",
+                        "file": "commands/agile.specify.md",
                     }
                 ]
             },
@@ -6125,7 +6125,7 @@ class TestPresetSkills:
         preset_dir = temp_dir / "agy-override"
         preset_dir.mkdir()
         (preset_dir / "commands").mkdir()
-        (preset_dir / "commands" / "agile.agile.md").write_text(
+        (preset_dir / "commands" / "agile.specify.md").write_text(
             "---\n"
             "description: Agy override\n"
             "---\n\n"
@@ -6144,8 +6144,8 @@ class TestPresetSkills:
                 "templates": [
                     {
                         "type": "command",
-                        "name": "agile.agile",
-                        "file": "commands/agile.agile.md",
+                        "name": "agile.specify",
+                        "file": "commands/agile.specify.md",
                     }
                 ]
             },
@@ -6198,7 +6198,7 @@ class TestPresetSkills:
         gemini_dir.mkdir(parents=True)
 
         preset_dir = self._create_command_preset(
-            temp_dir, "corrupt-init-preset", "agile.agile",
+            temp_dir, "corrupt-init-preset", "agile.specify",
             "Corrupt init test", "preset body",
         )
 
@@ -6237,7 +6237,7 @@ class TestPresetSkills:
         preset_dir = temp_dir / "reconcile-active-only"
         preset_dir.mkdir()
         (preset_dir / "commands").mkdir()
-        (preset_dir / "commands" / "agile.agile.md").write_text(
+        (preset_dir / "commands" / "agile.specify.md").write_text(
             "---\ndescription: Appended\nstrategy: append\n---\n\nAppended body\n",
             encoding="utf-8",
         )
@@ -6253,8 +6253,8 @@ class TestPresetSkills:
             "provides": {
                 "templates": [{
                     "type": "command",
-                    "name": "agile.agile",
-                    "file": "commands/agile.agile.md",
+                    "name": "agile.specify",
+                    "file": "commands/agile.specify.md",
                     "strategy": "append",
                 }]
             },
@@ -6288,7 +6288,7 @@ class TestPresetSkills:
 
         overrides_dir = project_dir / ".agile" / "templates" / "overrides"
         overrides_dir.mkdir(parents=True, exist_ok=True)
-        (overrides_dir / "agile.agile.md").write_text(
+        (overrides_dir / "agile.specify.md").write_text(
             "---\ndescription: Override specify\n---\n\nOverride body\n",
             encoding="utf-8",
         )
@@ -6297,7 +6297,7 @@ class TestPresetSkills:
         gemini_dir.mkdir(parents=True)
 
         preset_dir = self._create_command_preset(
-            temp_dir, "use-reconcile-preset", "agile.agile",
+            temp_dir, "use-reconcile-preset", "agile.specify",
             "Preset specify", "Preset body",
         )
         manager = PresetManager(project_dir)
@@ -6308,7 +6308,7 @@ class TestPresetSkills:
         self._write_init_options(project_dir, ai="gemini", ai_skills=False)
         manager.register_enabled_presets_for_agent("gemini")
 
-        cmd_file = gemini_dir / "agile.agile.toml"
+        cmd_file = gemini_dir / "agile.specify.toml"
         assert cmd_file.exists(), "sanity: gemini should get a command file at all"
         content = cmd_file.read_text()
         assert "Override body" in content, (
@@ -6329,13 +6329,13 @@ class TestPresetSkills:
 
         overrides_dir = project_dir / ".agile" / "templates" / "overrides"
         overrides_dir.mkdir(parents=True, exist_ok=True)
-        (overrides_dir / "agile.agile.md").write_text(
+        (overrides_dir / "agile.specify.md").write_text(
             "---\ndescription: Override specify\n---\n\nOverride body\n",
             encoding="utf-8",
         )
 
         preset_dir = self._create_command_preset(
-            temp_dir, "hermes-reconcile-preset", "agile.agile",
+            temp_dir, "hermes-reconcile-preset", "agile.specify",
             "Preset specify", "Preset body",
         )
         manager = PresetManager(project_dir)
@@ -6353,7 +6353,7 @@ class TestPresetSkills:
             (project_dir / ".hermes" / "skills").glob("agile-*/SKILL.md")
         )
 
-        (overrides_dir / "agile.agile.md").unlink()
+        (overrides_dir / "agile.specify.md").unlink()
         assert manager.remove("hermes-reconcile-preset") is True
         if skill_file.exists():
             restored = skill_file.read_text(encoding="utf-8")
@@ -6381,7 +6381,7 @@ class TestPresetSkills:
         self._write_init_options(project_dir, ai="claude", ai_skills=True)
 
         preset_dir = self._create_command_preset(
-            temp_dir, "rescaffold-persist-preset", "agile.agile",
+            temp_dir, "rescaffold-persist-preset", "agile.specify",
             "Rescaffold persist test", "preset body",
         )
         manager = PresetManager(project_dir)
@@ -6401,7 +6401,7 @@ class TestPresetSkills:
         ):
             manager.register_enabled_presets_for_agent("gemini")
 
-        cmd_file = gemini_commands_dir / "agile.agile.toml"
+        cmd_file = gemini_commands_dir / "agile.specify.toml"
         assert cmd_file.exists(), (
             "sanity: the commands phase must have written the file before "
             "the skills phase raised"
@@ -6438,7 +6438,7 @@ class TestPresetSkills:
 
         overrides_dir = project_dir / ".agile" / "templates" / "overrides"
         overrides_dir.mkdir(parents=True, exist_ok=True)
-        (overrides_dir / "agile.agile.md").write_text(
+        (overrides_dir / "agile.specify.md").write_text(
             "---\ndescription: Override specify\n---\n\nOverride body\n",
             encoding="utf-8",
         )
@@ -6447,7 +6447,7 @@ class TestPresetSkills:
         gemini_dir.mkdir(parents=True)
 
         preset_dir = self._create_command_preset(
-            temp_dir, "reconcile-despite-skills-failure", "agile.agile",
+            temp_dir, "reconcile-despite-skills-failure", "agile.specify",
             "Preset specify", "Preset body",
         )
         manager = PresetManager(project_dir)
@@ -6466,7 +6466,7 @@ class TestPresetSkills:
         ):
             manager.register_enabled_presets_for_agent("gemini")
 
-        cmd_file = gemini_dir / "agile.agile.toml"
+        cmd_file = gemini_dir / "agile.specify.toml"
         assert cmd_file.exists(), "sanity: gemini should get a command file at all"
         content = cmd_file.read_text()
         assert "Override body" in content, (
@@ -6486,7 +6486,7 @@ class TestPresetSkills:
 
         overrides_dir = project_dir / ".agile" / "templates" / "overrides"
         overrides_dir.mkdir(parents=True, exist_ok=True)
-        (overrides_dir / "agile.agile.md").write_text(
+        (overrides_dir / "agile.specify.md").write_text(
             "---\ndescription: Override specify\n---\n\nOverride body\n",
             encoding="utf-8",
         )
@@ -6494,7 +6494,7 @@ class TestPresetSkills:
         preset_dir = self._create_command_preset(
             temp_dir,
             "partial-command-failure-preset",
-            "agile.agile",
+            "agile.specify",
             "Preset specify",
             "Preset body",
         )
@@ -6504,7 +6504,7 @@ class TestPresetSkills:
         self._write_init_options(project_dir, ai="gemini", ai_skills=False)
         gemini_dir = project_dir / ".gemini" / "commands"
         gemini_dir.mkdir(parents=True)
-        cmd_file = gemini_dir / "agile.agile.toml"
+        cmd_file = gemini_dir / "agile.specify.toml"
 
         def partial_register(manifest, pack_dir):
             cmd_file.write_text("Partially written preset body\n", encoding="utf-8")
@@ -6535,7 +6535,7 @@ class TestPresetSkills:
         self._create_skill(skills_dir, "agile-specify")
 
         preset_dir = self._create_command_preset(
-            temp_dir, "copilot-skills-preset", "agile.agile",
+            temp_dir, "copilot-skills-preset", "agile.specify",
             "Copilot skills test", "preset body",
         )
 
@@ -6571,13 +6571,13 @@ class TestPresetSkills:
         copilot_commands_dir.mkdir(parents=True)
 
         preset_dir = self._create_command_preset(
-            temp_dir, "toggle-cmd-to-skill-preset", "agile.agile",
+            temp_dir, "toggle-cmd-to-skill-preset", "agile.specify",
             "Toggle test", "preset body",
         )
         manager = PresetManager(project_dir)
         manager.install_from_directory(preset_dir, "0.1.5")
 
-        cmd_file = copilot_commands_dir / "agile.agile.agent.md"
+        cmd_file = copilot_commands_dir / "agile.specify.agent.md"
         assert cmd_file.exists(), (
             "sanity: command mode should have written copilot's command file"
         )
@@ -6747,7 +6747,7 @@ class TestPresetSkills:
         preset_dir = self._create_multi_command_preset(
             temp_dir,
             "same-mode-partial-command-preset",
-            ["agile.agile", "agile.plan"],
+            ["agile.specify", "agile.plan"],
         )
         manager = PresetManager(project_dir)
         manager.install_from_directory(preset_dir, "0.1.5")
@@ -6758,7 +6758,7 @@ class TestPresetSkills:
 
         metadata = manager.registry.get("same-mode-partial-command-preset")
         assert set(metadata["registered_commands"]["copilot"]) == {
-            "agile.agile",
+            "agile.specify",
             "agile.plan",
         }
         assert (commands_dir / "agile.plan.agent.md").exists()
@@ -6774,7 +6774,7 @@ class TestPresetSkills:
         preset_dir = self._create_multi_command_preset(
             temp_dir,
             "same-mode-partial-skill-preset",
-            ["agile.agile", "agile.plan"],
+            ["agile.specify", "agile.plan"],
         )
         manager = PresetManager(project_dir)
         manager.install_from_directory(preset_dir, "0.1.5")
@@ -6811,13 +6811,13 @@ class TestPresetSkills:
         copilot_commands_dir.mkdir(parents=True)
 
         preset_dir = self._create_command_preset(
-            temp_dir, "toggle-failure-preset", "agile.agile",
+            temp_dir, "toggle-failure-preset", "agile.specify",
             "Toggle failure test", "preset body",
         )
         manager = PresetManager(project_dir)
         manager.install_from_directory(preset_dir, "0.1.5")
 
-        cmd_file = copilot_commands_dir / "agile.agile.agent.md"
+        cmd_file = copilot_commands_dir / "agile.specify.agent.md"
         assert cmd_file.exists(), (
             "sanity: command mode should have written copilot's command file"
         )
@@ -6868,13 +6868,13 @@ class TestPresetSkills:
         copilot_commands_dir.mkdir(parents=True)
 
         preset_dir = self._create_command_preset(
-            temp_dir, "toggle-empty-result-preset", "agile.agile",
+            temp_dir, "toggle-empty-result-preset", "agile.specify",
             "Toggle empty-result test", "preset body",
         )
         manager = PresetManager(project_dir)
         manager.install_from_directory(preset_dir, "0.1.5")
 
-        cmd_file = copilot_commands_dir / "agile.agile.agent.md"
+        cmd_file = copilot_commands_dir / "agile.specify.agent.md"
         assert cmd_file.exists(), (
             "sanity: command mode should have written copilot's command file"
         )
@@ -6883,7 +6883,7 @@ class TestPresetSkills:
         # original temp source) so _register_skills can find nothing to
         # render — a real "missing source" case, not an exception — leaving
         # registered_skills empty for copilot.
-        (manager.presets_dir / "toggle-empty-result-preset" / "commands" / "agile.agile.md").unlink()
+        (manager.presets_dir / "toggle-empty-result-preset" / "commands" / "agile.specify.md").unlink()
 
         self._write_init_options(project_dir, ai="copilot", ai_skills=True)
         manager.register_enabled_presets_for_agent("copilot")
@@ -6921,19 +6921,19 @@ class TestPresetSkills:
 
         preset_dir = self._create_multi_command_preset(
             temp_dir, "toggle-partial-result-preset",
-            ["agile.agile", "agile.plan"],
+            ["agile.specify", "agile.plan"],
         )
         manager = PresetManager(project_dir)
         manager.install_from_directory(preset_dir, "0.1.5")
 
-        specify_cmd_file = copilot_commands_dir / "agile.agile.agent.md"
+        specify_cmd_file = copilot_commands_dir / "agile.specify.agent.md"
         plan_cmd_file = copilot_commands_dir / "agile.plan.agent.md"
         assert specify_cmd_file.exists() and plan_cmd_file.exists(), (
             "sanity: command mode should have written both command files"
         )
         metadata = manager.registry.get("toggle-partial-result-preset")
         assert set(metadata["registered_commands"].get("copilot", [])) == {
-            "agile.agile", "agile.plan",
+            "agile.specify", "agile.plan",
         }, "sanity: both commands should be tracked for copilot"
 
         # Remove only the plan command's *installed* source so its skill
@@ -6955,7 +6955,7 @@ class TestPresetSkills:
         )
         metadata = manager.registry.get("toggle-partial-result-preset")
         tracked_commands = metadata["registered_commands"].get("copilot", [])
-        assert "agile.agile" not in tracked_commands, (
+        assert "agile.specify" not in tracked_commands, (
             "specify must stop being tracked as a command once its "
             "artifact has been unregistered (#2948)"
         )
@@ -7103,14 +7103,14 @@ class TestPresetSkills:
         lower_dir = self._create_command_preset(
             temp_dir,
             "lower-toggle-preset",
-            "agile.agile",
+            "agile.specify",
             "Lower preset",
             "Lower body",
         )
         higher_dir = self._create_command_preset(
             temp_dir,
             "higher-toggle-preset",
-            "agile.agile",
+            "agile.specify",
             "Higher preset",
             "Higher body",
         )
@@ -7118,14 +7118,14 @@ class TestPresetSkills:
         manager.install_from_directory(lower_dir, "0.1.5", priority=20)
         manager.install_from_directory(higher_dir, "0.1.5", priority=10)
 
-        command_file = commands_dir / "agile.agile.agent.md"
+        command_file = commands_dir / "agile.specify.agent.md"
         assert "Higher body" in command_file.read_text(encoding="utf-8")
 
         higher_source = (
             manager.presets_dir
             / "higher-toggle-preset"
             / "commands"
-            / "agile.agile.md"
+            / "agile.specify.md"
         )
         higher_source.unlink()
         self._write_init_options(project_dir, ai="copilot", ai_skills=True)
@@ -7166,21 +7166,21 @@ class TestPresetSkills:
         lower_dir = self._create_command_preset(
             temp_dir,
             "lower-command-preset",
-            "agile.agile",
+            "agile.specify",
             "Lower preset",
             "Lower body",
         )
         higher_dir = self._create_command_preset(
             temp_dir,
             "higher-skill-preset",
-            "agile.agile",
+            "agile.specify",
             "Higher preset",
             "Higher body",
         )
         manager = PresetManager(project_dir)
         manager.install_from_directory(lower_dir, "0.1.5", priority=20)
 
-        command_file = commands_dir / "agile.agile.agent.md"
+        command_file = commands_dir / "agile.specify.agent.md"
         assert command_file.exists()
 
         self._write_init_options(project_dir, ai="copilot", ai_skills=True)
@@ -7208,14 +7208,14 @@ class TestPresetSkills:
         lower_dir = self._create_command_preset(
             temp_dir,
             "lower-skill-preset",
-            "agile.agile",
+            "agile.specify",
             "Lower preset",
             "Lower body",
         )
         higher_dir = self._create_command_preset(
             temp_dir,
             "higher-command-preset",
-            "agile.agile",
+            "agile.specify",
             "Higher preset",
             "Higher body",
         )
@@ -7236,7 +7236,7 @@ class TestPresetSkills:
             manager.presets_dir
             / "higher-command-preset"
             / "commands"
-            / "agile.agile.md"
+            / "agile.specify.md"
         )
         higher_source.unlink()
         self._write_init_options(project_dir, ai="copilot", ai_skills=False)
@@ -7277,7 +7277,7 @@ class TestPresetSkills:
         preset_dir = self._create_command_preset(
             temp_dir,
             "override-toggle-preset",
-            "agile.agile",
+            "agile.specify",
             "Preset",
             "Preset body",
         )
@@ -7297,7 +7297,7 @@ class TestPresetSkills:
             project_dir / ".agile" / "templates" / "overrides"
         )
         overrides_dir.mkdir(parents=True)
-        (overrides_dir / "agile.agile.md").write_text(
+        (overrides_dir / "agile.specify.md").write_text(
             "---\ndescription: Project override\n---\n\nOverride body\n",
             encoding="utf-8",
         )
@@ -7305,13 +7305,13 @@ class TestPresetSkills:
             manager.presets_dir
             / "override-toggle-preset"
             / "commands"
-            / "agile.agile.md"
+            / "agile.specify.md"
         ).unlink()
         self._write_init_options(project_dir, ai="copilot", ai_skills=False)
 
         manager.register_enabled_presets_for_agent("copilot")
 
-        command_file = commands_dir / "agile.agile.agent.md"
+        command_file = commands_dir / "agile.specify.agent.md"
         assert "Override body" in command_file.read_text(encoding="utf-8")
         assert not skill_file.exists(), (
             "the stale preset skill must be retired once the project "
@@ -7332,7 +7332,7 @@ class TestPresetSkills:
         preset_dir = self._create_command_preset(
             temp_dir,
             "reconciled-override-toggle-preset",
-            "agile.agile",
+            "agile.specify",
             "Preset",
             "Preset body",
         )
@@ -7343,7 +7343,7 @@ class TestPresetSkills:
             project_dir / ".agile" / "templates" / "overrides"
         )
         overrides_dir.mkdir(parents=True)
-        (overrides_dir / "agile.agile.md").write_text(
+        (overrides_dir / "agile.specify.md").write_text(
             "---\ndescription: Project override\n---\n\nOverride body\n",
             encoding="utf-8",
         )
@@ -7351,13 +7351,13 @@ class TestPresetSkills:
             manager.presets_dir
             / "reconciled-override-toggle-preset"
             / "commands"
-            / "agile.agile.md"
+            / "agile.specify.md"
         ).unlink()
 
         manager.register_enabled_presets_for_agent("copilot")
 
         skill_file = skills_dir / "agile-specify" / "SKILL.md"
-        assert "override:agile.agile" in skill_file.read_text(
+        assert "override:agile.specify" in skill_file.read_text(
             encoding="utf-8"
         )
 
@@ -7365,7 +7365,7 @@ class TestPresetSkills:
         manager.register_enabled_presets_for_agent("copilot")
 
         assert "Override body" in (
-            commands_dir / "agile.agile.agent.md"
+            commands_dir / "agile.specify.agent.md"
         ).read_text(encoding="utf-8")
         assert not skill_file.exists()
         metadata = manager.registry.get(
@@ -7384,14 +7384,14 @@ class TestPresetSkills:
         preset_dir = self._create_command_preset(
             temp_dir,
             "override-skill-toggle-preset",
-            "agile.agile",
+            "agile.specify",
             "Preset",
             "Preset body",
         )
         manager = PresetManager(project_dir)
         manager.install_from_directory(preset_dir, "0.1.5")
 
-        command_file = commands_dir / "agile.agile.agent.md"
+        command_file = commands_dir / "agile.specify.agent.md"
         assert command_file.exists()
         skills_dir = project_dir / ".github" / "skills"
         self._create_skill(skills_dir, "agile-specify")
@@ -7404,7 +7404,7 @@ class TestPresetSkills:
             project_dir / ".agile" / "templates" / "overrides"
         )
         overrides_dir.mkdir(parents=True)
-        (overrides_dir / "agile.agile.md").write_text(
+        (overrides_dir / "agile.specify.md").write_text(
             "---\ndescription: Project override\n---\n\nOverride body\n",
             encoding="utf-8",
         )
@@ -7412,7 +7412,7 @@ class TestPresetSkills:
             manager.presets_dir
             / "override-skill-toggle-preset"
             / "commands"
-            / "agile.agile.md"
+            / "agile.specify.md"
         ).unlink()
         self._write_init_options(project_dir, ai="copilot", ai_skills=True)
 
@@ -7438,7 +7438,7 @@ class TestPresetSkills:
         preset_dir = self._create_multi_command_preset(
             temp_dir,
             "partial-skill-failure-preset",
-            ["agile.agile", "agile.plan"],
+            ["agile.specify", "agile.plan"],
         )
         manager = PresetManager(project_dir)
         manager.install_from_directory(preset_dir, "0.1.5")
@@ -7540,7 +7540,7 @@ class TestPresetSkills:
         preset_dir = self._create_multi_command_preset(
             temp_dir,
             "partial-install-failure-preset",
-            ["agile.agile", "agile.plan"],
+            ["agile.specify", "agile.plan"],
         )
         manager = PresetManager(project_dir)
         original_read_text = Path.read_text
@@ -7591,7 +7591,7 @@ class TestPresetSkills:
         self._create_skill(skills_dir, "agile-specify")
 
         preset_dir = self._create_command_preset(
-            temp_dir, "toggle-skill-empty-result-preset", "agile.agile",
+            temp_dir, "toggle-skill-empty-result-preset", "agile.specify",
             "Toggle empty-result test", "preset body",
         )
         manager = PresetManager(project_dir)
@@ -7606,7 +7606,7 @@ class TestPresetSkills:
         # _register_commands can find nothing to render — a real "missing
         # source" case, not an exception — leaving registered_commands
         # empty for copilot.
-        (manager.presets_dir / "toggle-skill-empty-result-preset" / "commands" / "agile.agile.md").unlink()
+        (manager.presets_dir / "toggle-skill-empty-result-preset" / "commands" / "agile.specify.md").unlink()
 
         self._write_init_options(project_dir, ai="copilot", ai_skills=False)
         manager.register_enabled_presets_for_agent("copilot")
@@ -7659,7 +7659,7 @@ class TestPresetSkills:
 
         preset_dir = self._create_multi_command_preset(
             temp_dir, "toggle-skill-partial-result-preset",
-            ["agile.agile", "agile.plan"],
+            ["agile.specify", "agile.plan"],
         )
         manager = PresetManager(project_dir)
         manager.install_from_directory(preset_dir, "0.1.5")
@@ -7699,7 +7699,7 @@ class TestPresetSkills:
             "plan must keep being tracked as a skill since its old "
             "artifact is still on disk (#2948)"
         )
-        assert (copilot_commands_dir / "agile.agile.agent.md").exists(), (
+        assert (copilot_commands_dir / "agile.specify.agent.md").exists(), (
             "sanity: specify's new command artifact should exist"
         )
 
@@ -7723,12 +7723,12 @@ class TestPresetSkills:
 
         preset_dir = self._create_multi_command_preset_with_aliases(
             temp_dir, "alias-group-success-preset",
-            [("agile.agile", ["agile.spec"])],
+            [("agile.specify", ["agile.spec"])],
         )
         manager = PresetManager(project_dir)
         manager.install_from_directory(preset_dir, "0.1.5")
 
-        primary_cmd_file = copilot_commands_dir / "agile.agile.agent.md"
+        primary_cmd_file = copilot_commands_dir / "agile.specify.agent.md"
         alias_cmd_file = copilot_commands_dir / "agile.spec.agent.md"
         assert primary_cmd_file.exists() and alias_cmd_file.exists(), (
             "sanity: command mode should have written both the primary "
@@ -7736,7 +7736,7 @@ class TestPresetSkills:
         )
         metadata = manager.registry.get("alias-group-success-preset")
         assert set(metadata["registered_commands"].get("copilot", [])) == {
-            "agile.agile", "agile.spec",
+            "agile.specify", "agile.spec",
         }, "sanity: both primary and alias should be tracked for copilot"
 
         self._write_init_options(project_dir, ai="copilot", ai_skills=True)
@@ -7768,7 +7768,7 @@ class TestPresetSkills:
 
         Mirror image of the group-retirement case: deleting the preset's
         own installed command source makes ``_register_skills`` genuinely
-        return nothing for ``agile.agile``, so neither the primary nor
+        return nothing for ``agile.specify``, so neither the primary nor
         its alias have a real replacement — both old command artifacts and
         their tracking must survive (#2948).
         """
@@ -7778,12 +7778,12 @@ class TestPresetSkills:
 
         preset_dir = self._create_multi_command_preset_with_aliases(
             temp_dir, "alias-group-failure-preset",
-            [("agile.agile", ["agile.spec"])],
+            [("agile.specify", ["agile.spec"])],
         )
         manager = PresetManager(project_dir)
         manager.install_from_directory(preset_dir, "0.1.5")
 
-        primary_cmd_file = copilot_commands_dir / "agile.agile.agent.md"
+        primary_cmd_file = copilot_commands_dir / "agile.specify.agent.md"
         alias_cmd_file = copilot_commands_dir / "agile.spec.agent.md"
         assert primary_cmd_file.exists() and alias_cmd_file.exists(), (
             "sanity: command mode should have written both the primary "
@@ -7792,7 +7792,7 @@ class TestPresetSkills:
 
         # Remove the installed source so _register_skills can find nothing
         # to render for the primary — a real "missing source" case.
-        (manager.presets_dir / "alias-group-failure-preset" / "commands" / "agile.agile.md").unlink()
+        (manager.presets_dir / "alias-group-failure-preset" / "commands" / "agile.specify.md").unlink()
 
         self._write_init_options(project_dir, ai="copilot", ai_skills=True)
         manager.register_enabled_presets_for_agent("copilot")
@@ -7807,7 +7807,7 @@ class TestPresetSkills:
         )
         metadata = manager.registry.get("alias-group-failure-preset")
         assert set(metadata["registered_commands"].get("copilot", [])) == {
-            "agile.agile", "agile.spec",
+            "agile.specify", "agile.spec",
         }, (
             "both the primary and alias must keep being tracked since "
             "nothing was actually replaced (#2948)"
@@ -7824,10 +7824,10 @@ class TestPresetSkills:
         """With two independent alias groups, only the group whose primary
         skill actually lands is retired; the other survives intact.
 
-        A preset with two commands (``agile.agile`` with alias
+        A preset with two commands (``agile.specify`` with alias
         ``agile.spec``, and ``agile.plan`` with alias
         ``agile.plan-alt``) where only ``agile.plan``'s installed
-        source goes missing: ``agile.agile``'s group (primary + alias)
+        source goes missing: ``agile.specify``'s group (primary + alias)
         must be fully retired, while ``agile.plan``'s entire group
         (primary + alias) must survive together, since grouping is
         per-primary, not per-individual-name (#2948).
@@ -7839,14 +7839,14 @@ class TestPresetSkills:
         preset_dir = self._create_multi_command_preset_with_aliases(
             temp_dir, "alias-group-partial-preset",
             [
-                ("agile.agile", ["agile.spec"]),
+                ("agile.specify", ["agile.spec"]),
                 ("agile.plan", ["agile.plan-alt"]),
             ],
         )
         manager = PresetManager(project_dir)
         manager.install_from_directory(preset_dir, "0.1.5")
 
-        specify_cmd = copilot_commands_dir / "agile.agile.agent.md"
+        specify_cmd = copilot_commands_dir / "agile.specify.agent.md"
         spec_alias_cmd = copilot_commands_dir / "agile.spec.agent.md"
         plan_cmd = copilot_commands_dir / "agile.plan.agent.md"
         plan_alias_cmd = copilot_commands_dir / "agile.plan-alt.agent.md"
@@ -7907,7 +7907,7 @@ class TestPresetSkills:
         )
 
         preset_dir = self._create_command_preset(
-            temp_dir, "toggle-skill-to-cmd-preset", "agile.agile",
+            temp_dir, "toggle-skill-to-cmd-preset", "agile.specify",
             "Toggle test", "preset body",
         )
         manager = PresetManager(project_dir)
@@ -7941,7 +7941,7 @@ class TestPresetSkills:
             "registered_skills must stop tracking copilot once its "
             "artifact has been unregistered/restored (#2948)"
         )
-        cmd_file = copilot_commands_dir / "agile.agile.agent.md"
+        cmd_file = copilot_commands_dir / "agile.specify.agent.md"
         assert cmd_file.exists(), (
             "sanity: the new command-mode artifact should still be written"
         )
@@ -7983,7 +7983,7 @@ class TestPresetSkills:
         self._create_skill(codex_skills_dir, "agile-specify")
 
         preset_dir = self._create_command_preset(
-            temp_dir, "multi-skill-agent-preset", "agile.agile",
+            temp_dir, "multi-skill-agent-preset", "agile.specify",
             "Multi skill agent test", "preset body",
         )
 
@@ -8034,7 +8034,7 @@ class TestPresetSkills:
         preset_dir = self._create_command_preset(
             temp_dir,
             "native-root-recovery-preset",
-            "agile.agile",
+            "agile.specify",
             "Native root recovery",
             "preset body",
         )
@@ -8049,7 +8049,7 @@ class TestPresetSkills:
         skill_file = codex_skills_dir / "agile-specify" / "SKILL.md"
         assert "preset:native-root-recovery-preset" in skill_file.read_text()
         metadata = manager.registry.get("native-root-recovery-preset")
-        assert "agile.agile" in metadata["registered_commands"]["codex"]
+        assert "agile.specify" in metadata["registered_commands"]["codex"]
 
     def test_rescaffold_migrates_legacy_flat_list_registered_skills(
         self, project_dir, temp_dir
@@ -8087,7 +8087,7 @@ class TestPresetSkills:
         self._create_skill(codex_skills_dir, "agile-specify")
 
         preset_dir = self._create_command_preset(
-            temp_dir, "legacy-skills-preset", "agile.agile",
+            temp_dir, "legacy-skills-preset", "agile.specify",
             "Legacy skills test", "preset body",
         )
         manager = PresetManager(project_dir)
@@ -8180,7 +8180,7 @@ class TestPresetSkills:
         self._create_skill(codex_skills_dir, "agile-specify")
 
         preset_dir = self._create_command_preset(
-            temp_dir, "legacy-direct-switch-preset", "agile.agile",
+            temp_dir, "legacy-direct-switch-preset", "agile.specify",
             "Legacy direct switch test", "preset body",
         )
         manager = PresetManager(project_dir)
@@ -8267,7 +8267,7 @@ class TestPresetSkills:
         self._create_skill(claude_skills_dir, "agile-specify")
 
         preset_dir = self._create_command_preset(
-            temp_dir, "legacy-copilot-skills-preset", "agile.agile",
+            temp_dir, "legacy-copilot-skills-preset", "agile.specify",
             "Legacy copilot skills test", "preset body",
         )
         manager = PresetManager(project_dir)
@@ -8355,7 +8355,7 @@ class TestPresetSkills:
         copilot_commands_dir.mkdir(parents=True)
 
         preset_dir = self._create_command_preset(
-            temp_dir, "no-false-attribution-preset", "agile.agile",
+            temp_dir, "no-false-attribution-preset", "agile.specify",
             "No false attribution test", "preset body",
         )
         manager = PresetManager(project_dir)
@@ -8459,7 +8459,7 @@ class TestPresetSkills:
         self._create_skill(codex_skills_dir, "agile-specify")
 
         preset_dir = self._create_command_preset(
-            temp_dir, "remove-legacy-no-rescaffold-preset", "agile.agile",
+            temp_dir, "remove-legacy-no-rescaffold-preset", "agile.specify",
             "Remove legacy no rescaffold test", "preset body",
         )
         manager = PresetManager(project_dir)
@@ -8515,7 +8515,7 @@ class TestPresetSkills:
         self._create_skill(claude_skills_dir, "agile-specify")
 
         preset_dir = self._create_command_preset(
-            temp_dir, "symlink-guard-preset", "agile.agile",
+            temp_dir, "symlink-guard-preset", "agile.specify",
             "Symlink guard test", "preset body",
         )
 
@@ -8569,7 +8569,7 @@ class TestPresetSkills:
         self._create_skill(claude_skills_dir, "agile-specify")
 
         preset_a_dir = self._create_command_preset(
-            temp_dir, "preset-a", "agile.agile", "Preset A", "preset A body",
+            temp_dir, "preset-a", "agile.specify", "Preset A", "preset A body",
         )
         manager = PresetManager(project_dir)
         manager.install_from_directory(preset_a_dir, "0.1.5")
@@ -8584,7 +8584,7 @@ class TestPresetSkills:
         self._create_skill(codex_skills_dir, "agile-specify")
 
         preset_b_dir = self._create_command_preset(
-            temp_dir, "preset-b", "agile.agile", "Preset B", "preset B body",
+            temp_dir, "preset-b", "agile.specify", "Preset B", "preset B body",
         )
         manager.install_from_directory(preset_b_dir, "0.1.5")
 
@@ -8632,14 +8632,14 @@ class TestPresetSkills:
         lower_dir = self._create_command_preset(
             temp_dir,
             "non-owned-lower-preset",
-            "agile.agile",
+            "agile.specify",
             "Lower",
             "Lower preset body",
         )
         higher_dir = self._create_command_preset(
             temp_dir,
             "non-owned-higher-preset",
-            "agile.agile",
+            "agile.specify",
             "Higher",
             "Higher preset body",
         )
@@ -8686,7 +8686,7 @@ class TestPresetSkills:
         )
 
         preset_dir = self._create_command_preset(
-            temp_dir, "shared-dir-preset", "agile.agile",
+            temp_dir, "shared-dir-preset", "agile.specify",
             "Shared dir test", "preset body",
         )
         manager = PresetManager(project_dir)
@@ -8757,11 +8757,11 @@ class TestPresetSkills:
         self._write_init_options(project_dir, ai="copilot", ai_skills=True)
 
         preset_a_dir = self._create_command_preset(
-            temp_dir, "skills-preset-a", "agile.agile",
+            temp_dir, "skills-preset-a", "agile.specify",
             "Preset A", "preset A body",
         )
         preset_b_dir = self._create_command_preset(
-            temp_dir, "skills-preset-b", "agile.agile",
+            temp_dir, "skills-preset-b", "agile.specify",
             "Preset B", "preset B body",
         )
 
@@ -8894,11 +8894,11 @@ class TestPresetSkills:
         gemini_dir.mkdir(parents=True)
 
         preset_b_dir = self._create_command_preset(
-            temp_dir, "hist-preset-b", "agile.agile",
+            temp_dir, "hist-preset-b", "agile.specify",
             "Preset B", "preset B body",
         )
         preset_a_dir = self._create_command_preset(
-            temp_dir, "hist-preset-a", "agile.agile",
+            temp_dir, "hist-preset-a", "agile.specify",
             "Preset A", "preset A body",
         )
 
@@ -8970,7 +8970,7 @@ class TestPresetSkills:
         gemini_dir.mkdir(parents=True)
 
         preset_a_dir = self._create_command_preset(
-            temp_dir, "orphan-preset-a", "agile.agile",
+            temp_dir, "orphan-preset-a", "agile.specify",
             "Preset A", "preset A body",
         )
         manager = PresetManager(project_dir)
@@ -8989,7 +8989,7 @@ class TestPresetSkills:
         # Preset B is installed only now, while opencode is the sole
         # active agent — it never writes to or tracks gemini.
         preset_b_dir = self._create_command_preset(
-            temp_dir, "orphan-preset-b", "agile.agile",
+            temp_dir, "orphan-preset-b", "agile.specify",
             "Preset B", "preset B body",
         )
         manager.install_from_directory(preset_b_dir, "0.1.5", priority=10)
@@ -9115,11 +9115,11 @@ class TestPresetSkills:
         )
 
         preset_b_dir = self._create_command_preset(
-            temp_dir, "hist-skill-preset-b", "agile.agile",
+            temp_dir, "hist-skill-preset-b", "agile.specify",
             "Preset B", "preset B body",
         )
         preset_a_dir = self._create_command_preset(
-            temp_dir, "hist-skill-preset-a", "agile.agile",
+            temp_dir, "hist-skill-preset-a", "agile.specify",
             "Preset A", "preset A body",
         )
 
@@ -9216,7 +9216,7 @@ class TestPresetSkills:
 
         manager = PresetManager(project_dir)
         manager._reconcile_skills(
-            ["agile.agile"],
+            ["agile.specify"],
             extra_skills_dirs={
                 skills_dir: (
                     "claude",
@@ -9265,7 +9265,7 @@ class TestPresetSkills:
         )
 
         preset_a_dir = self._create_command_preset(
-            temp_dir, "orphan-skill-preset-a", "agile.agile",
+            temp_dir, "orphan-skill-preset-a", "agile.specify",
             "Preset A", "preset A body",
         )
         manager = PresetManager(project_dir)
@@ -9284,7 +9284,7 @@ class TestPresetSkills:
         # Preset B is installed only now, while codex is the sole active
         # agent — it never writes to or tracks claude.
         preset_b_dir = self._create_command_preset(
-            temp_dir, "orphan-skill-preset-b", "agile.agile",
+            temp_dir, "orphan-skill-preset-b", "agile.specify",
             "Preset B", "preset B body",
         )
         manager.install_from_directory(preset_b_dir, "0.1.5", priority=10)
@@ -9386,7 +9386,7 @@ class TestPresetSkills:
         )
 
         preset_dir = self._create_command_preset(
-            temp_dir, "symlink-write-preset", "agile.agile",
+            temp_dir, "symlink-write-preset", "agile.specify",
             "Symlink write test", "preset body",
         )
 
@@ -9416,7 +9416,7 @@ class TestPresetSkills:
         preset_dir = self._create_command_preset(
             temp_dir,
             "symlink-file-write-preset",
-            "agile.agile",
+            "agile.specify",
             "Symlink file write",
             "preset body",
         )
@@ -9470,7 +9470,7 @@ class TestPresetSkills:
         preset_dir = self._create_command_preset(
             temp_dir,
             "symlink-override-preset",
-            "agile.agile",
+            "agile.specify",
             "Preset",
             "Preset body",
         )
@@ -9496,12 +9496,12 @@ class TestPresetSkills:
             project_dir / ".agile" / "templates" / "overrides"
         )
         overrides_dir.mkdir(parents=True)
-        (overrides_dir / "agile.agile.md").write_text(
+        (overrides_dir / "agile.specify.md").write_text(
             "---\ndescription: Override\n---\n\nOverride body\n",
             encoding="utf-8",
         )
 
-        manager._reconcile_skills(["agile.agile"])
+        manager._reconcile_skills(["agile.specify"])
 
         assert outside_file.read_text(encoding="utf-8") == "do-not-touch"
         assert (skill_dir / "SKILL.md").is_symlink()
@@ -9829,7 +9829,7 @@ class TestPresetSkills:
         self._create_skill(copilot_skills_dir, "agile-specify")
 
         preset_dir = self._create_command_preset(
-            temp_dir, "copilot-fresh-process-preset", "agile.agile",
+            temp_dir, "copilot-fresh-process-preset", "agile.specify",
             "Copilot fresh process test", "preset body",
         )
 
@@ -9881,13 +9881,13 @@ class TestPresetSkills:
         (project_dir / ".augment" / "commands").mkdir(parents=True)
         (project_dir / ".opencode" / "commands").mkdir(parents=True)
         preset_dir = self._create_command_preset(
-            temp_dir, "switch-cleanup-preset", "agile.agile",
+            temp_dir, "switch-cleanup-preset", "agile.specify",
             "Custom preset command", "preset body",
         )
         manager = PresetManager(project_dir)
         manager.install_from_directory(preset_dir, "0.1.5")
 
-        auggie_cmd = project_dir / ".augment" / "commands" / "agile.agile.md"
+        auggie_cmd = project_dir / ".augment" / "commands" / "agile.specify.md"
         assert auggie_cmd.exists(), "sanity: preset command registered for auggie"
 
         # Simulate a later `integration use opencode` rescaffold that also
@@ -9897,7 +9897,7 @@ class TestPresetSkills:
         self._write_init_options(project_dir, ai="opencode", ai_skills=False)
         manager.register_enabled_presets_for_agent("opencode")
 
-        opencode_cmd = project_dir / ".opencode" / "commands" / "agile.agile.md"
+        opencode_cmd = project_dir / ".opencode" / "commands" / "agile.specify.md"
         assert opencode_cmd.exists(), "sanity: preset command registered for opencode"
 
         metadata = manager.registry.get("switch-cleanup-preset")
@@ -9939,7 +9939,7 @@ class TestPresetSkills:
         preset_dir = self._create_command_preset(
             temp_dir,
             "deactivated-skill-preset",
-            "agile.agile",
+            "agile.specify",
             "Deactivation cleanup",
             "preset body",
         )
@@ -9964,7 +9964,7 @@ class TestPresetSkills:
         preset_dir = self._create_command_preset(
             temp_dir,
             "deactivated-override-preset",
-            "agile.agile",
+            "agile.specify",
             "Deactivation override cleanup",
             "preset body",
         )
@@ -9975,7 +9975,7 @@ class TestPresetSkills:
             project_dir / ".agile" / "templates" / "overrides"
         )
         overrides_dir.mkdir(parents=True)
-        (overrides_dir / "agile.agile.md").write_text(
+        (overrides_dir / "agile.specify.md").write_text(
             "---\ndescription: Project override\n---\n\nOverride body\n",
             encoding="utf-8",
         )
@@ -9983,12 +9983,12 @@ class TestPresetSkills:
             manager.presets_dir
             / "deactivated-override-preset"
             / "commands"
-            / "agile.agile.md"
+            / "agile.specify.md"
         ).unlink()
         manager.register_enabled_presets_for_agent("copilot")
 
         skill_dir = skills_dir / "agile-specify"
-        assert "override:agile.agile" in (
+        assert "override:agile.specify" in (
             skill_dir / "SKILL.md"
         ).read_text(encoding="utf-8")
 
@@ -10096,7 +10096,7 @@ class TestPresetSkills:
         self._create_skill(claude_skills_dir, "agile-specify")
 
         preset_dir = self._create_command_preset(
-            temp_dir, "switch-legacy-skill-preset", "agile.agile",
+            temp_dir, "switch-legacy-skill-preset", "agile.specify",
             "Legacy skill switch test", "preset body",
         )
         manager = PresetManager(project_dir)
@@ -10656,7 +10656,7 @@ CORE_CONSTITUTION_COMMAND = (
 )
 
 LEAN_COMMAND_NAMES = [
-    "agile.agile",
+    "agile.specify",
     "agile.plan",
     "agile.tasks",
     "agile.implement",
@@ -10684,7 +10684,7 @@ def test_constitution_commands_guard_against_non_governance_work(command_path):
     assert "application source files" in content
     assert "non-governance intent" in content
     assert "`Next Actions`" in content
-    assert "__AGILE_COMMAND_SPECIFY__" in content
+    assert "__AGILE_COMMAND_AGILE__" in content
     assert "omit" in lower_content
     assert "do not invoke it" in normalized_content or "without invoking it" in normalized_content
 
@@ -10808,7 +10808,7 @@ class TestBundledPresetLocator:
         assert _locate_bundled_preset("has spaces") is None
 
     def test_bundled_preset_add_via_cli(self, project_dir):
-        """Test that 'specify preset add lean' installs the bundled preset."""
+        """Test that 'agile preset add lean' installs the bundled preset."""
         from typer.testing import CliRunner
         from unittest.mock import patch
         from agile_cli import app
@@ -11451,12 +11451,12 @@ class TestWrapStrategy:
         # Create a preset command dir with a wrap-strategy command
         cmd_dir = project_dir / "preset" / "commands"
         cmd_dir.mkdir(parents=True, exist_ok=True)
-        (cmd_dir / "agile.agile.md").write_text(
+        (cmd_dir / "agile.specify.md").write_text(
             "---\ndescription: wrap test\nstrategy: wrap\n---\n\n"
             "## Pre\n\n{CORE_TEMPLATE}\n\n## Post\n"
         )
 
-        commands = [{"name": "agile.agile", "file": "commands/agile.agile.md"}]
+        commands = [{"name": "agile.specify", "file": "commands/agile.specify.md"}]
         registrar = CommandRegistrar()
 
         # Use a generic agent that writes markdown to commands/
@@ -11482,7 +11482,7 @@ class TestWrapStrategy:
             CommandRegistrar.AGENT_CONFIGS.clear()
             CommandRegistrar.AGENT_CONFIGS.update(original)
 
-        written = (agent_dir / "agile.agile.md").read_text()
+        written = (agent_dir / "agile.specify.md").read_text()
         assert "{CORE_TEMPLATE}" not in written
         assert "# Core Specify" in written
         assert "## Pre" in written
@@ -11610,7 +11610,7 @@ class TestWrapStrategy:
         cmd_dir = project_dir / "preset" / "commands"
         cmd_dir.mkdir(parents=True, exist_ok=True)
         # Preset has strategy: wrap but no scripts of its own
-        (cmd_dir / "agile.agile.md").write_text(
+        (cmd_dir / "agile.specify.md").write_text(
             "---\ndescription: wrap no scripts\nstrategy: wrap\n---\n\n"
             "## Pre\n\n{CORE_TEMPLATE}\n\n## Post\n"
         )
@@ -11630,7 +11630,7 @@ class TestWrapStrategy:
         try:
             registrar.register_commands(
                 "test-agent",
-                [{"name": "agile.agile", "file": "commands/agile.agile.md"}],
+                [{"name": "agile.specify", "file": "commands/agile.specify.md"}],
                 "test-preset",
                 project_dir / "preset",
                 project_dir,
@@ -11639,7 +11639,7 @@ class TestWrapStrategy:
             CommandRegistrar.AGENT_CONFIGS.clear()
             CommandRegistrar.AGENT_CONFIGS.update(original)
 
-        written = (agent_dir / "agile.agile.md").read_text()
+        written = (agent_dir / "agile.specify.md").read_text()
         assert "{CORE_TEMPLATE}" not in written
         assert "Run:" in written
         assert "scripts:" in written
@@ -11659,7 +11659,7 @@ class TestWrapStrategy:
 
         cmd_dir = project_dir / "preset" / "commands"
         cmd_dir.mkdir(parents=True, exist_ok=True)
-        (cmd_dir / "agile.agile.md").write_text(
+        (cmd_dir / "agile.specify.md").write_text(
             "---\ndescription: toml wrap\nstrategy: wrap\n---\n\n"
             "## Pre\n\n{CORE_TEMPLATE}\n\n## Post\n"
         )
@@ -11679,7 +11679,7 @@ class TestWrapStrategy:
         try:
             registrar.register_commands(
                 "test-toml-agent",
-                [{"name": "agile.agile", "file": "commands/agile.agile.md"}],
+                [{"name": "agile.specify", "file": "commands/agile.specify.md"}],
                 "test-preset",
                 project_dir / "preset",
                 project_dir,
@@ -11688,7 +11688,7 @@ class TestWrapStrategy:
             CommandRegistrar.AGENT_CONFIGS.clear()
             CommandRegistrar.AGENT_CONFIGS.update(original)
 
-        written = (toml_dir / "agile.agile.toml").read_text()
+        written = (toml_dir / "agile.specify.toml").read_text()
         assert "{CORE_TEMPLATE}" not in written
         assert "{SCRIPT}" not in written
         assert "run.sh" in written
@@ -11710,7 +11710,7 @@ class TestWrapStrategy:
 
         cmd_dir = project_dir / "preset" / "commands"
         cmd_dir.mkdir(parents=True, exist_ok=True)
-        (cmd_dir / "agile.agile.md").write_text(
+        (cmd_dir / "agile.specify.md").write_text(
             "---\ndescription: markdown wrap\nstrategy: wrap\n---\n\n"
             "## Pre\n\n{CORE_TEMPLATE}\n\n## Post\n"
         )
@@ -11730,7 +11730,7 @@ class TestWrapStrategy:
         try:
             registrar.register_commands(
                 "test-md-agent",
-                [{"name": "agile.agile", "file": "commands/agile.agile.md"}],
+                [{"name": "agile.specify", "file": "commands/agile.specify.md"}],
                 "test-preset",
                 project_dir / "preset",
                 project_dir,
@@ -11739,7 +11739,7 @@ class TestWrapStrategy:
             CommandRegistrar.AGENT_CONFIGS.clear()
             CommandRegistrar.AGENT_CONFIGS.update(original)
 
-        written = (agent_dir / "agile.agile.md").read_text()
+        written = (agent_dir / "agile.specify.md").read_text()
         assert "{CORE_TEMPLATE}" not in written
         assert "{SCRIPT}" not in written
         assert "run.sh" in written
@@ -11763,7 +11763,7 @@ class TestWrapStrategy:
 
         cmd_dir = project_dir / "preset" / "commands"
         cmd_dir.mkdir(parents=True, exist_ok=True)
-        (cmd_dir / "agile.agile.md").write_text(
+        (cmd_dir / "agile.specify.md").write_text(
             "---\ndescription: forge wrap\nstrategy: wrap\n---\n\n"
             "## Pre\n\n{CORE_TEMPLATE}\n\n## Post\n"
         )
@@ -11783,7 +11783,7 @@ class TestWrapStrategy:
         try:
             registrar.register_commands(
                 "test-forge-agent",
-                [{"name": "agile.agile", "file": "commands/agile.agile.md"}],
+                [{"name": "agile.specify", "file": "commands/agile.specify.md"}],
                 "test-preset",
                 project_dir / "preset",
                 project_dir,
@@ -11792,7 +11792,7 @@ class TestWrapStrategy:
             CommandRegistrar.AGENT_CONFIGS.clear()
             CommandRegistrar.AGENT_CONFIGS.update(original)
 
-        written = (agent_dir / "agile.agile.md").read_text()
+        written = (agent_dir / "agile.specify.md").read_text()
         assert "{SCRIPT}" not in written
         assert "run.sh" in written
         # $ARGUMENTS injected by resolve_skill_placeholders must be re-converted
@@ -12220,8 +12220,8 @@ class TestCompositionStrategyValidation:
         """Test that prepend strategy is accepted for commands."""
         valid_pack_data["provides"]["templates"] = [{
             "type": "command",
-            "name": "agile.agile",
-            "file": "commands/agile.agile.md",
+            "name": "agile.specify",
+            "file": "commands/agile.specify.md",
             "strategy": "prepend",
         }]
         manifest_path = temp_dir / "preset.yml"
@@ -12254,7 +12254,7 @@ class TestResolveContent:
         layer (with its ``replace`` default) so unrelated commands still
         resolve. ``resolve_content`` then read that same file without a
         boundary, so the tolerated layer crashed with ``UnicodeDecodeError``
-        at composition time — reachable from ``specify preset add`` via
+        at composition time — reachable from ``agile preset add`` via
         ``_register_commands``. The documented contract is "Composed content
         string, or None if not found".
         """
@@ -13101,8 +13101,8 @@ class TestRemoveReconciliation:
         lo_data["provides"] = {
             "templates": [{
                 "type": "command",
-                "name": "agile.agile",
-                "file": "commands/agile.agile.md",
+                "name": "agile.specify",
+                "file": "commands/agile.specify.md",
             }]
         }
         lo_dir = temp_dir / "lo-preset"
@@ -13110,7 +13110,7 @@ class TestRemoveReconciliation:
         with open(lo_dir / "preset.yml", "w") as f:
             yaml.dump(lo_data, f)
         (lo_dir / "commands").mkdir()
-        (lo_dir / "commands" / "agile.agile.md").write_text(
+        (lo_dir / "commands" / "agile.specify.md").write_text(
             "---\ndescription: lo\n---\nLo content\n"
         )
         manager.install_from_directory(lo_dir, "0.1.5", priority=10)
@@ -13125,8 +13125,8 @@ class TestRemoveReconciliation:
         hi_data["provides"] = {
             "templates": [{
                 "type": "command",
-                "name": "agile.agile",
-                "file": "commands/agile.agile.md",
+                "name": "agile.specify",
+                "file": "commands/agile.specify.md",
             }]
         }
         hi_dir = temp_dir / "hi-preset"
@@ -13134,7 +13134,7 @@ class TestRemoveReconciliation:
         with open(hi_dir / "preset.yml", "w") as f:
             yaml.dump(hi_data, f)
         (hi_dir / "commands").mkdir()
-        (hi_dir / "commands" / "agile.agile.md").write_text(
+        (hi_dir / "commands" / "agile.specify.md").write_text(
             "---\ndescription: hi\n---\nHi content\n"
         )
         manager.install_from_directory(hi_dir, "0.1.5", priority=1)
@@ -13149,7 +13149,7 @@ class TestRemoveReconciliation:
 
         # The low-priority preset's command should now be in the resolution stack
         resolver = PresetResolver(project_dir)
-        layers = resolver.collect_all_layers("agile.agile", "command")
+        layers = resolver.collect_all_layers("agile.specify", "command")
         assert len(layers) >= 1
         assert "lo-preset" in layers[0]["source"]
 

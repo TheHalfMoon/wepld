@@ -9,7 +9,7 @@ A workflow definition declares a sequence of steps. The engine executes them in 
 ```yaml
 steps:
   - id: specify
-    command: agile.agile
+    command: agile.specify
     input:
       args: "{{ inputs.spec }}"
 
@@ -86,7 +86,7 @@ Invoke an installed Agile command by name via the integration CLI:
 
 ```yaml
 - id: specify
-  command: agile.agile
+  command: agile.specify
   input:
     args: "{{ inputs.spec }}"
   integration: claude        # Optional: override workflow default
@@ -227,7 +227,7 @@ Execute steps at least once, then repeat while condition holds:
   max_iterations: 3
   steps:
     - id: revise
-      command: agile.agile
+      command: agile.specify
 ```
 
 ### Fan-Out Steps
@@ -375,7 +375,7 @@ current run:
 
 # Pass run id into a command for artifact metadata.
 - id: tag-artifact
-  command: agile.agile
+  command: agile.specify
   input:
     args: "{{ context.run_id }}"
 

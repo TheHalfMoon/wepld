@@ -4,7 +4,7 @@ description: "Shape a concept: solution options, scope, appetite, and trade-offs
 
 # Shape a Concept
 
-Take the defined problem and shape a **concept** at `.agile/assessments/<slug>/concept.md`: the rough solution options, the scope/appetite, and the trade-offs between them. This is where the assessment crosses from problem space into solution space — but only at the *concept* level. Detailed design (architecture, data models, APIs, tasks) stays with `__AGILE_COMMAND_SPECIFY__` and the rest of the SDD lifecycle.
+Take the defined problem and shape a **concept** at `.agile/assessments/<slug>/concept.md`: the rough solution options, the scope/appetite, and the trade-offs between them. This is where the assessment crosses from problem space into solution space — but only at the *concept* level. Detailed design (architecture, data models, APIs, tasks) stays with `__AGILE_COMMAND_AGILE__` and the rest of the SDD lifecycle.
 
 Shape **outlines options at the boundaries; it does not produce a spec or a plan.** Think Shape Up "pitch," not blueprint.
 
@@ -76,7 +76,7 @@ Write `ASSESS_DIR/concept.md`:
 ## Guardrails
 
 - Never modify source files — read only, and write inside `.agile/assessments/<slug>/`.
-- Never produce a specification, architecture, data model, API design, or task breakdown — options stay at concept level. That work belongs to `__AGILE_COMMAND_SPECIFY__` onward.
+- Never produce a specification, architecture, data model, API design, or task breakdown — options stay at concept level. That work belongs to `__AGILE_COMMAND_AGILE__` onward.
 - Never invent an appetite the evidence cannot support — mark uncertainty plainly.
 - Never overwrite an existing `concept.md` without confirmation.
 - It is a valid outcome to recommend that **no** option is worth building; say so rather than manufacturing a winner.

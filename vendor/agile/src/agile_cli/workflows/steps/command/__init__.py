@@ -15,7 +15,7 @@ class CommandStep(StepBase):
 
     The command files (skills, markdown, TOML) are already installed in
     the integration's directory on disk.  This step tells the CLI to
-    execute the command by name (e.g. ``/agile.agile`` or
+    execute the command by name (e.g. ``/agile.specify`` or
     ``/agile-specify``) rather than reading the file contents.
 
     .. note::
@@ -166,7 +166,7 @@ class CommandStep(StepBase):
                 error=(
                     f"Cannot dispatch command {command!r}: "
                     f"integration {integration!r} CLI not found or not installed. "
-                    f"Install the CLI tool or check 'specify integration list'."
+                    f"Install the CLI tool or check 'agile integration list'."
                 ),
             )
 
@@ -181,7 +181,7 @@ class CommandStep(StepBase):
         """Invoke *command* by name through the integration CLI.
 
         The integration's ``dispatch_command`` builds the native
-        slash-command invocation (e.g. ``/agile.agile`` for
+        slash-command invocation (e.g. ``/agile.specify`` for
         markdown agents, ``/agile-specify`` for skills agents),
         then executes the CLI non-interactively.
 

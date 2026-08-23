@@ -98,7 +98,7 @@ Run `{SCRIPT}` once from repo root and parse JSON for FEATURE_DIR and AVAILABLE_
 - TASKS = FEATURE_DIR/tasks.md
 - CONSTITUTION = `/memory/constitution.md` (if present)
 If `spec.md`, `plan.md`, or `tasks.md` is missing, STOP with a clear, actionable message naming the
-prerequisite command to run (`__AGILE_COMMAND_SPECIFY__` for a missing spec, `__AGILE_COMMAND_PLAN__` for a missing plan,
+prerequisite command to run (`__AGILE_COMMAND_AGILE__` for a missing spec, `__AGILE_COMMAND_PLAN__` for a missing plan,
 `__AGILE_COMMAND_TASKS__` for missing tasks). Do not produce partial output.
 For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 

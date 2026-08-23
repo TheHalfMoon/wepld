@@ -123,7 +123,7 @@ def _refresh_events_and_warn(project_root: Path) -> None:
         console.print(
             f"\n[yellow]⚠[/yellow]  Extension updated, but event refresh failed "
             f"for {len(exc.failures)} integration(s); a stale native hook may "
-            f"still be active. Re-run [cyan]specify integration upgrade "
+            f"still be active. Re-run [cyan]agile integration upgrade "
             f"<key>[cyan][/cyan][/cyan] to retry."
         )
         for key, detail in exc.failures:

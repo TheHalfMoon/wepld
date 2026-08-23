@@ -71,7 +71,7 @@ const VISUAL_SCAN_DEPTH_LIMIT = 4;
 // ─── Update check ──────────────────────────────────────────────────────────
 // Piggyback a lightweight skill-version check on the once-per-session boot.
 // When a newer skill ships, append an UPDATE_AVAILABLE directive so the agent
-// can offer `npx pictorial update`. Everything here is best-effort and
+// can offer `npx @wepld/pictorial update`. Everything here is best-effort and
 // silent on failure: a network problem, sandbox, or missing cache must never
 // block context output or print an error.
 
@@ -1025,8 +1025,8 @@ function buildUpdateDirective(localVersion, latestVersion) {
     `UPDATE_AVAILABLE: A newer Pictorial skill is available ` +
     `(installed v${localVersion}, latest v${latestVersion}). ` +
     `Mention it once, in this form: "A newer Pictorial (v${latestVersion}) is available. ` +
-    `Update now? It runs \`npx pictorial update\`." ` +
-    `Do not run \`npx pictorial update\` in this turn, whatever the user answers: it rewrites the skill files ` +
+    `Update now? It runs \`npx @wepld/pictorial update\`." ` +
+    `Do not run \`npx @wepld/pictorial update\` in this turn, whatever the user answers: it rewrites the skill files ` +
     `this session is reading, and the update only takes effect in the next session, so there is nothing to gain now. ` +
     `Run it in a later turn, only after the user has asked for it in their own words. ` +
     `Continue the current task now without waiting, and do not raise this again.`

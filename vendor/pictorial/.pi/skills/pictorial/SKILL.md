@@ -4,7 +4,7 @@ description: Use when the user wants to design, redesign, shape, critique, audit
 version: 4.1.1
 license: Apache 2.0
 allowed-tools:
-  - Bash(npx pictorial *)
+  - Bash(npx @wepld/pictorial *)
   - Bash(node .pi/skills/pictorial/scripts/*)
 ---
 <!-- Modified by WePLD on 2026-08-23: deterministic Pictorial rebrand/path integration from the pinned upstream source. -->

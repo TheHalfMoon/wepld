@@ -3,7 +3,7 @@
 
 Design guidance for AI coding agents. 1 skill, 23 commands, live browser iteration, and 59 deterministic detector rules for AI-generated frontend design.
 
-> **Quick start:** From your project root, run `npx pictorial install`, then run `/pictorial init` inside your AI coding tool. Full docs: [github.com/TheHalfMoon/wepld](https://github.com/TheHalfMoon/wepld).
+> **Quick start:** From your project root, run `npx @wepld/pictorial install`, then run `/pictorial init` inside your AI coding tool. Full docs: [github.com/TheHalfMoon/wepld](https://github.com/TheHalfMoon/wepld).
 
 ## Why Pictorial?
 
@@ -101,7 +101,7 @@ Visit [the Neo Mirai case study](https://github.com/TheHalfMoon/wepld/cases/neo-
 From the root of your project, run:
 
 ```bash
-npx pictorial install
+npx @wepld/pictorial install
 ```
 
 This shows the harness folders it detected (for example `~/.claude`, `~/.codex`, `~/.grok`, or project-local `.cursor`), lets you keep the detected set or customize providers, then asks whether to install into the current project or globally. Use `--providers=claude,codex,cursor,grok` and `--scope=project|global` to skip those choices in scripts. On Claude Code, Cursor, Codex, GitHub Copilot, and Grok Build, it also installs the provider-native hook manifest for the current project. Works with Cursor, Claude Code, Gemini CLI, Codex CLI, Grok Build, and every other supported tool. Reload your harness afterward.
@@ -109,7 +109,7 @@ This shows the harness folders it detected (for example `~/.claude`, `~/.codex`,
 To refresh an existing install, run:
 
 ```bash
-npx pictorial update
+npx @wepld/pictorial update
 ```
 
 Codex users should open `/hooks` after install or update and approve the project hook when prompted. Codex tracks trust by hook definition, so updates that change `.codex/hooks.json` can require approval again. Grok Build users need project folder trust (`/hooks-trust` or launch with `--trust`) before `.grok/hooks/` scripts run.
@@ -120,7 +120,7 @@ For teams that want to keep Pictorial vendored and updated through Git, add this
 
 ```bash
 git submodule add https://github.com/TheHalfMoon/wepld .pictorial
-npx pictorial link --source=.pictorial --providers=claude,cursor
+npx @wepld/pictorial link --source=.pictorial --providers=claude,cursor
 git add .gitmodules .pictorial .claude .cursor
 git commit -m "Add Pictorial skills"
 ```
@@ -131,24 +131,24 @@ To update later:
 
 ```bash
 git submodule update --remote .pictorial
-npx pictorial link --source=.pictorial --providers=claude,cursor
+npx @wepld/pictorial link --source=.pictorial --providers=claude,cursor
 ```
 
 ### Option 3: Plugin install
 
 **Claude Code:**
 ```bash
-/plugin marketplace add pbakaus/pictorial
+/plugin marketplace add TheHalfMoon/wepld
 ```
 
 > Claude Code only. After adding the marketplace, open `/plugin` and install Pictorial from the list.
 
 **Grok Build:**
 ```bash
-grok plugin install pbakaus/pictorial#plugin --trust
+grok plugin install TheHalfMoon/wepld#plugin --trust
 ```
 
-> Grok Build only. The `#plugin` suffix installs the slim plugin package (skills, agents, and hooks) instead of the full monorepo. Then run `/pictorial init` in a Grok session. Project-scoped installs via `npx pictorial install --providers=grok` also work and write `.grok/skills/` plus `.grok/hooks/pictorial.json`.
+> Grok Build only. The `#plugin` suffix installs the slim plugin package (skills, agents, and hooks) instead of the full monorepo. Then run `/pictorial init` in a Grok session. Project-scoped installs via `npx @wepld/pictorial install --providers=grok` also work and write `.grok/skills/` plus `.grok/hooks/pictorial.json`.
 
 ### Option 4: Download from Website
 
@@ -269,7 +269,7 @@ cp -r dist/grok/.grok your-project/
 cp -r dist/grok/.grok/skills/* ~/.grok/skills/
 ```
 
-> Prefer `npx pictorial install --providers=grok` or `grok plugin install pbakaus/pictorial#plugin --trust` so the design hook installs too. Project hooks need `/hooks-trust` (or `--trust`) once per folder.
+> Prefer `npx @wepld/pictorial install --providers=grok` or `grok plugin install TheHalfMoon/wepld#plugin --trust` so the design hook installs too. Project hooks need `/hooks-trust` (or `--trust`) once per folder.
 
 **Google Antigravity:**
 ```bash
@@ -347,7 +347,7 @@ If an ephemeral file (a screenshot, `config.local.json`) was committed before yo
 
 ## Design hook
 
-On Claude Code, GitHub Copilot, Codex, Cursor, and Grok Build, `npx pictorial install` and `npx pictorial update` install a provider-native hook manifest along with the skill payload. The hook runs the Pictorial design detector on direct UI file edits and surfaces findings back into the agent flow. Claude Code, GitHub Copilot, Codex, and Grok Build surface findings after the edit (and run a deeper pass on Stop where supported). Cursor blocks bad proposed writes before they land.
+On Claude Code, GitHub Copilot, Codex, Cursor, and Grok Build, `npx @wepld/pictorial install` and `npx @wepld/pictorial update` install a provider-native hook manifest along with the skill payload. The hook runs the Pictorial design detector on direct UI file edits and surfaces findings back into the agent flow. Claude Code, GitHub Copilot, Codex, and Grok Build surface findings after the edit (and run a deeper pass on Stop where supported). Cursor blocks bad proposed writes before they land.
 
 Installed hook surfaces:
 
@@ -358,7 +358,7 @@ Installed hook surfaces:
 
 The installer preserves unrelated hook entries and settings. If a hook manifest is malformed, install/update aborts by default; rerun with `--force` to back up the malformed file as `.bak` and replace it.
 
-On an interactive `install`/`update`, Pictorial explains the hook and offers to install it (default yes). Your choice is remembered per-developer in the gitignored `.pictorial/config.local.json`, so you are not asked again; `--no-hooks` skips it for that run without recording anything. Hook lifecycle settings live under the `hook` key of `.pictorial/config.json`; detector ignores live under `detector`, shared by `/pictorial hooks` and `npx pictorial detect`.
+On an interactive `install`/`update`, Pictorial explains the hook and offers to install it (default yes). Your choice is remembered per-developer in the gitignored `.pictorial/config.local.json`, so you are not asked again; `--no-hooks` skips it for that run without recording anything. Hook lifecycle settings live under the `hook` key of `.pictorial/config.json`; detector ignores live under `detector`, shared by `/pictorial hooks` and `npx @wepld/pictorial detect`.
 
 For debugging, set `hook.auditLog` in `.pictorial/config.json` to a path (or the legacy `PICTORIAL_HOOK_LOG` env var) to write one NDJSON line per hook invocation. Leave it unset for normal use.
 
@@ -381,8 +381,8 @@ Full hook docs: [github.com/TheHalfMoon/wepld/docs/hooks](https://github.com/The
 Manual copy commands are fallback/debug instructions. The normal path is:
 
 ```bash
-npx pictorial install
-npx pictorial update
+npx @wepld/pictorial install
+npx @wepld/pictorial update
 ```
 
 ## CLI
@@ -390,14 +390,14 @@ npx pictorial update
 Pictorial includes a standalone CLI for detecting anti-patterns without an AI harness:
 
 ```bash
-npx pictorial detect src/                   # scan a directory
-npx pictorial detect index.html             # scan an HTML file
-npx pictorial detect https://example.com    # scan a URL (Puppeteer)
-npx pictorial detect --json .               # CI-friendly JSON output
-npx pictorial detect --no-config src/       # raw scan, ignoring project config/context
-npx pictorial ignores list                  # show detector ignores
-npx pictorial ignores add-file "src/legacy/**"
-npx pictorial ignores add-value overused-font Inter --reason "Brand font"
+npx @wepld/pictorial detect src/                   # scan a directory
+npx @wepld/pictorial detect index.html             # scan an HTML file
+npx @wepld/pictorial detect https://example.com    # scan a URL (Puppeteer)
+npx @wepld/pictorial detect --json .               # CI-friendly JSON output
+npx @wepld/pictorial detect --no-config src/       # raw scan, ignoring project config/context
+npx @wepld/pictorial ignores list                  # show detector ignores
+npx @wepld/pictorial ignores add-file "src/legacy/**"
+npx @wepld/pictorial ignores add-value overused-font Inter --reason "Brand font"
 ```
 
 The detector catches 59 deterministic issues across AI slop (side-tab borders, purple gradients, bounce easing, dark glows) and general design quality (line length, cramped padding, small touch targets, skipped headings, and more).
@@ -430,7 +430,7 @@ Full detector docs: [github.com/TheHalfMoon/wepld/docs/detector](https://github.
 Join the community and ecosystem conversations:
 
 - GitHub Discussions: file bugs, request features, and help newcomers.
-- [Pictorial on npm](https://www.npmjs.com/package/pictorial): grab the CLI, follow releases, and star the package.
+- [Pictorial on npm](https://www.npmjs.com/package/@wepld/pictorial): grab the CLI, follow releases, and star the package.
 - Follow @pbakaus on Twitter for release notes, sample lint reports, and video highlights of new rules.
 
 ## Contributing

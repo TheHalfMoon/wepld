@@ -25,7 +25,7 @@ The Agile CLI supports a wide range of AI coding agents. When you run `agile ini
 | [Goose](https://goose-docs.ai/)                                                      | `goose`          | Uses YAML recipe format in `.goose/recipes/`                                                                                              |
 | [Grok Build](https://docs.x.ai/build/overview)                                       | `grok`           | Skills-based integration; installs skills into `.grok/skills` and invokes them as `/agile-<command>`                                    |
 | [Hermes](https://github.com/NousResearch/hermes-agent)                               | `hermes`         | Skills-based integration; installs skills globally into `~/.hermes/skills/`                                                                |
-| [IBM Bob](https://www.ibm.com/products/bob)                                          | `bob`            | Skills-based integration by default; installs skills as `agile-<command>/SKILL.md` under `.bob/skills/` and invokes them as `/agile-<command>`. Pass `--integration-options="--legacy-commands"` to scaffold the deprecated Bob 1.x layout (`.bob/commands/*.md`) instead; that flag will be removed in a future release. Existing legacy installs can migrate with `specify integration upgrade bob --integration-options="--skills"`, which converts them to the skills layout and removes the old command files. If preset overrides are installed, the migration is rejected with an actionable error (preset artifacts cannot yet be reconciled across a layout change) — remove the preset(s), migrate, then reinstall them. |
+| [IBM Bob](https://www.ibm.com/products/bob)                                          | `bob`            | Skills-based integration by default; installs skills as `agile-<command>/SKILL.md` under `.bob/skills/` and invokes them as `/agile-<command>`. Pass `--integration-options="--legacy-commands"` to scaffold the deprecated Bob 1.x layout (`.bob/commands/*.md`) instead; that flag will be removed in a future release. Existing legacy installs can migrate with `agile integration upgrade bob --integration-options="--skills"`, which converts them to the skills layout and removes the old command files. If preset overrides are installed, the migration is rejected with an actionable error (preset artifacts cannot yet be reconciled across a layout change) — remove the preset(s), migrate, then reinstall them. |
 | [Junie](https://junie.jetbrains.com/)                                                | `junie`          |                                                                                                                                           |
 | [Kilo Code](https://github.com/Kilo-Org/kilocode)                                    | `kilocode`       | Installs commands into `.kilo/commands`; legacy `.kilocode/workflows` installs remain supported as a registration fallback                 |
 | [Kimi Code](https://code.kimi.com/)                                                  | `kimi`           | Skills-based integration; installs into `.kimi-code/skills/`. `--migrate-legacy` moves old `.kimi/skills/` installs to the new paths |
@@ -48,7 +48,7 @@ The Agile CLI supports a wide range of AI coding agents. When you run `agile ini
 ## List Available Integrations
 
 ```bash
-specify integration list
+agile integration list
 ```
 
 | Option      | Description                                                                                                             |
@@ -62,7 +62,7 @@ The list also shows whether each built-in integration is declared multi-install 
 ## Search Available Integrations
 
 ```bash
-specify integration search [query]
+agile integration search [query]
 ```
 
 | Option     | Description        |
@@ -75,7 +75,7 @@ Searches the active catalog stack for integrations matching the query. Without a
 ## Integration Info
 
 ```bash
-specify integration info <integration_id>
+agile integration info <integration_id>
 ```
 
 Shows catalog details for a single integration, including its description, author, license, tags, source catalog, repository (when available), and whether it is currently active. Must be run inside a Agile project.
@@ -83,7 +83,7 @@ Shows catalog details for a single integration, including its description, autho
 ## Install an Integration
 
 ```bash
-specify integration install <key>
+agile integration install <key>
 ```
 
 | Option                   | Description                                                              |
@@ -94,18 +94,18 @@ specify integration install <key>
 
 Installs the specified integration into the current project. If another integration is already installed, the command only proceeds automatically when all involved integrations are declared multi-install safe. Otherwise, use `switch` to replace the default integration or pass `--force` to explicitly opt in to multi-install. If the installation fails partway through, it automatically rolls back to a clean state.
 
-Installing an additional integration does not change the default integration. Use `specify integration use <key>` to change the default.
+Installing an additional integration does not change the default integration. Use `agile integration use <key>` to change the default.
 
-Installed extensions and presets are not registered for a non-default integration at install time — they follow the currently active (default) integration only. `specify integration use <key>` (or `switch <key>`) is what rescaffolds them for the newly active integration.
+Installed extensions and presets are not registered for a non-default integration at install time — they follow the currently active (default) integration only. `agile integration use <key>` (or `switch <key>`) is what rescaffolds them for the newly active integration.
 
 > **Note:** All integration management commands require a project already initialized with `agile init`. To start a new project with a specific agent, use `agile init <project> --integration <key>` instead.
 
-**Version note:** Controlled multi-install support was introduced in Agile 0.8.5. If `specify integration install <key>` says another integration is already installed and only suggests `switch` or `uninstall`, check your local CLI with `agile version` and upgrade it. Running a one-shot command such as `uvx --from git+https://github.com/TheHalfMoon/wepld.git specify ...` uses a temporary copy for that command only; it does not update the persistent `agile` executable on your `PATH`.
+**Version note:** Controlled multi-install support was introduced in Agile 0.8.5. If `agile integration install <key>` says another integration is already installed and only suggests `switch` or `uninstall`, check your local CLI with `agile version` and upgrade it. Running a one-shot command such as `uvx --from git+https://github.com/TheHalfMoon/wepld.git specify ...` uses a temporary copy for that command only; it does not update the persistent `agile` executable on your `PATH`.
 
 ## Uninstall an Integration
 
 ```bash
-specify integration uninstall [<key>]
+agile integration uninstall [<key>]
 ```
 
 | Option    | Description                                         |
@@ -121,7 +121,7 @@ Uninstalls the current integration (or the specified one). Agile tracks every fi
 ## Switch to a Different Integration
 
 ```bash
-specify integration switch <key>
+agile integration switch <key>
 ```
 
 | Option                   | Description                                                              |
@@ -136,7 +136,7 @@ If the target integration is not already installed, equivalent to running `unins
 ## Use an Installed Integration
 
 ```bash
-specify integration use <key>
+agile integration use <key>
 ```
 
 | Option    | Description                                         |
@@ -150,7 +150,7 @@ Sets the default integration without uninstalling any other installed integratio
 ## Upgrade an Integration
 
 ```bash
-specify integration upgrade [<key>]
+agile integration upgrade [<key>]
 ```
 
 | Option                   | Description                                                              |
@@ -168,8 +168,8 @@ If an upgrade would change an integration between command and skills layouts whi
 ## Report Integration Status
 
 ```bash
-specify integration status
-specify integration status --json
+agile integration status
+agile integration status --json
 ```
 
 Reports the current project's integration status without changing files. The
@@ -193,7 +193,7 @@ Integration catalogs control where the discovery commands (`search` and `info`) 
 ### List Catalogs
 
 ```bash
-specify integration catalog list
+agile integration catalog list
 ```
 
 Shows the active catalog sources. Project-level sources (when configured) are removable by index; otherwise the active sources are shown as non-removable.
@@ -201,7 +201,7 @@ Shows the active catalog sources. Project-level sources (when configured) are re
 ### Add a Catalog
 
 ```bash
-specify integration catalog add <url>
+agile integration catalog add <url>
 ```
 
 | Option          | Description                   |
@@ -213,7 +213,7 @@ Adds a custom catalog URL to the project's `.agile/integration-catalogs.yml`. Th
 ### Remove a Catalog
 
 ```bash
-specify integration catalog remove <index>
+agile integration catalog remove <index>
 ```
 
 Removes a project catalog source by its 0-based index in `catalog list`.
@@ -241,13 +241,13 @@ Some integrations accept additional options via `--integration-options`:
 Example:
 
 ```bash
-specify integration install generic --integration-options="--commands-dir .myagent/cmds"
+agile integration install generic --integration-options="--commands-dir .myagent/cmds"
 ```
 
 ## Scaffold a New Integration
 
 ```bash
-specify integration scaffold <key>
+agile integration scaffold <key>
 ```
 
 Creates a minimal built-in integration package and a matching test skeleton in the Agile repository, then prints the next steps for wiring it up. Run this command from the Agile repository root. The `<key>` must be lowercase kebab-case (for example, `my-agent`).
@@ -307,11 +307,11 @@ Files you've modified are preserved automatically. Only unmodified files (matchi
 
 ### How do I know which key to use?
 
-Run `specify integration list` to see all available integrations with their keys, or check the [Supported AI Coding Agents](#supported-ai-coding-agents) table above.
+Run `agile integration list` to see all available integrations with their keys, or check the [Supported AI Coding Agents](#supported-ai-coding-agents) table above.
 
 ### Do I need the AI coding agent installed to use an integration?
 
-CLI-based integrations (like Claude Code, Gemini CLI) require the tool to be installed. IDE-based integrations (like Cursor) work through the IDE itself. Some agents like GitHub Copilot support both IDE and CLI usage. `specify integration list` shows which type each integration is.
+CLI-based integrations (like Claude Code, Gemini CLI) require the tool to be installed. IDE-based integrations (like Cursor) work through the IDE itself. Some agents like GitHub Copilot support both IDE and CLI usage. `agile integration list` shows which type each integration is.
 
 ### When should I use `upgrade` vs `switch`?
 
@@ -319,4 +319,4 @@ Use `upgrade` when you've upgraded Agile and want to refresh an installed integr
 
 ### Do extensions and presets I install apply to every installed integration?
 
-No. Extensions (`agile extension add`) and presets (`specify preset add`) register their command overrides for the currently active (default) integration only, even if other integrations are installed. A non-default integration does not receive those artifacts until it becomes the default: `specify integration use <key>` (or `switch <key>`) rescaffolds every enabled extension and preset for the newly active integration. `specify integration upgrade` follows the same rule — it only re-registers extensions and presets when upgrading the active integration.
+No. Extensions (`agile extension add`) and presets (`agile preset add`) register their command overrides for the currently active (default) integration only, even if other integrations are installed. A non-default integration does not receive those artifacts until it becomes the default: `agile integration use <key>` (or `switch <key>`) rescaffolds every enabled extension and preset for the newly active integration. `agile integration upgrade` follows the same rule — it only re-registers extensions and presets when upgrading the active integration.

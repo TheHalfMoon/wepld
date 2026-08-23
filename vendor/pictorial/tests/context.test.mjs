@@ -1497,7 +1497,7 @@ describe('context.mjs update check', () => {
     assert.equal(res.status, 0);
     assert.match(res.stdout, /UPDATE_AVAILABLE: A newer Pictorial skill is available/);
     assert.match(res.stdout, /installed v1\.0\.0, latest v2\.0\.0/);
-    assert.match(res.stdout, /npx pictorial update/);
+    assert.match(res.stdout, /npx @wepld/pictorial update/);
     // It must come after the real context, never replace it.
     assert.match(res.stdout, /^# PRODUCT\.md/);
   });
@@ -1508,7 +1508,7 @@ describe('context.mjs update check', () => {
   // running in this turn outright, whatever the answer.
   it('forbids running the update in the same turn, on any answer', () => {
     const { stdout } = run({ lastCheck: Date.now(), latestVersion: '2.0.0' });
-    assert.match(stdout, /Do not run `npx pictorial update` in this turn, whatever the user answers/);
+    assert.match(stdout, /Do not run `npx @wepld/pictorial update` in this turn, whatever the user answers/);
     assert.match(stdout, /only after the user has asked for it in their own words/);
     // The conditional that made the command look reachable must be gone.
     assert.equal(/If they agree, run/.test(stdout), false);

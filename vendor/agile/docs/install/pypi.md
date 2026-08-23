@@ -84,7 +84,7 @@ pip install --upgrade wepld-agile
 ```
 
 > [!NOTE]
-> `specify self upgrade` currently rebuilds `uv tool` and `pipx` installs from the GitHub source release URL rather than preserving a PyPI-based installation. If you want to stay on the PyPI route, use the package-manager commands above. A plain `pip install wepld-agile` is treated as an unmanaged install — upgrade it with `pip install --upgrade wepld-agile`. See the [Upgrade Guide](../upgrade.md) for details.
+> `agile self upgrade` currently rebuilds `uv tool` and `pipx` installs from the GitHub source release URL rather than preserving a PyPI-based installation. If you want to stay on the PyPI route, use the package-manager commands above. A plain `pip install wepld-agile` is treated as an unmanaged install — upgrade it with `pip install --upgrade wepld-agile`. See the [Upgrade Guide](../upgrade.md) for details.
 
 ## Uninstall
 

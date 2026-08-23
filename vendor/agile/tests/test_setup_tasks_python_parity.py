@@ -207,7 +207,7 @@ def test_all_variants_feature_context_error_matches(
         (repo / ".agile" / "feature.json").write_bytes(b"\xff")
     elif context == "invalid_init_dir":
         env = clean_env()
-        env["SPECIFY_INIT_DIR"] = str(tmp_path / "missing")
+        env["AGILE_INIT_DIR"] = str(tmp_path / "missing")
 
     bash = run(bash_cmd(repo, SCRIPT, "--json"), repo, env)
     ps = run(ps_cmd(repo, SCRIPT, "-Json"), repo, env)

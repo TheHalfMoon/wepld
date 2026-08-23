@@ -554,7 +554,7 @@ class TestBobRegistrarConfig:
                 ---
                 description: "Test command"
                 ---
-                See __AGILE_COMMAND_SPECIFY__ for details.
+                See __AGILE_COMMAND_AGILE__ for details.
             """),
             encoding="utf-8",
         )
@@ -567,8 +567,8 @@ class TestBobRegistrarConfig:
             project_root=tmp_path,
         )
         rendered = (commands_dir / "agile.test-cmd.md").read_text(encoding="utf-8")
-        assert "/agile.agile" in rendered, (
-            "legacy Bob extension commands must render /agile.agile (dot)"
+        assert "/agile.specify" in rendered, (
+            "legacy Bob extension commands must render /agile.specify (dot)"
         )
         assert "/agile-specify" not in rendered
 

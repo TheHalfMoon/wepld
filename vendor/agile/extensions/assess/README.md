@@ -2,7 +2,7 @@
 
 A five-stage assessment pipeline for Agile that turns **any idea** into a defensible **go / needs-clarification / kill** decision *before* it enters Spec-Driven Development. It is the missing **discovery track** that sits in front of the SDD **delivery track** (`specify → clarify → plan → tasks → analyze → implement`).
 
-Discovery answers *"is this worth building?"* Delivery answers *"how do we build it?"* Only ideas that survive assessment hand off to `/agile.agile`.
+Discovery answers *"is this worth building?"* Delivery answers *"how do we build it?"* Only ideas that survive assessment hand off to `/agile.specify`.
 
 ## Overview
 
@@ -24,7 +24,7 @@ The pipeline is a **funnel**: most ideas should be killed or parked before `shap
 ```mermaid
 flowchart LR
     A[intake] --> R[research] --> D[define] --> S[shape] --> C{decide}
-    C -->|go| SPEC[/agile.agile/]
+    C -->|go| SPEC[/agile.specify/]
     C -->|kill| X[closed, recorded]
     C -.->|needs-clarification: revisit the named earlier stage| A
 ```
@@ -37,7 +37,7 @@ flowchart LR
 | `agile.assess.research` | Gather users/market/prior-art/data evidence — and evidence *against* the idea. | `research.md` |
 | `agile.assess.define` | Define the problem: users, goals, non-goals, success metrics, cost of inaction. | `problem.md` |
 | `agile.assess.shape` | Shape 2–3 concept-level options with appetite and trade-offs; recommend one (or none). | `concept.md` |
-| `agile.assess.decide` | Score against criteria and render the verdict; hand `go` ideas to `/agile.agile`. | `decision.md` |
+| `agile.assess.decide` | Score against criteria and render the verdict; hand `go` ideas to `/agile.specify`. | `decision.md` |
 
 Stages are meant to run in order but are not rigidly gated:
 
@@ -84,16 +84,16 @@ agile extension enable assess
 
 # 5. Decide — go, clarify, or kill
 /agile.assess.decide slug=offline-mode
-# → on "go", hand the decision.md handoff summary to /agile.agile
+# → on "go", hand the decision.md handoff summary to /agile.specify
 ```
 
 ## Handoff
 
-`assess` is a **standalone pipeline you enter deliberately** — it registers no lifecycle hooks and never inserts itself into `/agile.agile`. The only coupling runs forward and by choice: a `go` verdict from `/agile.assess.decide` hands its `decision.md` summary to `/agile.agile`. Discovery and specification stay separate processes.
+`assess` is a **standalone pipeline you enter deliberately** — it registers no lifecycle hooks and never inserts itself into `/agile.specify`. The only coupling runs forward and by choice: a `go` verdict from `/agile.assess.decide` hands its `decision.md` summary to `/agile.specify`. Discovery and specification stay separate processes.
 
 ## Guardrails
 
-- Only `agile.assess.*` commands write, and only inside `.agile/assessments/<slug>/`. **None of them modify source code** — solution design and implementation belong to the SDD lifecycle (`/agile.agile` onward).
+- Only `agile.assess.*` commands write, and only inside `.agile/assessments/<slug>/`. **None of them modify source code** — solution design and implementation belong to the SDD lifecycle (`/agile.specify` onward).
 - Web content fetched during `intake`/`research` is treated as untrusted data, governed by an explicit URL Trust Policy (allowlisted public sources fetched freely; unknown hosts prompted or skipped; loopback/RFC1918/metadata endpoints refused).
 - Evidence is never over-claimed: unsourced statements are tagged `ASSUMPTION`, and `research.md` always includes an *Evidence Against the Idea* section.
 - Verdicts are never over-claimed: a `go` requires a valid problem, `adequate`+ evidence (never weak/unknown), and a shaped concept; otherwise the honest verdict is `needs-clarification`.
@@ -102,4 +102,4 @@ agile extension enable assess
 
 ## Relationship to Other Extensions
 
-`assess` is deliberately the **generic, role-neutral** discovery track — usable by a founder, PM, BA, engineer, or designer. Richer or more specialized pre-SDD flows in the community catalog (e.g. product-lifecycle orchestrators, technical-discovery, intake-normalization, brownfield onboarding) can layer on top of or feed into it; `assess` aims to be the minimal, opinionated funnel that ends cleanly at the `/agile.agile` handoff.
+`assess` is deliberately the **generic, role-neutral** discovery track — usable by a founder, PM, BA, engineer, or designer. Richer or more specialized pre-SDD flows in the community catalog (e.g. product-lifecycle orchestrators, technical-discovery, intake-normalization, brownfield onboarding) can layer on top of or feed into it; `assess` aims to be the minimal, opinionated funnel that ends cleanly at the `/agile.specify` handoff.

@@ -4,7 +4,7 @@ description: "Capture and normalize a raw idea (text, URL, ticket, or codebase p
 
 # Intake an Idea
 
-Capture a raw idea — however rough — and normalize it into a single **intake note** at `.agile/assessments/<slug>/intake.md`. This is the front door of the assessment pipeline: it records *what the idea is and where it came from* without judging it yet. Later stages (`__AGILE_COMMAND_ASSESS_RESEARCH__`, `__AGILE_COMMAND_ASSESS_DEFINE__`, `__AGILE_COMMAND_ASSESS_SHAPE__`, `__AGILE_COMMAND_ASSESS_DECIDE__`) build on it, and only survivors reach `__AGILE_COMMAND_SPECIFY__`.
+Capture a raw idea — however rough — and normalize it into a single **intake note** at `.agile/assessments/<slug>/intake.md`. This is the front door of the assessment pipeline: it records *what the idea is and where it came from* without judging it yet. Later stages (`__AGILE_COMMAND_ASSESS_RESEARCH__`, `__AGILE_COMMAND_ASSESS_DEFINE__`, `__AGILE_COMMAND_ASSESS_SHAPE__`, `__AGILE_COMMAND_ASSESS_DECIDE__`) build on it, and only survivors reach `__AGILE_COMMAND_AGILE__`.
 
 Intake **captures; it does not evaluate or solutionize.** No feasibility verdicts, no design. Just a clean, faithful record of the idea and its origin.
 

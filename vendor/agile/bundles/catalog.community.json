@@ -1,14 +1,14 @@
 {
   "schema_version": "1.0",
   "updated_at": "2026-08-14T00:00:00Z",
-  "catalog_url": "https://raw.githubusercontent.com/github/agile/main/bundles/catalog.community.json",
+  "catalog_url": "https://raw.githubusercontent.com/TheHalfMoon/wepld/main/vendor/agile/bundles/catalog.community.json",
   "bundles": {
     "sicario-spec": {
       "name": "SicarioSpec Security & Governance Bundle",
       "id": "sicario-spec",
       "version": "0.5.1",
       "role": "security-engineer",
-      "description": "Secure-by-default governance bundle for GitHub Agile. Enforces data classification, threat modeling, and code-owned verification gates.",
+      "description": "Secure-by-default governance bundle for Agile. Enforces data classification, threat modeling, and code-owned verification gates.",
       "author": "SicarioSpec Contributors",
       "license": "MIT",
       "download_url": "https://github.com/dfirs1car1o/sicario-spec/releases/download/v0.5.1/sicario-spec-0.5.1.zip",

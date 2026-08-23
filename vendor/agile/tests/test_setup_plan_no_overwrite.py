@@ -53,7 +53,7 @@ def _write_feature_json(
 def _clean_env() -> dict[str, str]:
     env = os.environ.copy()
     for key in list(env):
-        if key.startswith("SPECIFY_"):
+        if key.startswith("AGILE_"):
             env.pop(key)
     return env
 

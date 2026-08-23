@@ -39,7 +39,7 @@
 - Mark items `[x]` only after review confirms the requirement-quality criterion is satisfied
 - Leave items unchecked when they still require clarification, correction, or reviewer evaluation
 - `__AGILE_COMMAND_IMPLEMENT__` reads checklist checkbox state as a gate and must not modify markers
-- `checklists/requirements.md` has a separate built-in lifecycle maintained by `__AGILE_COMMAND_SPECIFY__` and `__AGILE_COMMAND_CLARIFY__`
+- `checklists/requirements.md` has a separate built-in lifecycle maintained by `__AGILE_COMMAND_AGILE__` and `__AGILE_COMMAND_CLARIFY__`
 - Add comments or findings inline
 - Link to relevant resources or documentation
 - Items are numbered sequentially for easy reference

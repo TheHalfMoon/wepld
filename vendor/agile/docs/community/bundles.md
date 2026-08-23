@@ -9,7 +9,7 @@ Accepted community bundle entries are published in [`bundles/catalog.community.j
 
 | Bundle | Purpose | Role or team | Provides | Required catalogs | URL |
 |--------|---------|--------------|----------|-------------------|-----|
-| SicarioSpec Security & Governance Bundle | Secure-by-default governance bundle for GitHub Agile. Enforces data classification, threat modeling, and code-owned verification gates. | `security-engineer` | 1 extension, 11 presets | Documented | [sicario-spec](https://github.com/dfirs1car1o/sicario-spec) |
+| SicarioSpec Security & Governance Bundle | Secure-by-default governance bundle for Agile. Enforces data classification, threat modeling, and code-owned verification gates. | `security-engineer` | 1 extension, 11 presets | Documented | [sicario-spec](https://github.com/dfirs1car1o/sicario-spec) |
 | SpecAssay | Durable-ID promotion for stock Agile: templates, Gate 2 refusal, and trace-manifest emission. | `developer` | 1 extension, 1 preset | Documented | [specassay](https://github.com/rdryfoos/specassay) |
 
 ## What to Submit
@@ -31,7 +31,7 @@ If your bundle depends on components that are not available from the default Agi
 For example:
 
 ```bash
-specify preset catalog add https://example.com/presets.json --name example-bundle --install-allowed
+agile preset catalog add https://example.com/presets.json --name example-bundle --install-allowed
 agile extension catalog add https://example.com/extensions.json --name example-bundle --install-allowed
 curl -L -o example-bundle-1.0.0.zip https://example.com/example-bundle-1.0.0.zip
 agile bundle install ./example-bundle-1.0.0.zip

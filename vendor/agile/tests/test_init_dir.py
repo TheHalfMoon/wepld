@@ -1,12 +1,12 @@
-"""Tests for the SPECIFY_INIT_DIR project-root override.
+"""Tests for the AGILE_INIT_DIR project-root override.
 
-SPECIFY_INIT_DIR lets a non-interactive / CI caller target a member project from
+AGILE_INIT_DIR lets a non-interactive / CI caller target a member project from
 outside its directory (e.g. a monorepo root) without `cd`. It names the project
 root — the directory *containing* `.agile/` — and is strict: it must exist and
 contain `.agile/`, otherwise the resolver hard-errors with no silent fallback to
 cwd or the git toplevel.
 
-See proposals/monorepo-support and github/agile discussion #2834.
+See proposals/monorepo-support and TheHalfMoon/wepld discussion #2834.
 """
 
 import json
@@ -38,12 +38,12 @@ _WINDOWS_POWERSHELL = _POWERSHELL if os.name == "nt" else None
 
 
 def _clean_env() -> dict[str, str]:
-    """Inherited env minus all SPECIFY_* vars, so a developer/CI override
-    (SPECIFY_FEATURE, SPECIFY_FEATURE_DIRECTORY, …) cannot leak into the
+    """Inherited env minus all AGILE_* vars, so a developer/CI override
+    (AGILE_FEATURE, AGILE_FEATURE_DIRECTORY, …) cannot leak into the
     subprocess and make these resolution tests flaky."""
     env = os.environ.copy()
     for key in list(env):
-        if key.startswith("SPECIFY_"):
+        if key.startswith("AGILE_"):
             env.pop(key)
     return env
 
@@ -119,7 +119,7 @@ requires_windows_powershell = pytest.mark.skipif(
 def test_valid_path_resolves_from_outside(tmp_path: Path) -> None:
     """P1: a valid project path resolves correctly when run from elsewhere."""
     web = _make_project(tmp_path, "web")
-    env = {**_clean_env(), "SPECIFY_INIT_DIR": str(web)}
+    env = {**_clean_env(), "AGILE_INIT_DIR": str(web)}
     result = _bash("get_repo_root", cwd=tmp_path, env=env)
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == _bash_path(web)
@@ -127,9 +127,9 @@ def test_valid_path_resolves_from_outside(tmp_path: Path) -> None:
 
 @requires_bash
 def test_relative_path_normalized_against_cwd(tmp_path: Path) -> None:
-    """P2: a relative SPECIFY_INIT_DIR is resolved against the current directory."""
+    """P2: a relative AGILE_INIT_DIR is resolved against the current directory."""
     web = _make_project(tmp_path, "web")
-    env = {**_clean_env(), "SPECIFY_INIT_DIR": "web"}
+    env = {**_clean_env(), "AGILE_INIT_DIR": "web"}
     result = _bash("get_repo_root", cwd=tmp_path, env=env)
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == _bash_path(web)
@@ -139,7 +139,7 @@ def test_relative_path_normalized_against_cwd(tmp_path: Path) -> None:
 def test_trailing_slash_tolerated(tmp_path: Path) -> None:
     """P3: a trailing slash is collapsed by normalization."""
     web = _make_project(tmp_path, "web")
-    env = {**_clean_env(), "SPECIFY_INIT_DIR": f"{web}/"}
+    env = {**_clean_env(), "AGILE_INIT_DIR": f"{web}/"}
     result = _bash("get_repo_root", cwd=tmp_path, env=env)
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == _bash_path(web)
@@ -149,8 +149,8 @@ def test_trailing_slash_tolerated(tmp_path: Path) -> None:
 def test_precedence_over_cwd_project(tmp_path: Path) -> None:
     """P4: feature resolution happens inside the *target* project, not cwd.
 
-    cwd is itself a valid Agile project; SPECIFY_INIT_DIR must redirect
-    resolution to the target project, so a relative SPECIFY_FEATURE_DIRECTORY
+    cwd is itself a valid Agile project; AGILE_INIT_DIR must redirect
+    resolution to the target project, so a relative AGILE_FEATURE_DIRECTORY
     normalizes under the target root, not cwd.
     """
     cwd_proj = _make_project(tmp_path, "cwd_proj")
@@ -159,8 +159,8 @@ def test_precedence_over_cwd_project(tmp_path: Path) -> None:
 
     env = {
         **_clean_env(),
-        "SPECIFY_INIT_DIR": str(web),
-        "SPECIFY_FEATURE_DIRECTORY": "specs/001-demo",
+        "AGILE_INIT_DIR": str(web),
+        "AGILE_FEATURE_DIRECTORY": "specs/001-demo",
     }
     result = _bash("get_feature_paths", cwd=cwd_proj, env=env)
     assert result.returncode == 0, result.stderr
@@ -170,13 +170,13 @@ def test_precedence_over_cwd_project(tmp_path: Path) -> None:
 
 @requires_bash
 def test_composes_with_feature_directory_override(tmp_path: Path) -> None:
-    """P5: SPECIFY_INIT_DIR (project axis) composes with SPECIFY_FEATURE_DIRECTORY
+    """P5: AGILE_INIT_DIR (project axis) composes with AGILE_FEATURE_DIRECTORY
     (feature axis); a relative feature dir normalizes under the *target* root."""
     web = _make_project(tmp_path, "web")
     env = {
         **_clean_env(),
-        "SPECIFY_INIT_DIR": str(web),
-        "SPECIFY_FEATURE_DIRECTORY": "specs/003-x",
+        "AGILE_INIT_DIR": str(web),
+        "AGILE_FEATURE_DIRECTORY": "specs/003-x",
     }
     result = _bash("get_feature_paths", cwd=tmp_path, env=env)
     assert result.returncode == 0, result.stderr
@@ -190,7 +190,7 @@ def test_composes_with_target_feature_json(tmp_path: Path) -> None:
     (web / ".agile" / "feature.json").write_text(
         '{"feature_directory": "specs/004-fj"}'
     )
-    env = {**_clean_env(), "SPECIFY_INIT_DIR": str(web)}
+    env = {**_clean_env(), "AGILE_INIT_DIR": str(web)}
     result = _bash("get_feature_paths", cwd=tmp_path, env=env)
     assert result.returncode == 0, result.stderr
     assert _feature_dir_line(result.stdout) == _bash_path(web / "specs" / "004-fj")
@@ -201,7 +201,7 @@ def test_composes_with_target_feature_json(tmp_path: Path) -> None:
 
 @requires_bash
 def test_unset_preserves_cwd_walk(tmp_path: Path) -> None:
-    """N1: with SPECIFY_INIT_DIR unset, resolution walks up from cwd as before."""
+    """N1: with AGILE_INIT_DIR unset, resolution walks up from cwd as before."""
     web = _make_project(tmp_path, "web")
     sub = web / "src" / "deep"
     sub.mkdir(parents=True)
@@ -212,7 +212,7 @@ def test_unset_preserves_cwd_walk(tmp_path: Path) -> None:
 
 @requires_bash
 def test_empty_string_treated_as_unset(tmp_path: Path) -> None:
-    """N2: an empty SPECIFY_INIT_DIR behaves as unset (not as ".").
+    """N2: an empty AGILE_INIT_DIR behaves as unset (not as ".").
 
     Run from a deep subdirectory so the two interpretations diverge:
     empty-as-unset walks up to the project root; empty-as-"." would resolve to
@@ -222,7 +222,7 @@ def test_empty_string_treated_as_unset(tmp_path: Path) -> None:
     web = _make_project(tmp_path, "web")
     sub = web / "src" / "deep"
     sub.mkdir(parents=True)
-    env = {**_clean_env(), "SPECIFY_INIT_DIR": ""}
+    env = {**_clean_env(), "AGILE_INIT_DIR": ""}
     result = _bash("get_repo_root", cwd=sub, env=env)
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == _bash_path(web)
@@ -230,18 +230,18 @@ def test_empty_string_treated_as_unset(tmp_path: Path) -> None:
 
 @requires_bash
 def test_invalid_init_dir_fails_feature_paths_chain(tmp_path: Path) -> None:
-    """N5: an invalid SPECIFY_INIT_DIR hard-fails the load-bearing call site
+    """N5: an invalid AGILE_INIT_DIR hard-fails the load-bearing call site
     (get_feature_paths), not just get_repo_root — this is what the decl/assign
     split guards against (a `local x=$(get_repo_root)` would mask the failure
-    and emit a FEATURE_DIR under the wrong root). SPECIFY_FEATURE_DIRECTORY is
+    and emit a FEATURE_DIR under the wrong root). AGILE_FEATURE_DIRECTORY is
     set so a feature dir *is* resolvable — only the propagation stops a
     wrong-root FEATURE_DIR, so a revert to the masked form fails this test."""
     web = _make_project(tmp_path, "web")  # valid project at cwd
     missing = tmp_path / "does_not_exist"
     env = {
         **_clean_env(),
-        "SPECIFY_INIT_DIR": str(missing),
-        "SPECIFY_FEATURE_DIRECTORY": "specs/001-x",
+        "AGILE_INIT_DIR": str(missing),
+        "AGILE_FEATURE_DIRECTORY": "specs/001-x",
     }
     result = _bash("get_feature_paths", cwd=web, env=env)
     assert result.returncode != 0
@@ -255,7 +255,7 @@ def test_nonexistent_path_errors_no_fallback(tmp_path: Path) -> None:
     proving there is no silent fallback to the cwd walk-up or git root."""
     web = _make_project(tmp_path, "web")  # valid project at cwd
     missing = tmp_path / "does_not_exist"
-    env = {**_clean_env(), "SPECIFY_INIT_DIR": str(missing)}
+    env = {**_clean_env(), "AGILE_INIT_DIR": str(missing)}
     result = _bash("get_repo_root", cwd=web, env=env)
     assert result.returncode != 0
     assert "does not point to an existing directory" in result.stderr
@@ -268,7 +268,7 @@ def test_path_without_specify_errors_no_fallback(tmp_path: Path) -> None:
     web = _make_project(tmp_path, "web")  # valid project at cwd
     nodot = tmp_path / "nodot"
     nodot.mkdir()
-    env = {**_clean_env(), "SPECIFY_INIT_DIR": str(nodot)}
+    env = {**_clean_env(), "AGILE_INIT_DIR": str(nodot)}
     result = _bash("get_repo_root", cwd=web, env=env)
     assert result.returncode != 0
     assert "not a Agile project" in result.stderr
@@ -282,7 +282,7 @@ def test_file_path_errors_no_fallback(tmp_path: Path) -> None:
     web = _make_project(tmp_path, "web")  # valid project at cwd
     a_file = tmp_path / "afile"
     a_file.write_text("x")
-    env = {**_clean_env(), "SPECIFY_INIT_DIR": str(a_file)}
+    env = {**_clean_env(), "AGILE_INIT_DIR": str(a_file)}
     result = _bash("get_repo_root", cwd=web, env=env)
     assert result.returncode != 0
     assert "does not point to an existing directory" in result.stderr
@@ -296,7 +296,7 @@ def _bash_git_create(
     args: list[str], cwd: Path, env: dict[str, str]
 ) -> subprocess.CompletedProcess:
     """Run the bundled git extension's create-new-feature-branch.sh (the real
-    /agile.agile before_specify entrypoint)."""
+    /agile.specify before_specify entrypoint)."""
     return subprocess.run(
         ["bash", str(GIT_CREATE_FEATURE_SH), *args],
         cwd=cwd,
@@ -317,7 +317,7 @@ def _json_line(stdout: str) -> dict | None:
 
 @requires_bash
 def test_git_ext_create_feature_numbers_from_target(tmp_path: Path) -> None:
-    """P8: the git extension's feature creation numbers from the SPECIFY_INIT_DIR
+    """P8: the git extension's feature creation numbers from the AGILE_INIT_DIR
     project, not the cwd project."""
     (tmp_path / "specs" / "008-cwd").mkdir(parents=True)  # cwd project's specs
     web = _make_project(tmp_path, "web")
@@ -325,7 +325,7 @@ def test_git_ext_create_feature_numbers_from_target(tmp_path: Path) -> None:
     (web / ".agile" / "templates" / "spec-template.md").write_text("# Spec: [FEATURE]\n")
     (web / "specs" / "005-existing").mkdir(parents=True)
 
-    env = {**_clean_env(), "SPECIFY_INIT_DIR": str(web)}
+    env = {**_clean_env(), "AGILE_INIT_DIR": str(web)}
     result = _bash_git_create(["--json", "next thing"], cwd=tmp_path, env=env)
     assert result.returncode == 0, result.stderr
     data = _json_line(result.stdout)
@@ -334,12 +334,12 @@ def test_git_ext_create_feature_numbers_from_target(tmp_path: Path) -> None:
 
 @requires_bash
 def test_git_ext_create_feature_invalid_init_dir_errors(tmp_path: Path) -> None:
-    """N7: the git extension hard-errors on an invalid SPECIFY_INIT_DIR with no
+    """N7: the git extension hard-errors on an invalid AGILE_INIT_DIR with no
     fallback to the cwd/git-toplevel project."""
     web = _make_project(tmp_path, "web")  # valid project at cwd
     (web / "specs" / "001-cwd").mkdir(parents=True)
     missing = tmp_path / "does_not_exist"
-    env = {**_clean_env(), "SPECIFY_INIT_DIR": str(missing)}
+    env = {**_clean_env(), "AGILE_INIT_DIR": str(missing)}
     result = _bash_git_create(["--json", "x"], cwd=web, env=env)
     assert result.returncode != 0
     assert "does not point to an existing directory" in result.stderr
@@ -353,7 +353,7 @@ def test_git_ext_create_feature_invalid_init_dir_errors(tmp_path: Path) -> None:
 @requires_pwsh
 def test_ps_valid_path_resolves_from_outside(tmp_path: Path) -> None:
     web = _make_project(tmp_path, "web")
-    env = {**_clean_env(), "SPECIFY_INIT_DIR": str(web)}
+    env = {**_clean_env(), "AGILE_INIT_DIR": str(web)}
     result = _ps("Get-RepoRoot", cwd=tmp_path, env=env)
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == str(web)
@@ -362,7 +362,7 @@ def test_ps_valid_path_resolves_from_outside(tmp_path: Path) -> None:
 @requires_pwsh
 def test_ps_relative_path_normalized_against_cwd(tmp_path: Path) -> None:
     web = _make_project(tmp_path, "web")
-    env = {**_clean_env(), "SPECIFY_INIT_DIR": "web"}
+    env = {**_clean_env(), "AGILE_INIT_DIR": "web"}
     result = _ps("Get-RepoRoot", cwd=tmp_path, env=env)
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == str(web)
@@ -371,7 +371,7 @@ def test_ps_relative_path_normalized_against_cwd(tmp_path: Path) -> None:
 @requires_pwsh
 def test_ps_trailing_slash_tolerated(tmp_path: Path) -> None:
     web = _make_project(tmp_path, "web")
-    env = {**_clean_env(), "SPECIFY_INIT_DIR": f"{web}/"}
+    env = {**_clean_env(), "AGILE_INIT_DIR": f"{web}/"}
     result = _ps("Get-RepoRoot", cwd=tmp_path, env=env)
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == str(web)
@@ -394,8 +394,8 @@ def test_ps_precedence_over_cwd_project(tmp_path: Path) -> None:
     web = _make_project(tmp_path, "web")
     env = {
         **_clean_env(),
-        "SPECIFY_INIT_DIR": str(web),
-        "SPECIFY_FEATURE_DIRECTORY": "specs/001-demo",
+        "AGILE_INIT_DIR": str(web),
+        "AGILE_FEATURE_DIRECTORY": "specs/001-demo",
     }
     result = _ps(
         '$r = Get-FeaturePathsEnv; Write-Output "FEATURE_DIR=$($r.FEATURE_DIR)"',
@@ -417,8 +417,8 @@ def test_ps_composes_with_feature_directory_override(tmp_path: Path) -> None:
     web = _make_project(tmp_path, "web")
     env = {
         **_clean_env(),
-        "SPECIFY_INIT_DIR": str(web),
-        "SPECIFY_FEATURE_DIRECTORY": "specs/003-x",
+        "AGILE_INIT_DIR": str(web),
+        "AGILE_FEATURE_DIRECTORY": "specs/003-x",
     }
     result = _ps(
         '$r = Get-FeaturePathsEnv; Write-Output "FEATURE_DIR=$($r.FEATURE_DIR)"',
@@ -437,7 +437,7 @@ def test_ps_empty_string_treated_as_unset(tmp_path: Path) -> None:
     web = _make_project(tmp_path, "web")
     sub = web / "src" / "deep"
     sub.mkdir(parents=True)
-    env = {**_clean_env(), "SPECIFY_INIT_DIR": ""}
+    env = {**_clean_env(), "AGILE_INIT_DIR": ""}
     result = _ps("Get-RepoRoot", cwd=sub, env=env)
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == str(web)
@@ -447,7 +447,7 @@ def test_ps_empty_string_treated_as_unset(tmp_path: Path) -> None:
 def test_ps_nonexistent_path_errors_no_fallback(tmp_path: Path) -> None:
     web = _make_project(tmp_path, "web")
     missing = tmp_path / "does_not_exist"
-    env = {**_clean_env(), "SPECIFY_INIT_DIR": str(missing)}
+    env = {**_clean_env(), "AGILE_INIT_DIR": str(missing)}
     result = _ps("Get-RepoRoot", cwd=web, env=env)
     assert result.returncode != 0
     assert "does not point to an existing directory" in result.stderr
@@ -458,7 +458,7 @@ def test_ps_path_without_specify_errors_no_fallback(tmp_path: Path) -> None:
     web = _make_project(tmp_path, "web")
     nodot = tmp_path / "nodot"
     nodot.mkdir()
-    env = {**_clean_env(), "SPECIFY_INIT_DIR": str(nodot)}
+    env = {**_clean_env(), "AGILE_INIT_DIR": str(nodot)}
     result = _ps("Get-RepoRoot", cwd=web, env=env)
     assert result.returncode != 0
     assert "not a Agile project" in result.stderr
@@ -471,7 +471,7 @@ def test_ps_file_path_errors_no_fallback(tmp_path: Path) -> None:
     web = _make_project(tmp_path, "web")
     a_file = tmp_path / "afile"
     a_file.write_text("x")
-    env = {**_clean_env(), "SPECIFY_INIT_DIR": str(a_file)}
+    env = {**_clean_env(), "AGILE_INIT_DIR": str(a_file)}
     result = _ps("Get-RepoRoot", cwd=web, env=env)
     assert result.returncode != 0
     assert "does not point to an existing directory" in result.stderr
@@ -532,7 +532,7 @@ def test_shipped_ps1_avoids_dotnet_core_only_path_members(member: str) -> None:
 
 @requires_windows_powershell
 def test_ps51_init_dir_resolves(tmp_path: Path) -> None:
-    """SPECIFY_INIT_DIR must resolve under Windows PowerShell 5.1 (issue #3749).
+    """AGILE_INIT_DIR must resolve under Windows PowerShell 5.1 (issue #3749).
 
     Before the fix, Resolve-SpecifyInitDir called the .NET Core-only
     [System.IO.Path]::TrimEndingDirectorySeparator, so every 5.1 invocation
@@ -540,7 +540,7 @@ def test_ps51_init_dir_resolves(tmp_path: Path) -> None:
     ran, and $initRoot stayed $null so the very next Join-Path threw too.
     """
     web = _make_project(tmp_path, "web")
-    env = {**_clean_env(), "SPECIFY_INIT_DIR": str(web)}
+    env = {**_clean_env(), "AGILE_INIT_DIR": str(web)}
     result = subprocess.run(
         [_WINDOWS_POWERSHELL, "-NoProfile", "-Command", f'. "{COMMON_PS}"; Get-RepoRoot'],
         cwd=tmp_path,
@@ -563,7 +563,7 @@ def test_ps51_init_dir_trailing_separator_trimmed(tmp_path: Path) -> None:
     """
     web = _make_project(tmp_path, "web")
     for suffix in ("/", "\\"):
-        env = {**_clean_env(), "SPECIFY_INIT_DIR": f"{web}{suffix}"}
+        env = {**_clean_env(), "AGILE_INIT_DIR": f"{web}{suffix}"}
         result = subprocess.run(
             [
                 _WINDOWS_POWERSHELL,
@@ -595,7 +595,7 @@ def test_ps_drive_root_reports_root_not_bare_drive(tmp_path: Path) -> None:
     root = Path(tmp_path.anchor or "/")
     if (root / ".agile").exists():
         pytest.skip("filesystem root is itself a Agile project")
-    env = {**_clean_env(), "SPECIFY_INIT_DIR": str(root)}
+    env = {**_clean_env(), "AGILE_INIT_DIR": str(root)}
     result = _ps("Get-RepoRoot", cwd=tmp_path, env=env)
     assert result.returncode != 0
     assert "not a Agile project" in result.stderr

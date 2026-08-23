@@ -4,7 +4,7 @@ extension:
   id: assess
   name: "Idea Assessment Pipeline"
   version: "1.0.0"
-  description: "Assess an idea before Spec-Driven Development via intake, research, define, shape, and decide. A go verdict hands off to /agile.agile; a kill closes it. Lives under .agile/assessments/<slug>/"
+  description: "Assess an idea before Spec-Driven Development via intake, research, define, shape, and decide. A go verdict hands off to /agile.specify; a kill closes it. Lives under .agile/assessments/<slug>/"
   category: "process"
   effect: "read-write"
   author: agile-core
@@ -30,7 +30,7 @@ provides:
       description: "Shape a concept: solution options, scope, appetite, and trade-offs (no implementation design)"
     - name: agile.assess.decide
       file: commands/agile.assess.decide.md
-      description: "Apply a go / needs-clarification / kill gate and hand survivors off to /agile.agile"
+      description: "Apply a go / needs-clarification / kill gate and hand survivors off to /agile.specify"
 
 tags:
   - "assessment"

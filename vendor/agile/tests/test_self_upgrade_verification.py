@@ -1,4 +1,4 @@
-"""Verification, resolution, and validation tests for `specify self upgrade`."""
+"""Verification, resolution, and validation tests for `agile self upgrade`."""
 
 import urllib.error
 from unittest.mock import patch
@@ -657,7 +657,7 @@ class TestTokenScrubbing:
         # subprocess needs is lost by stripping them.
         monkeypatch.setenv("GH_HOST", "github.example.com")
         monkeypatch.setenv("GH_CONFIG_DIR", "/home/u/.config/gh")
-        monkeypatch.setenv("GITHUB_REPOSITORY", "github/agile")
+        monkeypatch.setenv("GITHUB_REPOSITORY", "TheHalfMoon/wepld")
         monkeypatch.setenv("GITHUB_WORKSPACE", "/home/runner/work")
         monkeypatch.setenv("GITHUB_USER", "octocat")
 

@@ -49,16 +49,16 @@ def _write_feature_json(repo: Path, feature_directory: str) -> None:
 
 
 def _clean_env() -> dict[str, str]:
-    """Return a copy of the current environment with any SPECIFY_* vars removed.
+    """Return a copy of the current environment with any AGILE_* vars removed.
 
-    setup-plan.{sh,ps1} honors SPECIFY_FEATURE, SPECIFY_FEATURE_DIRECTORY, etc.,
+    setup-plan.{sh,ps1} honors AGILE_FEATURE, AGILE_FEATURE_DIRECTORY, etc.,
     which would otherwise leak from a developer shell or CI runner and make these
     tests flaky. Stripping them forces every case to rely purely on git branch +
     .agile/feature.json state set up by the fixture.
     """
     env = os.environ.copy()
     for key in list(env):
-        if key.startswith("SPECIFY_"):
+        if key.startswith("AGILE_"):
             env.pop(key)
     return env
 
@@ -112,7 +112,7 @@ def test_setup_plan_passes_custom_branch_when_feature_json_valid(plan_repo: Path
 
 @requires_bash
 def test_setup_plan_errors_without_feature_context(plan_repo: Path) -> None:
-    """Without feature.json or SPECIFY_FEATURE_DIRECTORY, setup-plan must error."""
+    """Without feature.json or AGILE_FEATURE_DIRECTORY, setup-plan must error."""
     script = plan_repo / ".agile" / "scripts" / "bash" / "setup-plan.sh"
     result = subprocess.run(
         ["bash", str(script)],

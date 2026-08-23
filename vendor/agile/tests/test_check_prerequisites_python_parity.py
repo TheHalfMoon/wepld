@@ -58,7 +58,7 @@ def _write_feature_json(
 def _clean_env() -> dict[str, str]:
     env = os.environ.copy()
     for key in list(env):
-        if key.startswith("SPECIFY_"):
+        if key.startswith("AGILE_"):
             env.pop(key)
     return env
 
@@ -397,7 +397,7 @@ def test_python_paths_only_does_not_persist_feature_json(prereq_repo: Path) -> N
     feature_json = prereq_repo / ".agile" / "feature.json"
     before = feature_json.read_text(encoding="utf-8")
     env = _clean_env()
-    env["SPECIFY_FEATURE_DIRECTORY"] = "specs/002-other"
+    env["AGILE_FEATURE_DIRECTORY"] = "specs/002-other"
 
     py = _run(_py_cmd(prereq_repo, "--json", "--paths-only"), prereq_repo, env=env)
 
@@ -413,7 +413,7 @@ def test_python_normal_mode_persists_feature_json(prereq_repo: Path) -> None:
     (feat / "plan.md").write_text("# plan\n", encoding="utf-8")
     _write_feature_json(prereq_repo, "specs/001-my-feature")
     env = _clean_env()
-    env["SPECIFY_FEATURE_DIRECTORY"] = "specs/002-other"
+    env["AGILE_FEATURE_DIRECTORY"] = "specs/002-other"
 
     py = _run(_py_cmd(prereq_repo, "--json"), prereq_repo, env=env)
 
@@ -441,7 +441,7 @@ def test_persisted_feature_json_is_lexical_when_specs_is_symlink(
     except OSError:
         pytest.skip("symlinks not supported on this platform")
     env = _clean_env()
-    env["SPECIFY_FEATURE_DIRECTORY"] = str(repo / "specs" / "002-other")
+    env["AGILE_FEATURE_DIRECTORY"] = str(repo / "specs" / "002-other")
     feature_json = repo / ".agile" / "feature.json"
 
     bash = _run(_bash_cmd(prereq_repo, "--json"), prereq_repo, env=env)

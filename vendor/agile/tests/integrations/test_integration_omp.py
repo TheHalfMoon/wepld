@@ -21,7 +21,7 @@ class TestOmpIntegration(MarkdownIntegrationTests):
         i = get_integration(self.KEY)
 
         args = i.build_exec_args(
-            "/agile.agile Build auth",
+            "/agile.specify Build auth",
             model="gpt-5",
         )
 
@@ -32,5 +32,5 @@ class TestOmpIntegration(MarkdownIntegrationTests):
             "gpt-5",
             "--mode",
             "json",
-            "/agile.agile Build auth",
+            "/agile.specify Build auth",
         ]

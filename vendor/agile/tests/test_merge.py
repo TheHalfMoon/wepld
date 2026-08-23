@@ -79,7 +79,7 @@ def test_merge_vscode_realistic_scenario(tmp_path):
 
     template_settings = {
         "chat.promptFilesRecommendations": {
-            "agile.agile": True,
+            "agile.specify": True,
             "agile.plan": True
         },
         "chat.tools.terminal.autoApprove": {
@@ -95,7 +95,7 @@ def test_merge_vscode_realistic_scenario(tmp_path):
     assert merged["chat.promptFilesRecommendations"]["existing.tool"] is True
 
     # Check additions
-    assert merged["chat.promptFilesRecommendations"]["agile.agile"] is True
+    assert merged["chat.promptFilesRecommendations"]["agile.specify"] is True
     assert merged["chat.tools.terminal.autoApprove"][".agile/scripts/bash/"] is True
 
 # --- Dimension 4: Error Handling & Robustness ---

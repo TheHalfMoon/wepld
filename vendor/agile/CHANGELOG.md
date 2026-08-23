@@ -427,7 +427,7 @@
 ### Changed
 
 - docs(concepts): document the spec-of-specs feature breakdown approach (#3648)
-- fix(scripts): git-ext PowerShell emits the '# To persist' SPECIFY_FEATURE hint (parity) (#3632)
+- fix(scripts): git-ext PowerShell emits the '# To persist' AGILE_FEATURE hint (parity) (#3632)
 - fix(integrations): validate cached catalog shape before returning it (#3627)
 - fix(bundler): reject non-list 'catalogs' in bundle-catalogs.yml with a clean error (#3623)
 - fix(bundler): guard lazy .hostname ValueError in catalog add_source (#3644)
@@ -736,7 +736,7 @@
 - fix: resolve GitHub release asset API URL for private repo bundle downloads (#3136)
 - [extension] Add Analytics extension to community catalog (#3296)
 - fix: interpolate multi-expression templates instead of returning None (#3208) (#3228)
-- feat(cli): honor SPECIFY_INIT_DIR in the agile CLI project resolver (#3186)
+- feat(cli): honor AGILE_INIT_DIR in the agile CLI project resolver (#3186)
 - fix(extensions): resolve core-command dirs via _assets helpers (#3274) (#3287)
 - fix: fall back to feature dir basename for empty CURRENT_BRANCH (#3026) (#3229)
 - feat(bug-fix): add label-driven bug-fix agentic workflow (#3258)
@@ -921,7 +921,7 @@
 - docs: strengthen agent disclosure to cover commits and per-round comments (#3071)
 - fix: isolate per-extension failures so one bad extension can't drop the rest (#2951)
 - fix(taskstoissues): skip tasks that already have a GitHub issue (#2992)
-- feat(scripts): add SPECIFY_INIT_DIR to target a member project from the repo root (#2892)
+- feat(scripts): add AGILE_INIT_DIR to target a member project from the repo root (#2892)
 - Update Multi-Model Review extension to v0.1.2 (#3066)
 - chore(deps): bump actions/checkout from 6.0.3 to 7.0.0 (#3064)
 - feat(claude): run /analyze in a forked subagent (#2511)
@@ -1083,7 +1083,7 @@
 - fix: render script command hints with active agent separator (#2649)
 - chore(tests): fix ruff lint violations in tests/ (#2827)
 - fix(workflows): validate run_id in RunState.load before touching the … (#2813)
-- feat(cli): implement specify self upgrade (#2475)
+- feat(cli): implement agile self upgrade (#2475)
 - feat(workflows): allow resume to accept updated workflow inputs (#2815)
 - catalog: rename "superpowers-bridge" to "superspec" (v1.0.1) (#2772)
 - fix(cli): force UTF-8 stdout/stderr on Windows to prevent UnicodeEncodeError (#2817)
@@ -1143,7 +1143,7 @@
 - fix: disable no-op issue reporting for catalog submission workflows (#2748)
 - Add confirmation prompt for URL-based extension installs (#2745)
 - fix: restrict community submission workflows to labeled event only (#2741)
-- feat(integrations): support SPECIFY_<KEY>_EXTRA_ARGS env var for agent subprocess flags (#2596)
+- feat(integrations): support AGILE_<KEY>_EXTRA_ARGS env var for agent subprocess flags (#2596)
 - chore: release 0.8.17, begin 0.8.18.dev0 development (#2737)
 
 ## [0.8.17] - 2026-05-28
@@ -1420,7 +1420,7 @@
 ### Changed
 
 - fix: resolve skill placeholders for all SKILL.md agents, not just codex/kimi (#2313)
-- feat(cli): add specify self check and self upgrade stub (#2316)
+- feat(cli): add agile self check and self upgrade stub (#2316)
 - Update version-guard to v1.1.0 (#2318)
 - docs: move community presets from README to docs/community (#2314)
 - catalog: add wireframe extension (v0.1.1) (#2262)
@@ -1576,7 +1576,7 @@
 - Add optimize extension to community catalog (#2088)
 - feat: add "VS Code Ask Questions" preset (#2086)
 - Add security-review v1.1.1 to community extensions catalog (#2073)
-- Add `specify integration` subcommand for post-init integration management (#2083)
+- Add `agile integration` subcommand for post-init integration management (#2083)
 - Remove template version info from CLI, fix Claude user-invocable, cleanup dead code (#2081)
 - fix: add user-invocable: true to skill frontmatter (#2077)
 - fix: add actions:write permission to stale workflow (#2079)
@@ -1934,7 +1934,7 @@
 
 ### Changed
 
-- Fixes #1586 - .agile.agile path error (#1588)
+- Fixes #1586 - .agile.specify path error (#1588)
 
 ## [0.0.91] - 2026-02-09
 
@@ -1973,7 +1973,7 @@
 ### Changed
 
 - Limit width and height to 200px to match the small logo
-- docs: Switch readme logo to logo_large.webp
+- docs: Switch readme logo to agile-logo-large.svg
 - fix:merge
 - fix
 - fix

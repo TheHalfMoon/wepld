@@ -629,7 +629,7 @@ See the [Extension Publishing Guide](EXTENSION-PUBLISHING-GUIDE.md) for detailed
 
 ### Compatibility
 
-- **Specify version range**: Don't require exact version
+- **agile version range**: Don't require exact version
 - **Test with multiple versions**: Ensure compatibility
 - **Graceful degradation**: Handle missing features
 

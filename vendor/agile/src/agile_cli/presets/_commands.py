@@ -1,4 +1,4 @@
-"""specify preset * command handlers — app objects and register() entry point.
+"""agile preset * command handlers — app objects and register() entry point.
 
 Moved out of __init__.py (PR-6/8). Handlers reference helpers that remain in
 the package root (`_require_specify_project`, `get_agile_version`,
@@ -56,7 +56,7 @@ def preset_list():
     if not installed:
         console.print("[yellow]No presets installed.[/yellow]")
         console.print("\nInstall a preset with:")
-        console.print("  [cyan]specify preset add <pack-name>[/cyan]")
+        console.print("  [cyan]agile preset add <pack-name>[/cyan]")
         return
 
     # Sort by actual resolution precedence: lower priority number wins, ties
@@ -545,7 +545,7 @@ def preset_info(
             f"  License:     {_escape_markup(str(pack_info['license']))}"
         )
     console.print("\n  [yellow]Status: not installed[/yellow]")
-    console.print(f"  Install with: [cyan]specify preset add {safe_preset_id}[/cyan]")
+    console.print(f"  Install with: [cyan]agile preset add {safe_preset_id}[/cyan]")
     console.print()
 
 
@@ -676,7 +676,7 @@ def preset_disable(
     console.print(f"[green]✓[/green] Preset '{preset_id}' disabled")
     console.print("\nTemplates from this preset will be skipped during resolution.")
     console.print("[dim]Note: Previously registered commands/skills remain active until preset removal.[/dim]")
-    console.print(f"To re-enable: specify preset enable {preset_id}")
+    console.print(f"To re-enable: agile preset enable {preset_id}")
 
 
 # ===== Preset Catalog Commands =====
@@ -794,7 +794,7 @@ def preset_catalog_add(
     for existing in catalogs:
         if isinstance(existing, dict) and existing.get("name") == name:
             console.print(f"[yellow]Warning:[/yellow] A catalog named '{safe_name}' already exists.")
-            console.print("Use 'specify preset catalog remove' first, or choose a different name.")
+            console.print("Use 'agile preset catalog remove' first, or choose a different name.")
             raise typer.Exit(1)
 
     catalogs.append({

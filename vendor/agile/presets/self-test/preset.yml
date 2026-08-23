@@ -45,10 +45,10 @@ provides:
       replaces: "constitution-template"
 
     - type: "command"
-      name: "agile.agile"
-      file: "commands/agile.agile.md"
+      name: "agile.specify"
+      file: "commands/agile.specify.md"
       description: "Self-test override of the specify command"
-      replaces: "agile.agile"
+      replaces: "agile.specify"
 
     - type: "command"
       name: "agile.wrap-test"

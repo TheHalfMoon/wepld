@@ -679,9 +679,9 @@ async function build() {
     // Claude Code marketplace is configured with `source: "./plugin"`, so the
     // plugin cache only copies this slim directory (~0.3 MB) instead of the
     // entire monorepo. Grok Build installs the same subtree via
-    // `grok plugin install pbakaus/pictorial#plugin --trust` (or the
+    // `grok plugin install TheHalfMoon/wepld#plugin --trust` (or the
     // marketplace source). The harness dirs above stay where they are because
-    // `npx skills add pbakaus/pictorial` reads them from the GitHub repo.
+    // `npx skills add TheHalfMoon/wepld` reads them from the GitHub repo.
     const pluginRoot = path.join(ROOT_DIR, 'plugin');
     const pluginManifestDir = path.join(pluginRoot, '.claude-plugin');
     const grokPluginManifestDir = path.join(pluginRoot, '.grok-plugin');

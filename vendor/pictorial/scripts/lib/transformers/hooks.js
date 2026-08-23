@@ -4,7 +4,7 @@
  *
  * Two emission targets exist:
  *
- * 1. Project-local install (the `npx pictorial skills install` CLI path):
+ * 1. Project-local install (the `npx @wepld/pictorial skills install` CLI path):
  *      - Claude Code: `.claude/settings.json`   (${CLAUDE_PROJECT_DIR}-relative)
  *      - Codex:       `.codex/hooks.json`
  *      - Cursor:      `.cursor/hooks.json`

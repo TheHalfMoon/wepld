@@ -35,19 +35,19 @@ catalogs:
 
 ```bash
 # List built-in integrations (default)
-specify integration list
+agile integration list
 
 # Browse full catalog (built-in + community)
-specify integration list --catalog
+agile integration list --catalog
 
 # Install an integration
-specify integration install copilot
+agile integration install copilot
 
 # Upgrade the current integration (diff-aware)
-specify integration upgrade
+agile integration upgrade
 
 # Upgrade with force (overwrite modified files)
-specify integration upgrade --force
+agile integration upgrade --force
 ```
 
 ## Integration Descriptor (`integration.yml`)
@@ -72,8 +72,8 @@ requires:
       required: true
 provides:
   commands:
-    - name: "agile.agile"
-      file: "templates/agile.agile.md"
+    - name: "agile.specify"
+      file: "templates/agile.specify.md"
     - name: "agile.plan"
       file: "templates/agile.plan.md"
   scripts:

@@ -532,9 +532,9 @@ async function showHelp() {
   const pad = (s, n) => s + ' '.repeat(Math.max(0, n - s.length));
 
   console.log('\n  Pictorial Skills & Commands\n');
-  console.log('  Install:  npx pictorial install');
-  console.log('  Link:     npx pictorial link --source=.pictorial');
-  console.log('  Update:   npx pictorial update');
+  console.log('  Install:  npx @wepld/pictorial install');
+  console.log('  Link:     npx @wepld/pictorial link --source=.pictorial');
+  console.log('  Update:   npx @wepld/pictorial update');
   console.log('  Docs:     https://github.com/TheHalfMoon/wepld/cheatsheet\n');
   console.log(`  ${pad('Command', 22)} Description`);
   console.log(`  ${'-'.repeat(22)} ${'-'.repeat(52)}`);
@@ -739,7 +739,7 @@ async function check() {
 
   if (!installed) {
     console.log('Pictorial is not installed in this project.');
-    console.log('Run `npx pictorial install` to install.');
+    console.log('Run `npx @wepld/pictorial install` to install.');
     process.exit(0);
   }
 
@@ -757,7 +757,7 @@ async function check() {
       console.log(`Skills are up to date${v ? ` (v${v})` : ''}.`);
     } else {
       console.log('Updates available.');
-      console.log('Run `npx pictorial update` to update.');
+      console.log('Run `npx @wepld/pictorial update` to update.');
     }
   } catch (e) {
     console.error(`Could not check for updates: ${e.message}`);
@@ -1338,7 +1338,7 @@ function reportProviderAgents(results) {
     console.log(`Installed ${providerDisplayName(result.provider)} agents into: ${formatPathForDisplay(result.destDir)}`);
     if (result.shadowed.length > 0) {
       console.warn(`Warning: user-level agents in ${formatPathForDisplay(result.userDir)} shadow the project copies just installed: ${result.shadowed.join(', ')}.`);
-      console.warn('Run `npx pictorial update --user` to refresh them, or remove them so the project agents apply.');
+      console.warn('Run `npx @wepld/pictorial update --user` to refresh them, or remove them so the project agents apply.');
     }
   }
 }
@@ -1928,7 +1928,7 @@ async function install(flags) {
     try {
       if (linkedTargets.length > 0) {
         console.log(`Linked skills found in: ${linkedTargets.join(', ')}`);
-        console.log('Update the source checkout with `git submodule update --remote`, then rerun `npx pictorial link --source=.pictorial` if new skills are added.');
+        console.log('Update the source checkout with `git submodule update --remote`, then rerun `npx @wepld/pictorial link --source=.pictorial` if new skills are added.');
         if (copyTargets.length > 0) console.log(`Continuing with copied installs in: ${copyTargets.join(', ')}\n`);
       }
 
@@ -2211,7 +2211,7 @@ async function update(flags = []) {
     } else {
       console.log('No pictorial skill folders found in this project or at the user level.');
     }
-    console.log('Run `npx pictorial install` to install first.');
+    console.log('Run `npx @wepld/pictorial install` to install first.');
     process.exit(1);
   }
 
@@ -2242,7 +2242,7 @@ async function update(flags = []) {
 
   if (linkedProviders.length > 0) {
     console.log(`Linked skills found in: ${linkedProviders.join(', ')}`);
-    console.log('Update the source checkout with `git submodule update --remote`, then rerun `npx pictorial link --source=.pictorial` if new skills are added.');
+    console.log('Update the source checkout with `git submodule update --remote`, then rerun `npx @wepld/pictorial link --source=.pictorial` if new skills are added.');
     if (copyProviders.length === 0) process.exit(0);
     console.log(`Continuing with copied installs in: ${copyProviders.join(', ')}\n`);
   }

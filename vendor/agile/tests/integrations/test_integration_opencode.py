@@ -19,7 +19,7 @@ class TestOpencodeIntegration(MarkdownIntegrationTests):
         integration = get_integration(self.KEY)
 
         args = integration.build_exec_args(
-            "/agile.agile build a login page",
+            "/agile.specify build a login page",
             output_json=False,
         )
 
@@ -27,7 +27,7 @@ class TestOpencodeIntegration(MarkdownIntegrationTests):
             "opencode",
             "run",
             "--command",
-            "agile.agile",
+            "agile.specify",
             "build a login page",
         ]
         assert "-p" not in args
@@ -70,7 +70,7 @@ class TestOpencodeIntegration(MarkdownIntegrationTests):
         # Seed a legacy project with only .opencode/command/
         legacy_dir = tmp_path / ".opencode" / "command"
         legacy_dir.mkdir(parents=True)
-        (legacy_dir / "agile.agile.md").write_text("# existing", encoding="utf-8")
+        (legacy_dir / "agile.specify.md").write_text("# existing", encoding="utf-8")
 
         # Create a source command file for the registrar
         src_dir = tmp_path / "_ext_src"
@@ -101,7 +101,7 @@ class TestOpencodeIntegration(MarkdownIntegrationTests):
         assert len(opencode_warnings) == 1, (
             f"Expected exactly 1 legacy-dir warning, got {len(opencode_warnings)}"
         )
-        assert "specify integration upgrade" in str(opencode_warnings[0].message)
+        assert "agile integration upgrade" in str(opencode_warnings[0].message)
 
     def test_legacy_dir_unregister(self, tmp_path):
         """Unregister finds commands in legacy .opencode/command/ dir."""
@@ -157,7 +157,7 @@ class TestOpencodeIntegration(MarkdownIntegrationTests):
         legacy_dir.mkdir(parents=True)
         canonical_dir = tmp_path / ".opencode" / "commands"
         canonical_dir.mkdir(parents=True)
-        (canonical_dir / "agile.agile.md").write_text("# cmd", encoding="utf-8")
+        (canonical_dir / "agile.specify.md").write_text("# cmd", encoding="utf-8")
 
         # Create a source command file for the registrar
         src_dir = tmp_path / "_ext_src"

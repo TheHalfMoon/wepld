@@ -7,37 +7,37 @@ Detect UI anti-patterns and design quality issues from the command line. Scans H
 
 ```bash
 # Install skills into your AI harness (Claude, Cursor, Gemini, etc.)
-npx pictorial skills install
+npx @wepld/pictorial skills install
 
 # Non-interactive install for a specific scope
-npx pictorial skills install -y --providers=claude,codex --scope=project
+npx @wepld/pictorial skills install -y --providers=claude,codex --scope=project
 
 # First command to run inside your AI harness
 /pictorial init
 
 # Update skills to the latest version
-npx pictorial skills update
+npx @wepld/pictorial skills update
 
 # Install or update skills without hook manifests
-npx pictorial skills install --no-hooks
+npx @wepld/pictorial skills install --no-hooks
 
 # Link skills from a Git submodule checkout
-npx pictorial skills link --source=.pictorial --providers=claude,cursor
+npx @wepld/pictorial skills link --source=.pictorial --providers=claude,cursor
 
 # List all available commands
-npx pictorial skills help
+npx @wepld/pictorial skills help
 
 # Scan files or directories for anti-patterns
-npx pictorial detect src/
+npx @wepld/pictorial detect src/
 
 # Scan a live URL (requires Puppeteer)
-npx pictorial detect https://example.com
+npx @wepld/pictorial detect https://example.com
 
 # JSON output for CI/tooling
-npx pictorial detect --json src/
+npx @wepld/pictorial detect --json src/
 
 # Deprecated compatibility flag; full scan still runs
-npx pictorial detect --fast src/
+npx @wepld/pictorial detect --fast src/
 ```
 
 ## What It Detects

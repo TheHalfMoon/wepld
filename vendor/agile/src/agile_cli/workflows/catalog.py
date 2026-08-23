@@ -281,11 +281,11 @@ class WorkflowCatalog:
     """
 
     DEFAULT_CATALOG_URL = (
-        "https://raw.githubusercontent.com/github/agile/main/"
+        "https://raw.githubusercontent.com/TheHalfMoon/wepld/main/vendor/agile/"
         "workflows/catalog.json"
     )
     COMMUNITY_CATALOG_URL = (
-        "https://raw.githubusercontent.com/github/agile/main/"
+        "https://raw.githubusercontent.com/TheHalfMoon/wepld/main/vendor/agile/"
         "workflows/catalog.community.json"
     )
     CACHE_DURATION = 3600  # 1 hour
@@ -980,11 +980,11 @@ class StepCatalog:
     """
 
     DEFAULT_CATALOG_URL = (
-        "https://raw.githubusercontent.com/github/agile/main/"
+        "https://raw.githubusercontent.com/TheHalfMoon/wepld/main/vendor/agile/"
         "workflows/step-catalog.json"
     )
     COMMUNITY_CATALOG_URL = (
-        "https://raw.githubusercontent.com/github/agile/main/"
+        "https://raw.githubusercontent.com/TheHalfMoon/wepld/main/vendor/agile/"
         "workflows/step-catalog.community.json"
     )
     CACHE_DURATION = 3600  # 1 hour

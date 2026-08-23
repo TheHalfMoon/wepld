@@ -218,7 +218,7 @@ def test_find_project_root_ignores_symlinked_specify(tmp_path: Path):
 
 
 def test_find_project_root_override_errors_on_symlinked_specify(tmp_path: Path, monkeypatch):
-    """The SPECIFY_INIT_DIR override path refuses a symlinked .agile too,
+    """The AGILE_INIT_DIR override path refuses a symlinked .agile too,
     matching the cwd loop path (regression: the override returned early and
     skipped the symlink guard)."""
     from agile_cli.bundler.lib.project import find_project_root
@@ -231,6 +231,6 @@ def test_find_project_root_override_errors_on_symlinked_specify(tmp_path: Path, 
         (project / ".agile").symlink_to(real, target_is_directory=True)
     except (OSError, NotImplementedError):
         pytest.skip("symlinks not supported on this platform")
-    monkeypatch.setenv("SPECIFY_INIT_DIR", str(project))
+    monkeypatch.setenv("AGILE_INIT_DIR", str(project))
     with pytest.raises(BundlerError, match="symlinked \\.agile"):
         find_project_root(None)

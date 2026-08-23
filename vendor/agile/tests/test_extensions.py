@@ -3615,7 +3615,7 @@ Real body starts here.
 
         registrar = CommandRegistrar()
         registrar.unregister_commands(
-            {"codex": ["agile.agile", "agile.shortcut"]},
+            {"codex": ["agile.specify", "agile.shortcut"]},
             project_dir,
         )
 

@@ -3663,9 +3663,9 @@ class ExtensionCatalog(CatalogStackBase):
     """Manages extension catalog fetching, caching, and searching."""
 
     DEFAULT_CATALOG_URL = (
-        "https://raw.githubusercontent.com/github/agile/main/extensions/catalog.json"
+        "https://raw.githubusercontent.com/TheHalfMoon/wepld/main/vendor/agile/extensions/catalog.json"
     )
-    COMMUNITY_CATALOG_URL = "https://raw.githubusercontent.com/github/agile/main/extensions/catalog.community.json"
+    COMMUNITY_CATALOG_URL = "https://raw.githubusercontent.com/TheHalfMoon/wepld/main/vendor/agile/extensions/catalog.community.json"
     CACHE_DURATION = 3600  # 1 hour in seconds
     CONFIG_FILENAME = "extension-catalogs.yml"
     ENTRY_CLASS = CatalogEntry

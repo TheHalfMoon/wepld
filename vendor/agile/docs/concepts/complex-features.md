@@ -1,6 +1,6 @@
 # Handling Complex Features
 
-Large or complex features often run smoothly through `/agile.agile`,
+Large or complex features often run smoothly through `/agile.specify`,
 `/agile.plan`, and `/agile.tasks`, then degrade during implementation. In
 the middle of a long `/agile.implement` run, agents can start to lose track of
 the plan, ignore tasks, or hallucinate — usually right before or after context

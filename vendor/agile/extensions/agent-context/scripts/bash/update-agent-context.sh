@@ -324,7 +324,7 @@ def _resolved_rel(p):
         return None
 
 # Recurse (rather than the old one-level specs/*/plan.md glob) so scoped layouts
-# created via SPECIFY_FEATURE_DIRECTORY, e.g. specs/<scope>/<feature>/plan.md,
+# created via AGILE_FEATURE_DIRECTORY, e.g. specs/<scope>/<feature>/plan.md,
 # are still discovered when feature.json is absent (#3024).
 candidates = []
 for p in specs.rglob("plan.md"):

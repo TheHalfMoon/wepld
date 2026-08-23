@@ -187,7 +187,7 @@ def _resolve_plan_path(project_root: str) -> str:
                 return None
 
         # Recurse (rather than the old one-level specs/*/plan.md glob) so scoped
-        # layouts created via SPECIFY_FEATURE_DIRECTORY, e.g.
+        # layouts created via AGILE_FEATURE_DIRECTORY, e.g.
         # specs/<scope>/<feature>/plan.md, are still discovered when
         # feature.json is absent (#3024). Mirrors the bash and PowerShell twins.
         candidates = []

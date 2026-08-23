@@ -34,7 +34,7 @@ scripts:
 - `[x]` does NOT mean implementation work is complete.
 - This command generates or appends checklist items; it MUST NOT mark generated items `[x]`.
 - An agent may assist with evaluating items only when explicitly asked by the reviewer.
-- `checklists/requirements.md` is a separate built-in spec-quality checklist maintained by `__AGILE_COMMAND_SPECIFY__` and `__AGILE_COMMAND_CLARIFY__`; do not treat that exception as applying to custom checklists generated here.
+- `checklists/requirements.md` is a separate built-in spec-quality checklist maintained by `__AGILE_COMMAND_AGILE__` and `__AGILE_COMMAND_CLARIFY__`; do not treat that exception as applying to custom checklists generated here.
 
 ## User Input
 

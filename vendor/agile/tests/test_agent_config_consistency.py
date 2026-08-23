@@ -362,7 +362,7 @@ class TestAgentConfigConsistency:
 
         Regression guard: before the fix, _build_agent_configs() did not
         propagate invoke_separator from the integration class, so
-        register_commands() fell back to '.' and emitted /agile.agile instead
+        register_commands() fell back to '.' and emitted /agile.specify instead
         of /agile-specify for skills agents.
         """
         import re
@@ -376,10 +376,10 @@ class TestAgentConfigConsistency:
         assert cmd_source.exists(), (
             f"Git extension command source not found at {cmd_source}"
         )
-        assert "__AGILE_COMMAND_SPECIFY__" in cmd_source.read_text(
+        assert "__AGILE_COMMAND_AGILE__" in cmd_source.read_text(
             encoding="utf-8"
         ), (
-            "Expected __AGILE_COMMAND_SPECIFY__ token in agile.git.feature.md; "
+            "Expected __AGILE_COMMAND_AGILE__ token in agile.git.feature.md; "
             "check that the file uses the token rather than a hard-coded ref."
         )
 
@@ -406,7 +406,7 @@ class TestAgentConfigConsistency:
         content = skill_file.read_text(encoding="utf-8")
         assert "/agile-specify" in content, (
             "Expected '/agile-specify' (hyphen) in generated Claude skill for git.feature; "
-            "__AGILE_COMMAND_SPECIFY__ was not resolved with the correct separator."
+            "__AGILE_COMMAND_AGILE__ was not resolved with the correct separator."
         )
         # Negative lookbehind (?<![a-zA-Z0-9_]) excludes file-path occurrences
         # such as 'source: git:commands/agile.git.feature.md' in frontmatter,

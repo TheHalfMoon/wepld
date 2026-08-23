@@ -73,7 +73,7 @@ inputs:
 
 steps:
   - id: specify
-    command: agile.agile
+    command: agile.specify
     input:
       args: "{{ inputs.spec }}"
 
@@ -163,7 +163,7 @@ Edit `workflows/catalog.community.json` and add your workflow.
 {
   "schema_version": "1.0",
   "updated_at": "2026-04-10T00:00:00Z",
-  "catalog_url": "https://raw.githubusercontent.com/github/agile/main/workflows/catalog.community.json",
+  "catalog_url": "https://raw.githubusercontent.com/TheHalfMoon/wepld/main/vendor/agile/workflows/catalog.community.json",
   "workflows": {
     "your-workflow": {
       "id": "your-workflow",

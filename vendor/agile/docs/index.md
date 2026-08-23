@@ -1,8 +1,8 @@
 <div class="landing-hero">
 
-<img class="landing-hero-logo" src="images/agile-logo.webp" alt="" width="120" height="120">
+<img class="landing-hero-logo" src="images/agile-logo.svg" alt="" width="120" height="120">
 
-# GitHub Agile
+# Agile
 
 **Spec-Driven Development or your own process — step by step or as an automated workflow.**
 

@@ -3,7 +3,7 @@ description: Create or update the project constitution, then propagate the amend
 strategy: wrap
 handoffs:
   - label: Build Specification
-    agent: agile.agile
+    agent: agile.specify
     prompt: Implement the feature specification based on the updated constitution. I want to build...
 ---
 
@@ -39,7 +39,7 @@ so the dependent artifacts reflect the amended principles:
    is required. **Only hand-edit a command file if it is a project-local file not managed by a
    preset or extension.** Command files that are composed from the resolution stack (anything
    provided or wrapped by a preset/extension) must be regenerated through the stack — do **not**
-   edit them in place, because reconciliation (`specify integration use`, `specify integration
+   edit them in place, because reconciliation (`agile integration use`, `agile integration
    upgrade`, or any preset/extension install/remove) will clobber the edits.
 5. Read any runtime guidance docs (e.g., `README.md`, `docs/quickstart.md`, or agent-specific
    guidance files if present) and update references to principles that changed.

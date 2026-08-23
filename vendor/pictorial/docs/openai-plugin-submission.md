@@ -37,28 +37,28 @@ Use the verified Renaissance Geek Inc business identity. The generated manifest 
 - User prompt: `audit demos/landing-demo/index.html for accessibility, responsive behavior, and performance problems.`
 - Expected behavior: Invoke Pictorial, load the audit and brand references, inspect the existing HTML, CSS, PRODUCT.md, and DESIGN.md, then run the bundled detector where applicable.
 - Expected result: A prioritized audit with evidence, affected selectors or files, severity, and concrete fixes. Do not change files unless the user also asks for fixes.
-- Fixture data: The public `demos/landing-demo/` folder in `pbakaus/pictorial`.
+- Fixture data: The public `demos/landing-demo/` folder in `TheHalfMoon/wepld`.
 
 ### 2. Final polish pass
 
 - User prompt: `polish demos/landing-demo/index.html and fix the rough edges without changing the brand.`
 - Expected behavior: Invoke Pictorial, load the polish and brand references, preserve the existing design tokens, inspect the page in a browser when available, and make scoped edits.
 - Expected result: Updated frontend files plus a concise summary of visual, responsive, and accessibility improvements and the validation performed.
-- Fixture data: The public `demos/landing-demo/` folder in `pbakaus/pictorial`.
+- Fixture data: The public `demos/landing-demo/` folder in `TheHalfMoon/wepld`.
 
 ### 3. Layout correction
 
 - User prompt: `The landing page spacing and hierarchy feel flat. Fix the layout.`
 - Expected behavior: Route to the layout workflow, inspect the existing design system, identify the marketing register, and adjust spacing, rhythm, alignment, and hierarchy without replacing unrelated styles.
 - Expected result: Scoped HTML or CSS changes that preserve content and brand, followed by responsive verification.
-- Fixture data: The public `demos/landing-demo/` folder in `pbakaus/pictorial`.
+- Fixture data: The public `demos/landing-demo/` folder in `TheHalfMoon/wepld`.
 
 ### 4. Bolder visual direction
 
 - User prompt: `make this landing page bolder, but keep it recognizable and avoid familiar AI design patterns.`
 - Expected behavior: Route to the bolder workflow, inspect PRODUCT.md and DESIGN.md, keep the established identity, and strengthen the composition, typography, color commitment, and motion where useful.
 - Expected result: Production-ready frontend changes with reduced-motion handling and a short explanation of the chosen direction.
-- Fixture data: The public `demos/landing-demo/` folder in `pbakaus/pictorial`.
+- Fixture data: The public `demos/landing-demo/` folder in `TheHalfMoon/wepld`.
 
 ### 5. UX copy clarification
 

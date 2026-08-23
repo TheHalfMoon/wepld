@@ -1326,7 +1326,7 @@ def workflow_run(
 
     if is_file_source:
         # When running a YAML file directly, use cwd as project root without
-        # requiring a .agile/ project directory — unless SPECIFY_INIT_DIR
+        # requiring a .agile/ project directory — unless AGILE_INIT_DIR
         # explicitly names a project, in which case the strict override applies.
         override = _resolve_init_dir_override()
         project_root = override if override is not None else Path.cwd()

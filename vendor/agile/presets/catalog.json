@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "updated_at": "2026-08-04T00:00:00Z",
-  "catalog_url": "https://raw.githubusercontent.com/github/agile/main/presets/catalog.json",
+  "catalog_url": "https://raw.githubusercontent.com/TheHalfMoon/wepld/main/vendor/agile/presets/catalog.json",
   "presets": {
     "lean": {
       "name": "Lean Workflow",

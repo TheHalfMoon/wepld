@@ -588,7 +588,7 @@ def test_goose_extra_args_precede_canonical_flags(monkeypatch):
     from agile_cli.integrations.goose import GooseIntegration
 
     monkeypatch.setenv("AGILE_INTEGRATION_GOOSE_EXTRA_ARGS", "--debug")
-    args = GooseIntegration().build_exec_args("/agile.agile", model="gpt-4o")
+    args = GooseIntegration().build_exec_args("/agile.specify", model="gpt-4o")
     assert args[:3] == ["goose", "run", "--debug"]
     assert args.index("--debug") < args.index("--model")
     assert args.index("--debug") < args.index("--output-format")

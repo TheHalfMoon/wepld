@@ -1953,7 +1953,7 @@ rounded:
   });
 
   it('honors an inline pictorial-disable comment so the hook scans the file clean', async () => {
-    // The hook runs the same engine as `npx pictorial detect`, so an in-file
+    // The hook runs the same engine as `npx @wepld/pictorial detect`, so an in-file
     // waiver suppresses hook findings exactly like a config ignore would.
     // overused-font is deferred-tier; use the perEditRules override so the
     // per-edit pass surfaces it here.

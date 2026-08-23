@@ -324,7 +324,7 @@ def test_python_mtime_fallback_finds_nested_plan_matching_bash(
     """The mtime fallback must recurse into scoped layouts.
 
     A plan created under specs/<scope>/<feature>/plan.md (as produced via
-    SPECIFY_FEATURE_DIRECTORY) is more than one level below specs/. The old
+    AGILE_FEATURE_DIRECTORY) is more than one level below specs/. The old
     Python port used a one-level specs/*/plan.md glob and missed it, while the
     bash/PowerShell twins recurse (#3024). This locks in the parity.
     """

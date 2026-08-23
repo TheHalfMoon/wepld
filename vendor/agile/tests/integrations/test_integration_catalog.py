@@ -613,7 +613,7 @@ VALID_DESCRIPTOR = {
     },
     "provides": {
         "commands": [
-            {"name": "agile.agile", "file": "templates/agile.agile.md"},
+            {"name": "agile.specify", "file": "templates/agile.specify.md"},
         ],
         "scripts": [],
     },
@@ -767,7 +767,7 @@ class TestIntegrationDescriptor:
 
 
 class TestIntegrationListCatalog:
-    """Test ``specify integration list --catalog``."""
+    """Test ``agile integration list --catalog``."""
 
     def _init_project(self, tmp_path):
         """Create a minimal agile project."""
@@ -910,7 +910,7 @@ class TestIntegrationListCatalog:
 
 
 class TestIntegrationUpgrade:
-    """Test ``specify integration upgrade``."""
+    """Test ``agile integration upgrade``."""
 
     def _init_project(self, tmp_path, integration="copilot"):
         from typer.testing import CliRunner
@@ -1266,7 +1266,7 @@ class TestCatalogSourceManagement:
     ):
         # ``priority: .inf`` loads as float('inf'); int() on it raises
         # OverflowError, which used to escape the IntegrationValidationError
-        # contract as a raw traceback (github/agile#3526 fixed the sibling
+        # contract as a raw traceback (TheHalfMoon/wepld#3526 fixed the sibling
         # workflow/step loaders the same way).
         self._isolate(tmp_path, monkeypatch)
         cfg_path = tmp_path / ".agile" / "integration-catalogs.yml"

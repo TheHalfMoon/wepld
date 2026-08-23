@@ -3,6 +3,83 @@
   "donor_workflow_execution": "NONE",
   "generated": "2026-08-23",
   "method": "static lexical inventory only; no donor code executed and no dependencies installed",
+  "rebrand_repair": {
+    "host_visual_renderer": "Python 3 stdlib only; no repository/runtime dependency",
+    "method": "deterministic second-stage static repair; WePLD-owned visuals rendered locally; no donor code executed",
+    "negative_fixture_gate": "PASS",
+    "strict_product_branding_gate": "PASS",
+    "visual_replacements": {
+      "Agile": [
+        {
+          "upstream_path": "docs/images/spec-kit-logo.webp",
+          "wepld_object_sha": "c02e1eb774b1673ad7b79522348d9c0872a34970",
+          "wepld_path": "vendor/agile/docs/images/agile-logo.svg"
+        },
+        {
+          "upstream_path": "media/bootstrap-claude-code.gif",
+          "wepld_object_sha": "d12c46b2d971a36a2c3fa9fe6e20418fe2f6a636",
+          "wepld_path": "vendor/agile/media/agile-bootstrap.svg"
+        },
+        {
+          "upstream_path": "media/logo_large.webp",
+          "wepld_object_sha": "c02e1eb774b1673ad7b79522348d9c0872a34970",
+          "wepld_path": "vendor/agile/media/agile-logo-large.svg"
+        },
+        {
+          "upstream_path": "media/logo_small.webp",
+          "wepld_object_sha": "f7387a02cb8e23465319a0d1986421bc349cb503",
+          "wepld_path": "vendor/agile/media/agile-logo-small.svg"
+        },
+        {
+          "upstream_path": "media/spec-kit-video-header.jpg",
+          "wepld_object_sha": "f3c9e7fa23977fe7c8b162f8bfbe8bd58fd81e61",
+          "wepld_path": "vendor/agile/media/agile-video-header.svg"
+        },
+        {
+          "upstream_path": "media/specify_cli.gif",
+          "wepld_object_sha": "f3c9e7fa23977fe7c8b162f8bfbe8bd58fd81e61",
+          "wepld_path": "vendor/agile/media/agile-cli.svg"
+        }
+      ],
+      "Pictorial": [
+        {
+          "upstream_path": "extension/icons/icon-128.png",
+          "wepld_object_sha": "4757515bb2c29d64f526fda5f9242bf18b9512a6",
+          "wepld_path": "vendor/pictorial/extension/icons/icon-128.png"
+        },
+        {
+          "upstream_path": "extension/icons/icon-16.png",
+          "wepld_object_sha": "9f8ab9629b556c2cffe5bc9a43e2ee7aa127091b",
+          "wepld_path": "vendor/pictorial/extension/icons/icon-16.png"
+        },
+        {
+          "upstream_path": "extension/icons/icon-32.png",
+          "wepld_object_sha": "825af7b31c80409a4db77adf788f2582bd325cdd",
+          "wepld_path": "vendor/pictorial/extension/icons/icon-32.png"
+        },
+        {
+          "upstream_path": "extension/icons/icon-48.png",
+          "wepld_object_sha": "6d17e3e00a32037cf3cbe70ded5c2751fbdf9d01",
+          "wepld_path": "vendor/pictorial/extension/icons/icon-48.png"
+        },
+        {
+          "upstream_path": "extension/icons/icon.svg",
+          "wepld_object_sha": "1c608a41f54177e6c307826a6580fe6cba93bd3c",
+          "wepld_path": "vendor/pictorial/extension/icons/icon.svg"
+        },
+        {
+          "upstream_path": "extension/icons/promo-small.png",
+          "wepld_object_sha": "706758d41033b215b9663cb74f2080a1adabed7a",
+          "wepld_path": "vendor/pictorial/extension/icons/promo-small.png"
+        },
+        {
+          "upstream_path": "scripts/lib/assets/plugin-icon.png",
+          "wepld_object_sha": "3c2c55a936be22b3abbd383ab8c334a20f9d1c42",
+          "wepld_path": "vendor/pictorial/scripts/lib/assets/plugin-icon.png"
+        }
+      ]
+    }
+  },
   "surfaces": {
     "Agile": {
       "browser_marker": [

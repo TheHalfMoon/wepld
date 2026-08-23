@@ -61,12 +61,12 @@ def _persistence_assignments(
         quoted_branch = "'" + branch_name.replace("'", "''") + "'"
         quoted_dir = "'" + feature_dir.replace("'", "''") + "'"
         return (
-            f"$env:SPECIFY_FEATURE = {quoted_branch}",
-            f"$env:SPECIFY_FEATURE_DIRECTORY = {quoted_dir}",
+            f"$env:AGILE_FEATURE = {quoted_branch}",
+            f"$env:AGILE_FEATURE_DIRECTORY = {quoted_dir}",
         )
     return (
-        f"export SPECIFY_FEATURE={shlex.quote(branch_name)}",
-        f"export SPECIFY_FEATURE_DIRECTORY={shlex.quote(feature_dir)}",
+        f"export AGILE_FEATURE={shlex.quote(branch_name)}",
+        f"export AGILE_FEATURE_DIRECTORY={shlex.quote(feature_dir)}",
     )
 
 

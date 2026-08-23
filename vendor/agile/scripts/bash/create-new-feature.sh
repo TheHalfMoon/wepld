@@ -370,8 +370,8 @@ if [ "$DRY_RUN" != true ]; then
     _persist_feature_json "$REPO_ROOT" "$FEATURE_DIR"
 
     # Inform the user how to set feature state in their own shell
-    printf '# To persist: export SPECIFY_FEATURE=%s\n' "$(shell_quote "$BRANCH_NAME")" >&2
-    printf '#              export SPECIFY_FEATURE_DIRECTORY=%s\n' "$(shell_quote "$FEATURE_DIR")" >&2
+    printf '# To persist: export AGILE_FEATURE=%s\n' "$(shell_quote "$BRANCH_NAME")" >&2
+    printf '#              export AGILE_FEATURE_DIRECTORY=%s\n' "$(shell_quote "$FEATURE_DIR")" >&2
 fi
 
 if $JSON_MODE; then
@@ -401,7 +401,7 @@ else
     echo "SPEC_FILE: $SPEC_FILE"
     echo "FEATURE_NUM: $FEATURE_NUM"
     if [ "$DRY_RUN" != true ]; then
-        printf '# To persist in your shell: export SPECIFY_FEATURE=%s\n' "$(shell_quote "$BRANCH_NAME")"
-        printf '#                           export SPECIFY_FEATURE_DIRECTORY=%s\n' "$(shell_quote "$FEATURE_DIR")"
+        printf '# To persist in your shell: export AGILE_FEATURE=%s\n' "$(shell_quote "$BRANCH_NAME")"
+        printf '#                           export AGILE_FEATURE_DIRECTORY=%s\n' "$(shell_quote "$FEATURE_DIR")"
     fi
 fi

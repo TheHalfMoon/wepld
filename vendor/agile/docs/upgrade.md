@@ -8,11 +8,11 @@
 
 | What to Upgrade | Command | When to Use |
 |----------------|---------|-------------|
-| **CLI Tool (recommended)** | `specify self upgrade` | Latest stable release, in place. Auto-detects whether you installed via `uv tool` or `pipx`. |
-| **CLI Tool — pin a version** | `specify self upgrade --tag vX.Y.Z[suffix]` | Upgrade to a specific release tag instead of the latest stable. Suffixes are limited to dev, alpha/beta/rc, and/or build metadata forms. |
-| **CLI Tool — manual fallback** | `uv tool install wepld-agile --force --from git+https://github.com/TheHalfMoon/wepld.git@vX.Y.Z` | When `specify self upgrade` isn't available (older installs) or when you want explicit control. |
+| **CLI Tool (recommended)** | `agile self upgrade` | Latest stable release, in place. Auto-detects whether you installed via `uv tool` or `pipx`. |
+| **CLI Tool — pin a version** | `agile self upgrade --tag vX.Y.Z[suffix]` | Upgrade to a specific release tag instead of the latest stable. Suffixes are limited to dev, alpha/beta/rc, and/or build metadata forms. |
+| **CLI Tool — manual fallback** | `uv tool install wepld-agile --force --from git+https://github.com/TheHalfMoon/wepld.git@vX.Y.Z` | When `agile self upgrade` isn't available (older installs) or when you want explicit control. |
 | **CLI Tool — manual fallback (pipx)** | `pipx install --force git+https://github.com/TheHalfMoon/wepld.git@vX.Y.Z` | Same as above, for pipx installs. |
-| **Project Files** | Run `specify integration upgrade <key>`, then `agile extension update` | Refresh installed integration files and extensions in your project |
+| **Project Files** | Run `agile integration upgrade <key>`, then `agile extension update` | Refresh installed integration files and extensions in your project |
 | **Both** | Run CLI upgrade, then project update | Recommended for major version updates |
 
 ---
@@ -21,31 +21,31 @@
 
 The CLI tool (`agile`) is separate from your project files. Upgrade it to get the latest features and bug fixes.
 
-### Recommended: `specify self upgrade`
+### Recommended: `agile self upgrade`
 
 The CLI ships with two self-management commands that handle the common case automatically:
 
 ```bash
 # Check whether a newer release is available (read-only — does not modify anything)
-specify self check
+agile self check
 
 # Preview what would run, without actually upgrading
-specify self upgrade --dry-run
+agile self upgrade --dry-run
 
 # Upgrade in place to the latest stable release (auto-detects uv tool vs pipx install)
-specify self upgrade
+agile self upgrade
 
 # Or pin a specific release tag (replace vX.Y.Z[suffix] with the tag you want)
-specify self upgrade --tag vX.Y.Z[suffix]
+agile self upgrade --tag vX.Y.Z[suffix]
 ```
 
-Bare `specify self upgrade` executes immediately, matching the no-prompt behavior of commands like `pip install -U` and `npm update`. The CLI classifies your runtime into one of: `uv tool`, `pipx`, `uvx (ephemeral)`, source checkout, or unsupported. Only `uv tool` and `pipx` are upgraded automatically; for `uv tool` installs, it runs `uv tool install wepld-agile --force --from <git ref>` under the hood so pinned release tags work. The other paths print path-specific guidance and exit 0 without touching anything.
+Bare `agile self upgrade` executes immediately, matching the no-prompt behavior of commands like `pip install -U` and `npm update`. The CLI classifies your runtime into one of: `uv tool`, `pipx`, `uvx (ephemeral)`, source checkout, or unsupported. Only `uv tool` and `pipx` are upgraded automatically; for `uv tool` installs, it runs `uv tool install wepld-agile --force --from <git ref>` under the hood so pinned release tags work. The other paths print path-specific guidance and exit 0 without touching anything.
 
 Pinned tags must start with `vMAJOR.MINOR.PATCH`. Optional suffixes are limited to dev, alpha/beta/rc, and/or build metadata forms such as `v1.0.0-rc1`, `v0.8.0.dev0`, `v0.8.0+build.42`, or the combination `v1.0.0-rc1+build.42`; branch names, hash refs, `latest`, and bare versions without `v` are rejected.
 
-Set `SPECIFY_UPGRADE_TIMEOUT_SECS` to cap how long the installer subprocess may run (default: no timeout — interrupt with `Ctrl+C` if needed). If that internal timeout fires, `specify self upgrade` exits 124 and reports that it timed out while waiting for the installer subprocess, including the configured timeout and manual retry command. A real installer exit code 124 is propagated with `Upgrade failed. Installer exit code: 124.`, so scripts should treat exit 124 as ambiguous and inspect the message when they need to distinguish the two cases.
+Set `AGILE_UPGRADE_TIMEOUT_SECS` to cap how long the installer subprocess may run (default: no timeout — interrupt with `Ctrl+C` if needed). If that internal timeout fires, `agile self upgrade` exits 124 and reports that it timed out while waiting for the installer subprocess, including the configured timeout and manual retry command. A real installer exit code 124 is propagated with `Upgrade failed. Installer exit code: 124.`, so scripts should treat exit 124 as ambiguous and inspect the message when they need to distinguish the two cases.
 
-If your installed CLI is older than the release that introduced `specify self upgrade`, use the manual equivalents below. These commands are also useful when you want explicit control over the installer command.
+If your installed CLI is older than the release that introduced `agile self upgrade`, use the manual equivalents below. These commands are also useful when you want explicit control over the installer command.
 
 ### If you installed with `uv tool install`
 
@@ -80,10 +80,10 @@ pipx install --force git+https://github.com/TheHalfMoon/wepld.git@vX.Y.Z
 agile check
 
 # Confirms the installed version against the latest GitHub release
-specify self check
+agile self check
 ```
 
-`agile check` shows the surrounding tool environment; `specify self check` is read-only and tells you whether you're now on the latest release (`Up to date: X.Y.Z`) or if a newer one became available between releases.
+`agile check` shows the surrounding tool environment; `agile self check` is read-only and tells you whether you're now on the latest release (`Up to date: X.Y.Z`) or if a newer one became available between releases.
 
 ---
 
@@ -107,7 +107,7 @@ These files are **never touched** by the manifest-aware integration/extension up
 
 - ✅ **Your specifications** (`specs/001-my-feature/spec.md`, etc.) - **CONFIRMED SAFE**
 - ✅ **Your implementation plans** (`specs/001-my-feature/plan.md`, `tasks.md`, etc.) - **CONFIRMED SAFE**
-- ✅ **Your constitution** (`.agile/memory/constitution.md`) when using `specify integration upgrade`
+- ✅ **Your constitution** (`.agile/memory/constitution.md`) when using `agile integration upgrade`
 - ✅ **Your source code** - **CONFIRMED SAFE**
 - ✅ **Your git history** - **CONFIRMED SAFE**
 
@@ -118,7 +118,7 @@ The `specs/` directory is completely excluded from template packages and will ne
 Run this inside your project directory:
 
 ```bash
-specify integration status
+agile integration status
 ```
 
 This reports the default integration, all installed integrations, and any modified or missing managed files. You can also inspect `.agile/integration.json`; installed integrations are listed under `installed_integrations`.
@@ -128,7 +128,7 @@ This reports the default integration, all installed integrations, and any modifi
 Run this inside your project directory:
 
 ```bash
-specify integration upgrade <key>
+agile integration upgrade <key>
 ```
 
 Replace `<key>` with an installed integration key such as `copilot`, `claude`, or `codex`. In projects with multiple installed integrations, run the command once per installed key.
@@ -136,8 +136,8 @@ Replace `<key>` with an installed integration key such as `copilot`, `claude`, o
 **Example:**
 
 ```bash
-specify integration upgrade claude
-specify integration upgrade codex
+agile integration upgrade claude
+agile integration upgrade codex
 ```
 
 See the [integration reference](reference/integrations.md#upgrade-an-integration) for options such as `--script`, `--integration-options`, and `--force`.
@@ -166,7 +166,7 @@ Use this as an escape hatch rather than the default project-file upgrade path. I
 
 ### 1. Constitution file and memory customizations
 
-`specify integration upgrade <key>` does not update `.agile/memory/constitution.md`.
+`agile integration upgrade <key>` does not update `.agile/memory/constitution.md`.
 
 The fallback `agile init --here --force --integration <your-agent>` path also preserves an existing `.agile/memory/constitution.md`; if the file is missing, init creates it from the current constitution template. You do not need a constitution backup/restore step for the manifest-aware upgrade path.
 
@@ -174,7 +174,7 @@ As with any broad fallback refresh, commit or back up local customizations befor
 
 ### 2. Custom integration, script, or template modifications
 
-`specify integration upgrade <key>` blocks when manifest-tracked integration files were modified locally, unless you pass `--force`.
+`agile integration upgrade <key>` blocks when manifest-tracked integration files were modified locally, unless you pass `--force`.
 
 Shared scripts and templates are refreshed when they still match the previously recorded managed copy. Local customizations are preserved unless you explicitly use a force/refresh option that overwrites them. If you customized files in `.agile/scripts/` or `.agile/templates/`, commit or back them up first:
 
@@ -200,7 +200,7 @@ ls -la .kilo/commands/
 ls -la .kilocode/workflows/
 
 # Delete old versions (example filenames - yours may differ)
-rm .kilocode/workflows/agile.agile-old.md
+rm .kilocode/workflows/agile.specify-old.md
 rm .kilocode/workflows/agile.plan-v1.md
 ```
 
@@ -264,7 +264,7 @@ If your team treats the materialized templates as **reviewed, committed artifact
 `/constitution` to keep propagating, install the bundled **`constitution-sync`** preset:
 
 ```bash
-specify preset add constitution-sync
+agile preset add constitution-sync
 ```
 
 It wraps the core `/constitution` command and re-adds the propagation pass. It does **not** edit
@@ -282,13 +282,13 @@ preset/extension-managed — see the "Interaction with the resolution stack" sec
 
 ```bash
 # Upgrade CLI (auto-detects uv tool vs pipx install)
-specify self upgrade
+agile self upgrade
 
 # Inspect installed integrations
-specify integration status
+agile integration status
 
 # Update project files to get new commands
-specify integration upgrade <key>
+agile integration upgrade <key>
 agile extension update
 ```
 
@@ -300,10 +300,10 @@ git status
 cp -r .agile/templates /tmp/templates-backup
 
 # 2. Upgrade CLI
-specify self upgrade
+agile self upgrade
 
 # 3. Use the manifest-aware project update first
-specify integration upgrade <key>
+agile integration upgrade <key>
 agile extension update
 
 # 4. If the upgrade reports modified managed files, inspect the diff before using --force
@@ -330,10 +330,10 @@ The git extension is now opt-in, so upgrades do not install it unless you add it
 
 ```bash
 # Upgrade CLI
-specify self upgrade
+agile self upgrade
 
 # Refresh integration files and installed extensions
-specify integration upgrade <key>
+agile integration upgrade <key>
 agile extension update
 
 # The git extension is not added unless you run `agile extension add git`
@@ -345,17 +345,17 @@ If you later decide you want the git extension's commands and hooks, install it 
 agile extension add git
 ```
 
-Projects that do not use Git can still work with Agile by setting `SPECIFY_FEATURE_DIRECTORY` to the feature directory path before planning commands:
+Projects that do not use Git can still work with Agile by setting `AGILE_FEATURE_DIRECTORY` to the feature directory path before planning commands:
 
 ```bash
 # Bash/Zsh
-export SPECIFY_FEATURE_DIRECTORY="specs/001-my-feature"
+export AGILE_FEATURE_DIRECTORY="specs/001-my-feature"
 
 # PowerShell
-$env:SPECIFY_FEATURE_DIRECTORY = "specs/001-my-feature"
+$env:AGILE_FEATURE_DIRECTORY = "specs/001-my-feature"
 ```
 
-Alternatively, run the `/agile.agile` command which creates `.agile/feature.json` automatically.
+Alternatively, run the `/agile.specify` command which creates `.agile/feature.json` automatically.
 
 ---
 
@@ -396,7 +396,7 @@ git restore .agile/memory/constitution.md
 cp /tmp/constitution-backup.md .agile/memory/constitution.md
 ```
 
-**Prevention:** Use `specify integration upgrade <key>` for routine project-file updates. If you need the fallback `agile init --here --force` path, commit first so you can review the full diff afterward.
+**Prevention:** Use `agile integration upgrade <key>` for routine project-file updates. If you need the fallback `agile init --here --force` path, commit first so you can review the full diff afterward.
 
 ### "Warning: Current directory is not empty"
 
@@ -456,13 +456,13 @@ If a command behaves like an older Agile version, first ask the CLI itself:
 
 ```bash
 # Read-only — prints "Up to date: X.Y.Z" or "Update available: X.Y.Z → vY.Z.W"
-specify self check
+agile self check
 
 # Preview the install method, current version, and target tag the upgrade would use
-specify self upgrade --dry-run
+agile self upgrade --dry-run
 ```
 
-`agile check` is an offline environment scan; `specify self check` is the CLI version lookup.
+`agile check` is an offline environment scan; `agile self check` is the CLI version lookup.
 
 If `self check` shows the wrong version, verify the installation:
 
@@ -494,11 +494,11 @@ uv tool install wepld-agile --from git+https://github.com/TheHalfMoon/wepld.git
 The `agile` CLI tool is used for:
 
 - **Initial setup:** `agile init` to bootstrap Agile in your project
-- **Routine project-file upgrades:** `specify integration upgrade <key>` and `agile extension update`
+- **Routine project-file upgrades:** `agile integration upgrade <key>` and `agile extension update`
 - **Fallback recovery:** `agile init --here --force` when integration metadata is missing or the manifest-aware path cannot be used
 - **Diagnostics:** `agile check` to verify tool installation
 
-Once you've run `agile init`, the slash commands (like `/agile.agile`, `/agile.plan`, etc.) are **permanently installed** in your project's agent folder (`.claude/`, `.github/prompts/`, `.pi/prompts/`, `.omp/commands/`, etc.). Your AI coding agent reads these command files directly—no need to run `agile` again.
+Once you've run `agile init`, the slash commands (like `/agile.specify`, `/agile.plan`, etc.) are **permanently installed** in your project's agent folder (`.claude/`, `.github/prompts/`, `.pi/prompts/`, `.omp/commands/`, etc.). Your AI coding agent reads these command files directly—no need to run `agile` again.
 
 **If your agent isn't recognizing slash commands:**
 
@@ -547,4 +547,4 @@ After upgrading:
 - **Test new slash commands:** Run `/agile.constitution` or another command to verify everything works
 - **Review release notes:** Check [GitHub Releases](https://github.com/TheHalfMoon/wepld/releases) for new features and breaking changes
 - **Update workflows:** If new commands were added, update your team's development workflows
-- **Check documentation:** Visit [github.io/agile](https://github.github.io/agile/) for updated guides
+- **Check documentation:** Visit [github.io/agile](https://github.com/TheHalfMoon/wepld/tree/main/vendor/agile/docs/) for updated guides

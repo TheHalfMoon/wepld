@@ -1,4 +1,4 @@
-"""specify integration scaffold command handler."""
+"""agile integration scaffold command handler."""
 from __future__ import annotations
 
 from enum import Enum
@@ -33,7 +33,7 @@ def integration_scaffold(
     from ..integration_scaffold import scaffold_integration
 
     # scaffold targets the Agile *source* repo layout (_is_agile_repo_root),
-    # not a .agile/ member project, so SPECIFY_INIT_DIR does not apply here.
+    # not a .agile/ member project, so AGILE_INIT_DIR does not apply here.
     project_root = Path.cwd()
     try:
         result = scaffold_integration(project_root, key, integration_type.value)

@@ -1,0 +1,111 @@
+name: diag-pr128-postmerge-foundation-locator
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  locate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Locate immutable post-merge Foundation push run
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TARGET_SHA: "28d1fdba2e49da3ee88d16b749eade147962da2c"
+          TARGET_WORKFLOW: "foundation-integrity"
+          EARLIEST_CREATED_AT: "2026-08-23T02:57:00Z"
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          token = os.environ["GITHUB_TOKEN"]
+          target_sha = os.environ["TARGET_SHA"]
+          target_workflow = os.environ["TARGET_WORKFLOW"]
+          earliest = os.environ["EARLIEST_CREATED_AT"]
+
+          def read_json(url: str):
+              req = urllib.request.Request(
+                  url,
+                  headers={
+                      "Accept": "application/vnd.github+json",
+                      "Authorization": f"Bearer {token}",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                      "User-Agent": "wepld-pr128-postmerge-foundation-locator",
+                  },
+              )
+              with urllib.request.urlopen(req, timeout=20) as response:
+                  return json.load(response)
+
+          payload = read_json(
+              f"https://api.github.com/repos/{repo}/actions/runs?event=push&per_page=100"
+          )
+          matches = []
+          for run in payload.get("workflow_runs", []):
+              if run.get("name") != target_workflow or run.get("event") != "push":
+                  continue
+              if run.get("head_sha") != target_sha:
+                  continue
+              if (run.get("created_at") or "") < earliest:
+                  continue
+              matches.append(run)
+
+          print(f"LOCATOR_MATCH_COUNT={len(matches)}")
+          if len(matches) != 1:
+              for run in matches:
+                  print("LOCATOR_CANDIDATE=" + json.dumps({
+                      "id": run.get("id"),
+                      "run_number": run.get("run_number"),
+                      "status": run.get("status"),
+                      "conclusion": run.get("conclusion"),
+                      "head_sha": run.get("head_sha"),
+                      "head_branch": run.get("head_branch"),
+                      "created_at": run.get("created_at"),
+                  }, sort_keys=True))
+              raise SystemExit("expected exactly one post-merge Foundation push run")
+
+          run = matches[0]
+          run_id = run["id"]
+          print(f"POSTMERGE_FOUNDATION_RUN_ID={run_id}")
+          print(f"POSTMERGE_FOUNDATION_RUN_NUMBER={run.get('run_number')}")
+          print(f"POSTMERGE_FOUNDATION_WORKFLOW={run.get('name')}")
+          print(f"POSTMERGE_FOUNDATION_EVENT={run.get('event')}")
+          print(f"POSTMERGE_FOUNDATION_HEAD_SHA={run.get('head_sha')}")
+          print(f"POSTMERGE_FOUNDATION_HEAD_BRANCH={run.get('head_branch')}")
+          print(f"POSTMERGE_FOUNDATION_STATUS={run.get('status')}")
+          print(f"POSTMERGE_FOUNDATION_CONCLUSION={run.get('conclusion')}")
+          print(f"POSTMERGE_FOUNDATION_CREATED_AT={run.get('created_at')}")
+
+          jobs = read_json(
+              f"https://api.github.com/repos/{repo}/actions/runs/{run_id}/jobs?per_page=100"
+          ).get("jobs", [])
+          print(f"POSTMERGE_FOUNDATION_JOB_COUNT={len(jobs)}")
+          for job in jobs:
+              print("POSTMERGE_FOUNDATION_JOB=" + json.dumps({
+                  "id": job.get("id"),
+                  "name": job.get("name"),
+                  "status": job.get("status"),
+                  "conclusion": job.get("conclusion"),
+                  "head_sha": job.get("head_sha"),
+                  "started_at": job.get("started_at"),
+                  "completed_at": job.get("completed_at"),
+              }, sort_keys=True))
+
+          print("DONOR_SOURCE_CHECKOUT=NONE")
+          print("DONOR_ARCHIVE_DOWNLOAD=NONE")
+          print("DONOR_WORKFLOW_EXECUTION=NONE")
+          print("DEPENDENCY_INSTALLATION=NONE")
+          print("SOURCE_BYTES_IMPORTED_TO_WEPLD=NO")
+          print("MUTATION_AUTHORITY=NONE")
+          print("MERGE=NEVER")
+          PY

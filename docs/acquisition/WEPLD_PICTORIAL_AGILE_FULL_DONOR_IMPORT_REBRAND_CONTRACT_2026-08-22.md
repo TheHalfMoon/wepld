@@ -12,6 +12,8 @@ PICTORIAL_UPSTREAM_REVISION = 56f44523f76efdcec813e67b38ee550e49b16f48
 PICTORIAL_UPSTREAM_TREE = 3626999bc9c8be4d31f3028c37c74cf544576d15
 PICTORIAL_LICENSE = Apache-2.0
 PICTORIAL_LICENSE_BLOB = bb3f6d23b1f8025514a62a12b51b47d73e3c9aa9
+PICTORIAL_NOTICE_FILE = NOTICE.md
+PICTORIAL_NOTICE_BLOB = 0468271c904ae334cfaf27da6f8df3d5f419a1f0
 
 AGILE_USER_NAME = Agile
 AGILE_UPSTREAM = github/spec-kit
@@ -160,7 +162,7 @@ MIREFA_QUALIFIES != NAWAT_AUTHORIZES
 
 ## Legal / attribution boundary
 
-Pictorial's donor is Apache-2.0. Redistribution therefore must preserve the Apache-2.0 license, relevant copyright/patent/trademark/attribution notices, and modification notices required by the license. The current upstream `LICENSE` contains `Copyright 2025 Paul Bakaus`. No upstream `NOTICE` file was present at the pinned revision when checked.
+Pictorial's donor is Apache-2.0. Redistribution therefore must preserve the Apache-2.0 license, relevant copyright/patent/trademark/attribution notices, and modification notices required by the license. The current upstream `LICENSE` contains `Copyright 2025 Paul Bakaus`. The exact pinned upstream root tree contains `NOTICE.md` at Git blob `0468271c904ae334cfaf27da6f8df3d5f419a1f0`. That notice records MIT-derived material in `skill/reference/ios.md` and `skill/reference/android.md` from `ehmo/platform-design-skills` (author `ehmo`). The notice and applicable attribution must remain preserved in WePLD legal/provenance handling; product-surface rebranding does not erase that provenance.
 
 Agile's donor is MIT. Redistribution must preserve the MIT copyright and permission notice; the pinned upstream license states `Copyright GitHub, Inc.`.
 
@@ -180,7 +182,8 @@ These machine-readable records replace separate provenance files during this aut
   "upstream_tree": "3626999bc9c8be4d31f3028c37c74cf544576d15",
   "upstream_license": "Apache-2.0",
   "upstream_license_blob": "bb3f6d23b1f8025514a62a12b51b47d73e3c9aa9",
-  "upstream_notice_file": null,
+  "upstream_notice_file": "NOTICE.md",
+  "upstream_notice_blob": "0468271c904ae334cfaf27da6f8df3d5f419a1f0",
   "import_mode": "full_tracked_source_snapshot_derivative_rebrand",
   "user_facing_upstream_brand_allowed": false,
   "legal_provenance_retention_required": true,
@@ -201,6 +204,7 @@ These machine-readable records replace separate provenance files during this aut
   "upstream_license": "MIT",
   "upstream_license_blob": "28a50fa22639e32febe14e4ffc7a732b0ba8c90a",
   "upstream_notice_file": null,
+  "upstream_notice_blob": null,
   "import_mode": "full_tracked_source_snapshot_derivative_rebrand",
   "user_facing_upstream_brand_allowed": false,
   "legal_provenance_retention_required": true,

@@ -1,3 +1,4 @@
+# trigger: exact-head bounded network-retry patch
 name: diag-patch-pr121-network-retry
 
 on:

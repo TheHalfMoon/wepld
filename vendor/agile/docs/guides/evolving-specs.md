@@ -1,0 +1,96 @@
+# Evolving Specs in Existing Projects
+
+If the repository has not been initialized with Agile yet, start with
+[Adopting Agile in an Existing Project](existing-projects.md). This page
+covers how to maintain artifacts after adoption.
+
+Existing projects need two separate maintenance loops:
+
+- **Agile project-file updates** refresh managed commands, scripts,
+  templates, and shared memory files.
+- **Feature artifact evolution** keeps repository-specific `specs/` artifacts
+  aligned with the code and product behavior you intend to ship.
+
+Use the [upgrade workflow](../upgrade.md) when you need newer Agile project
+files. Use one of the artifact persistence models below when requirements or
+implementation insights change an existing project.
+
+For the conceptual model definitions, see
+[Spec Persistence Models](../concepts/spec-persistence.md).
+
+## Flow-Forward Spec
+
+Use flow-forward when each feature directory should remain a historical record.
+
+When you add another feature or make a substantial follow-up change, create a
+new feature spec through your installed `/agile.agile` command and continue
+through the standard flow:
+
+1. Run `/agile.agile` to create a new feature directory under `specs/`.
+2. Run `/agile.plan` to define the implementation approach.
+3. Run `/agile.tasks` to derive the work breakdown.
+4. Run `/agile.implement` and review the resulting code and artifact diffs.
+5. Run `/agile.converge` to verify completeness and generate tasks for remaining gaps. If tasks are appended, repeat `/agile.implement` and `/agile.converge` until the feature is fully complete.
+
+The previous feature directory remains intact for audit, comparison, or
+explaining how the project reached its current state. Use clear feature names or
+cross-links when a new directory supersedes or extends earlier work.
+
+## Living Spec
+
+Use living spec when `spec.md` is the contract and `plan.md` and `tasks.md` are
+derived from it.
+
+When intended behavior changes, revise the existing `spec.md` first. Then
+regenerate or manually revise downstream artifacts so they match the updated
+spec:
+
+1. Start from a clean working tree or a dedicated branch so every generated
+   change is reviewable.
+2. Update `spec.md` with `/agile.clarify` or an explicit edit.
+3. Rerun `/agile.plan` or revise `plan.md` so the technical approach matches
+   the revised spec.
+4. Rerun `/agile.tasks` or revise `tasks.md` so implementation work matches
+   the revised plan.
+5. Run `/agile.analyze` before implementation resumes to catch gaps between
+   the spec, plan, and tasks.
+6. Run `/agile.implement`, then review the code and artifact diffs together.
+7. Run `/agile.converge` to assess completion and append any remaining work to `tasks.md`. If tasks are appended, repeat `/agile.implement` and `/agile.converge` until the feature is fully complete.
+
+Preserve important implementation rationale before replacing derived artifacts.
+If a plan or task list contains decisions that still matter, carry them forward
+explicitly.
+
+## Flow-Back Spec
+
+Use flow-back when implementation discoveries are allowed to reshape the
+artifact set.
+
+In this model, the first useful edit can happen wherever the insight lands:
+`spec.md`, `plan.md`, `tasks.md`, or the implementation. After the change, bring
+the artifact set back into alignment:
+
+1. Capture the discovery in the artifact closest to the work.
+2. Decide whether it changes intended behavior, implementation strategy, task
+   breakdown, or only code.
+3. Update any other artifacts that now disagree with the accepted direction.
+4. Run `/agile.analyze` to check for gaps across `spec.md`, `plan.md`, and
+   `tasks.md`.
+5. Continue implementation only after the artifact set describes the behavior
+   and approach you want future contributors to trust.
+
+Flow-back is flexible, but it requires discipline. Do not leave a lower-level
+change in `tasks.md` or code if `spec.md` still says something different and the
+spec is meant to remain trustworthy.
+
+## Before Updating Agile Project Files
+
+Before refreshing Agile project files with the terminal command
+`agile init --here --force --integration <your-agent>`, protect any
+project-specific material that lives outside `specs/`, especially
+`.agile/memory/constitution.md` and customized files under
+`.agile/templates/` or `.agile/scripts/`. Use `<your-agent>` for the AI
+coding agent integration used by the target project.
+
+Your `specs/` directory is not part of the template package, but shared project
+files can be overwritten by a forced refresh.

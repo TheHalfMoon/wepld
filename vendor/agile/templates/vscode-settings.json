@@ -1,0 +1,13 @@
+{
+    "chat.promptFilesRecommendations": {
+        "agile.constitution": true,
+        "agile.agile": true,
+        "agile.plan": true,
+        "agile.tasks": true,
+        "agile.implement": true
+    },
+    "chat.tools.terminal.autoApprove": {
+        ".agile/scripts/bash/": true,
+        ".agile/scripts/powershell/": true
+    }
+}

@@ -46,7 +46,7 @@ DONORS = (
 UA = "WePLD-pinned-source-import/2026-08-23"
 P_MOD = (
     "Modified by WePLD on 2026-08-23: deterministic Pictorial rebrand/path "
-    "integration from pinned pbakaus/impeccable source."
+    "integration from the pinned upstream source."
 )
 
 
@@ -108,6 +108,9 @@ def pmap(component: str, path: str) -> str:
         ("SPECKIT", "AGILE"), ("Speckit", "Agile"), ("speckit", "agile"),
     ):
         path = path.replace(a, b)
+    path = re.sub(r"(?i)spec(?:[-_]|\s)+kit", "agile", path)
+    path = re.sub(r"(?i)speckit", "agile", path)
+    path = re.sub(r"(?i)specify(?:[-_]|\s)+cli", "wepld-agile", path)
     return path
 
 
@@ -144,6 +147,9 @@ def tmap(component: str, text: str) -> str:
             r"(?<![A-Za-z0-9_])specify(?=\s+(?:init|check|version|extension|bundle|doctor|help)\b)",
             "agile", text,
         )
+        text = re.sub(r"(?i)spec(?:[-_]|\s)+kit", "Agile", text)
+        text = re.sub(r"(?i)speckit", "Agile", text)
+        text = re.sub(r"(?i)specify(?:[-_]|\s)+cli", "wepld-agile", text)
     return text
 
 

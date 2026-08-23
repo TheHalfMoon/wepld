@@ -1,0 +1,107 @@
+name: diag-pictorial-agile-upstream-inventory
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Verify pinned upstream identities, inventories, and licenses
+        shell: bash
+        run: |
+          set -euo pipefail
+          export LC_ALL=C
+
+          verify_donor() {
+            label="$1"
+            repo="$2"
+            commit="$3"
+            root_tree="$4"
+            expected_spdx="$5"
+
+            commit_json="$(mktemp)"
+            tree_json="$(mktemp)"
+            inventory_jsonl="$(mktemp)"
+            license_json="$(mktemp)"
+
+            curl --fail --silent --show-error --location --retry 3 --retry-delay 2 --retry-all-errors \
+              "https://api.github.com/repos/${repo}/commits/${commit}" > "$commit_json"
+
+            test "$(jq -r '.sha' "$commit_json")" = "$commit"
+            test "$(jq -r '.commit.tree.sha' "$commit_json")" = "$root_tree"
+
+            curl --fail --silent --show-error --location --retry 3 --retry-delay 2 --retry-all-errors \
+              "https://api.github.com/repos/${repo}/git/trees/${root_tree}?recursive=1" > "$tree_json"
+
+            test "$(jq -r '.sha' "$tree_json")" = "$root_tree"
+            test "$(jq -r '.truncated' "$tree_json")" = 'false'
+
+            jq -S -c \
+              '[.tree[] | select(.type != "tree") | {path,mode,type,sha}] | sort_by(.path,.mode,.type,.sha)[]' \
+              "$tree_json" > "$inventory_jsonl"
+
+            total_entries="$(jq '.tree | length' "$tree_json")"
+            tree_entries="$(jq '[.tree[] | select(.type == "tree")] | length' "$tree_json")"
+            non_tree_entries="$(wc -l < "$inventory_jsonl" | tr -d ' ')"
+            inventory_sha256="$(sha256sum "$inventory_jsonl" | awk '{print $1}')"
+            type_counts="$(jq -c '[.tree[] | select(.type != "tree")] | group_by(.type) | map({type:.[0].type,count:length})' "$tree_json")"
+            mode_counts="$(jq -c '[.tree[] | select(.type != "tree")] | group_by(.mode) | map({mode:.[0].mode,count:length})' "$tree_json")"
+
+            curl --fail --silent --show-error --location --retry 3 --retry-delay 2 --retry-all-errors \
+              "https://api.github.com/repos/${repo}/license?ref=${commit}" > "$license_json"
+
+            license_path="$(jq -r '.path' "$license_json")"
+            license_sha="$(jq -r '.sha' "$license_json")"
+            license_spdx="$(jq -r '.license.spdx_id' "$license_json")"
+            test "$license_spdx" = "$expected_spdx"
+            jq -e --arg p "$license_path" --arg s "$license_sha" \
+              '[.tree[] | select(.path == $p and .type == "blob" and .sha == $s)] | length == 1' \
+              "$tree_json" >/dev/null
+
+            echo "${label}_UPSTREAM=${repo}"
+            echo "${label}_PIN=${commit}"
+            echo "${label}_ROOT_TREE=${root_tree}"
+            echo "${label}_COMMIT_TREE_BINDING=PASS"
+            echo "${label}_RECURSIVE_TREE_TRUNCATED=false"
+            echo "${label}_TOTAL_TREE_RESPONSE_ENTRIES=${total_entries}"
+            echo "${label}_TREE_ENTRIES=${tree_entries}"
+            echo "${label}_TRACKED_NON_TREE_ENTRIES=${non_tree_entries}"
+            echo "${label}_TYPE_COUNTS=${type_counts}"
+            echo "${label}_MODE_COUNTS=${mode_counts}"
+            echo "${label}_INVENTORY_JSONL_SHA256_SUPPLEMENTAL=${inventory_sha256}"
+            echo "${label}_LICENSE_PATH=${license_path}"
+            echo "${label}_LICENSE_OBJECT_SHA=${license_sha}"
+            echo "${label}_LICENSE_SPDX=${license_spdx}"
+            echo "${label}_LICENSE_TREE_IDENTITY=PASS"
+            echo "BEGIN_${label}_EXACT_NON_TREE_INVENTORY_JSONL"
+            cat "$inventory_jsonl"
+            echo "END_${label}_EXACT_NON_TREE_INVENTORY_JSONL"
+          }
+
+          verify_donor \
+            PICTORIAL \
+            pbakaus/impeccable \
+            56f44523f76efdcec813e67b38ee550e49b16f48 \
+            3626999bc9c8be4d31f3028c37c74cf544576d15 \
+            Apache-2.0
+
+          verify_donor \
+            AGILE \
+            github/spec-kit \
+            27f50f7e6b618ea14d74dd4037f9e7c60218b16c \
+            5622442d5ff74d21b2cb4349f255d08380f3d69d \
+            MIT
+
+          echo 'INVENTORY_SOURCE=PUBLIC_GITHUB_GIT_TREE_API_READ_ONLY'
+          echo 'DONOR_SOURCE_CHECKOUT=NONE'
+          echo 'DONOR_ARCHIVE_DOWNLOAD=NONE'
+          echo 'DONOR_WORKFLOW_EXECUTION=NONE'
+          echo 'DEPENDENCY_INSTALLATION=NONE'
+          echo 'SOURCE_BYTES_IMPORTED_TO_WEPLD=NO'
+          echo 'SOURCE_ADMISSION=NONE'
+          echo 'MERGE=NEVER'

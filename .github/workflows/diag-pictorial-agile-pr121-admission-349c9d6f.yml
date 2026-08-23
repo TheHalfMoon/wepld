@@ -1,26 +1,146 @@
-name: diag-pictorial-agile-pr121-admission-349c9d6f
+name: diag-patch-pr121-network-retry
 
 on:
-  pull_request:
+  push:
+    branches:
+      - diag/pictorial-agile-pr121-admission-349c9d6f
+    paths:
+      - .github/workflows/diag-pictorial-agile-pr121-admission-349c9d6f.yml
 
-permissions: {}
+permissions:
+  contents: write
 
 jobs:
-  locate:
+  patch:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Locate exact PR121 trusted admission run by immutable head_sha
+      - name: Checkout exact PR121 branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ci/pictorial-agile-contract-branding-boundary-repair-v5-authorization
+          fetch-depth: 0
+
+      - name: Apply exact bounded network-retry repair
         shell: bash
         run: |
           set -euo pipefail
-          target_pr=121
-          target_head='6631024e59b1c2f6805c56e3bb330af1a4f1582c'
-          api='https://api.github.com/repos/TheHalfMoon/wepld/actions/runs?event=pull_request_target&per_page=100'
-          data="$(curl --fail --silent --show-error --location --retry 3 --retry-delay 2 --retry-all-errors "$api")"
-          matches="$(printf '%s' "$data" | jq -c --argjson pr "$target_pr" --arg head "$target_head" '[.workflow_runs[] | select(.head_sha == $head and .name == "s1-admission-integrity" and any(.pull_requests[]?; .number == $pr))]')"
-          count="$(printf '%s' "$matches" | jq 'length')"
-          echo "MATCH_COUNT=$count"
-          printf '%s' "$matches" | jq -r '.[] | "RUN_ID=\(.id) RUN_NUMBER=\(.run_number) WORKFLOW=\(.name) EVENT=\(.event) STATUS=\(.status) CONCLUSION=\(.conclusion // "null") IMMUTABLE_HEAD_SHA=\(.head_sha // "") PR_NUMBER=\(.pull_requests[0].number // 0) BASE_SHA=\(.pull_requests[0].base.sha // "")"'
-          test "$count" -eq 1
-          echo 'MERGE=NEVER'
+          expected_head='6631024e59b1c2f6805c56e3bb330af1a4f1582c'
+          expected_main='44417fbcdee3a8e1d82e9e30974486cd4592a1f0'
+          expected_blob='4f893968865cfac3942e3d86561b311564b3fa59'
+          branch='ci/pictorial-agile-contract-branding-boundary-repair-v5-authorization'
+          path='.github/scripts/wepld_pictorial_agile_contract_branding_boundary_repair_v5_integrity.py'
+
+          test "$(git rev-parse HEAD)" = "$expected_head"
+          test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "$expected_main"
+          test "$(git rev-parse "HEAD:$path")" = "$expected_blob"
+
+          python - <<'PY'
+          from pathlib import Path
+          from textwrap import dedent
+
+          path = Path('.github/scripts/wepld_pictorial_agile_contract_branding_boundary_repair_v5_integrity.py')
+          text = path.read_text()
+
+          old_constants = dedent('''\
+          MAX_COMPARE_READ_ATTEMPTS = 3
+          TRANSIENT_GITHUB_HTTP_ERRORS = (
+              "HTTP Error 502:",
+              "HTTP Error 503:",
+              "HTTP Error 504:",
+          )
+          ''')
+          new_constants = dedent('''\
+          MAX_COMPARE_READ_ATTEMPTS = 3
+          ''')
+
+          old_classifier = dedent('''\
+          def _is_transient_compare_failure(exc: base.PolicyError, url: str) -> bool:
+              text = str(exc)
+              prefix = f"GitHub API request failed for {url}:"
+              return text.startswith(prefix) and any(
+                  marker in text for marker in TRANSIENT_GITHUB_HTTP_ERRORS
+              )
+          ''')
+          new_classifier = dedent('''\
+          def _is_transient_compare_failure(exc: base.PolicyError, url: str) -> bool:
+              text = str(exc)
+              prefix = f"GitHub API request failed for {url}:"
+              if not text.startswith(prefix):
+                  return False
+              detail = text[len(prefix):].lstrip()
+              http_marker = "HTTP Error "
+              if not detail.startswith(http_marker):
+                  return True
+              code_text = detail[len(http_marker):len(http_marker) + 3]
+              return code_text.isdigit() and 500 <= int(code_text) <= 599
+          ''')
+
+          old_selftest_anchor = dedent('''\
+              if transient.url != expected_url or transient.calls != MAX_COMPARE_READ_ATTEMPTS:
+                  base.fail("Pictorial/Agile contract repair-v5 transient compare retry drifted")
+
+              class PermanentProbeClient:
+          ''')
+          new_selftest_anchor = dedent('''\
+              if transient.url != expected_url or transient.calls != MAX_COMPARE_READ_ATTEMPTS:
+                  base.fail("Pictorial/Agile contract repair-v5 transient compare retry drifted")
+
+              class NetworkTransientProbeClient:
+                  def __init__(self) -> None:
+                      self.calls = 0
+
+                  def json(self, url: str) -> dict[str, str]:
+                      self.calls += 1
+                      if self.calls < MAX_COMPARE_READ_ATTEMPTS:
+                          raise base.PolicyError(
+                              f"GitHub API request failed for {url}: timed out"
+                          )
+                      return {"status": "ahead"}
+
+              network_transient = NetworkTransientProbeClient()
+              _require_push_activation_ancestry(
+                  network_transient,
+                  base.REPOSITORY,
+                  "a" * 40,
+                  "b" * 40,
+              )
+              if network_transient.calls != MAX_COMPARE_READ_ATTEMPTS:
+                  base.fail(
+                      "Pictorial/Agile contract repair-v5 non-HTTP transient compare retry drifted"
+                  )
+
+              class PermanentProbeClient:
+          ''')
+
+          replacements = (
+              ('constants', old_constants, new_constants),
+              ('classifier', old_classifier, new_classifier),
+              ('network-selftest', old_selftest_anchor, new_selftest_anchor),
+          )
+          for label, old, new in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label} old snippet count={count}')
+              text = text.replace(old, new, 1)
+
+          path.write_text(text)
+          PY
+
+          python -m py_compile "$path"
+          git diff --check
+          test "$(git diff --name-only)" = "$path"
+          test "$(git hash-object "$path")" != "$expected_blob"
+          python "$path" selftest
+
+          new_blob="$(git hash-object "$path")"
+          echo "NEW_V5_POLICY_BLOB=$new_blob"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- "$path"
+          git commit -m 'fix(ci): retry bounded compare network failures'
+
+          test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "$expected_main"
+          test "$(git ls-remote origin "refs/heads/$branch" | awk '{print $1}')" = "$expected_head"
+          git push origin "HEAD:$branch"

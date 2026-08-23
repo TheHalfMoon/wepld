@@ -1,12 +1,8 @@
-# trigger: exact-head bounded network-retry patch
 name: diag-patch-pr121-network-retry
 
 on:
-  push:
-    branches:
-      - diag/pictorial-agile-pr121-admission-349c9d6f
-    paths:
-      - .github/workflows/diag-pictorial-agile-pr121-admission-349c9d6f.yml
+  pull_request:
+    types: [reopened]
 
 permissions:
   contents: write

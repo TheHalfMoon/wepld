@@ -1,0 +1,110 @@
+name: diag-pr128-ready-admission-locator
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  locate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Locate immutable PR 128 ready-for-review admission run
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TARGET_PR: "128"
+          TARGET_TITLE: "ci(acquisition): authorize Pictorial NOTICE provenance repair v6"
+          TARGET_WORKFLOW: "s1-admission-integrity"
+          EARLIEST_CREATED_AT: "2026-08-23T02:53:15Z"
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          token = os.environ["GITHUB_TOKEN"]
+          target_pr = int(os.environ["TARGET_PR"])
+          target_title = os.environ["TARGET_TITLE"]
+          target_workflow = os.environ["TARGET_WORKFLOW"]
+          earliest = os.environ["EARLIEST_CREATED_AT"]
+
+          def read_json(url: str):
+              req = urllib.request.Request(
+                  url,
+                  headers={
+                      "Accept": "application/vnd.github+json",
+                      "Authorization": f"Bearer {token}",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                      "User-Agent": "wepld-pr128-ready-admission-locator",
+                  },
+              )
+              with urllib.request.urlopen(req, timeout=20) as response:
+                  return json.load(response)
+
+          payload = read_json(
+              f"https://api.github.com/repos/{repo}/actions/runs?event=pull_request_target&per_page=100"
+          )
+          matches = []
+          for run in payload.get("workflow_runs", []):
+              if run.get("name") != target_workflow or run.get("event") != "pull_request_target":
+                  continue
+              if (run.get("created_at") or "") < earliest:
+                  continue
+              prs = run.get("pull_requests") or []
+              if any(item.get("number") == target_pr for item in prs) or run.get("display_title") == target_title:
+                  matches.append(run)
+
+          print(f"LOCATOR_MATCH_COUNT={len(matches)}")
+          if len(matches) != 1:
+              for run in matches:
+                  print("LOCATOR_CANDIDATE=" + json.dumps({
+                      "id": run.get("id"),
+                      "run_number": run.get("run_number"),
+                      "status": run.get("status"),
+                      "conclusion": run.get("conclusion"),
+                      "head_sha": run.get("head_sha"),
+                      "created_at": run.get("created_at"),
+                      "display_title": run.get("display_title"),
+                  }, sort_keys=True))
+              raise SystemExit("expected exactly one PR 128 ready-for-review admission run")
+
+          run = matches[0]
+          run_id = run["id"]
+          print(f"TRUSTED_BASE_READY_RUN_ID={run_id}")
+          print(f"TRUSTED_BASE_READY_RUN_NUMBER={run.get('run_number')}")
+          print(f"TRUSTED_BASE_READY_WORKFLOW={run.get('name')}")
+          print(f"TRUSTED_BASE_READY_EVENT={run.get('event')}")
+          print(f"TRUSTED_BASE_READY_HEAD_SHA={run.get('head_sha')}")
+          print(f"TRUSTED_BASE_READY_STATUS={run.get('status')}")
+          print(f"TRUSTED_BASE_READY_CONCLUSION={run.get('conclusion')}")
+          print(f"TRUSTED_BASE_READY_CREATED_AT={run.get('created_at')}")
+          jobs = read_json(
+              f"https://api.github.com/repos/{repo}/actions/runs/{run_id}/jobs?per_page=100"
+          ).get("jobs", [])
+          print(f"TRUSTED_BASE_READY_JOB_COUNT={len(jobs)}")
+          for job in jobs:
+              print("TRUSTED_BASE_READY_JOB=" + json.dumps({
+                  "id": job.get("id"),
+                  "name": job.get("name"),
+                  "status": job.get("status"),
+                  "conclusion": job.get("conclusion"),
+                  "head_sha": job.get("head_sha"),
+                  "started_at": job.get("started_at"),
+                  "completed_at": job.get("completed_at"),
+              }, sort_keys=True))
+          print("DONOR_SOURCE_CHECKOUT=NONE")
+          print("DONOR_ARCHIVE_DOWNLOAD=NONE")
+          print("DONOR_WORKFLOW_EXECUTION=NONE")
+          print("DEPENDENCY_INSTALLATION=NONE")
+          print("SOURCE_BYTES_IMPORTED_TO_WEPLD=NO")
+          print("MUTATION_AUTHORITY=NONE")
+          print("MERGE=NEVER")
+          PY

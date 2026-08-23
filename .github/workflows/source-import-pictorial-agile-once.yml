@@ -1,9 +1,9 @@
 name: one-shot Pictorial Agile source import
 
 on:
-  push:
+  pull_request:
     branches:
-      - import/pictorial-agile-full-source-snapshot-2026-08-23
+      - main
     paths:
       - .github/workflows/source-import-pictorial-agile-once.yml
 

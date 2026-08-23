@@ -1,0 +1,27 @@
+name: diag-pictorial-agile-pr121-postmerge-foundation-f96f0ede
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  locate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Locate exact PR121 post-merge Foundation push run
+        shell: bash
+        run: |
+          set -euo pipefail
+          target_head='f96f0ede324ebe95e81b7525279603e8a5e40ac8'
+          not_before='2026-08-23T01:08:11Z'
+          api='https://api.github.com/repos/TheHalfMoon/wepld/actions/runs?event=push&per_page=100'
+          data="$(curl --fail --silent --show-error --location --retry 3 --retry-delay 2 --retry-all-errors "$api")"
+          matches="$(printf '%s' "$data" | jq -c --arg head "$target_head" --arg not_before "$not_before" '[.workflow_runs[] | select(.head_sha == $head and .name == "foundation-integrity" and .created_at >= $not_before)]')"
+          count="$(printf '%s' "$matches" | jq 'length')"
+          echo "MATCH_COUNT=$count"
+          printf '%s' "$matches" | jq -r '.[] | "RUN_ID=\(.id) RUN_NUMBER=\(.run_number) WORKFLOW=\(.name) EVENT=\(.event) STATUS=\(.status) CONCLUSION=\(.conclusion // "null") CREATED_AT=\(.created_at) IMMUTABLE_HEAD_SHA=\(.head_sha // "") HEAD_BRANCH=\(.head_branch // "")"'
+          test "$count" -eq 1
+          echo 'MERGE=NEVER'

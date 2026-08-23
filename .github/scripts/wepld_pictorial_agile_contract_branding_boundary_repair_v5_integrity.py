@@ -847,8 +847,10 @@ def _selftest_activation_sha_split() -> None:
     class NetworkTransientProbeClient:
         def __init__(self) -> None:
             self.calls = 0
+            self.url = ""
 
         def json(self, url: str) -> dict[str, str]:
+            self.url = url
             self.calls += 1
             if self.calls < MAX_COMPARE_READ_ATTEMPTS:
                 raise base.PolicyError(
@@ -863,7 +865,10 @@ def _selftest_activation_sha_split() -> None:
         "a" * 40,
         "b" * 40,
     )
-    if network_transient.calls != MAX_COMPARE_READ_ATTEMPTS:
+    if (
+        network_transient.url != expected_url
+        or network_transient.calls != MAX_COMPARE_READ_ATTEMPTS
+    ):
         base.fail(
             "Pictorial/Agile contract repair-v5 non-HTTP transient compare retry drifted"
         )

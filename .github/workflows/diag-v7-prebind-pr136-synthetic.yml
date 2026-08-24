@@ -1,0 +1,41 @@
+name: diag-v7-prebind-pr136-synthetic
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/diag-v7-prebind-pr136-synthetic.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'diag/v7-prebind-pr136-synthetic-2026-08-24'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact prebind-fixed v7 policy base
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: b7dcb917846ac2be8872965e61353577a0abf2ea
+          fetch-depth: 1
+          persist-credentials: false
+          lfs: false
+          submodules: false
+
+      - name: Verify exact synthetic PR136 candidate as Git data only
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 'b7dcb917846ac2be8872965e61353577a0abf2ea'
+          output="$(python .github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py selftest)"
+          printf '%s\n' "$output"
+          test "$(printf '%s\n' "$output" | grep -Fxc 'wepld Pictorial/Agile source admission v7 self-tests: PASS')" -eq 1
+          python .github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py verify-remote \
+            --repository TheHalfMoon/wepld \
+            --sha c2ae088f64dcabe6e6210c9a451080f6100d2da8 \
+            --policy-root . \
+            --pr-base-sha b7dcb917846ac2be8872965e61353577a0abf2ea
+          echo 'synthetic_pr136_under_prebind_fixed_v7=PASS'

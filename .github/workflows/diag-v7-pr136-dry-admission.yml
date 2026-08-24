@@ -11,10 +11,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout exact diagnostic policy head
+      - name: Checkout exact diagnostic head
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          lfs: false
+          submodules: false
+
+      - name: Checkout exact clean v7 policy root
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 289fe871680de77ea2dc23b8e6c622a94338a930
+          path: policy
           persist-credentials: false
           fetch-depth: 1
           lfs: false
@@ -26,11 +36,11 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          python .github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py selftest
-          python .github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py verify-remote \
+          python policy/.github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py selftest
+          python policy/.github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py verify-remote \
             --repository TheHalfMoon/wepld \
             --sha 8fc41386319a4c1e48ed7624bf70babfc2894c57 \
-            --policy-root . \
+            --policy-root policy \
             --pr-base-sha 2ab2fae14bc3b3b1f1e9bc2059972456955aeff7
           echo 'candidate_policy_authority=NONE'
           echo 'synthetic_future_source_admission_evidence=PASS'

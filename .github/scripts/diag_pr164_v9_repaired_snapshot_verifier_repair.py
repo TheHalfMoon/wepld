@@ -94,9 +94,18 @@ PR136_MERGE=NOT_AUTHORIZED
     alias_addition = '''PRIOR_IS_SOURCE_PATH = prior.PRIOR_IS_SOURCE_PATH\nV7_VERIFY_ARTIFACT_BLOBS = prior.prior._verify_artifact_blobs\nV7_SOURCE_MAPS_TREE = "34fbb6a69a9e4dfa03ed20cc0f94d9814883ad58"\nV7_SOURCE_TOOLS_TREE = "444f9361eb3d204231f18e9148d073a01e04df3d"\nV7_SOURCE_LEGAL_TREE = "9b65277fa56081435196f21e1c6e5f8e9130a0a5"\nV7_SOURCE_LEGAL_THIRD_PARTY_TREE = "959d26daa7f8a872aee8710a25a4afb017a40c8c"\nV7_CONTRACT_PATH = "docs/acquisition/WEPLD_PICTORIAL_AGILE_FULL_DONOR_IMPORT_REBRAND_CONTRACT_2026-08-22.md"\nV7_CONTRACT_GIT_BLOB_SHA1 = "05e58e331fa6a119227127cb146e135f5b9789b7"\n'''
     script = replace_once(script, alias_anchor, alias_addition, 'v7 frozen verifier aliases')
 
+    function_start = script.index('def _require_exact_delta_v9(')
+    function_end = script.index('\ndef _compare_base_controlled_v9(', function_start)
+    exact_delta_function = script[function_start:function_end]
     zero_anchor = '''    base_has_snapshot = PRIOR_SNAPSHOT_PRESENT(policy_base)\n    candidate_has_snapshot = PRIOR_SNAPSHOT_PRESENT(candidate)\n'''
     zero_replacement = '''    # Exact zero-delta is a steady-state identity proof, not a new historical\n    # S1-011 candidate. _changed_paths_exact binds every tracked path, mode, and\n    # Git blob identity before this return. Any non-zero delta remains subject to\n    # the existing v9 and inherited admission gates.\n    if not changed:\n        return\n\n    base_has_snapshot = PRIOR_SNAPSHOT_PRESENT(policy_base)\n    candidate_has_snapshot = PRIOR_SNAPSHOT_PRESENT(candidate)\n'''
-    script = replace_once(script, zero_anchor, zero_replacement, 'zero-delta steady state')
+    exact_delta_function = replace_once(
+        exact_delta_function,
+        zero_anchor,
+        zero_replacement,
+        'zero-delta steady state inside v9 exact-delta function',
+    )
+    script = script[:function_start] + exact_delta_function + script[function_end:]
 
     compare_anchor = 'def _compare_base_controlled_v9(\n'
     helper = r'''def _classify_v9_snapshot_trees(vendor_tree: str, pictorial_tree: str) -> str:

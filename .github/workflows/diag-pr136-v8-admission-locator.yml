@@ -1,0 +1,42 @@
+name: diag-pr136-v8-admission-locator
+
+on:
+  pull_request:
+
+permissions: {}
+
+jobs:
+  locate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Locate original PR136 canonical-v8 admission run
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          TARGET_PR: '136'
+          TARGET_SHA: '28f0023b8ffb90c585213762dae5f4c1d57322ef'
+          TARGET_AFTER: '2026-08-24T06:25:30Z'
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${REPOSITORY}/actions/workflows/s1-admission-integrity.yml/runs?event=pull_request_target&per_page=100"
+          body="$(curl -fsSL \
+            -H 'Accept: application/vnd.github+json' \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "$api")"
+          matches="$(jq -c --argjson pr "$TARGET_PR" --arg sha "$TARGET_SHA" --arg after "$TARGET_AFTER" \
+            '[.workflow_runs[] | select(.event == "pull_request_target") | select(.created_at >= $after) | select(any(.pull_requests[]?; .number == $pr))] | sort_by(.created_at)' \
+            <<<"$body")"
+          count="$(jq 'length' <<<"$matches")"
+          echo "target_pr=${TARGET_PR}"
+          echo "target_sha=${TARGET_SHA}"
+          echo "target_after=${TARGET_AFTER}"
+          echo "matching_runs=${count}"
+          jq -r '.[] | "run_id=\(.id) run_number=\(.run_number) status=\(.status) conclusion=\(.conclusion) event=\(.event) head_sha=\(.head_sha) created_at=\(.created_at) updated_at=\(.updated_at)"' <<<"$matches"
+          if [ "$count" -lt 1 ]; then
+            echo 'no matching PR136 canonical-v8 admission run found' >&2
+            exit 1
+          fi
+          jq -r 'last | "selected_run_id=\(.id) selected_run_number=\(.run_number) selected_status=\(.status) selected_conclusion=\(.conclusion) selected_head_sha=\(.head_sha)"' <<<"$matches"

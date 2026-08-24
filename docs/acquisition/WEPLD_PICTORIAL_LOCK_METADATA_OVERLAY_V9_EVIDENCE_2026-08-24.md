@@ -74,3 +74,67 @@ PR136_SOURCE_HEAD_REPLACEMENT=NOT_AUTHORIZED
 PR162_MERGE=NOT_AUTHORIZED
 PR136_MERGE=NOT_AUTHORIZED
 ```
+
+## Independent exact-head review repair — F1/F2/F3
+
+The independent review of rejected v9 head
+`9d7cec43dca2a41a149f7749aa5f6cfb1ad25714` identified three findings.
+This evidence revision records the bounded repair design only; it does not grant
+merge, dependency, donor, product-runtime, provider/model, or completion authority.
+
+### F1 — current no-snapshot canonical progression
+
+After v9 is canonical, the first source-admission candidate must converge the exact
+trusted v9 policy base with the exact repaired source reference
+`04cc279133d536e2b4b68e01c019d7b595f0ed42`. The candidate is accepted only when:
+
+- every changed path relative to the trusted policy base is a v7-classified
+  Pictorial/Agile source/provenance/legal path;
+- the complete source surface (Git mode + blob identity) is byte-identical to the
+  exact repaired reference source surface;
+- the repaired vendor, Pictorial, Agile, package.json, and bun.lock identities
+  remain the content-addressed values recorded above; and
+- the candidate commit is an exact two-parent convergence of the repaired reference
+  and the trusted v9 policy base.
+
+The raw `04cc279...` tree by itself is not an admission candidate after v9 becomes
+canonical because it does not contain the canonical v9 policy/evidence bytes. A
+fresh convergence candidate is therefore required and remains separately governed.
+
+### F2 — pre-merge remote and post-merge local activation topology
+
+Remote PR qualification and post-merge local activation intentionally use different
+view types. v9 now verifies the same source-surface identity in both cases instead
+of requiring a LocalRepositoryView to satisfy RemoteRepositoryView type checks.
+
+For pre-merge qualification, the remote candidate must have exactly the repaired
+reference and trusted v9 policy base as its two parents. For post-merge activation,
+the pushed local checkout must be the merge of the trusted v9 policy base and that
+qualified convergence candidate. The convergence candidate itself must still have
+exactly the repaired reference and trusted v9 policy base as parents. This preserves
+repair lineage across both stages without weakening the data-only PR gate.
+
+### F3 — evidence retention
+
+Whenever the v9 policy wrapper is present, this evidence file is mandatory and its
+Git blob must equal the policy-bound evidence identity. Deletion, rename, or byte
+mutation fails closed. The v9 self-tests include explicit deletion and mutation
+negative oracles.
+
+```text
+REJECTED_V9_HEAD=9d7cec43dca2a41a149f7749aa5f6cfb1ad25714
+REVIEW_RESULT=FAIL_REPAIRED_BY_SUCCESSOR_CANDIDATE
+F1_CURRENT_NO_SNAPSHOT_PROGRESSION=REPAIRED_IN_CANDIDATE
+F2_LOCAL_REMOTE_ACTIVATION_TOPOLOGY=REPAIRED_IN_CANDIDATE
+F3_EVIDENCE_RETENTION=REPAIRED_IN_CANDIDATE
+DEPENDENCY_ADMISSION=NONE
+PACKAGE_EXECUTION=NONE
+DONOR_EXECUTION=NONE
+MODEL_PROVIDER_EXECUTION=NONE
+PRODUCT_RUNTIME_ADMISSION=NONE
+CANONICAL_POLICY_MERGE=NOT_AUTHORIZED
+PR164_READY=NOT_AUTHORIZED
+PR162_MERGE=NOT_AUTHORIZED
+PR136_MERGE=NOT_AUTHORIZED
+```
+

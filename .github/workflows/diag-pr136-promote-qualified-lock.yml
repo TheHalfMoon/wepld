@@ -1,0 +1,188 @@
+name: diag-pr136-promote-qualified-lock
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout authorized successor branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: repair/pr136-pictorial-lockfile-metadata-2026-08-24
+          persist-credentials: true
+          fetch-depth: 1
+          lfs: false
+          submodules: false
+
+      - name: Reproduce exact qualified lock bytes from public metadata only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "28f0023b8ffb90c585213762dae5f4c1d57322ef"
+          test "$(git hash-object vendor/pictorial/package.json)" = "ba646522c498af6e9bfa02fd1dba2f098d9f6d42"
+          test "$(git hash-object vendor/pictorial/bun.lock)" = "f7114d1b93f26eb9d7796fc15ae3d639d2209c9d"
+          python - <<'PY'
+          from __future__ import annotations
+          import hashlib, json, re, urllib.parse, urllib.request
+          from pathlib import Path
+
+          REPL={
+            '@hono/node-server':('1.19.14','1.19.15'),
+            'body-parser':('2.2.2','2.3.0'),
+            'brace-expansion':('5.0.6','5.0.9'),
+            'express-rate-limit':('8.3.2','8.5.1'),
+            'fast-uri':('3.1.0','3.1.5'),
+            'hono':('4.12.14','4.12.34'),
+            'ip-address':('10.1.0','10.3.1'),
+            'qs':('6.15.1','6.15.2'),
+            'type-is':('2.0.1','2.1.0'),
+          }
+          NEST={'body-parser/content-type':('content-type','2.0.0'),'type-is/content-type':('content-type','2.0.0')}
+          EXPECTED_SHA256='92d73b6b1c491fd9c800c0243d6652b4287a4edd625d34ea5fd3af99021d3733'
+          EXPECTED_BLOB='0045fb246c6ffac5375f7272f4f88b3dd7ef53d6'
+
+          def strip(text):
+            out=[]; ins=False; esc=False; i=0
+            while i<len(text):
+              c=text[i]
+              if ins:
+                out.append(c)
+                if esc: esc=False
+                elif c=='\\': esc=True
+                elif c=='"': ins=False
+                i+=1; continue
+              if c=='"': ins=True; out.append(c); i+=1; continue
+              if c==',':
+                j=i+1
+                while j<len(text) and text[j].isspace(): j+=1
+                if j<len(text) and text[j] in '}]': i+=1; continue
+              out.append(c); i+=1
+            return ''.join(out)
+
+          def splitid(s):
+            if s.startswith('@'):
+              p=s.rfind('@'); return s[:p],s[p+1:]
+            return tuple(s.rsplit('@',1))
+
+          def meta(name,version):
+            url=f"https://registry.npmjs.org/{urllib.parse.quote(name,safe='')}/{urllib.parse.quote(version,safe='.-_+')}"
+            req=urllib.request.Request(url,headers={'Accept':'application/json','User-Agent':'wepld-metadata-only-repair/2'})
+            with urllib.request.urlopen(req,timeout=30) as r: return json.loads(r.read())
+
+          def proj(m):
+            out={}
+            for k in ('dependencies','optionalDependencies','peerDependencies'):
+              v=m.get(k)
+              if isinstance(v,dict) and v: out[k]={n:v[n] for n in sorted(v)}
+            pm=m.get('peerDependenciesMeta')
+            if isinstance(pm,dict):
+              opt=sorted(k for k,v in pm.items() if isinstance(v,dict) and v.get('optional') is True)
+              if opt: out['optionalPeers']=opt
+            for k in ('bin','os','cpu'):
+              v=m.get(k)
+              if v is not None:
+                if isinstance(v,dict): v={n:v[n] for n in sorted(v)}
+                out[k]=v
+            return out
+
+          def inline(v):
+            if isinstance(v,dict): return '{ ' + ', '.join(f'{json.dumps(k)}: {inline(x)}' for k,x in v.items()) + ' }'
+            if isinstance(v,list): return '['+', '.join(inline(x) for x in v)+']'
+            return json.dumps(v,separators=(',',':'))
+
+          def row(key,name,version,m):
+            sri=m.get('dist',{}).get('integrity')
+            assert isinstance(sri,str) and sri.startswith('sha512-')
+            return f'    {json.dumps(key)}: [{json.dumps(name+"@"+version)}, "", {inline(proj(m))}, {json.dumps(sri)}],'
+
+          path=Path('vendor/pictorial/bun.lock'); before=path.read_bytes(); obj=json.loads(strip(before.decode())); pkgs=obj['packages']
+          parsed={}
+          for k,r in pkgs.items():
+            n,v=splitid(r[0]); info=next((x for x in r[2:] if isinstance(x,dict)),{}); sri=next((x for x in reversed(r[2:]) if isinstance(x,str) and x.startswith('sha512-')),None)
+            parsed[k]=(n,v,info,sri)
+          lines=before.decode().splitlines(); idx={}
+          for i,l in enumerate(lines):
+            m=re.match(r'^    ("(?:[^"\\]|\\.)+"): \[',l)
+            if m: idx[json.loads(m.group(1))]=i
+          for k,(cur,new) in REPL.items():
+            n,v,info,sri=parsed[k]; assert n==k and v==cur
+            cm=meta(k,cur); nm=meta(k,new)
+            normalized={a:({b:x[b] for b in sorted(x)} if isinstance(x,dict) else x) for a,x in info.items()}
+            assert proj(cm)==normalized
+            assert cm.get('dist',{}).get('integrity')==sri
+            lines[idx[k]]=row(k,k,new,nm)
+          cmeta=meta('content-type','2.0.0')
+          anchor=idx['@modelcontextprotocol/sdk/eventsource-parser']
+          lines[anchor:anchor]=[row(k,n,v,cmeta) for k,(n,v) in sorted(NEST.items())]+['']
+          after=('\n'.join(lines)+'\n').encode()
+          assert hashlib.sha256(after).hexdigest()==EXPECTED_SHA256
+          blob=hashlib.sha1(f'blob {len(after)}\0'.encode()+after).hexdigest()
+          assert blob==EXPECTED_BLOB
+          proposed=json.loads(strip(after)); assert len(proposed['packages'])==235
+          path.write_bytes(after)
+          PY
+          test "$(sha256sum vendor/pictorial/bun.lock | awk '{print $1}')" = "92d73b6b1c491fd9c800c0243d6652b4287a4edd625d34ea5fd3af99021d3733"
+          test "$(git hash-object vendor/pictorial/bun.lock)" = "0045fb246c6ffac5375f7272f4f88b3dd7ef53d6"
+          test "$(git status --short | wc -l)" -eq 1
+          test "$(git status --short)" = " M vendor/pictorial/bun.lock"
+
+      - name: Recheck exact proposed graph with OSV before commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, urllib.request
+          from pathlib import Path
+          def strip(t):
+            out=[]; ins=False; esc=False; i=0
+            while i<len(t):
+              c=t[i]
+              if ins:
+                out.append(c)
+                if esc: esc=False
+                elif c=='\\': esc=True
+                elif c=='"': ins=False
+                i+=1; continue
+              if c=='"': ins=True; out.append(c); i+=1; continue
+              if c==',':
+                j=i+1
+                while j<len(t) and t[j].isspace(): j+=1
+                if j<len(t) and t[j] in '}]': i+=1; continue
+              out.append(c); i+=1
+            return ''.join(out)
+          def sid(s):
+            if s.startswith('@'):
+              p=s.rfind('@'); return s[:p],s[p+1:]
+            return tuple(s.rsplit('@',1))
+          obj=json.loads(strip(Path('vendor/pictorial/bun.lock').read_text()))
+          ids=sorted({sid(r[0]) for r in obj['packages'].values()})
+          q={'queries':[{'package':{'ecosystem':'npm','name':n},'version':v} for n,v in ids]}
+          req=urllib.request.Request('https://api.osv.dev/v1/querybatch',data=json.dumps(q,sort_keys=True,separators=(',',':')).encode(),headers={'Content-Type':'application/json','User-Agent':'wepld-metadata-only-repair/2'},method='POST')
+          with urllib.request.urlopen(req,timeout=60) as r: res=json.loads(r.read())
+          affected=[]
+          for ident,x in zip(ids,res['results'],strict=True):
+            vulns=x.get('vulns',[]) if isinstance(x,dict) else []
+            if vulns: affected.append((ident,[v['id'] for v in vulns]))
+          assert not affected, affected
+          print(f'qualified_unique_npm_identities={len(ids)}')
+          print('osv_affected_exact_identities=0')
+          PY
+
+      - name: Commit and fast-forward authorized successor only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- vendor/pictorial/bun.lock
+          git diff --cached --name-only | grep -Fx 'vendor/pictorial/bun.lock'
+          test "$(git diff --cached --name-only | wc -l)" -eq 1
+          git commit -m "fix(vendor): repair Pictorial lock metadata advisories"
+          git push origin HEAD:refs/heads/repair/pr136-pictorial-lockfile-metadata-2026-08-24

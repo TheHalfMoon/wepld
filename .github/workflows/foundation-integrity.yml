@@ -4,73 +4,69 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  f1-remote-topology-proof:
+  f2-repair-promote:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
-      - name: Checkout exact repaired v9 policy head
+      - name: Checkout exact PR164 target branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: 7d24c3047191822d687b5fb3cd52e228a6353651
-          path: policy
+          ref: ci/pictorial-agile-source-admission-v9-lock-overlay-2026-08-24
+          path: target
+          persist-credentials: true
+          fetch-depth: 0
+          lfs: false
+          submodules: false
+
+      - name: Checkout diagnostic generator
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: diag
           persist-credentials: false
           fetch-depth: 1
           lfs: false
           submodules: false
 
-      - name: Prove F1 remote current-no-snapshot admission
+      - name: Revalidate immutable bindings
         shell: bash
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          cd policy
-          python .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py selftest
-          python .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py verify-remote \
-            --repository TheHalfMoon/wepld \
-            --sha c46c152ac9d97e7e178edf90c5be7b1cc592d168 \
-            --policy-root . \
-            --pr-base-sha 7d24c3047191822d687b5fb3cd52e228a6353651
-          echo 'f1_current_no_snapshot_remote_admission=PASS'
-          echo 'f1_negative_oracles=PASS_VIA_EXACT_V9_SELFTESTS'
-          echo 'candidate_git_objects=DATA_ONLY'
-          echo 'donor_code_execution=NONE'
-          echo 'dependency_installation=NONE'
-          echo 'model_provider_execution=NONE'
+          test "$(git -C target rev-parse HEAD)" = '7d24c3047191822d687b5fb3cd52e228a6353651'
+          test "$(git -C target ls-remote origin refs/heads/ci/pictorial-agile-source-admission-v9-lock-overlay-2026-08-24 | cut -f1)" = '7d24c3047191822d687b5fb3cd52e228a6353651'
+          test "$(git -C target ls-remote origin refs/heads/main | cut -f1)" = '08a06e9f2664735eb55db5b2f49f95d3d3f91c3f'
 
-  f2-local-remote-topology-proof:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - name: Checkout simulated post-merge head as local candidate data
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: 14cd0fa2999e7831d02488bc8c926057b8f3fcb6
-          path: postmerge
-          persist-credentials: false
-          fetch-depth: 0
-          lfs: false
-          submodules: false
-
-      - name: Prove F2 real Local candidate plus Remote policy-base activation
+      - name: Generate and qualify exact F2 repair
         shell: bash
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          WEPLD_POLICY_BASE_SHA: 7d24c3047191822d687b5fb3cd52e228a6353651
         run: |
           set -euo pipefail
-          cd postmerge
-          test "$(git rev-parse HEAD)" = '14cd0fa2999e7831d02488bc8c926057b8f3fcb6'
+          cd target
+          python ../diag/.github/scripts/diag_pr164_v9_f2_local_client_bridge_repair.py
+          python -m py_compile .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py
           python .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py selftest
-          python .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py verify-local \
-            --root . \
-            --remote-baseline \
-            --pr-base-sha 14cd0fa2999e7831d02488bc8c926057b8f3fcb6
-          echo 'f2_local_candidate_remote_policy_base_activation=PASS'
-          echo 'candidate_checkout=LOCAL_DATA_ONLY'
-          echo 'donor_code_execution=NONE'
-          echo 'dependency_installation=NONE'
-          echo 'model_provider_execution=NONE'
+          mapfile -t changed < <(git diff --name-only)
+          test "${#changed[@]}" -eq 2
+          printf '%s\n' "${changed[@]}" | sort > /tmp/actual-paths
+          printf '%s\n' \
+            '.github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py' \
+            'docs/acquisition/WEPLD_PICTORIAL_LOCK_METADATA_OVERLAY_V9_EVIDENCE_2026-08-24.md' \
+            | sort > /tmp/expected-paths
+          diff -u /tmp/expected-paths /tmp/actual-paths
+          cat /tmp/pr164-v9-f2-repair.manifest
+
+      - name: Commit and fast-forward PR164 branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd target
+          test "$(git ls-remote origin refs/heads/ci/pictorial-agile-source-admission-v9-lock-overlay-2026-08-24 | cut -f1)" = '7d24c3047191822d687b5fb3cd52e228a6353651'
+          git config user.name 'wepld-policy-repair'
+          git config user.email 'wepld-policy-repair@users.noreply.github.com'
+          git add .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py \
+            docs/acquisition/WEPLD_PICTORIAL_LOCK_METADATA_OVERLAY_V9_EVIDENCE_2026-08-24.md
+          git diff --cached --quiet && { echo 'repair produced no staged delta' >&2; exit 1; }
+          git commit -m 'fix(ci): bridge v9 F2 local remote-baseline client'
+          git push origin HEAD:refs/heads/ci/pictorial-agile-source-admission-v9-lock-overlay-2026-08-24

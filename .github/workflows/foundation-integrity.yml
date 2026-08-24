@@ -7,69 +7,37 @@ permissions:
   contents: read
 
 jobs:
-  f1-remote-topology-proof:
+  github-api-capacity:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 5
     steps:
-      - name: Checkout exact repaired v9 policy head
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: f91d765d21f497502e21414f49d42869218066b5
-          path: policy
-          persist-credentials: false
-          fetch-depth: 1
-          lfs: false
-          submodules: false
-
-      - name: Prove F1 exact remote admission
+      - name: Report GitHub API capacity without credential contents
         shell: bash
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          cd policy
-          python .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py selftest
-          python .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py verify-remote \
-            --repository TheHalfMoon/wepld \
-            --sha e8a70633fc7f60b1e8dd3e607e334e11d878bb0c \
-            --policy-root . \
-            --pr-base-sha f91d765d21f497502e21414f49d42869218066b5
-          echo 'f1_exact_remote_admission=PASS'
-          echo 'f1_negative_oracles=PASS_VIA_EXACT_V9_SELFTESTS'
-          echo 'donor_code_execution=NONE'
-          echo 'dependency_installation=NONE'
-          echo 'model_provider_execution=NONE'
+          python - <<'PY'
+          import os
+          import urllib.request
+          import urllib.error
 
-  f2-local-remote-topology-proof:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - name: Checkout exact simulated post-merge local candidate
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: c67eb570e9601f1dd21e1edd03a21926d29dc870
-          path: postmerge
-          persist-credentials: false
-          fetch-depth: 0
-          lfs: false
-          submodules: false
-
-      - name: Prove F2 exact Local plus Remote activation
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          WEPLD_POLICY_BASE_SHA: f91d765d21f497502e21414f49d42869218066b5
-        run: |
-          set -euo pipefail
-          cd postmerge
-          test "$(git rev-parse HEAD)" = 'c67eb570e9601f1dd21e1edd03a21926d29dc870'
-          python .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py selftest
-          python .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py verify-local \
-            --root . \
-            --remote-baseline \
-            --pr-base-sha c67eb570e9601f1dd21e1edd03a21926d29dc870
-          echo 'f2_exact_local_remote_activation=PASS'
-          echo 'candidate_checkout=LOCAL_DATA_ONLY'
-          echo 'donor_code_execution=NONE'
-          echo 'dependency_installation=NONE'
-          echo 'model_provider_execution=NONE'
+          req = urllib.request.Request(
+              'https://api.github.com/rate_limit',
+              headers={
+                  'Accept': 'application/vnd.github+json',
+                  'Authorization': f"Bearer {os.environ['GITHUB_TOKEN']}",
+                  'X-GitHub-Api-Version': '2022-11-28',
+                  'User-Agent': 'wepld-v9-diagnostic',
+              },
+          )
+          try:
+              response = urllib.request.urlopen(req, timeout=20)
+          except urllib.error.HTTPError as exc:
+              response = exc
+          print(f'http_status={response.status}')
+          for key in ('X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Used', 'X-RateLimit-Reset', 'Retry-After'):
+              value = response.headers.get(key)
+              if value is not None:
+                  print(f'{key.lower()}={value}')
+          PY

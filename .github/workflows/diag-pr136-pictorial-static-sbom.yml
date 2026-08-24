@@ -1,0 +1,308 @@
+name: diag-pr136-pictorial-static-sbom
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact admitted PR136 source head as data
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 28f0023b8ffb90c585213762dae5f4c1d57322ef
+          persist-credentials: false
+          fetch-depth: 1
+          lfs: false
+          submodules: false
+          sparse-checkout: |
+            vendor/pictorial/package.json
+            vendor/pictorial/bun.lock
+          sparse-checkout-cone-mode: false
+
+      - name: Generate deterministic static Pictorial lock SBOM
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import base64
+          import hashlib
+          import json
+          import re
+          import uuid
+          from pathlib import Path
+          from urllib.parse import quote
+
+          SOURCE_HEAD = "28f0023b8ffb90c585213762dae5f4c1d57322ef"
+          PACKAGE_BLOB = "ba646522c498af6e9bfa02fd1dba2f098d9f6d42"
+          LOCK_BLOB = "f7114d1b93f26eb9d7796fc15ae3d639d2209c9d"
+          SOURCE_TIMESTAMP = "2026-08-24T06:25:35Z"
+          EXPECTED_LOCK_ENTRIES = 233
+
+          package_path = Path("vendor/pictorial/package.json")
+          lock_path = Path("vendor/pictorial/bun.lock")
+          package_bytes = package_path.read_bytes()
+          lock_bytes = lock_path.read_bytes()
+
+          def git_blob_sha1(data: bytes) -> str:
+              return hashlib.sha1(f"blob {len(data)}\0".encode("ascii") + data).hexdigest()
+
+          assert git_blob_sha1(package_bytes) == PACKAGE_BLOB
+          assert git_blob_sha1(lock_bytes) == LOCK_BLOB
+
+          package = json.loads(package_bytes)
+
+          def strip_trailing_commas(text: str) -> str:
+              out: list[str] = []
+              in_string = False
+              escaped = False
+              i = 0
+              while i < len(text):
+                  ch = text[i]
+                  if in_string:
+                      out.append(ch)
+                      if escaped:
+                          escaped = False
+                      elif ch == "\\":
+                          escaped = True
+                      elif ch == '"':
+                          in_string = False
+                      i += 1
+                      continue
+                  if ch == '"':
+                      in_string = True
+                      out.append(ch)
+                      i += 1
+                      continue
+                  if ch == ',':
+                      j = i + 1
+                      while j < len(text) and text[j].isspace():
+                          j += 1
+                      if j < len(text) and text[j] in '}]':
+                          i += 1
+                          continue
+                  out.append(ch)
+                  i += 1
+              return ''.join(out)
+
+          lock = json.loads(strip_trailing_commas(lock_bytes.decode("utf-8")))
+          assert lock["lockfileVersion"] == 1
+          assert lock["configVersion"] == 1
+          workspace = lock["workspaces"][""]
+          packages = lock["packages"]
+          assert isinstance(packages, dict)
+          assert len(packages) == EXPECTED_LOCK_ENTRIES, len(packages)
+
+          scopes = {
+              "runtime": dict(package.get("dependencies", {})),
+              "dev": dict(package.get("devDependencies", {})),
+              "optional": dict(package.get("optionalDependencies", {})),
+          }
+          assert scopes["runtime"] == dict(workspace.get("dependencies", {}))
+          assert scopes["dev"] == dict(workspace.get("devDependencies", {}))
+          assert scopes["optional"] == dict(workspace.get("optionalDependencies", {}))
+          assert (len(scopes["runtime"]), len(scopes["dev"]), len(scopes["optional"])) == (6, 11, 1)
+
+          direct_scope: dict[str, str] = {}
+          for scope, deps in scopes.items():
+              for name in deps:
+                  if name in direct_scope:
+                      raise AssertionError(f"duplicate direct dependency across scopes: {name}")
+                  direct_scope[name] = scope
+                  if name not in packages:
+                      raise AssertionError(f"direct dependency missing root lock entry: {name}")
+
+          def split_identity(identity: str) -> tuple[str, str]:
+              if identity.startswith("@"):
+                  pos = identity.rfind("@")
+                  if pos <= 0:
+                      raise ValueError(identity)
+                  return identity[:pos], identity[pos + 1:]
+              name, version = identity.rsplit("@", 1)
+              return name, version
+
+          parsed: dict[str, dict] = {}
+          missing_sri: list[str] = []
+          for lock_key, row in packages.items():
+              if not isinstance(row, list) or len(row) < 2 or not isinstance(row[0], str):
+                  raise AssertionError(f"malformed lock row: {lock_key}")
+              name, version = split_identity(row[0])
+              metadata = next((item for item in row[2:] if isinstance(item, dict)), {})
+              sri = next((item for item in reversed(row[2:]) if isinstance(item, str) and item.startswith("sha512-")), None)
+              if sri is None:
+                  missing_sri.append(lock_key)
+              parsed[lock_key] = {
+                  "name": name,
+                  "version": version,
+                  "metadata": metadata,
+                  "sri": sri,
+              }
+
+          def resolve_dep(parent_key: str, dep_name: str) -> str | None:
+              parent_name = parsed[parent_key]["name"]
+              candidates = [
+                  f"{parent_key}/{dep_name}",
+                  f"{parent_name}/{dep_name}",
+                  dep_name,
+              ]
+              seen: set[str] = set()
+              for candidate in candidates:
+                  if candidate in seen:
+                      continue
+                  seen.add(candidate)
+                  if candidate in packages:
+                      return candidate
+              return None
+
+          edges: dict[str, list[str]] = {}
+          unresolved: list[dict[str, str]] = []
+          for lock_key, info in parsed.items():
+              metadata = info["metadata"]
+              dep_names: list[str] = []
+              for field in ("dependencies", "optionalDependencies"):
+                  value = metadata.get(field, {})
+                  if isinstance(value, dict):
+                      dep_names.extend(value.keys())
+              targets: list[str] = []
+              for dep_name in sorted(set(dep_names)):
+                  target = resolve_dep(lock_key, dep_name)
+                  if target is None:
+                      unresolved.append({"parent": lock_key, "dependency": dep_name})
+                  else:
+                      targets.append(target)
+              edges[lock_key] = sorted(set(targets))
+
+          if unresolved:
+              raise AssertionError(f"unresolved lock dependency edges: {unresolved}")
+
+          components: list[dict] = []
+          inventory_rows: list[dict] = []
+          for lock_key in sorted(parsed):
+              info = parsed[lock_key]
+              name = info["name"]
+              version = info["version"]
+              metadata = info["metadata"]
+              props = [
+                  {"name": "wepld:bun_lock_key", "value": lock_key},
+                  {"name": "wepld:source_lock_blob", "value": LOCK_BLOB},
+              ]
+              if lock_key in direct_scope:
+                  props.append({"name": "wepld:root_scope", "value": direct_scope[lock_key]})
+              for field in ("os", "cpu"):
+                  value = metadata.get(field)
+                  if value is not None:
+                      props.append({"name": f"wepld:{field}", "value": json.dumps(value, sort_keys=True) if not isinstance(value, str) else value})
+
+              component = {
+                  "type": "library",
+                  "bom-ref": f"bun-lock:{lock_key}",
+                  "name": name,
+                  "version": version,
+                  "purl": f"pkg:npm/{quote(name, safe='/')}@{quote(version, safe='.-_+')}" ,
+                  "properties": props,
+              }
+              if info["sri"]:
+                  digest = base64.b64decode(info["sri"][len("sha512-"):], validate=True).hex()
+                  component["hashes"] = [{"alg": "SHA-512", "content": digest}]
+              components.append(component)
+              inventory_rows.append({
+                  "lock_key": lock_key,
+                  "name": name,
+                  "version": version,
+                  "sri": info["sri"],
+                  "root_scope": direct_scope.get(lock_key),
+                  "dependencies": edges[lock_key],
+                  "os": metadata.get("os"),
+                  "cpu": metadata.get("cpu"),
+              })
+
+          root_ref = "wepld-pictorial@3.6.0"
+          dependency_records = [{
+              "ref": root_ref,
+              "dependsOn": [f"bun-lock:{name}" for name in sorted(direct_scope)],
+          }]
+          dependency_records.extend({
+              "ref": f"bun-lock:{key}",
+              "dependsOn": [f"bun-lock:{target}" for target in edges[key]],
+          } for key in sorted(edges))
+
+          serial = str(uuid.uuid5(uuid.NAMESPACE_URL, f"wepld:pictorial:{SOURCE_HEAD}:{LOCK_BLOB}"))
+          bom = {
+              "bomFormat": "CycloneDX",
+              "specVersion": "1.5",
+              "serialNumber": f"urn:uuid:{serial}",
+              "version": 1,
+              "metadata": {
+                  "timestamp": SOURCE_TIMESTAMP,
+                  "component": {
+                      "type": "application",
+                      "bom-ref": root_ref,
+                      "name": "@wepld/pictorial",
+                      "version": str(package["version"]),
+                      "properties": [
+                          {"name": "wepld:bound_pr", "value": "136"},
+                          {"name": "wepld:bound_head", "value": SOURCE_HEAD},
+                          {"name": "wepld:package_json_git_blob", "value": PACKAGE_BLOB},
+                          {"name": "wepld:bun_lock_git_blob", "value": LOCK_BLOB},
+                          {"name": "wepld:dependency_admission", "value": "NONE"},
+                          {"name": "wepld:package_execution", "value": "NONE"},
+                      ],
+                  },
+              },
+              "components": components,
+              "dependencies": dependency_records,
+          }
+
+          out = Path("diag-output")
+          out.mkdir()
+          bom_bytes = (json.dumps(bom, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
+          (out / "pictorial-bun-lock-sbom.cdx.json").write_bytes(bom_bytes)
+          with (out / "pictorial-bun-lock-inventory.jsonl").open("w", encoding="utf-8", newline="\n") as fh:
+              for row in inventory_rows:
+                  fh.write(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n")
+
+          summary = {
+              "subject_pr": 136,
+              "subject_head": SOURCE_HEAD,
+              "package_json_git_blob": PACKAGE_BLOB,
+              "bun_lock_git_blob": LOCK_BLOB,
+              "bun_lock_sha256": hashlib.sha256(lock_bytes).hexdigest(),
+              "lock_entries": len(packages),
+              "components": len(components),
+              "root_runtime_dependencies": len(scopes["runtime"]),
+              "root_dev_dependencies": len(scopes["dev"]),
+              "root_optional_dependencies": len(scopes["optional"]),
+              "resolved_dependency_edges": sum(len(v) for v in edges.values()),
+              "unresolved_dependency_edges": len(unresolved),
+              "entries_missing_sha512_sri": len(missing_sri),
+              "entries_missing_sha512_sri_keys": missing_sri,
+              "cyclonedx_spec_version": "1.5",
+              "cyclonedx_serial": f"urn:uuid:{serial}",
+              "cyclonedx_sha256": hashlib.sha256(bom_bytes).hexdigest(),
+              "dependency_admission": "NONE",
+              "package_execution": "NONE",
+              "donor_code_execution": "NONE",
+          }
+          (out / "pictorial-bun-lock-summary.json").write_text(
+              json.dumps(summary, sort_keys=True, indent=2) + "\n",
+              encoding="utf-8",
+              newline="\n",
+          )
+          print(json.dumps(summary, sort_keys=True))
+          PY
+
+      - name: Upload immutable diagnostic evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pr136-pictorial-static-sbom
+          path: diag-output/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0

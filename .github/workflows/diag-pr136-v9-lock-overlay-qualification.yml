@@ -25,9 +25,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "9d7cec43dca2a41a149f7749aa5f6cfb1ad25714"
+          git -c credential.helper= fetch --depth=1 --no-tags origin 9d7cec43dca2a41a149f7749aa5f6cfb1ad25714
+          test "$(git rev-parse FETCH_HEAD)" = "9d7cec43dca2a41a149f7749aa5f6cfb1ad25714"
           test "$(git hash-object .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py)" = "b85e83d0f5099aa9527d70c4f51bc9070ca95859"
           test "$(git hash-object docs/acquisition/WEPLD_PICTORIAL_LOCK_METADATA_OVERLAY_V9_EVIDENCE_2026-08-24.md)" = "8a6529353a93f6d7bdf49e34f03028afcbc29fde"
+          changed="$(git diff --name-only 9d7cec43dca2a41a149f7749aa5f6cfb1ad25714 HEAD)"
+          test "$changed" = ".github/workflows/diag-pr136-v9-lock-overlay-qualification.yml"
 
       - name: Run v9 policy self-tests
         shell: bash

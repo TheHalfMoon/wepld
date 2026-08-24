@@ -18,7 +18,6 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          # Refreshed after PR #141 ready_for_review event.
           python - <<'PY'
           import json, os, urllib.request
           url = "https://api.github.com/repos/TheHalfMoon/wepld/actions/runs?event=pull_request_target&per_page=100"
@@ -34,17 +33,16 @@ jobs:
               prs = [p.get("number") for p in run.get("pull_requests", [])]
               if (run.get("name") == "s1-admission-integrity"
                   and run.get("event") == "pull_request_target"
-                  and 141 in prs
-                  and run.get("head_sha") == "2af1c4920a94f93f7ebac0f9a7e21e885917d15b"):
+                  and 141 in prs):
                   matches.append({
                       "id": run.get("id"),
                       "run_number": run.get("run_number"),
+                      "head_sha": run.get("head_sha"),
                       "status": run.get("status"),
                       "conclusion": run.get("conclusion"),
                       "created_at": run.get("created_at"),
-                      "jobs_url": run.get("jobs_url"),
                   })
           print(json.dumps(matches, sort_keys=True))
           if len(matches) != 1:
-              raise SystemExit(f"expected exactly one PR141 exact-tree trusted-base run, found {len(matches)}")
+              raise SystemExit(f"expected exactly one PR141 trusted-base run, found {len(matches)}")
           PY

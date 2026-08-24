@@ -33,10 +33,10 @@ jobs:
         if: github.event_name == 'pull_request'
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ github.token }}
           CANDIDATE_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
+          unset GITHUB_TOKEN
           python .github/scripts/wepld_s1_admission_steady_state_routing_v3_integrity.py verify-candidate-local \
             --root . \
             --policy-base-sha "$CANDIDATE_BASE_SHA"

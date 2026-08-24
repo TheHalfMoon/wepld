@@ -111,6 +111,9 @@ jobs:
           test "$(wc -l < diag-v9-repair-changed-files.txt)" -eq 2
           grep -Fx '.github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py' diag-v9-repair-changed-files.txt
           grep -Fx 'docs/acquisition/WEPLD_PICTORIAL_LOCK_METADATA_OVERLAY_V9_EVIDENCE_2026-08-24.md' diag-v9-repair-changed-files.txt
+          test "$(sha256sum .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py | awk '{print $1}')" = '7ef7d5d6883556be7c6e1758f652209b94a220c510df4f1d246a22f310c72316'
+          test "$(sha256sum docs/acquisition/WEPLD_PICTORIAL_LOCK_METADATA_OVERLAY_V9_EVIDENCE_2026-08-24.md | awk '{print $1}')" = '3655e2e6bc44478a5a365d9389c76a230cf5167527080e1f62d463c46e206dff'
+          test "$(git hash-object docs/acquisition/WEPLD_PICTORIAL_LOCK_METADATA_OVERLAY_V9_EVIDENCE_2026-08-24.md)" = '916f3b7e192a28f0d7f397087cdfacc858b26423'
 
       - name: Upload exact repair candidate bytes
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -124,3 +127,75 @@ jobs:
           if-no-files-found: error
           retention-days: 1
           compression-level: 0
+
+  promote-repair:
+    if: github.event_name == 'pull_request'
+    needs: diagnostic-repair
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact PR164 target branch with non-exported GitHub auth
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ci/pictorial-agile-source-admission-v9-lock-overlay-2026-08-24
+          persist-credentials: true
+          fetch-depth: 0
+          lfs: false
+          submodules: false
+
+      - name: Revalidate immutable race bindings
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '9d7cec43dca2a41a149f7749aa5f6cfb1ad25714'
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          test "$(git rev-parse refs/remotes/origin/main)" = '08a06e9f2664735eb55db5b2f49f95d3d3f91c3f'
+
+      - name: Fetch exact diagnostic generator
+        shell: bash
+        env:
+          DIAG_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "$DIAG_HEAD"
+          git show "$DIAG_HEAD:.github/scripts/diag_pr164_v9_three_finding_repair.py" > /tmp/diag_pr164_v9_three_finding_repair.py
+
+      - name: Reproduce and verify exact repair bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python /tmp/diag_pr164_v9_three_finding_repair.py
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('.github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py')
+          text = p.read_text(encoding='utf-8')
+          anchor = 'def _local_commit_sha(view: base.LocalRepositoryView) -> str:\n'
+          helper = '''def _memory_view(files: dict[str, bytes]) -> base.MemoryView:\n    return base.MemoryView(\n        files,\n        trees={path: _git_blob_sha1(data) for path, data in files.items()},\n    )\n\n\n'''
+          if text.count(anchor) != 1 or 'def _memory_view(files: dict[str, bytes])' in text:
+              raise SystemExit('memory-view repair anchor drifted')
+          p.write_text(text.replace(anchor, helper + anchor, 1), encoding='utf-8', newline='\n')
+          PY
+          python -m py_compile .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py
+          python .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py selftest
+          test "$(sha256sum .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py | awk '{print $1}')" = '7ef7d5d6883556be7c6e1758f652209b94a220c510df4f1d246a22f310c72316'
+          test "$(sha256sum docs/acquisition/WEPLD_PICTORIAL_LOCK_METADATA_OVERLAY_V9_EVIDENCE_2026-08-24.md | awk '{print $1}')" = '3655e2e6bc44478a5a365d9389c76a230cf5167527080e1f62d463c46e206dff'
+          test "$(git hash-object docs/acquisition/WEPLD_PICTORIAL_LOCK_METADATA_OVERLAY_V9_EVIDENCE_2026-08-24.md)" = '916f3b7e192a28f0d7f397087cdfacc858b26423'
+          mapfile -t changed < <(git diff --name-only)
+          test "${#changed[@]}" -eq 2
+          printf '%s\n' "${changed[@]}" | grep -Fx '.github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py'
+          printf '%s\n' "${changed[@]}" | grep -Fx 'docs/acquisition/WEPLD_PICTORIAL_LOCK_METADATA_OVERLAY_V9_EVIDENCE_2026-08-24.md'
+
+      - name: Commit and fast-forward PR164 branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'wepld-policy-repair'
+          git config user.email 'wepld-policy-repair@users.noreply.github.com'
+          git add .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py \
+            docs/acquisition/WEPLD_PICTORIAL_LOCK_METADATA_OVERLAY_V9_EVIDENCE_2026-08-24.md
+          git diff --cached --quiet && { echo 'expected repair diff is empty' >&2; exit 1; }
+          git commit -m 'fix(ci): repair v9 independent-review findings F1-F3'
+          test "$(git rev-parse HEAD^)" = '9d7cec43dca2a41a149f7749aa5f6cfb1ad25714'
+          git push origin HEAD:refs/heads/ci/pictorial-agile-source-admission-v9-lock-overlay-2026-08-24

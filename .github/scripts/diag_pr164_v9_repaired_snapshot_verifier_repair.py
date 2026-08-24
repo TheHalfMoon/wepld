@@ -26,36 +26,45 @@ def main() -> None:
 
     section = r'''
 
-## F1 inherited repaired-snapshot verifier correction
+## F1 repaired-snapshot and zero-delta steady-state corrections
 
 Deterministic execution of the exact production `verify-remote` entrypoint against
-the F2b convergence object exposed a remaining F1 mismatch at exact head
-`f91d765d21f497502e21414f49d42869218066b5`.
+the repaired-source convergence topology exposed two successive F1 mismatches at
+exact head `f91d765d21f497502e21414f49d42869218066b5`.
 
-The initial repaired-source admission correctly bound the candidate to the repaired
-vendor identities, but a later steady-state base-control pass received a projected
-`_PriorV18View` containing that same repaired snapshot and delegated it to the frozen
-v7 snapshot verifier. v7 correctly accepts only the original snapshot trees, so it
-rejected the already-bound repaired tree with:
+First, the initial repaired-source admission correctly bound the candidate to the
+repaired vendor identities, but a later steady-state base-control pass received a
+projected `_PriorV18View` containing that same repaired snapshot and delegated it to
+the frozen v7 snapshot verifier. v7 correctly accepts only the original snapshot
+trees, so it rejected the already-bound repaired tree.
 
-`Pictorial/Agile frozen subtree drifted: vendor: expected=4c5259... actual=88b58d...`
+Second, after repairing that generation mismatch, an exact Remote candidate and
+Local policy base reached the inherited S1-011 exact-delta chain with both views
+carrying the same canonical S1-011 markers and an object-exact changed set of zero.
+The historical v19 gate is intentionally a candidate-admission gate and therefore
+requires its frozen three-path S1-011 delta whenever invoked. Delegating an already
+proven zero-delta steady state into that historical candidate gate caused a false
+rejection.
 
-This successor adds a v9 snapshot verifier with exactly two admissible generations:
+This successor therefore adds two narrowly bounded rules:
 
-- ORIGINAL: exact original vendor + Pictorial trees, delegated unchanged to the
-  frozen v7 verifier;
-- REPAIRED: exact repaired vendor + Pictorial trees, exact unchanged Agile tree,
-  exact repaired package.json/bun.lock identities, and the same frozen v7 source-map,
-  tools, legal, third-party legal, canonical-contract, and acquisition-artifact
-  identities.
+- a v9 snapshot verifier with exactly two admissible generations: ORIGINAL, delegated
+  unchanged to frozen v7, and REPAIRED, bound to the exact repaired vendor/Pictorial
+  trees plus unchanged Agile, package.json, repaired bun.lock, source maps, tools,
+  legal trees, canonical contract, and acquisition artifacts;
+- after v9 bootstrap handling, an exact zero-delta steady state returns success only
+  when `_changed_paths_exact()` proves complete tracked mode/blob equality. Any
+  non-zero delta continues through the existing v9/source/legacy admission gates.
 
-Mixed or third tree identities fail closed. No provenance/source-map record is
-rewritten and no donor/dependency/runtime/provider authority is added.
+Mixed snapshot generations fail closed. No S1-011 path is hidden, projected away, or
+newly authorized, and no donor/dependency/runtime/provider authority is added.
 
 ```text
 F1_REJECTED_HEAD=f91d765d21f497502e21414f49d42869218066b5
-F1_FAILURE=INHERITED_V7_ORIGINAL_TREE_VERIFIER_ON_REPAIRED_PROJECTED_VIEW
-F1_REPAIR=EXACT_TWO_GENERATION_V9_SNAPSHOT_VERIFIER
+F1_FAILURE_1=INHERITED_V7_ORIGINAL_TREE_VERIFIER_ON_REPAIRED_PROJECTED_VIEW
+F1_REPAIR_1=EXACT_TWO_GENERATION_V9_SNAPSHOT_VERIFIER
+F1_FAILURE_2=ZERO_DELTA_STEADY_STATE_DELEGATED_TO_HISTORICAL_S1_011_CANDIDATE_GATE
+F1_REPAIR_2=EXACT_OBJECT_EQUALITY_ZERO_DELTA_STEADY_STATE_RETURN
 DEPENDENCY_ADMISSION=NONE
 PACKAGE_EXECUTION=NONE
 DONOR_EXECUTION=NONE
@@ -67,9 +76,9 @@ PR162_MERGE=NOT_AUTHORIZED
 PR136_MERGE=NOT_AUTHORIZED
 ```
 '''
-    marker = '## F1 inherited repaired-snapshot verifier correction'
+    marker = '## F1 repaired-snapshot and zero-delta steady-state corrections'
     if marker in evidence:
-        raise SystemExit('F1 repaired-snapshot correction already present')
+        raise SystemExit('F1 successor corrections already present')
     evidence = evidence.rstrip() + section + '\n'
     evidence_bytes = evidence.encode('utf-8')
     evidence_blob = git_blob_sha1(evidence_bytes)
@@ -84,6 +93,10 @@ PR136_MERGE=NOT_AUTHORIZED
     alias_anchor = 'PRIOR_IS_SOURCE_PATH = prior.PRIOR_IS_SOURCE_PATH\n'
     alias_addition = '''PRIOR_IS_SOURCE_PATH = prior.PRIOR_IS_SOURCE_PATH\nV7_VERIFY_ARTIFACT_BLOBS = prior.prior._verify_artifact_blobs\nV7_SOURCE_MAPS_TREE = "34fbb6a69a9e4dfa03ed20cc0f94d9814883ad58"\nV7_SOURCE_TOOLS_TREE = "444f9361eb3d204231f18e9148d073a01e04df3d"\nV7_SOURCE_LEGAL_TREE = "9b65277fa56081435196f21e1c6e5f8e9130a0a5"\nV7_SOURCE_LEGAL_THIRD_PARTY_TREE = "959d26daa7f8a872aee8710a25a4afb017a40c8c"\nV7_CONTRACT_PATH = "docs/acquisition/WEPLD_PICTORIAL_AGILE_FULL_DONOR_IMPORT_REBRAND_CONTRACT_2026-08-22.md"\nV7_CONTRACT_GIT_BLOB_SHA1 = "05e58e331fa6a119227127cb146e135f5b9789b7"\n'''
     script = replace_once(script, alias_anchor, alias_addition, 'v7 frozen verifier aliases')
+
+    zero_anchor = '''    base_has_snapshot = PRIOR_SNAPSHOT_PRESENT(policy_base)\n    candidate_has_snapshot = PRIOR_SNAPSHOT_PRESENT(candidate)\n'''
+    zero_replacement = '''    # Exact zero-delta is a steady-state identity proof, not a new historical\n    # S1-011 candidate. _changed_paths_exact binds every tracked path, mode, and\n    # Git blob identity before this return. Any non-zero delta remains subject to\n    # the existing v9 and inherited admission gates.\n    if not changed:\n        return\n\n    base_has_snapshot = PRIOR_SNAPSHOT_PRESENT(policy_base)\n    candidate_has_snapshot = PRIOR_SNAPSHOT_PRESENT(candidate)\n'''
+    script = replace_once(script, zero_anchor, zero_replacement, 'zero-delta steady state')
 
     compare_anchor = 'def _compare_base_controlled_v9(\n'
     helper = r'''def _classify_v9_snapshot_trees(vendor_tree: str, pictorial_tree: str) -> str:
@@ -185,6 +198,11 @@ def _verify_v9_snapshot(view: base.RepositoryView) -> None:
         "0" * 40,
         "1" * 40,
     )
+
+    # A byte/object-identical v9 steady state is not a new historical S1-011
+    # candidate. Presence of POLICY_SCRIPT makes this explicitly non-bootstrap.
+    steady = base.MemoryView({POLICY_SCRIPT: b"steady-v9-policy"})
+    _require_exact_delta_v9(steady, steady)
 
 
 '''

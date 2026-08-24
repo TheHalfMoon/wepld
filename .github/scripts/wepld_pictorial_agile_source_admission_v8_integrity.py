@@ -792,7 +792,7 @@ def _selftest_local_runner_binding() -> None:
 
 def _selftest_activation_dispatch_source() -> None:
     source = Path(__file__).read_text(encoding="utf-8")
-    forbidden = "runner = prior._verify_local_with_remote_policy_base"
+    forbidden = "runner = prior." + "_verify_local_with_remote_policy_base"
     if forbidden in source:
         base.fail(
             "Pictorial/Agile source-admission-v8 reintroduced the v7 broken "

@@ -136,6 +136,9 @@ PRIOR_COMPARE_BASE_CONTROLLED = prior._compare_base_controlled_repair
 PRIOR_VALIDATE_ALLOWED_PATHS = prior._validate_allowed_paths_repair
 PRIOR_VERIFY_EXTENSION_PATHS = prior._verify_extension_paths
 PRIOR_VERIFY_POLICY_FILES = prior._verify_policy_files
+PRIOR_DESKTOP_VERIFY_EXTENSION_PATHS = prior._verify_desktop_extension_paths
+PRIOR_EXECUTION_VERIFY_EXTENSION_PATHS = prior._verify_execution_extension_paths
+PRIOR_PRINT_SUCCESS = prior._print_success
 PRIOR_VALIDATE_ENTRIES = base.validate_entries
 
 _INSTALLED = False
@@ -465,19 +468,28 @@ def _verify_policy_files(view: base.RepositoryView) -> None:
 
 def _require_prebind_identity(shell: Any, retention: Any, desktop: Any, execution: Any) -> None:
     try:
+        predecessor = (
+            (prior._require_exact_delta_repair, PRIOR_REQUIRE_EXACT_DELTA, "predecessor-exact-delta"),
+            (prior._compare_base_controlled_repair, PRIOR_COMPARE_BASE_CONTROLLED, "predecessor-base-control"),
+            (prior._verify_desktop_extension_paths, PRIOR_DESKTOP_VERIFY_EXTENSION_PATHS, "predecessor-desktop-extension"),
+            (prior._verify_execution_extension_paths, PRIOR_EXECUTION_VERIFY_EXTENSION_PATHS, "predecessor-execution-extension"),
+            (prior._validate_allowed_paths_repair, PRIOR_VALIDATE_ALLOWED_PATHS, "predecessor-tracked-path"),
+            (prior._verify_policy_files, PRIOR_VERIFY_POLICY_FILES, "predecessor-policy-file"),
+            (prior._print_success, PRIOR_PRINT_SUCCESS, "predecessor-success-printer"),
+        )
         expected = (
-            (retention.IMPL_REQUIRE_EXACT_DELTA, prior._require_exact_delta_repair, "exact-delta"),
-            (base.compare_base_controlled, prior._compare_base_controlled_repair, "base-control"),
+            (retention.IMPL_REQUIRE_EXACT_DELTA, PRIOR_REQUIRE_EXACT_DELTA, "exact-delta"),
+            (base.compare_base_controlled, PRIOR_COMPARE_BASE_CONTROLLED, "base-control"),
             (base.validate_entries, PRIOR_VALIDATE_ENTRIES, "tracked-mode"),
-            (desktop.verify_extension_controlled_paths, prior._verify_desktop_extension_paths, "desktop-extension"),
-            (execution.verify_extension_controlled_paths, prior._verify_execution_extension_paths, "execution-extension"),
-            (shell.validate_allowed_paths, prior._validate_allowed_paths_repair, "tracked-path"),
-            (shell.verify_policy_files, prior._verify_policy_files, "policy-file"),
-            (shell.print_success, prior._print_success, "success-printer"),
+            (desktop.verify_extension_controlled_paths, PRIOR_DESKTOP_VERIFY_EXTENSION_PATHS, "desktop-extension"),
+            (execution.verify_extension_controlled_paths, PRIOR_EXECUTION_VERIFY_EXTENSION_PATHS, "execution-extension"),
+            (shell.validate_allowed_paths, PRIOR_VALIDATE_ALLOWED_PATHS, "tracked-path"),
+            (shell.verify_policy_files, PRIOR_VERIFY_POLICY_FILES, "policy-file"),
+            (shell.print_success, PRIOR_PRINT_SUCCESS, "success-printer"),
         )
     except (AttributeError, TypeError) as exc:
         base.fail(f"Pictorial/Agile source-admission-v7 pre-bind topology is missing or malformed: {exc}")
-    for actual, wanted, label in expected:
+    for actual, wanted, label in predecessor + expected:
         if actual is not wanted:
             base.fail(f"Pictorial/Agile source-admission-v7 pre-bind {label} hook drifted")
 
@@ -686,6 +698,30 @@ def _selftest_topology_fail_closed() -> None:
         prior._verify_policy_files = original_policy_verifier
 
 
+def _selftest_prebind_identity_drift() -> None:
+    shell, retention, _, desktop, execution = _topology()
+    _require_prebind_identity(shell, retention, desktop, execution)
+    original_prior = prior._require_exact_delta_repair
+    original_hook = retention.IMPL_REQUIRE_EXACT_DELTA
+    rebound = lambda *args, **kwargs: None
+    prior._require_exact_delta_repair = rebound
+    retention.IMPL_REQUIRE_EXACT_DELTA = rebound
+    try:
+        base.expect_failure_matching(
+            "source-admission-v7 rebound predecessor exact-delta",
+            "pre-bind predecessor-exact-delta hook drifted",
+            _require_prebind_identity,
+            shell,
+            retention,
+            desktop,
+            execution,
+        )
+    finally:
+        prior._require_exact_delta_repair = original_prior
+        retention.IMPL_REQUIRE_EXACT_DELTA = original_hook
+    _require_prebind_identity(shell, retention, desktop, execution)
+
+
 def _selftest_executable_entrypoint() -> None:
     source = Path(__file__).read_text(encoding="utf-8").rstrip()
     expected = 'if __name__ == "__main__":\n    raise SystemExit(main(sys.argv[1:]))'
@@ -712,6 +748,7 @@ def selftest() -> None:
         base.fail("Pictorial/Agile source-admission-v7 predecessor selftest workflow hashes drifted")
     prior.EXPECTED_WORKFLOW_SHA256 = dict(EXPECTED_WORKFLOW_SHA256)
     prior.selftest()
+    _selftest_prebind_identity_drift()
 
     _install_policy()
     _selftest_workflows()

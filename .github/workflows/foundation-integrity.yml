@@ -2,200 +2,102 @@ name: foundation-integrity
 
 on:
   pull_request:
-  push:
-    branches:
-      - main
 
 permissions:
   contents: read
 
 jobs:
-  verify:
+  f1-f2-topology-proof:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout exact revision with canonical history
+      - name: Checkout exact repaired v9 policy head
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: 7d24c3047191822d687b5fb3cd52e228a6353651
+          path: policy
+          persist-credentials: false
+          fetch-depth: 1
+          lfs: false
+          submodules: false
+
+      - name: Checkout simulated post-merge head as local candidate data
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 14cd0fa2999e7831d02488bc8c926057b8f3fcb6
+          path: postmerge
           persist-credentials: false
           fetch-depth: 0
           lfs: false
           submodules: false
 
-      - name: Run candidate policy self-tests (non-authoritative on pull requests)
-        shell: bash
-        run: |
-          set -euo pipefail
-          python .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py selftest
-
-      - name: Record pull-request candidate-policy boundary
-        if: github.event_name == 'pull_request'
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo 'candidate_policy_authority=NONE'
-          echo 'authoritative_candidate_admission=pull_request_target'
-
-      - name: Verify canonical activation against predecessor and pushed head
-        if: github.event_name == 'push'
+      - name: Prove F1 remote current-no-snapshot admission and negatives
         shell: bash
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          WEPLD_POLICY_BASE_SHA: ${{ github.event.before }}
-          WEPLD_BASELINE_CHECK_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          if [ -z "${WEPLD_POLICY_BASE_SHA:-}" ] || [ -z "${WEPLD_BASELINE_CHECK_SHA:-}" ]; then
-            echo 'canonical activation identities could not be established' >&2
+          cd policy
+          python .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py selftest
+          python .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py verify-remote \
+            --repository TheHalfMoon/wepld \
+            --sha c46c152ac9d97e7e178edf90c5be7b1cc592d168 \
+            --policy-root . \
+            --pr-base-sha 7d24c3047191822d687b5fb3cd52e228a6353651
+
+          if python .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py verify-remote \
+            --repository TheHalfMoon/wepld \
+            --sha 04cc279133d536e2b4b68e01c019d7b595f0ed42 \
+            --policy-root . \
+            --pr-base-sha 7d24c3047191822d687b5fb3cd52e228a6353651 \
+            >/tmp/raw-candidate.out 2>&1; then
+            echo 'raw repaired reference unexpectedly admitted' >&2
             exit 1
           fi
+          grep -E 'changed non-source paths|parent lineage drifted|base-controlled|tracked path outside|requires canonical' /tmp/raw-candidate.out
+
+          if python .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py verify-remote \
+            --repository TheHalfMoon/wepld \
+            --sha 3f50f40b5e746f3dcf05ffe8759cc8b809d205f2 \
+            --policy-root . \
+            --pr-base-sha 7d24c3047191822d687b5fb3cd52e228a6353651 \
+            >/tmp/wrong-parent.out 2>&1; then
+            echo 'wrong-parent fixture unexpectedly admitted' >&2
+            exit 1
+          fi
+          grep -F 'parent lineage drifted' /tmp/wrong-parent.out
+
+          if python .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py verify-remote \
+            --repository TheHalfMoon/wepld \
+            --sha eeab2e835b8e3680549452f820e0ccb0c0138ff1 \
+            --policy-root . \
+            --pr-base-sha 7d24c3047191822d687b5fb3cd52e228a6353651 \
+            >/tmp/wrong-lock.out 2>&1; then
+            echo 'wrong-lock fixture unexpectedly admitted' >&2
+            exit 1
+          fi
+          grep -E 'source surface drifted|vendor tree drifted|lock.*drifted' /tmp/wrong-lock.out
+          echo 'f1_current_no_snapshot_remote_admission=PASS'
+          echo 'f1_raw_candidate_rejection=PASS'
+          echo 'f1_wrong_parent_rejection=PASS'
+          echo 'f1_wrong_lock_tree_rejection=PASS'
+
+      - name: Prove F2 real Local candidate plus Remote policy-base activation
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          WEPLD_POLICY_BASE_SHA: 7d24c3047191822d687b5fb3cd52e228a6353651
+        run: |
+          set -euo pipefail
+          cd postmerge
+          test "$(git rev-parse HEAD)" = '14cd0fa2999e7831d02488bc8c926057b8f3fcb6'
+          python .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py selftest
           python .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py verify-local \
             --root . \
             --remote-baseline \
-            --pr-base-sha "$WEPLD_BASELINE_CHECK_SHA"
-
-  diagnostic-repair:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout exact rejected PR164 head
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: 9d7cec43dca2a41a149f7749aa5f6cfb1ad25714
-          persist-credentials: false
-          fetch-depth: 1
-
-      - name: Fetch diagnostic generator from current diagnostic head
-        shell: bash
-        env:
-          DIAG_HEAD: ${{ github.event.pull_request.head.sha }}
-        run: |
-          set -euo pipefail
-          git fetch --no-tags --depth=1 origin "$DIAG_HEAD"
-          git show "$DIAG_HEAD:.github/scripts/diag_pr164_v9_three_finding_repair.py" > /tmp/diag_pr164_v9_three_finding_repair.py
-
-      - name: Generate F1-F3 repair bytes
-        shell: bash
-        run: |
-          set -euo pipefail
-          python /tmp/diag_pr164_v9_three_finding_repair.py
-          python - <<'PY'
-          import hashlib
-          from pathlib import Path
-          p = Path('.github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py')
-          text = p.read_text(encoding='utf-8')
-          anchor = 'def _local_commit_sha(view: base.LocalRepositoryView) -> str:\n'
-          helper = '''def _memory_view(files: dict[str, bytes]) -> base.MemoryView:\n    return base.MemoryView(\n        files,\n        trees={path: _git_blob_sha1(data) for path, data in files.items()},\n    )\n\n\n'''
-          if text.count(anchor) != 1 or 'def _memory_view(files: dict[str, bytes])' in text:
-              raise SystemExit('memory-view repair anchor drifted')
-          text = text.replace(anchor, helper + anchor, 1)
-          p.write_text(text, encoding='utf-8', newline='\n')
-          summary = Path('diag-v9-repair-summary.txt')
-          lines = [line for line in summary.read_text(encoding='utf-8').splitlines() if not line.startswith('script_sha256=')]
-          lines.insert(1, 'script_sha256=' + hashlib.sha256(text.encode('utf-8')).hexdigest())
-          summary.write_text('\n'.join(lines) + '\n', encoding='utf-8')
-          PY
-          python -m py_compile .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py
-          python .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py selftest
-
-      - name: Prove exact two-file candidate repair
-        shell: bash
-        run: |
-          set -euo pipefail
-          git diff --name-only 9d7cec43dca2a41a149f7749aa5f6cfb1ad25714 -- \
-            .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py \
-            docs/acquisition/WEPLD_PICTORIAL_LOCK_METADATA_OVERLAY_V9_EVIDENCE_2026-08-24.md \
-            > diag-v9-repair-changed-files.txt
-          test "$(wc -l < diag-v9-repair-changed-files.txt)" -eq 2
-          grep -Fx '.github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py' diag-v9-repair-changed-files.txt
-          grep -Fx 'docs/acquisition/WEPLD_PICTORIAL_LOCK_METADATA_OVERLAY_V9_EVIDENCE_2026-08-24.md' diag-v9-repair-changed-files.txt
-          test "$(sha256sum .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py | awk '{print $1}')" = '7ef7d5d6883556be7c6e1758f652209b94a220c510df4f1d246a22f310c72316'
-          test "$(sha256sum docs/acquisition/WEPLD_PICTORIAL_LOCK_METADATA_OVERLAY_V9_EVIDENCE_2026-08-24.md | awk '{print $1}')" = '3655e2e6bc44478a5a365d9389c76a230cf5167527080e1f62d463c46e206dff'
-          test "$(git hash-object docs/acquisition/WEPLD_PICTORIAL_LOCK_METADATA_OVERLAY_V9_EVIDENCE_2026-08-24.md)" = '916f3b7e192a28f0d7f397087cdfacc858b26423'
-
-      - name: Upload exact repair candidate bytes
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: pr164-v9-three-finding-repair
-          path: |
-            .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py
-            docs/acquisition/WEPLD_PICTORIAL_LOCK_METADATA_OVERLAY_V9_EVIDENCE_2026-08-24.md
-            diag-v9-repair-summary.txt
-            diag-v9-repair-changed-files.txt
-          if-no-files-found: error
-          retention-days: 1
-          compression-level: 0
-
-  promote-repair:
-    if: github.event_name == 'pull_request'
-    needs: diagnostic-repair
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout exact PR164 target branch with non-exported GitHub auth
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ci/pictorial-agile-source-admission-v9-lock-overlay-2026-08-24
-          persist-credentials: true
-          fetch-depth: 0
-          lfs: false
-          submodules: false
-
-      - name: Revalidate immutable race bindings
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = '9d7cec43dca2a41a149f7749aa5f6cfb1ad25714'
-          git fetch --no-tags origin main:refs/remotes/origin/main
-          test "$(git rev-parse refs/remotes/origin/main)" = '08a06e9f2664735eb55db5b2f49f95d3d3f91c3f'
-
-      - name: Fetch exact diagnostic generator
-        shell: bash
-        env:
-          DIAG_HEAD: ${{ github.event.pull_request.head.sha }}
-        run: |
-          set -euo pipefail
-          git fetch --no-tags --depth=1 origin "$DIAG_HEAD"
-          git show "$DIAG_HEAD:.github/scripts/diag_pr164_v9_three_finding_repair.py" > /tmp/diag_pr164_v9_three_finding_repair.py
-
-      - name: Reproduce and verify exact repair bytes
-        shell: bash
-        run: |
-          set -euo pipefail
-          python /tmp/diag_pr164_v9_three_finding_repair.py
-          python - <<'PY'
-          from pathlib import Path
-          p = Path('.github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py')
-          text = p.read_text(encoding='utf-8')
-          anchor = 'def _local_commit_sha(view: base.LocalRepositoryView) -> str:\n'
-          helper = '''def _memory_view(files: dict[str, bytes]) -> base.MemoryView:\n    return base.MemoryView(\n        files,\n        trees={path: _git_blob_sha1(data) for path, data in files.items()},\n    )\n\n\n'''
-          if text.count(anchor) != 1 or 'def _memory_view(files: dict[str, bytes])' in text:
-              raise SystemExit('memory-view repair anchor drifted')
-          p.write_text(text.replace(anchor, helper + anchor, 1), encoding='utf-8', newline='\n')
-          PY
-          python -m py_compile .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py
-          python .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py selftest
-          test "$(sha256sum .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py | awk '{print $1}')" = '7ef7d5d6883556be7c6e1758f652209b94a220c510df4f1d246a22f310c72316'
-          test "$(sha256sum docs/acquisition/WEPLD_PICTORIAL_LOCK_METADATA_OVERLAY_V9_EVIDENCE_2026-08-24.md | awk '{print $1}')" = '3655e2e6bc44478a5a365d9389c76a230cf5167527080e1f62d463c46e206dff'
-          test "$(git hash-object docs/acquisition/WEPLD_PICTORIAL_LOCK_METADATA_OVERLAY_V9_EVIDENCE_2026-08-24.md)" = '916f3b7e192a28f0d7f397087cdfacc858b26423'
-          mapfile -t changed < <(git diff --name-only)
-          test "${#changed[@]}" -eq 2
-          printf '%s\n' "${changed[@]}" | grep -Fx '.github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py'
-          printf '%s\n' "${changed[@]}" | grep -Fx 'docs/acquisition/WEPLD_PICTORIAL_LOCK_METADATA_OVERLAY_V9_EVIDENCE_2026-08-24.md'
-
-      - name: Commit and fast-forward PR164 branch
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name 'wepld-policy-repair'
-          git config user.email 'wepld-policy-repair@users.noreply.github.com'
-          git add .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py \
-            docs/acquisition/WEPLD_PICTORIAL_LOCK_METADATA_OVERLAY_V9_EVIDENCE_2026-08-24.md
-          git diff --cached --quiet && { echo 'expected repair diff is empty' >&2; exit 1; }
-          git commit -m 'fix(ci): repair v9 independent-review findings F1-F3'
-          test "$(git rev-parse HEAD^)" = '9d7cec43dca2a41a149f7749aa5f6cfb1ad25714'
-          git push origin HEAD:refs/heads/ci/pictorial-agile-source-admission-v9-lock-overlay-2026-08-24
+            --pr-base-sha 14cd0fa2999e7831d02488bc8c926057b8f3fcb6
+          echo 'f2_local_candidate_remote_policy_base_activation=PASS'
+          echo 'candidate_checkout=LOCAL_DATA_ONLY'
+          echo 'donor_code_execution=NONE'
+          echo 'dependency_installation=NONE'
+          echo 'model_provider_execution=NONE'

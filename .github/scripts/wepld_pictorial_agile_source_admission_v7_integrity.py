@@ -686,6 +686,13 @@ def _selftest_topology_fail_closed() -> None:
         prior._verify_policy_files = original_policy_verifier
 
 
+def _selftest_executable_entrypoint() -> None:
+    source = Path(__file__).read_text(encoding="utf-8").rstrip()
+    expected = 'if __name__ == "__main__":\n    raise SystemExit(main(sys.argv[1:]))'
+    if not source.endswith(expected):
+        base.fail("Pictorial/Agile source-admission-v7 executable entrypoint is missing or malformed")
+
+
 def _selftest_identity_drift() -> None:
     original = prior._print_success
     prior._print_success = lambda stage, mode: None
@@ -713,6 +720,7 @@ def selftest() -> None:
     _selftest_tree_binding()
     _selftest_constants()
     _selftest_topology_fail_closed()
+    _selftest_executable_entrypoint()
     _selftest_identity_drift()
 
     local = base.LocalRepositoryView(Path(__file__).resolve().parents[2])
@@ -757,3 +765,6 @@ def main(argv: list[str]) -> int:
     except base.PolicyError as exc:
         print(f"wepld integrity verification: FAIL: {exc}", file=sys.stderr)
         return 1
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))

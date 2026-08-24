@@ -127,10 +127,10 @@ For code-intelligence candidates additionally require:
 - Trusted-base `s1-admission-integrity` exact-head check against the same candidate head; Foundation alone is insufficient.
 - Documentation/specification changed-file scope check.
 - If an external reviewer is used, exact-head egress preflight before review trigger.
-- Independent engineering review, with `REVIEW_BLOCKED` recorded if a required qualified review is unavailable.
+- Independent engineering review, with `REVIEW_BLOCKED` recorded if an independently qualified reviewer is unavailable.
 - Findings reconciliation.
-- Rerun both deterministic checks and any affected external-review preflight/review after any repair or reconnaissance addition that changes the head.
-- Final live-evidence race over current PR/base/head/changed-file/check/review state, including both deterministic check results.
+- After any repair or reconnaissance addition that changes the head, rerun both deterministic checks and obtain a fresh independently qualified correctness/engineering review of the exact new head regardless of whether that review is internal or external. If the rereview is external, repeat the exact-head egress preflight before triggering it. If no independently qualified reviewer is available, record `REVIEW_BLOCKED` and stop qualification.
+- Final live-evidence race over current PR/base/head/changed-file/check/review state, including both deterministic check results and the exact unresolved-material-findings value.
 - No implementation, source admission, dependency admission, donor execution or canonical-index mutation.
 
 ## Implementation sequencing impact

@@ -27,7 +27,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python .github/scripts/wepld_pictorial_agile_contract_notice_provenance_repair_v6_integrity.py selftest
+          python .github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py selftest
 
       - name: Record pull-request candidate-policy boundary
         if: github.event_name == 'pull_request'
@@ -50,7 +50,7 @@ jobs:
             echo 'canonical activation identities could not be established' >&2
             exit 1
           fi
-          python .github/scripts/wepld_pictorial_agile_contract_notice_provenance_repair_v6_integrity.py verify-local \
+          python .github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py verify-local \
             --root . \
             --remote-baseline \
             --pr-base-sha "$WEPLD_BASELINE_CHECK_SHA"

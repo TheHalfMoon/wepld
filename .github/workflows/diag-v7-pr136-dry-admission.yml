@@ -20,7 +20,7 @@ jobs:
           lfs: false
           submodules: false
 
-      - name: Dry-qualify exact PR 136 snapshot as remote data
+      - name: Dry-qualify synthetic future PR 136 plus v7 tree as remote data
         shell: bash
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -29,8 +29,8 @@ jobs:
           python .github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py selftest
           python .github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py verify-remote \
             --repository TheHalfMoon/wepld \
-            --sha e637aa0b2427a9f2ed793d50f738106cee0f4ec1 \
+            --sha 8fc41386319a4c1e48ed7624bf70babfc2894c57 \
             --policy-root . \
             --pr-base-sha 2ab2fae14bc3b3b1f1e9bc2059972456955aeff7
           echo 'candidate_policy_authority=NONE'
-          echo 'dry_source_admission_evidence=PASS'
+          echo 'synthetic_future_source_admission_evidence=PASS'

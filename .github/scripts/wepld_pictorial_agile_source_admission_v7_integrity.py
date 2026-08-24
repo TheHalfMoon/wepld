@@ -106,6 +106,10 @@ def _paths(view: base.RepositoryView) -> set[str]:
     return {entry.path for entry in view.entries()}
 
 
+def _memory_view(files: dict[str, bytes]) -> base.MemoryView:
+    return base.MemoryView(files, trees={path: _git_blob_sha1(data) for path, data in files.items()})
+
+
 def _require_path_set(value: Any, label: str) -> frozenset[str]:
     if not isinstance(value, (set, frozenset)):
         base.fail(f"Pictorial/Agile source-admission-v7 {label} topology is malformed: expected path set")
@@ -541,15 +545,15 @@ def _bootstrap_views() -> tuple[base.MemoryView, base.MemoryView]:
     }
     candidate = dict(base_files)
     candidate.update({POLICY_SCRIPT: b"policy", FOUNDATION_WORKFLOW: b"new-f", ADMISSION_WORKFLOW: b"new-a"})
-    return base.MemoryView(candidate), base.MemoryView(base_files)
+    return _memory_view(candidate), _memory_view(base_files)
 
 
 def _selftest_deltas() -> None:
     candidate, policy_base = _bootstrap_views()
     _require_exact_delta_source(candidate, policy_base)
-    mixed = dict(candidate.files)
+    mixed = {entry.path: candidate.read_bytes(entry.path, base.MAX_POLICY_FILE_BYTES) for entry in candidate.entries()}
     mixed["vendor/pictorial/unexpected.sh"] = b"x"
-    base.expect_failure_matching("source-admission-v7 mixed bootstrap/source rejection", "bootstrap delta must be exactly", _require_exact_delta_source, base.MemoryView(mixed), policy_base)
+    base.expect_failure_matching("source-admission-v7 mixed bootstrap/source rejection", "bootstrap delta must be exactly", _require_exact_delta_source, _memory_view(mixed), policy_base)
 
 
 def _selftest_tree_binding() -> None:

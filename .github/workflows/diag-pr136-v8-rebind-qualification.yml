@@ -1,0 +1,42 @@
+name: diag-pr136-v8-rebind-qualification
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout canonical trusted v8 policy only
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 08a06e9f2664735eb55db5b2f49f95d3d3f91c3f
+          persist-credentials: false
+          fetch-depth: 1
+          lfs: false
+          submodules: false
+
+      - name: Run canonical v8 policy self-tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "08a06e9f2664735eb55db5b2f49f95d3d3f91c3f"
+          test "$(git hash-object .github/scripts/wepld_pictorial_agile_source_admission_v8_integrity.py)" = "$(git hash-object .github/scripts/wepld_pictorial_agile_source_admission_v8_integrity.py)"
+          python .github/scripts/wepld_pictorial_agile_source_admission_v8_integrity.py selftest
+
+      - name: Verify repaired candidate remotely as data only
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python .github/scripts/wepld_pictorial_agile_source_admission_v8_integrity.py verify-remote \
+            --repository TheHalfMoon/wepld \
+            --sha 04cc279133d536e2b4b68e01c019d7b595f0ed42 \
+            --policy-root . \
+            --pr-base-sha 08a06e9f2664735eb55db5b2f49f95d3d3f91c3f

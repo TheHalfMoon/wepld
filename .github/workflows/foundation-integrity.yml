@@ -27,7 +27,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python .github/scripts/wepld_pictorial_agile_source_admission_v8_integrity.py selftest
+          python .github/scripts/wepld_s1_admission_steady_state_routing_v3_integrity.py selftest
+
+      - name: Verify pull-request candidate against exact trusted base (non-authoritative)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          CANDIDATE_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          unset GITHUB_TOKEN
+          python .github/scripts/wepld_s1_admission_steady_state_routing_v3_integrity.py verify-candidate-local \
+            --root . \
+            --policy-base-sha "$CANDIDATE_BASE_SHA"
 
       - name: Record pull-request candidate-policy boundary
         if: github.event_name == 'pull_request'
@@ -50,7 +62,7 @@ jobs:
             echo 'canonical activation identities could not be established' >&2
             exit 1
           fi
-          python .github/scripts/wepld_pictorial_agile_source_admission_v8_integrity.py verify-local \
+          python .github/scripts/wepld_s1_admission_steady_state_routing_v3_integrity.py verify-local \
             --root . \
             --remote-baseline \
             --pr-base-sha "$WEPLD_BASELINE_CHECK_SHA"

@@ -1,0 +1,116 @@
+name: diag-pr136-pictorial-lock-closure-inspection
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-closure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Fetch exact admitted PR136 lock without credentials
+        shell: bash
+        env:
+          SOURCE_HEAD: 28f0023b8ffb90c585213762dae5f4c1d57322ef
+        run: |
+          set -euo pipefail
+          mkdir subject
+          cd subject
+          git init -q
+          git remote add origin https://github.com/TheHalfMoon/wepld.git
+          git -c credential.helper= fetch --depth=1 --no-tags origin "$SOURCE_HEAD"
+          git checkout -q --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
+          test "$(git hash-object vendor/pictorial/bun.lock)" = "f7114d1b93f26eb9d7796fc15ae3d639d2209c9d"
+
+      - name: Inspect body-parser repair closure metadata only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+          import json, urllib.parse, urllib.request
+          from pathlib import Path
+
+          CANDIDATES = {"content-type": "2.0.0", "type-is": "2.1.0"}
+
+          def strip_trailing_commas(text: str) -> str:
+              out=[]; ins=False; esc=False; i=0
+              while i < len(text):
+                  ch=text[i]
+                  if ins:
+                      out.append(ch)
+                      if esc: esc=False
+                      elif ch=='\\': esc=True
+                      elif ch=='"': ins=False
+                      i+=1; continue
+                  if ch=='"': ins=True; out.append(ch); i+=1; continue
+                  if ch==',':
+                      j=i+1
+                      while j < len(text) and text[j].isspace(): j+=1
+                      if j < len(text) and text[j] in '}]': i+=1; continue
+                  out.append(ch); i+=1
+              return ''.join(out)
+
+          def split_identity(identity: str):
+              if identity.startswith('@'):
+                  p=identity.rfind('@'); return identity[:p], identity[p+1:]
+              return tuple(identity.rsplit('@',1))
+
+          def get(name, version):
+              url=f"https://registry.npmjs.org/{urllib.parse.quote(name,safe='')}/{urllib.parse.quote(version,safe='.-_+')}"
+              req=urllib.request.Request(url,headers={"Accept":"application/json","User-Agent":"wepld-metadata-only-repair/1"})
+              with urllib.request.urlopen(req,timeout=30) as r: return json.loads(r.read())
+
+          lock=json.loads(strip_trailing_commas(Path('subject/vendor/pictorial/bun.lock').read_text()))
+          parsed={}
+          for key,row in lock['packages'].items():
+              name,ver=split_identity(row[0]); info=next((x for x in row[2:] if isinstance(x,dict)),{})
+              parsed[key]={'name':name,'version':ver,'info':info}
+
+          incoming={name:[] for name in CANDIDATES}
+          for pk,p in parsed.items():
+              for field in ('dependencies','optionalDependencies','peerDependencies'):
+                  deps=p['info'].get(field,{})
+                  if isinstance(deps,dict):
+                      for name,spec in deps.items():
+                          if name in incoming:
+                              incoming[name].append({'parent_lock_key':pk,'parent':f"{p['name']}@{p['version']}",'field':field,'constraint':spec})
+
+          metadata={name:get(name,ver) for name,ver in CANDIDATES.items()}
+          queries={'queries':[{'package':{'ecosystem':'npm','name':n},'version':v} for n,v in sorted(CANDIDATES.items())]}
+          req=urllib.request.Request('https://api.osv.dev/v1/querybatch',data=json.dumps(queries,separators=(',',':'),sort_keys=True).encode(),headers={'Content-Type':'application/json','User-Agent':'wepld-metadata-only-repair/1'},method='POST')
+          with urllib.request.urlopen(req,timeout=30) as r: osv=json.loads(r.read())
+          findings=[]
+          for ident,res in zip(sorted(CANDIDATES.items()),osv['results'],strict=True):
+              vulns=res.get('vulns',[]) if isinstance(res,dict) else []
+              if vulns: findings.append({'name':ident[0],'version':ident[1],'ids':sorted({v['id'] for v in vulns})})
+
+          out=Path('closure-output'); out.mkdir()
+          (out/'incoming-constraints.json').write_text(json.dumps(incoming,sort_keys=True,indent=2)+'\n')
+          (out/'candidate-metadata.json').write_text(json.dumps(metadata,sort_keys=True,separators=(',',':'))+'\n')
+          (out/'candidate-osv.json').write_text(json.dumps(osv,sort_keys=True,separators=(',',':'))+'\n')
+          summary={
+              'candidates':CANDIDATES,
+              'candidate_dependencies':{n:{k:m.get(k) for k in ('dependencies','optionalDependencies','peerDependencies','peerDependenciesMeta') if m.get(k)} for n,m in metadata.items()},
+              'candidate_integrities':{n:m.get('dist',{}).get('integrity') for n,m in metadata.items()},
+              'incoming':incoming,
+              'osv_findings':findings,
+              'package_download':'NONE','package_installation':'NONE','package_execution':'NONE','donor_code_execution':'NONE'
+          }
+          (out/'closure-summary.json').write_text(json.dumps(summary,sort_keys=True,indent=2)+'\n')
+          print(json.dumps(summary,sort_keys=True))
+          PY
+
+      - name: Upload closure metadata evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pr136-pictorial-lock-closure-inspection
+          path: closure-output/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0

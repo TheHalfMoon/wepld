@@ -1,0 +1,61 @@
+name: diag-pr137-source-admission-v7-locator
+
+on:
+  pull_request:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  locate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Locate immutable PR 137 trusted-base run
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request
+
+          url = "https://api.github.com/repos/TheHalfMoon/wepld/actions/runs?event=pull_request_target&per_page=100"
+          request = urllib.request.Request(
+              url,
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
+                  "X-GitHub-Api-Version": "2022-11-28",
+              },
+          )
+          with urllib.request.urlopen(request, timeout=30) as response:
+              payload = json.load(response)
+
+          matches = []
+          for run in payload.get("workflow_runs", []):
+              pr_numbers = [item.get("number") for item in run.get("pull_requests", [])]
+              if (
+                  run.get("name") == "s1-admission-integrity"
+                  and run.get("event") == "pull_request_target"
+                  and 137 in pr_numbers
+                  and run.get("created_at", "") >= "2026-08-24T03:17:18Z"
+              ):
+                  matches.append(
+                      {
+                          "id": run.get("id"),
+                          "run_number": run.get("run_number"),
+                          "status": run.get("status"),
+                          "conclusion": run.get("conclusion"),
+                          "head_sha": run.get("head_sha"),
+                          "created_at": run.get("created_at"),
+                          "updated_at": run.get("updated_at"),
+                          "jobs_url": run.get("jobs_url"),
+                      }
+                  )
+
+          print(json.dumps(matches, sort_keys=True))
+          if len(matches) != 1:
+              raise SystemExit(f"expected exactly one PR 137 trusted-base run, found {len(matches)}")
+          PY

@@ -1,0 +1,41 @@
+name: diag-v8-pr136-synthetic
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/diag-v8-pr136-synthetic.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'diag/v8-pr136-synthetic-2026-08-24'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact v8 policy candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 568d7d4d7e5aaa09c6ae950141fe63667367afe2
+          fetch-depth: 1
+          persist-credentials: false
+          lfs: false
+          submodules: false
+
+      - name: Verify exact synthetic PR136 candidate as Git data only
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '568d7d4d7e5aaa09c6ae950141fe63667367afe2'
+          output="$(python .github/scripts/wepld_pictorial_agile_source_admission_v8_integrity.py selftest)"
+          printf '%s\n' "$output"
+          test "$(printf '%s\n' "$output" | grep -Fxc 'wepld Pictorial/Agile source admission v8 activation-repair self-tests: PASS')" -eq 1
+          python .github/scripts/wepld_pictorial_agile_source_admission_v8_integrity.py verify-remote \
+            --repository TheHalfMoon/wepld \
+            --sha fcd1dc989acbe6fb96fd90f894f393eacc7df9d9 \
+            --policy-root . \
+            --pr-base-sha 568d7d4d7e5aaa09c6ae950141fe63667367afe2
+          echo 'synthetic_pr136_under_v8=PASS'

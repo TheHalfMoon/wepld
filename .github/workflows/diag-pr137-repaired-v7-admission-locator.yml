@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Locate exact repaired PR 137 trusted-base run
+      - name: Locate exact-tree repaired v7 trusted-base run
         shell: bash
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -33,7 +33,7 @@ jobs:
               prs = [p.get("number") for p in run.get("pull_requests", [])]
               if (run.get("name") == "s1-admission-integrity"
                   and run.get("event") == "pull_request_target"
-                  and 137 in prs
+                  and 141 in prs
                   and run.get("head_sha") == "2af1c4920a94f93f7ebac0f9a7e21e885917d15b"):
                   matches.append({
                       "id": run.get("id"),
@@ -45,5 +45,5 @@ jobs:
                   })
           print(json.dumps(matches, sort_keys=True))
           if len(matches) != 1:
-              raise SystemExit(f"expected exactly one repaired-head PR137 trusted-base run, found {len(matches)}")
+              raise SystemExit(f"expected exactly one PR141 exact-tree trusted-base run, found {len(matches)}")
           PY

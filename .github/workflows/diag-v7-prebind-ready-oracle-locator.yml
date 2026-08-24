@@ -1,0 +1,52 @@
+name: diag-v7-prebind-ready-oracle-locator
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/diag-v7-prebind-ready-oracle-locator.yml'
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  locate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Locate newest PR149 trusted-base run
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request
+          req = urllib.request.Request(
+              'https://api.github.com/repos/TheHalfMoon/wepld/actions/runs?event=pull_request_target&per_page=100',
+              headers={
+                  'Accept': 'application/vnd.github+json',
+                  'Authorization': f"Bearer {os.environ['GITHUB_TOKEN']}",
+                  'X-GitHub-Api-Version': '2022-11-28',
+              },
+          )
+          with urllib.request.urlopen(req, timeout=30) as response:
+              payload = json.load(response)
+          matches = []
+          for run in payload.get('workflow_runs', []):
+              prs = [p.get('number') for p in run.get('pull_requests', [])]
+              if run.get('name') == 's1-admission-integrity' and run.get('event') == 'pull_request_target' and 149 in prs:
+                  matches.append({
+                      'id': run.get('id'),
+                      'run_number': run.get('run_number'),
+                      'head_sha': run.get('head_sha'),
+                      'status': run.get('status'),
+                      'conclusion': run.get('conclusion'),
+                      'created_at': run.get('created_at'),
+                  })
+          matches.sort(key=lambda item: item['created_at'] or '')
+          print(json.dumps(matches, sort_keys=True))
+          if not matches:
+              raise SystemExit('no PR149 trusted-base run found')
+          print('SELECTED=' + json.dumps(matches[-1], sort_keys=True))
+          PY

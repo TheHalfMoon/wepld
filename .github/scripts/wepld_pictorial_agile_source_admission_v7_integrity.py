@@ -320,9 +320,14 @@ def _require_exact_delta_source(candidate: base.RepositoryView, policy_base: bas
     _delegate_exact_delta(candidate, policy_base)
 
 
+
 def _compare_base_controlled_source(candidate: base.RepositoryView, policy_base: base.RepositoryView) -> None:
     bootstrap = _is_bootstrap_base(policy_base)
-    controlled = _require_path_set(base.BASE_CONTROLLED_PATHS, "base-controlled-path")
+    try:
+        controlled_raw = base.BASE_CONTROLLED_PATHS
+    except (AttributeError, TypeError) as exc:
+        base.fail(f"Pictorial/Agile source-admission-v7 base-control topology is missing or malformed: {exc}")
+    controlled = _require_path_set(controlled_raw, "base-controlled-path")
     for relative in sorted(controlled):
         candidate_bytes = candidate.read_bytes(relative, base.MAX_POLICY_FILE_BYTES)
         base_bytes = policy_base.read_bytes(relative, base.MAX_POLICY_FILE_BYTES)
@@ -392,51 +397,86 @@ def _verify_extension_paths(candidate: base.RepositoryView, policy_base: base.Re
 
     delegated = frozenset(safe_controlled - {POLICY_SCRIPT} - BOOTSTRAP_WORKFLOWS)
     if delegated:
-        verifier = prior._verify_extension_paths
-        if verifier is not PRIOR_VERIFY_EXTENSION_PATHS or not callable(verifier):
+        try:
+            verifier = prior._verify_extension_paths
+        except (AttributeError, TypeError) as exc:
+            base.fail(f"Pictorial/Agile source-admission-v7 inherited extension topology is missing or malformed: {exc}")
+        if verifier is not PRIOR_VERIFY_EXTENSION_PATHS:
             base.fail("Pictorial/Agile source-admission-v7 inherited extension verifier drifted")
-        verifier(candidate, policy_base, delegated)
+        if not callable(verifier):
+            base.fail("Pictorial/Agile source-admission-v7 inherited extension verifier is not callable")
+        try:
+            verifier(candidate, policy_base, delegated)
+        except TypeError as exc:
+            base.fail(f"Pictorial/Agile source-admission-v7 inherited extension topology is malformed: {exc}")
 
 
 def _verify_execution_extension_paths(candidate: base.RepositoryView, policy_base: base.RepositoryView) -> None:
     _, _, _, _, execution = _topology()
-    _verify_extension_paths(candidate, policy_base, _require_path_set(execution.EXTENSION_CONTROLLED_PATHS, "execution-extension"))
+    try:
+        controlled = execution.EXTENSION_CONTROLLED_PATHS
+    except (AttributeError, TypeError) as exc:
+        base.fail(f"Pictorial/Agile source-admission-v7 execution extension topology is missing or malformed: {exc}")
+    _verify_extension_paths(candidate, policy_base, _require_path_set(controlled, "execution-extension"))
 
 
 def _verify_desktop_extension_paths(candidate: base.RepositoryView, policy_base: base.RepositoryView) -> None:
     _, _, _, desktop, _ = _topology()
-    _verify_extension_paths(candidate, policy_base, _require_path_set(desktop.EXTENSION_CONTROLLED_PATHS, "desktop-extension"))
+    try:
+        controlled = desktop.EXTENSION_CONTROLLED_PATHS
+    except (AttributeError, TypeError) as exc:
+        base.fail(f"Pictorial/Agile source-admission-v7 desktop extension topology is missing or malformed: {exc}")
+    _verify_extension_paths(candidate, policy_base, _require_path_set(controlled, "desktop-extension"))
 
 
 def _validate_allowed_paths_source(paths: set[str], stage: str) -> None:
     projected = {path for path in paths if not _is_source_path(path)}
-    delegated = prior._validate_allowed_paths_repair
-    if delegated is not PRIOR_VALIDATE_ALLOWED_PATHS or not callable(delegated):
+    try:
+        delegated = prior._validate_allowed_paths_repair
+    except (AttributeError, TypeError) as exc:
+        base.fail(f"Pictorial/Agile source-admission-v7 inherited allowlist topology is missing or malformed: {exc}")
+    if delegated is not PRIOR_VALIDATE_ALLOWED_PATHS:
         base.fail("Pictorial/Agile source-admission-v7 inherited allowlist delegate drifted")
-    delegated(projected, stage)
+    if not callable(delegated):
+        base.fail("Pictorial/Agile source-admission-v7 inherited allowlist delegate is not callable")
+    try:
+        delegated(projected, stage)
+    except TypeError as exc:
+        base.fail(f"Pictorial/Agile source-admission-v7 inherited allowlist topology is malformed: {exc}")
 
 
 def _verify_policy_files(view: base.RepositoryView) -> None:
     actual = _git_blob_sha1(view.read_bytes(PRIOR_POLICY_PATH, base.MAX_POLICY_FILE_BYTES))
     if actual != EXPECTED_PRIOR_POLICY_GIT_BLOB_SHA1:
         base.fail(f"frozen Pictorial/Agile repair-v6 predecessor policy drifted: {actual}")
-    verifier = prior._verify_policy_files
-    if verifier is not PRIOR_VERIFY_POLICY_FILES or not callable(verifier):
+    try:
+        verifier = prior._verify_policy_files
+    except (AttributeError, TypeError) as exc:
+        base.fail(f"Pictorial/Agile source-admission-v7 inherited policy-file topology is missing or malformed: {exc}")
+    if verifier is not PRIOR_VERIFY_POLICY_FILES:
         base.fail("Pictorial/Agile source-admission-v7 inherited policy-file verifier drifted")
-    verifier(view)
+    if not callable(verifier):
+        base.fail("Pictorial/Agile source-admission-v7 inherited policy-file verifier is not callable")
+    try:
+        verifier(view)
+    except TypeError as exc:
+        base.fail(f"Pictorial/Agile source-admission-v7 inherited policy-file topology is malformed: {exc}")
 
 
 def _require_prebind_identity(shell: Any, retention: Any, desktop: Any, execution: Any) -> None:
-    expected = (
-        (retention.IMPL_REQUIRE_EXACT_DELTA, prior._require_exact_delta_repair, "exact-delta"),
-        (base.compare_base_controlled, prior._compare_base_controlled_repair, "base-control"),
-        (base.validate_entries, PRIOR_VALIDATE_ENTRIES, "tracked-mode"),
-        (desktop.verify_extension_controlled_paths, prior._verify_desktop_extension_paths, "desktop-extension"),
-        (execution.verify_extension_controlled_paths, prior._verify_execution_extension_paths, "execution-extension"),
-        (shell.validate_allowed_paths, prior._validate_allowed_paths_repair, "tracked-path"),
-        (shell.verify_policy_files, prior._verify_policy_files, "policy-file"),
-        (shell.print_success, prior._print_success, "success-printer"),
-    )
+    try:
+        expected = (
+            (retention.IMPL_REQUIRE_EXACT_DELTA, prior._require_exact_delta_repair, "exact-delta"),
+            (base.compare_base_controlled, prior._compare_base_controlled_repair, "base-control"),
+            (base.validate_entries, PRIOR_VALIDATE_ENTRIES, "tracked-mode"),
+            (desktop.verify_extension_controlled_paths, prior._verify_desktop_extension_paths, "desktop-extension"),
+            (execution.verify_extension_controlled_paths, prior._verify_execution_extension_paths, "execution-extension"),
+            (shell.validate_allowed_paths, prior._validate_allowed_paths_repair, "tracked-path"),
+            (shell.verify_policy_files, prior._verify_policy_files, "policy-file"),
+            (shell.print_success, prior._print_success, "success-printer"),
+        )
+    except (AttributeError, TypeError) as exc:
+        base.fail(f"Pictorial/Agile source-admission-v7 pre-bind topology is missing or malformed: {exc}")
     for actual, wanted, label in expected:
         if actual is not wanted:
             base.fail(f"Pictorial/Agile source-admission-v7 pre-bind {label} hook drifted")
@@ -444,33 +484,58 @@ def _require_prebind_identity(shell: Any, retention: Any, desktop: Any, executio
 
 def _require_overlay_identity() -> None:
     shell, retention, _, desktop, execution = _topology()
-    checks = (
-        (retention.IMPL_REQUIRE_EXACT_DELTA, _require_exact_delta_source, "exact-delta"),
-        (base.compare_base_controlled, _compare_base_controlled_source, "base-control"),
-        (base.validate_entries, _validate_entries_source, "tracked-mode"),
-        (desktop.verify_extension_controlled_paths, _verify_desktop_extension_paths, "desktop-extension"),
-        (execution.verify_extension_controlled_paths, _verify_execution_extension_paths, "execution-extension"),
-        (shell.validate_allowed_paths, _validate_allowed_paths_source, "tracked-path"),
-        (shell.verify_policy_files, _verify_policy_files, "policy-file"),
-        (shell.print_success, _print_success, "success-printer"),
-    )
+    try:
+        checks = (
+            (retention.IMPL_REQUIRE_EXACT_DELTA, _require_exact_delta_source, "exact-delta"),
+            (base.compare_base_controlled, _compare_base_controlled_source, "base-control"),
+            (base.validate_entries, _validate_entries_source, "tracked-mode"),
+            (desktop.verify_extension_controlled_paths, _verify_desktop_extension_paths, "desktop-extension"),
+            (execution.verify_extension_controlled_paths, _verify_execution_extension_paths, "execution-extension"),
+            (shell.validate_allowed_paths, _validate_allowed_paths_source, "tracked-path"),
+            (shell.verify_policy_files, _verify_policy_files, "policy-file"),
+            (shell.print_success, _print_success, "success-printer"),
+        )
+        hook_identity = retention._require_exact_delta_hook_identity
+        retention_exact_delta = retention._require_exact_delta_retention
+        desktop_paths = desktop.EXTENSION_CONTROLLED_PATHS
+        execution_paths = execution.EXTENSION_CONTROLLED_PATHS
+        prior_print_success = prior._print_success
+    except (AttributeError, TypeError) as exc:
+        base.fail(f"Pictorial/Agile source-admission-v7 overlay topology is missing or malformed: {exc}")
+
     for actual, wanted, label in checks:
         if actual is not wanted:
             base.fail(f"Pictorial/Agile source-admission-v7 {label} hook drifted")
+    if not callable(hook_identity):
+        base.fail("Pictorial/Agile source-admission-v7 hook identity is not callable")
+    if not callable(retention_exact_delta):
+        base.fail("Pictorial/Agile source-admission-v7 retention exact-delta is not callable")
+    if not callable(prior_print_success):
+        base.fail("Pictorial/Agile source-admission-v7 prior success-printer is not callable")
 
-    retention._require_exact_delta_hook_identity(retention._require_exact_delta_retention, "pictorial-agile-source-admission-v7-overlay")
-    if POLICY_SCRIPT not in desktop.EXTENSION_CONTROLLED_PATHS:
+    safe_desktop_paths = _require_path_set(desktop_paths, "desktop-extension")
+    safe_execution_paths = _require_path_set(execution_paths, "execution-extension")
+    try:
+        hook_identity(retention_exact_delta, "pictorial-agile-source-admission-v7-overlay")
+    except TypeError as exc:
+        base.fail(f"Pictorial/Agile source-admission-v7 overlay topology is malformed: {exc}")
+    if POLICY_SCRIPT not in safe_desktop_paths:
         base.fail("Pictorial/Agile source-admission-v7 desktop path registration drifted")
-    if POLICY_SCRIPT not in execution.EXTENSION_CONTROLLED_PATHS:
+    if POLICY_SCRIPT not in safe_execution_paths:
         base.fail("Pictorial/Agile source-admission-v7 execution path registration drifted")
-    if _PRIOR_PRINT_SUCCESS is None or _PRIOR_PRINT_SUCCESS is not prior._print_success:
+    if _PRIOR_PRINT_SUCCESS is None or not callable(_PRIOR_PRINT_SUCCESS):
+        base.fail("Pictorial/Agile source-admission-v7 prior success-printer is missing or malformed")
+    if _PRIOR_PRINT_SUCCESS is not prior_print_success:
         base.fail("Pictorial/Agile source-admission-v7 prior success-printer drifted")
 
 
 def _print_success(stage: str, mode: str) -> None:
     if _PRIOR_PRINT_SUCCESS is None or not callable(_PRIOR_PRINT_SUCCESS):
         base.fail("Pictorial/Agile source-admission-v7 prior success printer is unavailable")
-    _PRIOR_PRINT_SUCCESS(stage, mode)
+    try:
+        _PRIOR_PRINT_SUCCESS(stage, mode)
+    except TypeError as exc:
+        base.fail(f"Pictorial/Agile source-admission-v7 success-printer topology is malformed: {exc}")
     print(f"pictorial_agile_source_admission_v7_authority={SOURCE_IMPORT_AUTHORITY}")
     print(f"effective_source_admission={SOURCE_ADMISSION}")
     print(f"effective_dependency_admission={DEPENDENCY_ADMISSION}")
@@ -494,13 +559,18 @@ def _install_policy() -> None:
     _activate_predecessor()
     shell, retention, _, desktop, execution = _topology()
     _require_prebind_identity(shell, retention, desktop, execution)
-
-    desktop_paths = _require_path_set(desktop.EXTENSION_CONTROLLED_PATHS, "desktop-extension")
-    execution_paths = _require_path_set(execution.EXTENSION_CONTROLLED_PATHS, "execution-extension")
-    if not callable(prior._print_success):
+    try:
+        desktop_paths_raw = desktop.EXTENSION_CONTROLLED_PATHS
+        execution_paths_raw = execution.EXTENSION_CONTROLLED_PATHS
+        prior_print_success = prior._print_success
+    except (AttributeError, TypeError) as exc:
+        base.fail(f"Pictorial/Agile source-admission-v7 installation topology is missing or malformed: {exc}")
+    desktop_paths = _require_path_set(desktop_paths_raw, "desktop-extension")
+    execution_paths = _require_path_set(execution_paths_raw, "execution-extension")
+    if not callable(prior_print_success):
         base.fail("Pictorial/Agile source-admission-v7 predecessor success printer is not callable")
 
-    _PRIOR_PRINT_SUCCESS = prior._print_success
+    _PRIOR_PRINT_SUCCESS = prior_print_success
     retention.IMPL_REQUIRE_EXACT_DELTA = _require_exact_delta_source
     base.compare_base_controlled = _compare_base_controlled_source
     base.validate_entries = _validate_entries_source
@@ -514,7 +584,6 @@ def _install_policy() -> None:
 
     _INSTALLED = True
     _require_overlay_identity()
-
 
 def _selftest_workflows() -> None:
     view = base.LocalRepositoryView(Path(__file__).resolve().parents[2])
@@ -580,6 +649,43 @@ def _selftest_constants() -> None:
         base.fail("Pictorial/Agile source-admission-v7 widened runtime/dependency authority")
 
 
+
+def _selftest_topology_fail_closed() -> None:
+    candidate, policy_base = _bootstrap_views()
+    _, _, _, _, execution = _topology()
+    try:
+        original_execution_paths = execution.EXTENSION_CONTROLLED_PATHS
+    except (AttributeError, TypeError) as exc:
+        base.fail(f"Pictorial/Agile source-admission-v7 topology selftest setup is malformed: {exc}")
+    delattr(execution, "EXTENSION_CONTROLLED_PATHS")
+    try:
+        base.expect_failure_matching(
+            "source-admission-v7 missing execution extension topology",
+            "execution extension topology is missing or malformed",
+            _verify_execution_extension_paths,
+            candidate,
+            policy_base,
+        )
+    finally:
+        execution.EXTENSION_CONTROLLED_PATHS = original_execution_paths
+
+    local = base.LocalRepositoryView(Path(__file__).resolve().parents[2])
+    try:
+        original_policy_verifier = prior._verify_policy_files
+    except (AttributeError, TypeError) as exc:
+        base.fail(f"Pictorial/Agile source-admission-v7 topology selftest policy setup is malformed: {exc}")
+    delattr(prior, "_verify_policy_files")
+    try:
+        base.expect_failure_matching(
+            "source-admission-v7 missing inherited policy-file topology",
+            "inherited policy-file topology is missing or malformed",
+            _verify_policy_files,
+            local,
+        )
+    finally:
+        prior._verify_policy_files = original_policy_verifier
+
+
 def _selftest_identity_drift() -> None:
     original = prior._print_success
     prior._print_success = lambda stage, mode: None
@@ -606,6 +712,7 @@ def selftest() -> None:
     _selftest_deltas()
     _selftest_tree_binding()
     _selftest_constants()
+    _selftest_topology_fail_closed()
     _selftest_identity_drift()
 
     local = base.LocalRepositoryView(Path(__file__).resolve().parents[2])
@@ -614,6 +721,7 @@ def selftest() -> None:
     if base.REPOSITORY != impl.CANONICAL_REPOSITORY:
         base.fail("canonical repository identity drifted")
     print("wepld Pictorial/Agile source admission v7 self-tests: PASS")
+
 
 
 def main(argv: list[str]) -> int:
@@ -626,18 +734,26 @@ def main(argv: list[str]) -> int:
         if argv and argv[0] == "verify-local":
             args = base.parse_args(argv)
             if args.remote_baseline:
-                runner = prior._verify_local_with_remote_policy_base
+                try:
+                    runner = prior._verify_local_with_remote_policy_base
+                except (AttributeError, TypeError) as exc:
+                    base.fail(f"Pictorial/Agile source-admission-v7 trusted-base local runner topology is missing or malformed: {exc}")
                 if not callable(runner):
                     base.fail("Pictorial/Agile source-admission-v7 trusted-base local runner is not callable")
-                return runner(args, shell, impl)
-        runner = retention.main
+                try:
+                    return runner(args, shell, impl)
+                except TypeError as exc:
+                    base.fail(f"Pictorial/Agile source-admission-v7 trusted-base local runner topology is malformed: {exc}")
+        try:
+            runner = retention.main
+        except (AttributeError, TypeError) as exc:
+            base.fail(f"Pictorial/Agile source-admission-v7 runtime main topology is missing or malformed: {exc}")
         if not callable(runner):
             base.fail("Pictorial/Agile source-admission-v7 runtime main is not callable")
-        return runner(argv)
+        try:
+            return runner(argv)
+        except TypeError as exc:
+            base.fail(f"Pictorial/Agile source-admission-v7 runtime main topology is malformed: {exc}")
     except base.PolicyError as exc:
         print(f"wepld integrity verification: FAIL: {exc}", file=sys.stderr)
         return 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main(sys.argv[1:]))

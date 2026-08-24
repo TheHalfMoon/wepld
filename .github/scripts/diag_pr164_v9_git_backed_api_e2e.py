@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import traceback
 from urllib.parse import urlparse
 
 REPOSITORY = 'TheHalfMoon/wepld'
@@ -61,7 +62,9 @@ class GitBackedClient:
             path = path_b.decode('utf-8')
             item: dict[str, object] = {'path': path, 'mode': mode, 'type': kind, 'sha': object_sha}
             if kind == 'blob':
-                item['size'] = int(git(self.root, 'cat-file', '-s', object_sha, text=True).strip())
+                if len(fields) < 4 or not fields[3].isdigit():
+                    raise RuntimeError(f'malformed blob size in ls-tree record: {meta!r}')
+                item['size'] = int(fields[3])
             rows.append(item)
         return {'sha': sha, 'truncated': False, 'tree': rows}
 
@@ -109,6 +112,43 @@ class GitBackedClient:
         raise RuntimeError(f'unsupported GitHub API URL in deterministic E2E: {url}')
 
 
+def _trace_s1_011_delta(base) -> None:
+    import wepld_s1_shell_integrity_v19 as v19
+
+    original = v19._require_exact_delta
+
+    def traced(candidate, policy_base):
+        try:
+            return original(candidate, policy_base)
+        except base.PolicyError:
+            candidate_entries = {entry.path: entry.mode for entry in candidate.entries()}
+            base_entries = {entry.path: entry.mode for entry in policy_base.entries()}
+            changed = set(candidate_entries) ^ set(base_entries)
+            for relative in set(candidate_entries) & set(base_entries):
+                if candidate_entries[relative] != base_entries[relative]:
+                    changed.add(relative)
+                    continue
+                if candidate.tree_identity(relative) != policy_base.tree_identity(relative):
+                    changed.add(relative)
+            print('TRACE_S1_011_DELTA_FAILURE', file=sys.stderr)
+            print(f'candidate_type={type(candidate).__name__}', file=sys.stderr)
+            print(f'policy_base_type={type(policy_base).__name__}', file=sys.stderr)
+            print(f'changed_count={len(changed)}', file=sys.stderr)
+            print('changed_preview=' + ','.join(sorted(changed)[:20]), file=sys.stderr)
+            print(
+                'candidate_markers=' + str(v19._has_s1_011_markers(candidate, set(candidate_entries))),
+                file=sys.stderr,
+            )
+            print(
+                'policy_base_markers=' + str(v19._has_s1_011_markers(policy_base, set(base_entries))),
+                file=sys.stderr,
+            )
+            traceback.print_stack(file=sys.stderr)
+            raise
+
+    v19._require_exact_delta = traced
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument('--root', required=True)
@@ -135,6 +175,7 @@ def main() -> int:
     fake = GitBackedClient(root)
     base.GitHubClient = lambda _token: fake  # type: ignore[assignment]
     import wepld_pictorial_agile_source_admission_v9_integrity as v9
+    _trace_s1_011_delta(base)
 
     os.environ['GITHUB_TOKEN'] = 'deterministic-git-backed-client-no-network'
 

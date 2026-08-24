@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import traceback
 from urllib.parse import urlparse
 
 REPOSITORY = 'TheHalfMoon/wepld'
@@ -47,12 +48,7 @@ class GitBackedClient:
                 parents.append({'sha': line.split(' ', 1)[1]})
         if tree is None:
             raise RuntimeError(f'missing tree for commit {sha}')
-        return {
-            'sha': sha,
-            'tree': {'sha': tree},
-            'parents': parents,
-            'message': '\n'.join(message_lines),
-        }
+        return {'sha': sha, 'tree': {'sha': tree}, 'parents': parents, 'message': '\n'.join(message_lines)}
 
     def _tree(self, sha: str) -> dict:
         raw = git(self.root, 'ls-tree', '-r', '-t', '-l', '-z', sha)
@@ -63,16 +59,9 @@ class GitBackedClient:
                 continue
             meta, path_b = record.split(b'\t', 1)
             fields = meta.decode('ascii').split()
-            if len(fields) < 3:
-                raise RuntimeError(f'malformed ls-tree record: {meta!r}')
             mode, kind, object_sha = fields[:3]
             path = path_b.decode('utf-8')
-            item: dict[str, object] = {
-                'path': path,
-                'mode': mode,
-                'type': kind,
-                'sha': object_sha,
-            }
+            item: dict[str, object] = {'path': path, 'mode': mode, 'type': kind, 'sha': object_sha}
             if kind == 'blob':
                 item['size'] = int(git(self.root, 'cat-file', '-s', object_sha, text=True).strip())
             rows.append(item)
@@ -81,30 +70,16 @@ class GitBackedClient:
     def _blob(self, sha: str) -> dict:
         data = git(self.root, 'cat-file', 'blob', sha)
         assert isinstance(data, bytes)
-        return {
-            'sha': sha,
-            'encoding': 'base64',
-            'content': base64.b64encode(data).decode('ascii'),
-        }
+        return {'sha': sha, 'encoding': 'base64', 'content': base64.b64encode(data).decode('ascii')}
 
     def _compare(self, spec: str) -> dict:
         base_sha, head_sha = spec.split('...', 1)
         if base_sha == head_sha:
             return {'status': 'identical'}
-        result = subprocess.run(
-            ['git', '-C', str(self.root), 'merge-base', '--is-ancestor', base_sha, head_sha],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=False,
-        )
+        result = subprocess.run(['git', '-C', str(self.root), 'merge-base', '--is-ancestor', base_sha, head_sha], check=False)
         if result.returncode == 0:
             return {'status': 'ahead'}
-        reverse = subprocess.run(
-            ['git', '-C', str(self.root), 'merge-base', '--is-ancestor', head_sha, base_sha],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=False,
-        )
+        reverse = subprocess.run(['git', '-C', str(self.root), 'merge-base', '--is-ancestor', head_sha, base_sha], check=False)
         if reverse.returncode == 0:
             return {'status': 'behind'}
         return {'status': 'diverged'}
@@ -144,33 +119,41 @@ def main() -> int:
 
     import wepld_pictorial_agile_source_admission_v9_integrity as v9
 
-    os.environ['GITHUB_TOKEN'] = 'deterministic-git-backed-client-no-network'
+    v8 = v9.prior
+    v7 = v8.prior
+    original_snapshot = v7._verify_snapshot
 
+    def traced_snapshot(view, *, transition):
+        print('TRACE_V7_VERIFY_SNAPSHOT_CALL', file=sys.stderr)
+        print(f'transition={transition}', file=sys.stderr)
+        print(f'view_type={type(view).__name__}', file=sys.stderr)
+        print(f'vendor_tree={view.tree_identity("vendor")}', file=sys.stderr)
+        traceback.print_stack(file=sys.stderr)
+        return original_snapshot(view, transition=transition)
+
+    # Patch every captured alias that may route to the frozen v7 verifier.
+    v7._verify_snapshot = traced_snapshot
+    if v8.PRIOR_VERIFY_SNAPSHOT is original_snapshot:
+        v8.PRIOR_VERIFY_SNAPSHOT = traced_snapshot
+    if v9.PRIOR_VERIFY_SNAPSHOT is original_snapshot:
+        v9.PRIOR_VERIFY_SNAPSHOT = traced_snapshot
+
+    os.environ['GITHUB_TOKEN'] = 'deterministic-git-backed-client-no-network'
     original = git(root, 'rev-parse', 'HEAD', text=True).strip()
     if original != POSTMERGE:
         raise SystemExit(f'local checkout drifted: expected={POSTMERGE} actual={original}')
 
-    # F1: exact production remote verifier entrypoint, with API payloads sourced
-    # deterministically from the same local Git object database.
     f1 = v9.main([
-        'verify-remote',
-        '--repository', REPOSITORY,
-        '--sha', CONVERGENCE,
-        '--policy-root', str(root),
-        '--pr-base-sha', POLICY_HEAD,
+        'verify-remote', '--repository', REPOSITORY, '--sha', CONVERGENCE,
+        '--policy-root', str(root), '--pr-base-sha', POLICY_HEAD,
     ])
     if f1 != 0:
         raise SystemExit(f'F1 deterministic Git-backed API E2E failed: status={f1}')
     print('f1_git_backed_api_e2e=PASS')
 
-    # F2: exact production local+remote-baseline entrypoint. The canonical v5
-    # runner and v9 scoped client bridge both obtain the same Git-backed client.
     os.environ['WEPLD_POLICY_BASE_SHA'] = POLICY_HEAD
     f2 = v9.main([
-        'verify-local',
-        '--root', str(root),
-        '--remote-baseline',
-        '--pr-base-sha', POSTMERGE,
+        'verify-local', '--root', str(root), '--remote-baseline', '--pr-base-sha', POSTMERGE,
     ])
     if f2 != 0:
         raise SystemExit(f'F2 deterministic Git-backed API E2E failed: status={f2}')

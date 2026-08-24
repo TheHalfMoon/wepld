@@ -138,3 +138,34 @@ PR162_MERGE=NOT_AUTHORIZED
 PR136_MERGE=NOT_AUTHORIZED
 ```
 
+## F2 exact local+remote activation repair — successor correction
+
+The first F1/F2 successor candidate repaired the intended topology but an actual
+`verify-local --remote-baseline` diagnostic against exact head
+`7d24c3047191822d687b5fb3cd52e228a6353651` exposed a remaining F2 defect:
+a later callback can compare two LocalRepositoryView instances after the canonical
+v5 runner has already established the trusted remote-baseline client. The prior
+helper rejected that callback with `v9 repaired-source admission requires one
+trusted remote view`.
+
+This successor does not weaken lineage, source-surface, tree, package.json, lock,
+or evidence checks. It creates one scoped GitHubClient only inside the existing
+`verify-local --remote-baseline` entrypoint, makes that client available to nested
+local/local callbacks, and clears it in `finally`. A Local+Local callback outside
+that exact remote-baseline scope remains fail-closed.
+
+```text
+F2_REJECTED_HEAD=7d24c3047191822d687b5fb3cd52e228a6353651
+F2_FAILURE=v9 repaired-source admission requires one trusted remote view
+F2_REPAIR=SCOPED_REMOTE_BASELINE_CLIENT_BRIDGE
+DEPENDENCY_ADMISSION=NONE
+PACKAGE_EXECUTION=NONE
+DONOR_EXECUTION=NONE
+MODEL_PROVIDER_EXECUTION=NONE
+PRODUCT_RUNTIME_ADMISSION=NONE
+CANONICAL_POLICY_MERGE=NOT_AUTHORIZED
+PR164_READY=NOT_AUTHORIZED
+PR162_MERGE=NOT_AUTHORIZED
+PR136_MERGE=NOT_AUTHORIZED
+```
+

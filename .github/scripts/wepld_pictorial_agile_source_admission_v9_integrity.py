@@ -30,7 +30,7 @@ FOUNDATION_WORKFLOW = ".github/workflows/foundation-integrity.yml"
 ADMISSION_WORKFLOW = ".github/workflows/s1-admission-integrity.yml"
 CONTRACTS_WORKFLOW = ".github/workflows/s1-contracts.yml"
 EVIDENCE_PATH = "docs/acquisition/WEPLD_PICTORIAL_LOCK_METADATA_OVERLAY_V9_EVIDENCE_2026-08-24.md"
-EXPECTED_EVIDENCE_GIT_BLOB_SHA1 = "916f3b7e192a28f0d7f397087cdfacc858b26423"
+EXPECTED_EVIDENCE_GIT_BLOB_SHA1 = "f065f04e0234d0a4dcbaf90be08b59f677331158"
 
 PRIOR_EXPECTED_WORKFLOW_SHA256 = {
     FOUNDATION_WORKFLOW: "9f4d321f4a5e8f37c3db31227157db61cf066e4acc4ea4513f12aae691f0067f",
@@ -93,6 +93,7 @@ PR136_MERGE = "NOT_AUTHORIZED"
 
 _INSTALLED = False
 _PRIOR_PRINT_SUCCESS: Any = None
+_LOCAL_REMOTE_CLIENT: Any = None
 
 
 def _git_blob_sha1(data: bytes) -> str:
@@ -294,12 +295,14 @@ def _view_commit_sha(view: base.RepositoryView) -> str:
 
 def _shared_trusted_client(candidate: base.RepositoryView, policy_base: base.RepositoryView) -> object:
     clients = [view.client for view in (candidate, policy_base) if isinstance(view, base.RemoteRepositoryView)]
-    if not clients:
-        base.fail("v9 repaired-source admission requires one trusted remote view")
-    first = clients[0]
-    if any(client is not first for client in clients[1:]):
-        base.fail("v9 repaired-source admission remote views do not share trusted client")
-    return first
+    if clients:
+        first = clients[0]
+        if any(client is not first for client in clients[1:]):
+            base.fail("v9 repaired-source admission remote views do not share trusted client")
+        return first
+    if _LOCAL_REMOTE_CLIENT is None:
+        base.fail("v9 repaired-source admission requires trusted remote-baseline client scope")
+    return _LOCAL_REMOTE_CLIENT
 
 
 def _source_surface_map(view: base.RepositoryView) -> dict[str, tuple[str, str]]:
@@ -936,6 +939,27 @@ def _selftest_review_repairs() -> None:
     )
 
 
+def _selftest_local_remote_client_bridge() -> None:
+    global _LOCAL_REMOTE_CLIENT
+    if _LOCAL_REMOTE_CLIENT is not None:
+        base.fail("v9 scoped remote-baseline client leaked into selftest")
+    local = base.LocalRepositoryView(Path(__file__).resolve().parents[2])
+    sentinel = object()
+    _LOCAL_REMOTE_CLIENT = sentinel
+    try:
+        if _shared_trusted_client(local, local) is not sentinel:
+            base.fail("v9 scoped remote-baseline client bridge returned wrong identity")
+    finally:
+        _LOCAL_REMOTE_CLIENT = None
+    base.expect_failure_matching(
+        "v9 local/local outside remote-baseline scope rejection",
+        "requires trusted remote-baseline client scope",
+        _shared_trusted_client,
+        local,
+        local,
+    )
+
+
 def _selftest_authority() -> None:
     actual = (
         SOURCE_ADMISSION,
@@ -1004,6 +1028,7 @@ def selftest() -> None:
 
     _selftest_overlay_contract()
     _selftest_review_repairs()
+    _selftest_local_remote_client_bridge()
     _selftest_authority()
     _install_policy()
     _selftest_workflows()
@@ -1063,7 +1088,15 @@ def main(argv: list[str]) -> int:
         if argv and argv[0] == "verify-local":
             args = base.parse_args(argv)
             if args.remote_baseline:
-                return prior._call_trusted_local_runner(args, shell, impl)
+                global _LOCAL_REMOTE_CLIENT
+                if _LOCAL_REMOTE_CLIENT is not None:
+                    base.fail("v9 remote-baseline client scope is already active")
+                token = os.environ.get(args.github_token_env) or None
+                _LOCAL_REMOTE_CLIENT = base.GitHubClient(token)
+                try:
+                    return prior._call_trusted_local_runner(args, shell, impl)
+                finally:
+                    _LOCAL_REMOTE_CLIENT = None
 
         runner = retention.main
         if not callable(runner):

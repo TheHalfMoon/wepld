@@ -26,7 +26,7 @@ jobs:
       - name: Freeze predecessor callable identities and add bypass regression
         shell: bash
         env:
-          EXPECTED_PARENT: b72ee6a85d79da3ff076f6110578e4937d70cd69
+          EXPECTED_PARENT: ${{ github.event.pull_request.head.sha }}
           EXPECTED_MAIN: 2ab2fae14bc3b3b1f1e9bc2059972456955aeff7
           BRANCH: ci/pictorial-agile-source-admission-v7-2026-08-24
         run: |

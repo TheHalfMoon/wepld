@@ -7,21 +7,21 @@ permissions:
   contents: read
 
 jobs:
-  deterministic-v9-e2e:
+  prepromotion-v9-e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
-      - name: Checkout exact simulated post-merge Git object set
+      - name: Checkout exact PR164 policy head with repository history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: c67eb570e9601f1dd21e1edd03a21926d29dc870
-          path: postmerge
+          ref: f91d765d21f497502e21414f49d42869218066b5
+          path: target
           persist-credentials: false
           fetch-depth: 0
           lfs: false
           submodules: false
 
-      - name: Checkout diagnostic harness only
+      - name: Checkout diagnostic repair generator and E2E harness
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha }}
@@ -31,8 +31,58 @@ jobs:
           lfs: false
           submodules: false
 
-      - name: Run exact production F1 and F2 entrypoints against Git-backed API payloads
+      - name: Build exact local F1 successor candidate and prove F1 plus F2
         shell: bash
         run: |
           set -euo pipefail
-          python diag/.github/scripts/diag_pr164_v9_git_backed_api_e2e.py --root postmerge
+          TARGET_HEAD='f91d765d21f497502e21414f49d42869218066b5'
+          CANONICAL_MAIN='08a06e9f2664735eb55db5b2f49f95d3d3f91c3f'
+          REPAIRED_SOURCE='04cc279133d536e2b4b68e01c019d7b595f0ed42'
+          POLICY_PATH='.github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py'
+          EVIDENCE_PATH='docs/acquisition/WEPLD_PICTORIAL_LOCK_METADATA_OVERLAY_V9_EVIDENCE_2026-08-24.md'
+
+          cd target
+          test "$(git rev-parse HEAD)" = "$TARGET_HEAD"
+          test "$(git rev-parse origin/main)" = "$CANONICAL_MAIN"
+          git cat-file -e "$REPAIRED_SOURCE^{commit}"
+
+          python ../diag/.github/scripts/diag_pr164_v9_repaired_snapshot_verifier_repair.py
+          python -m py_compile "$POLICY_PATH"
+          python "$POLICY_PATH" selftest
+
+          mapfile -t changed < <(git diff --name-only "$TARGET_HEAD" --)
+          printf 'changed=%s\n' "${changed[@]}"
+          test "${#changed[@]}" -eq 2
+          test "${changed[0]}" = "$POLICY_PATH"
+          test "${changed[1]}" = "$EVIDENCE_PATH"
+
+          git config user.name 'wepld-policy-repair'
+          git config user.email 'wepld-policy-repair@users.noreply.github.com'
+          git add "$POLICY_PATH" "$EVIDENCE_PATH"
+          git commit -m 'fix(ci): verify exact repaired v9 snapshot generation'
+          POLICY_HEAD="$(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD^)" = "$TARGET_HEAD"
+
+          CONVERGENCE_TREE="$(git merge-tree --write-tree "$REPAIRED_SOURCE" "$POLICY_HEAD")"
+          CONVERGENCE="$(printf '%s\n' 'diag: PR164 v9 repaired-snapshot convergence candidate' | git commit-tree "$CONVERGENCE_TREE" -p "$REPAIRED_SOURCE" -p "$POLICY_HEAD")"
+          POSTMERGE="$(printf '%s\n' 'diag: PR164 v9 repaired-snapshot simulated post-merge head' | git commit-tree "$CONVERGENCE_TREE" -p "$POLICY_HEAD" -p "$CONVERGENCE")"
+
+          test "$(git rev-parse "$CONVERGENCE^{tree}")" = "$CONVERGENCE_TREE"
+          test "$(git rev-parse "$POSTMERGE^{tree}")" = "$CONVERGENCE_TREE"
+          test "$(git show -s --format=%P "$CONVERGENCE")" = "$REPAIRED_SOURCE $POLICY_HEAD"
+          test "$(git show -s --format=%P "$POSTMERGE")" = "$POLICY_HEAD $CONVERGENCE"
+
+          python ../diag/.github/scripts/diag_pr164_v9_git_backed_api_e2e.py \
+            --root . \
+            --policy-head "$POLICY_HEAD" \
+            --convergence "$CONVERGENCE" \
+            --postmerge "$POSTMERGE"
+
+          echo "prepromotion_policy_head=$POLICY_HEAD"
+          echo "prepromotion_convergence=$CONVERGENCE"
+          echo "prepromotion_postmerge=$POSTMERGE"
+          echo 'prepromotion_f1_f2=PASS'
+          echo 'pr164_mutation=NONE'
+          echo 'dependency_installation=NONE'
+          echo 'donor_code_execution=NONE'
+          echo 'model_provider_execution=NONE'

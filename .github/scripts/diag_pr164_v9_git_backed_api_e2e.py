@@ -7,13 +7,9 @@ import os
 from pathlib import Path
 import subprocess
 import sys
-import traceback
 from urllib.parse import urlparse
 
 REPOSITORY = 'TheHalfMoon/wepld'
-POLICY_HEAD = 'f91d765d21f497502e21414f49d42869218066b5'
-CONVERGENCE = 'e8a70633fc7f60b1e8dd3e607e334e11d878bb0c'
-POSTMERGE = 'c67eb570e9601f1dd21e1edd03a21926d29dc870'
 
 
 def git(root: Path, *args: str, text: bool = False) -> bytes | str:
@@ -59,6 +55,8 @@ class GitBackedClient:
                 continue
             meta, path_b = record.split(b'\t', 1)
             fields = meta.decode('ascii').split()
+            if len(fields) < 3:
+                raise RuntimeError(f'malformed ls-tree record: {meta!r}')
             mode, kind, object_sha = fields[:3]
             path = path_b.decode('utf-8')
             item: dict[str, object] = {'path': path, 'mode': mode, 'type': kind, 'sha': object_sha}
@@ -76,10 +74,20 @@ class GitBackedClient:
         base_sha, head_sha = spec.split('...', 1)
         if base_sha == head_sha:
             return {'status': 'identical'}
-        result = subprocess.run(['git', '-C', str(self.root), 'merge-base', '--is-ancestor', base_sha, head_sha], check=False)
+        result = subprocess.run(
+            ['git', '-C', str(self.root), 'merge-base', '--is-ancestor', base_sha, head_sha],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
         if result.returncode == 0:
             return {'status': 'ahead'}
-        reverse = subprocess.run(['git', '-C', str(self.root), 'merge-base', '--is-ancestor', head_sha, base_sha], check=False)
+        reverse = subprocess.run(
+            ['git', '-C', str(self.root), 'merge-base', '--is-ancestor', head_sha, base_sha],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
         if reverse.returncode == 0:
             return {'status': 'behind'}
         return {'status': 'diverged'}
@@ -104,11 +112,21 @@ class GitBackedClient:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument('--root', required=True)
+    parser.add_argument('--policy-head', required=True)
+    parser.add_argument('--convergence', required=True)
+    parser.add_argument('--postmerge', required=True)
     args = parser.parse_args()
     root = Path(args.root).resolve()
 
-    for sha in (POLICY_HEAD, CONVERGENCE, POSTMERGE):
+    for sha in (args.policy_head, args.convergence, args.postmerge):
         git(root, 'cat-file', '-e', f'{sha}^{{commit}}')
+
+    current = git(root, 'rev-parse', 'HEAD', text=True).strip()
+    if current != args.postmerge:
+        git(root, 'checkout', '--detach', args.postmerge)
+        current = git(root, 'rev-parse', 'HEAD', text=True).strip()
+    if current != args.postmerge:
+        raise SystemExit(f'local checkout drifted: expected={args.postmerge} actual={current}')
 
     scripts = root / '.github' / 'scripts'
     sys.path.insert(0, str(scripts))
@@ -116,44 +134,21 @@ def main() -> int:
 
     fake = GitBackedClient(root)
     base.GitHubClient = lambda _token: fake  # type: ignore[assignment]
-
     import wepld_pictorial_agile_source_admission_v9_integrity as v9
 
-    v8 = v9.prior
-    v7 = v8.prior
-    original_snapshot = v7._verify_snapshot
-
-    def traced_snapshot(view, *, transition):
-        print('TRACE_V7_VERIFY_SNAPSHOT_CALL', file=sys.stderr)
-        print(f'transition={transition}', file=sys.stderr)
-        print(f'view_type={type(view).__name__}', file=sys.stderr)
-        print(f'vendor_tree={view.tree_identity("vendor")}', file=sys.stderr)
-        traceback.print_stack(file=sys.stderr)
-        return original_snapshot(view, transition=transition)
-
-    # Patch every captured alias that may route to the frozen v7 verifier.
-    v7._verify_snapshot = traced_snapshot
-    if v8.PRIOR_VERIFY_SNAPSHOT is original_snapshot:
-        v8.PRIOR_VERIFY_SNAPSHOT = traced_snapshot
-    if v9.PRIOR_VERIFY_SNAPSHOT is original_snapshot:
-        v9.PRIOR_VERIFY_SNAPSHOT = traced_snapshot
-
     os.environ['GITHUB_TOKEN'] = 'deterministic-git-backed-client-no-network'
-    original = git(root, 'rev-parse', 'HEAD', text=True).strip()
-    if original != POSTMERGE:
-        raise SystemExit(f'local checkout drifted: expected={POSTMERGE} actual={original}')
 
     f1 = v9.main([
-        'verify-remote', '--repository', REPOSITORY, '--sha', CONVERGENCE,
-        '--policy-root', str(root), '--pr-base-sha', POLICY_HEAD,
+        'verify-remote', '--repository', REPOSITORY, '--sha', args.convergence,
+        '--policy-root', str(root), '--pr-base-sha', args.policy_head,
     ])
     if f1 != 0:
         raise SystemExit(f'F1 deterministic Git-backed API E2E failed: status={f1}')
     print('f1_git_backed_api_e2e=PASS')
 
-    os.environ['WEPLD_POLICY_BASE_SHA'] = POLICY_HEAD
+    os.environ['WEPLD_POLICY_BASE_SHA'] = args.policy_head
     f2 = v9.main([
-        'verify-local', '--root', str(root), '--remote-baseline', '--pr-base-sha', POSTMERGE,
+        'verify-local', '--root', str(root), '--remote-baseline', '--pr-base-sha', args.postmerge,
     ])
     if f2 != 0:
         raise SystemExit(f'F2 deterministic Git-backed API E2E failed: status={f2}')

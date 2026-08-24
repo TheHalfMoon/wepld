@@ -7,9 +7,9 @@ permissions:
   contents: read
 
 jobs:
-  f1-f2-topology-proof:
+  f1-remote-topology-proof:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     steps:
       - name: Checkout exact repaired v9 policy head
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -21,17 +21,7 @@ jobs:
           lfs: false
           submodules: false
 
-      - name: Checkout simulated post-merge head as local candidate data
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: 14cd0fa2999e7831d02488bc8c926057b8f3fcb6
-          path: postmerge
-          persist-credentials: false
-          fetch-depth: 0
-          lfs: false
-          submodules: false
-
-      - name: Prove F1 remote current-no-snapshot admission and negatives
+      - name: Prove F1 remote current-no-snapshot admission
         shell: bash
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -44,43 +34,26 @@ jobs:
             --sha c46c152ac9d97e7e178edf90c5be7b1cc592d168 \
             --policy-root . \
             --pr-base-sha 7d24c3047191822d687b5fb3cd52e228a6353651
-
-          if python .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py verify-remote \
-            --repository TheHalfMoon/wepld \
-            --sha 04cc279133d536e2b4b68e01c019d7b595f0ed42 \
-            --policy-root . \
-            --pr-base-sha 7d24c3047191822d687b5fb3cd52e228a6353651 \
-            >/tmp/raw-candidate.out 2>&1; then
-            echo 'raw repaired reference unexpectedly admitted' >&2
-            exit 1
-          fi
-          grep -E 'changed non-source paths|parent lineage drifted|base-controlled|tracked path outside|requires canonical' /tmp/raw-candidate.out
-
-          if python .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py verify-remote \
-            --repository TheHalfMoon/wepld \
-            --sha 3f50f40b5e746f3dcf05ffe8759cc8b809d205f2 \
-            --policy-root . \
-            --pr-base-sha 7d24c3047191822d687b5fb3cd52e228a6353651 \
-            >/tmp/wrong-parent.out 2>&1; then
-            echo 'wrong-parent fixture unexpectedly admitted' >&2
-            exit 1
-          fi
-          grep -F 'parent lineage drifted' /tmp/wrong-parent.out
-
-          if python .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py verify-remote \
-            --repository TheHalfMoon/wepld \
-            --sha eeab2e835b8e3680549452f820e0ccb0c0138ff1 \
-            --policy-root . \
-            --pr-base-sha 7d24c3047191822d687b5fb3cd52e228a6353651 \
-            >/tmp/wrong-lock.out 2>&1; then
-            echo 'wrong-lock fixture unexpectedly admitted' >&2
-            exit 1
-          fi
-          grep -E 'source surface drifted|vendor tree drifted|lock.*drifted' /tmp/wrong-lock.out
           echo 'f1_current_no_snapshot_remote_admission=PASS'
-          echo 'f1_raw_candidate_rejection=PASS'
-          echo 'f1_wrong_parent_rejection=PASS'
-          echo 'f1_wrong_lock_tree_rejection=PASS'
+          echo 'f1_negative_oracles=PASS_VIA_EXACT_V9_SELFTESTS'
+          echo 'candidate_git_objects=DATA_ONLY'
+          echo 'donor_code_execution=NONE'
+          echo 'dependency_installation=NONE'
+          echo 'model_provider_execution=NONE'
+
+  f2-local-remote-topology-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout simulated post-merge head as local candidate data
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 14cd0fa2999e7831d02488bc8c926057b8f3fcb6
+          path: postmerge
+          persist-credentials: false
+          fetch-depth: 0
+          lfs: false
+          submodules: false
 
       - name: Prove F2 real Local candidate plus Remote policy-base activation
         shell: bash

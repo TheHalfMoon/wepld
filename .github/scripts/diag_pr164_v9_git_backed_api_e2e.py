@@ -9,7 +9,7 @@ from pathlib import Path
 import subprocess
 import sys
 import traceback
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 REPOSITORY = 'TheHalfMoon/wepld'
 
@@ -74,6 +74,21 @@ class GitBackedClient:
         assert isinstance(data, bytes)
         return {'sha': sha, 'encoding': 'base64', 'content': base64.b64encode(data).decode('ascii')}
 
+    def _contents(self, path: str, ref: str) -> dict:
+        if not ref:
+            raise RuntimeError('contents request is missing ref')
+        object_sha = git(self.root, 'rev-parse', f'{ref}:{path}', text=True).strip()
+        object_type = git(self.root, 'cat-file', '-t', object_sha, text=True).strip()
+        if object_type != 'blob':
+            raise RuntimeError(f'contents request is not a blob: {path}@{ref}: {object_type}')
+        data = git(self.root, 'cat-file', 'blob', object_sha)
+        assert isinstance(data, bytes)
+        return {
+            'sha': object_sha,
+            'encoding': 'base64',
+            'content': base64.b64encode(data).decode('ascii'),
+        }
+
     def _compare(self, spec: str) -> dict:
         base_sha, head_sha = spec.split('...', 1)
         if base_sha == head_sha:
@@ -108,6 +123,11 @@ class GitBackedClient:
             return self._tree(suffix.rsplit('/', 1)[1])
         if suffix.startswith('/git/blobs/'):
             return self._blob(suffix.rsplit('/', 1)[1])
+        if suffix.startswith('/contents/'):
+            path = unquote(suffix[len('/contents/'):])
+            ref_values = parse_qs(parsed.query).get('ref', [])
+            ref = ref_values[0] if len(ref_values) == 1 else ''
+            return self._contents(path, ref)
         if suffix.startswith('/compare/'):
             return self._compare(suffix[len('/compare/'):])
         raise RuntimeError(f'unsupported GitHub API URL in deterministic E2E: {url}')

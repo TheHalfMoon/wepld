@@ -40,7 +40,7 @@ jobs:
           python .github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py selftest
           python .github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py verify-remote \
             --repository TheHalfMoon/wepld \
-            --sha SYNTHETIC_COMMIT_PLACEHOLDER \
+            --sha 8afb03e822fca4837d305a772a2641e557bf8812 \
             --policy-root . \
             --pr-base-sha 2ab2fae14bc3b3b1f1e9bc2059972456955aeff7
           echo 'candidate_policy_authority=NONE'

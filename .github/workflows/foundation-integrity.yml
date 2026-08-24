@@ -54,3 +54,57 @@ jobs:
             --root . \
             --remote-baseline \
             --pr-base-sha "$WEPLD_BASELINE_CHECK_SHA"
+
+  diagnostic-repair:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact rejected PR164 head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 9d7cec43dca2a41a149f7749aa5f6cfb1ad25714
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Fetch diagnostic generator from current diagnostic head
+        shell: bash
+        env:
+          DIAG_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "$DIAG_HEAD"
+          git show "$DIAG_HEAD:.github/scripts/diag_pr164_v9_three_finding_repair.py" > /tmp/diag_pr164_v9_three_finding_repair.py
+
+      - name: Generate F1-F3 repair bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python /tmp/diag_pr164_v9_three_finding_repair.py
+          python -m py_compile .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py
+          python .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py selftest
+
+      - name: Prove exact two-file candidate repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --name-only 9d7cec43dca2a41a149f7749aa5f6cfb1ad25714 -- \
+            .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py \
+            docs/acquisition/WEPLD_PICTORIAL_LOCK_METADATA_OVERLAY_V9_EVIDENCE_2026-08-24.md \
+            > diag-v9-repair-changed-files.txt
+          test "$(wc -l < diag-v9-repair-changed-files.txt)" -eq 2
+          grep -Fx '.github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py' diag-v9-repair-changed-files.txt
+          grep -Fx 'docs/acquisition/WEPLD_PICTORIAL_LOCK_METADATA_OVERLAY_V9_EVIDENCE_2026-08-24.md' diag-v9-repair-changed-files.txt
+
+      - name: Upload exact repair candidate bytes
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pr164-v9-three-finding-repair
+          path: |
+            .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py
+            docs/acquisition/WEPLD_PICTORIAL_LOCK_METADATA_OVERLAY_V9_EVIDENCE_2026-08-24.md
+            diag-v9-repair-summary.txt
+            diag-v9-repair-changed-files.txt
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0

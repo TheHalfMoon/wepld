@@ -1,0 +1,100 @@
+name: one-shot v7 entrypoint repair
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/source-admission-v7-entrypoint-repair-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'ci/pictorial-agile-source-admission-v7-2026-08-24'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact repair head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ci/pictorial-agile-source-admission-v7-2026-08-24
+          fetch-depth: 0
+          persist-credentials: true
+          lfs: false
+          submodules: false
+
+      - name: Add fail-closed executable entrypoint and regression self-test
+        shell: bash
+        env:
+          EXPECTED_PARENT: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_MAIN: 2ab2fae14bc3b3b1f1e9bc2059972456955aeff7
+          BRANCH: ci/pictorial-agile-source-admission-v7-2026-08-24
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_PARENT"
+          git fetch origin main "$BRANCH" --no-tags
+          test "$(git rev-parse origin/main)" = "$EXPECTED_MAIN"
+          test "$(git rev-parse origin/$BRANCH)" = "$EXPECTED_PARENT"
+
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('.github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py')
+          text = path.read_text(encoding='utf-8').rstrip() + '\n'
+          entry = 'if __name__ == "__main__":\n    raise SystemExit(main(sys.argv[1:]))\n'
+          if entry in text:
+              raise SystemExit('entrypoint already present unexpectedly')
+
+          anchor = 'def _selftest_identity_drift() -> None:\n'
+          if anchor not in text:
+              raise SystemExit('missing selftest insertion anchor')
+          regression = '''def _selftest_executable_entrypoint() -> None:\n    source = Path(__file__).read_text(encoding="utf-8").rstrip()\n    expected = 'if __name__ == "__main__":\\n    raise SystemExit(main(sys.argv[1:]))'\n    if not source.endswith(expected):\n        base.fail("Pictorial/Agile source-admission-v7 executable entrypoint is missing or malformed")\n\n\n'''
+          text = text.replace(anchor, regression + anchor, 1)
+          old_calls = '    _selftest_topology_fail_closed()\n    _selftest_identity_drift()\n'
+          new_calls = '    _selftest_topology_fail_closed()\n    _selftest_executable_entrypoint()\n    _selftest_identity_drift()\n'
+          if text.count(old_calls) != 1:
+              raise SystemExit('unexpected selftest call topology')
+          text = text.replace(old_calls, new_calls, 1)
+          text = text.rstrip() + '\n\n' + entry
+          path.write_text(text, encoding='utf-8')
+          PY
+
+          python -m py_compile .github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py
+          rm -rf .github/scripts/__pycache__
+
+          output="$(python .github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py selftest)"
+          printf '%s\n' "$output"
+          printf '%s\n' "$output" | grep -Fx 'wepld Pictorial/Agile source admission v7 self-tests: PASS'
+
+          set +e
+          broken="$(python - <<'PY' 2>&1
+          from pathlib import Path
+          p = Path('.github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py')
+          s = p.read_text(encoding='utf-8')
+          s = s.rsplit('if __name__ == "__main__":', 1)[0].rstrip() + '\n'
+          Path('/tmp/v7-no-entry.py').write_text(s, encoding='utf-8')
+          PY
+          python /tmp/v7-no-entry.py selftest 2>&1)"
+          status=$?
+          set -e
+          # A script without the entrypoint silently exits 0 and emits no v7 PASS marker;
+          # the repository self-test above therefore protects the committed source identity.
+          test "$status" -eq 0
+          ! printf '%s\n' "$broken" | grep -F 'wepld Pictorial/Agile source admission v7 self-tests: PASS'
+
+          rm .github/workflows/source-admission-v7-entrypoint-repair-once.yml
+          git diff --check
+          mapfile -t changed < <(git diff --name-only)
+          test "${#changed[@]}" -eq 2
+          printf '%s\n' "${changed[@]}" | grep -Fx '.github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py'
+          printf '%s\n' "${changed[@]}" | grep -Fx '.github/workflows/source-admission-v7-entrypoint-repair-once.yml'
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py .github/workflows/source-admission-v7-entrypoint-repair-once.yml
+          git commit -m 'fix(ci): execute v7 source-admission policy entrypoint'
+
+          git fetch origin main "$BRANCH" --no-tags
+          test "$(git rev-parse origin/main)" = "$EXPECTED_MAIN"
+          test "$(git rev-parse origin/$BRANCH)" = "$EXPECTED_PARENT"
+          git push origin HEAD:"$BRANCH"

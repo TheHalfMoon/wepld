@@ -1,0 +1,61 @@
+name: diag-pr136-v9-lock-overlay-qualification
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact diagnostic policy candidate only
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          lfs: false
+          submodules: false
+
+      - name: Bind exact v9 policy candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "9d7cec43dca2a41a149f7749aa5f6cfb1ad25714"
+          test "$(git hash-object .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py)" = "b85e83d0f5099aa9527d70c4f51bc9070ca95859"
+          test "$(git hash-object docs/acquisition/WEPLD_PICTORIAL_LOCK_METADATA_OVERLAY_V9_EVIDENCE_2026-08-24.md)" = "8a6529353a93f6d7bdf49e34f03028afcbc29fde"
+
+      - name: Run v9 policy self-tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py selftest
+
+      - name: Qualify exact repair candidate as remote Git data only
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py qualify-overlay-remote \
+            --repository TheHalfMoon/wepld \
+            --predecessor-sha 28f0023b8ffb90c585213762dae5f4c1d57322ef \
+            --candidate-sha 04cc279133d536e2b4b68e01c019d7b595f0ed42
+
+      - name: Record non-execution boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'candidate_checkout=NONE'
+          echo 'candidate_git_objects=DATA_ONLY'
+          echo 'dependency_admission=NONE'
+          echo 'package_installation=NONE'
+          echo 'package_execution=NONE'
+          echo 'donor_code_execution=NONE'
+          echo 'model_provider_execution=NONE'
+          echo 'product_runtime_admission=NONE'
+          echo 'merge_authority=NONE'

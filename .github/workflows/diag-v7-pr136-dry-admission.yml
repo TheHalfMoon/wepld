@@ -1,0 +1,36 @@
+name: diag-v7-pr136-dry-admission
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact diagnostic policy head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          lfs: false
+          submodules: false
+
+      - name: Dry-qualify exact PR 136 snapshot as remote data
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python .github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py selftest
+          python .github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py verify-remote \
+            --repository TheHalfMoon/wepld \
+            --sha e637aa0b2427a9f2ed793d50f738106cee0f4ec1 \
+            --policy-root . \
+            --pr-base-sha 2ab2fae14bc3b3b1f1e9bc2059972456955aeff7
+          echo 'candidate_policy_authority=NONE'
+          echo 'dry_source_admission_evidence=PASS'

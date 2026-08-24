@@ -1,0 +1,49 @@
+name: diag-pr137-repaired-v7-admission-locator
+
+on:
+  pull_request:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  locate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Locate exact repaired PR 137 trusted-base run
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request
+          url = "https://api.github.com/repos/TheHalfMoon/wepld/actions/runs?event=pull_request_target&per_page=100"
+          req = urllib.request.Request(url, headers={
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
+              "X-GitHub-Api-Version": "2022-11-28",
+          })
+          with urllib.request.urlopen(req, timeout=30) as response:
+              payload = json.load(response)
+          matches = []
+          for run in payload.get("workflow_runs", []):
+              prs = [p.get("number") for p in run.get("pull_requests", [])]
+              if (run.get("name") == "s1-admission-integrity"
+                  and run.get("event") == "pull_request_target"
+                  and 137 in prs
+                  and run.get("head_sha") == "2af1c4920a94f93f7ebac0f9a7e21e885917d15b"):
+                  matches.append({
+                      "id": run.get("id"),
+                      "run_number": run.get("run_number"),
+                      "status": run.get("status"),
+                      "conclusion": run.get("conclusion"),
+                      "created_at": run.get("created_at"),
+                      "jobs_url": run.get("jobs_url"),
+                  })
+          print(json.dumps(matches, sort_keys=True))
+          if len(matches) != 1:
+              raise SystemExit(f"expected exactly one repaired-head PR137 trusted-base run, found {len(matches)}")
+          PY

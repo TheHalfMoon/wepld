@@ -1,0 +1,47 @@
+name: diag-repaired-v7-pr136-synthetic
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout diagnostic workflow head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          lfs: false
+          submodules: false
+
+      - name: Checkout exact clean repaired v7 policy root
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 2af1c4920a94f93f7ebac0f9a7e21e885917d15b
+          path: policy
+          persist-credentials: false
+          fetch-depth: 1
+          lfs: false
+          submodules: false
+
+      - name: Requalify synthetic future PR136 under repaired v7
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd policy
+          python .github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py selftest
+          python .github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py verify-remote \
+            --repository TheHalfMoon/wepld \
+            --sha SYNTHETIC_COMMIT_PLACEHOLDER \
+            --policy-root . \
+            --pr-base-sha 2ab2fae14bc3b3b1f1e9bc2059972456955aeff7
+          echo 'candidate_policy_authority=NONE'
+          echo 'repaired_v7_synthetic_source_admission=PASS'

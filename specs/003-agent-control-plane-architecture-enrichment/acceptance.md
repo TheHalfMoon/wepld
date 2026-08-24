@@ -8,15 +8,19 @@ Spec 003 is accepted as a **planning candidate** only when:
 - active Pictorial/Agile PRs remain outside the change;
 - frozen registry count remains untouched;
 - Tier-1 source pins are research anchors only;
+- the planning PR does not mutate base-controlled canonical authority files; `docs/canonical/MASTER_PLAN_INDEX.md` remains byte-identical to the trusted base in this planning change;
 - Foundation exact-head check passes;
-- at least one independently qualified engineering reviewer reviews the exact head;
-- all material findings are reconciled;
-- final race confirms base/head/diff/review evidence.
+- when an external reviewer is used, a recorded exact-head `EGRESS_PREFLIGHT` exists **before** the review trigger and covers scope classification, secret/private-data screening, provider handling/retention/training/tenant-isolation decisions, `EGRESS_APPROVAL`, and result limitations under `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md`;
+- at least one independently qualified engineering reviewer reviews the exact head; if a required qualified review is unavailable, record `REVIEW_BLOCKED` and stop qualification/canonicalization rather than treating absence as PASS;
+- all material findings are reconciled on the exact reviewed head or a repaired successor head that is fully requalified;
+- a final live-evidence race re-reads current GitHub PR, base, head, changed-file, check, and review state and records the exact values compared.
 
-Canonicalization of V2.3, source admission and implementation each remain separate effects.
+Merging this planning package, if separately qualified, may only persist a **non-canonical V2.3 candidate**. Canonicalization of V2.3 requires a separately governed bootstrap/override event for the base-controlled canonical index. Source admission and implementation remain separate effects.
 
 ```text
 GREEN_CI != ACCEPTANCE
 PLANNING_ACCEPTANCE != IMPLEMENTATION_AUTHORITY
+PLANNING_PR_MERGE != V2_3_CANONICALIZATION
 V2_3_CANDIDATE != CANONICAL_V2_3
+REVIEW_UNAVAILABLE = REVIEW_BLOCKED
 ```

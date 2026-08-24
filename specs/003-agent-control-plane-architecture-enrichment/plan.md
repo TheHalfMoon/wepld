@@ -3,7 +3,8 @@
 ## Phase 0 — Trusted baseline
 - Bind to canonical V2.2/main.
 - Keep active acquisition/runtime PRs separate.
-- Treat candidate governance text as non-authoritative until merged.
+- Treat candidate governance text as non-authoritative until a separately governed canonicalization event.
+- Do not mutate `docs/canonical/MASTER_PLAN_INDEX.md` in this ordinary planning PR; trusted integrity policy classifies it as base-controlled and requires a separately governed bootstrap/override event for legitimate future mutation.
 
 ## Phase 1 — Major reconnaissance
 Research five planes:
@@ -45,24 +46,31 @@ Plan deterministic, structural, graph/data-flow, model-assisted and dynamic evid
 ### Assurance
 Plan parallel independent evaluators, confidence as metadata only, and finding reconciliation.
 
-## Phase 3 — Roadmap amendment
-Create V2.3 candidate preserving P0 + S1..S10 and adding:
+## Phase 3 — Roadmap amendment candidate
+Create a non-canonical V2.3 candidate preserving P0 + S1..S10 and proposing:
 - S4-G semantic graph gate;
 - S6-AH agent-host interoperability gate;
 - S6-N Nawat authority gate;
 - S7-S AMAN security graph gate;
 - S9-P execution provenance gate.
 
+The candidate may be persisted for review without changing the canonical V2.2 index. Any future canonical-index mutation is a separate bootstrap/override event under trusted-base governance.
+
 ## Phase 4 — Acquisition work queue
-Tier-1 path mining:
+Tier-1 path mining candidates:
 1. VS Code Agent Host / AHP;
 2. ACP;
 3. Code-Graph-RAG + Graphify;
 4. Microsoft ACS/AGT;
 5. Cedar;
-6. Codex/DeepSeek Harness;
-7. Tree-sitter/SCIP/ast-grep;
-8. sandbox candidates.
+6. Codex/DeepSeek Harness.
+
+Additional capability-triggered mining, deferred until the owning slice activates:
+1. Tree-sitter/SCIP/ast-grep;
+2. sandbox candidates;
+3. Joern/CPG and OpenGrep;
+4. OPA/OpenHands/Goose/Cline/Aider;
+5. provenance/export candidates such as in-toto/SLSA/OpenTelemetry.
 
 For each future path-mining gate require:
 - exact commit/tree/file pins;
@@ -76,10 +84,13 @@ For each future path-mining gate require:
 
 ## Phase 5 — Qualification of planning candidate
 - Foundation exact-head check.
-- Documentation consistency check.
-- Independent engineering review.
+- Documentation/specification changed-file scope check.
+- If an external reviewer is used, exact-head egress preflight before review trigger.
+- Independent engineering review, with `REVIEW_BLOCKED` recorded if a required qualified review is unavailable.
 - Findings reconciliation.
-- No implementation, source admission or dependency admission.
+- Rerun affected checks and external-review preflight/review after any repair that changes the head.
+- Final live-evidence race over current PR/base/head/changed-file/check/review state.
+- No implementation, source admission, dependency admission, or canonical-index mutation.
 
 ## Implementation sequencing impact
 

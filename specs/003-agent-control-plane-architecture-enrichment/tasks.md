@@ -19,13 +19,16 @@
 
 ## Candidate qualification
 
-- [ ] T015 Run exact-head Foundation on the planning PR.
-- [ ] T016 Verify changed-file scope is documentation/specification only.
-- [ ] T017 Perform external-review egress preflight.
-- [ ] T018 Obtain independent exact-head engineering review.
-- [ ] T019 Reconcile every material finding.
-- [ ] T020 Rerun affected gates after repairs.
-- [ ] T021 Decide whether V2.3 candidate may become canonical.
+Exact-head qualification facts are recorded in immutable GitHub PR/check/review evidence. Do **not** flip a tracked qualification checkbox merely to record a live result on the same head: doing so changes the head and invalidates that result. Historical results may be cited in PR evidence, but only evidence bound to the current head can satisfy acceptance.
+
+- [ ] T015 Run exact-head Foundation on the current planning-PR head and record exact head/run/job/conclusion in PR/check evidence.
+- [ ] T016 Verify the current changed-file set and record the exact paths plus documentation/specification-only classification in PR evidence.
+- [ ] T017 If an external reviewer is used, perform and record the exact-head egress preflight **before** the trigger, covering scope classification, secret/private-data screening, provider handling/retention/training/tenant-isolation decisions, `EGRESS_APPROVAL`, and result limitations.
+- [ ] T018 Obtain an independent exact-head engineering review. If a required qualified reviewer is unavailable, record `REVIEW_BLOCKED` and stop; T019–T022 cannot proceed on absence of review.
+- [ ] T019 Reconcile every material finding from a completed independent review. Do not proceed while any material finding remains unresolved.
+- [ ] T020 Rerun all affected gates after any repair on the repaired exact head, including a new external-review egress preflight and exact-head rereview when external review is used.
+- [ ] T021 Perform the final live-evidence race: re-read current GitHub PR state, base SHA, head SHA, exact changed-file set, required checks, review submissions/threads, and unresolved findings; record the exact values compared before any acceptance decision.
+- [ ] T022 Decide whether the planning package may be accepted/merged as a **non-canonical V2.3 candidate**. V2.3 canonicalization itself requires a separately governed bootstrap/override event for the base-controlled canonical index.
 
 ## Future work — explicitly not authorized by Spec 003
 

@@ -83,11 +83,7 @@ class GitBackedClient:
             raise RuntimeError(f'contents request is not a blob: {path}@{ref}: {object_type}')
         data = git(self.root, 'cat-file', 'blob', object_sha)
         assert isinstance(data, bytes)
-        return {
-            'sha': object_sha,
-            'encoding': 'base64',
-            'content': base64.b64encode(data).decode('ascii'),
-        }
+        return {'sha': object_sha, 'encoding': 'base64', 'content': base64.b64encode(data).decode('ascii')}
 
     def _compare(self, spec: str) -> dict:
         base_sha, head_sha = spec.split('...', 1)
@@ -95,17 +91,13 @@ class GitBackedClient:
             return {'status': 'identical'}
         result = subprocess.run(
             ['git', '-C', str(self.root), 'merge-base', '--is-ancestor', base_sha, head_sha],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            check=False,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
         )
         if result.returncode == 0:
             return {'status': 'ahead'}
         reverse = subprocess.run(
             ['git', '-C', str(self.root), 'merge-base', '--is-ancestor', head_sha, base_sha],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            check=False,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
         )
         if reverse.returncode == 0:
             return {'status': 'behind'}
@@ -133,41 +125,60 @@ class GitBackedClient:
         raise RuntimeError(f'unsupported GitHub API URL in deterministic E2E: {url}')
 
 
-def _install_s1_011_fail_trace(base) -> None:
+def _view_chain(value: object) -> str:
+    parts: list[str] = []
+    seen: set[int] = set()
+    current = value
+    for _ in range(12):
+        if current is None:
+            parts.append('None')
+            break
+        identity = id(current)
+        if identity in seen:
+            parts.append('<cycle>')
+            break
+        seen.add(identity)
+        label = type(current).__name__
+        if hasattr(current, 'commit_sha'):
+            label += f"[commit_sha={getattr(current, 'commit_sha', None)}]"
+        if hasattr(current, 'root'):
+            label += f"[root={getattr(current, 'root', None)}]"
+        parts.append(label)
+        if not hasattr(current, '_inner'):
+            break
+        current = getattr(current, '_inner')
+    return ' -> '.join(parts)
+
+
+def _install_fail_trace(base) -> None:
     original_fail = base.fail
-    needle = 'S1-011 trusted-base delta must be exactly the frozen three-path test-only surface'
+    s1_needle = 'S1-011 trusted-base delta must be exactly the frozen three-path test-only surface'
+    lineage_needle = 'v9 admission lineage requires local or remote repository view'
 
     def traced_fail(message: str):
-        if needle in str(message):
-            caller = inspect.currentframe().f_back
+        text = str(message)
+        caller = inspect.currentframe().f_back
+        if s1_needle in text:
             print('TRACE_S1_011_FAIL_BOUNDARY', file=sys.stderr)
             if caller is not None:
-                print(f'caller_file={caller.f_code.co_filename}', file=sys.stderr)
-                print(f'caller_function={caller.f_code.co_name}', file=sys.stderr)
                 candidate = caller.f_locals.get('candidate')
                 policy_base = caller.f_locals.get('policy_base')
                 changed = caller.f_locals.get('changed')
-                print(f'candidate_type={type(candidate).__name__}', file=sys.stderr)
-                print(f'policy_base_type={type(policy_base).__name__}', file=sys.stderr)
+                print(f'caller_file={caller.f_code.co_filename}', file=sys.stderr)
+                print(f'caller_function={caller.f_code.co_name}', file=sys.stderr)
+                print(f'candidate_chain={_view_chain(candidate)}', file=sys.stderr)
+                print(f'policy_base_chain={_view_chain(policy_base)}', file=sys.stderr)
                 if isinstance(changed, (set, frozenset)):
                     print(f'changed_count={len(changed)}', file=sys.stderr)
                     print('changed_preview=' + ','.join(sorted(changed)[:30]), file=sys.stderr)
-                try:
-                    import wepld_s1_shell_integrity_v19 as v19
-                    if candidate is not None:
-                        candidate_paths = {entry.path for entry in candidate.entries()}
-                        print(
-                            'candidate_markers=' + str(v19._has_s1_011_markers(candidate, candidate_paths)),
-                            file=sys.stderr,
-                        )
-                    if policy_base is not None:
-                        base_paths = {entry.path for entry in policy_base.entries()}
-                        print(
-                            'policy_base_markers=' + str(v19._has_s1_011_markers(policy_base, base_paths)),
-                            file=sys.stderr,
-                        )
-                except Exception as exc:
-                    print(f'marker_trace_error={type(exc).__name__}:{exc}', file=sys.stderr)
+            traceback.print_stack(file=sys.stderr)
+        if lineage_needle in text:
+            print('TRACE_V9_LINEAGE_VIEW_FAILURE', file=sys.stderr)
+            if caller is not None:
+                view = caller.f_locals.get('view')
+                print(f'caller_file={caller.f_code.co_filename}', file=sys.stderr)
+                print(f'caller_function={caller.f_code.co_name}', file=sys.stderr)
+                print(f'view_chain={_view_chain(view)}', file=sys.stderr)
             traceback.print_stack(file=sys.stderr)
         return original_fail(message)
 
@@ -200,7 +211,7 @@ def main() -> int:
     fake = GitBackedClient(root)
     base.GitHubClient = lambda _token: fake  # type: ignore[assignment]
     import wepld_pictorial_agile_source_admission_v9_integrity as v9
-    _install_s1_011_fail_trace(base)
+    _install_fail_trace(base)
 
     os.environ['GITHUB_TOKEN'] = 'deterministic-git-backed-client-no-network'
 

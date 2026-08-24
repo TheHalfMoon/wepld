@@ -1,0 +1,334 @@
+name: diag-pr136-pictorial-lock-proposal
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  propose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Fetch exact admitted PR136 source without credentials
+        shell: bash
+        env:
+          SOURCE_HEAD: 28f0023b8ffb90c585213762dae5f4c1d57322ef
+        run: |
+          set -euo pipefail
+          mkdir subject
+          cd subject
+          git init -q
+          git remote add origin https://github.com/TheHalfMoon/wepld.git
+          git -c credential.helper= fetch --depth=1 --no-tags origin "$SOURCE_HEAD"
+          git checkout -q --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
+          test "$(git hash-object vendor/pictorial/package.json)" = "ba646522c498af6e9bfa02fd1dba2f098d9f6d42"
+          test "$(git hash-object vendor/pictorial/bun.lock)" = "f7114d1b93f26eb9d7796fc15ae3d639d2209c9d"
+
+      - name: Build proposed lock from public metadata only and qualify full graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import base64
+          import hashlib
+          import json
+          import re
+          import urllib.parse
+          import urllib.request
+          import uuid
+          from pathlib import Path
+
+          SOURCE_HEAD = "28f0023b8ffb90c585213762dae5f4c1d57322ef"
+          PACKAGE_BLOB = "ba646522c498af6e9bfa02fd1dba2f098d9f6d42"
+          ORIGINAL_LOCK_BLOB = "f7114d1b93f26eb9d7796fc15ae3d639d2209c9d"
+          GLOBAL_REPLACEMENTS = {
+              "@hono/node-server": ("1.19.14", "1.19.15"),
+              "body-parser": ("2.2.2", "2.3.0"),
+              "brace-expansion": ("5.0.6", "5.0.9"),
+              "express-rate-limit": ("8.3.2", "8.5.1"),
+              "fast-uri": ("3.1.0", "3.1.5"),
+              "hono": ("4.12.14", "4.12.34"),
+              "ip-address": ("10.1.0", "10.3.1"),
+              "qs": ("6.15.1", "6.15.2"),
+              "type-is": ("2.0.1", "2.1.0"),
+          }
+          NESTED_ADDITIONS = {
+              "body-parser/content-type": ("content-type", "2.0.0"),
+              "type-is/content-type": ("content-type", "2.0.0"),
+          }
+          KNOWN_BAD = {
+              ("@hono/node-server", "1.19.14"),
+              ("body-parser", "2.2.2"),
+              ("brace-expansion", "5.0.6"),
+              ("fast-uri", "3.1.0"),
+              ("hono", "4.12.14"),
+              ("ip-address", "10.1.0"),
+              ("qs", "6.15.1"),
+          }
+
+          package_bytes = Path("subject/vendor/pictorial/package.json").read_bytes()
+          original_lock_bytes = Path("subject/vendor/pictorial/bun.lock").read_bytes()
+          package = json.loads(package_bytes)
+
+          def git_blob_sha1(data: bytes) -> str:
+              return hashlib.sha1(f"blob {len(data)}\0".encode() + data).hexdigest()
+          assert git_blob_sha1(package_bytes) == PACKAGE_BLOB
+          assert git_blob_sha1(original_lock_bytes) == ORIGINAL_LOCK_BLOB
+
+          def strip_trailing_commas(text: str) -> str:
+              out=[]; ins=False; esc=False; i=0
+              while i < len(text):
+                  ch=text[i]
+                  if ins:
+                      out.append(ch)
+                      if esc: esc=False
+                      elif ch=='\\': esc=True
+                      elif ch=='"': ins=False
+                      i+=1; continue
+                  if ch=='"': ins=True; out.append(ch); i+=1; continue
+                  if ch==',':
+                      j=i+1
+                      while j < len(text) and text[j].isspace(): j+=1
+                      if j < len(text) and text[j] in '}]': i+=1; continue
+                  out.append(ch); i+=1
+              return ''.join(out)
+
+          def split_identity(identity: str) -> tuple[str,str]:
+              if identity.startswith('@'):
+                  p=identity.rfind('@'); return identity[:p], identity[p+1:]
+              return tuple(identity.rsplit('@',1))  # type: ignore[return-value]
+
+          def registry_version(name: str, version: str) -> dict:
+              url=f"https://registry.npmjs.org/{urllib.parse.quote(name,safe='')}/{urllib.parse.quote(version,safe='.-_+')}"
+              req=urllib.request.Request(url,headers={"Accept":"application/json","User-Agent":"wepld-metadata-only-repair/2"})
+              with urllib.request.urlopen(req,timeout=30) as r: return json.loads(r.read())
+
+          def bun_projection(meta: dict) -> dict:
+              out={}
+              for k in ('dependencies','optionalDependencies','peerDependencies'):
+                  v=meta.get(k)
+                  if isinstance(v,dict) and v:
+                      out[k]={name:v[name] for name in sorted(v)}
+              pm=meta.get('peerDependenciesMeta')
+              if isinstance(pm,dict):
+                  optional=sorted(k for k,v in pm.items() if isinstance(v,dict) and v.get('optional') is True)
+                  if optional: out['optionalPeers']=optional
+              for k in ('bin','os','cpu'):
+                  v=meta.get(k)
+                  if v is not None:
+                      if isinstance(v,dict): v={name:v[name] for name in sorted(v)}
+                      out[k]=v
+              return out
+
+          def bun_inline(v) -> str:
+              if isinstance(v,dict):
+                  return '{ ' + ', '.join(f'{json.dumps(k)}: {bun_inline(val)}' for k,val in v.items()) + ' }'
+              if isinstance(v,list):
+                  return '[' + ', '.join(bun_inline(x) for x in v) + ']'
+              return json.dumps(v,separators=(',',':'))
+
+          def make_row(lock_key: str, name: str, version: str, meta: dict) -> str:
+              projection=bun_projection(meta)
+              integrity=meta.get('dist',{}).get('integrity')
+              if not isinstance(integrity,str) or not integrity.startswith('sha512-'):
+                  raise AssertionError(f"missing sha512 integrity for {name}@{version}")
+              return f'    {json.dumps(lock_key)}: [{json.dumps(name+"@"+version)}, "", {bun_inline(projection)}, {json.dumps(integrity)}],'
+
+          original=json.loads(strip_trailing_commas(original_lock_bytes.decode()))
+          original_packages=original['packages']
+          parsed={}
+          for key,row in original_packages.items():
+              name,ver=split_identity(row[0])
+              info=next((x for x in row[2:] if isinstance(x,dict)),{})
+              sri=next((x for x in reversed(row[2:]) if isinstance(x,str) and x.startswith('sha512-')),None)
+              parsed[key]={'name':name,'version':ver,'info':info,'sri':sri}
+
+          registry={}
+          lines=original_lock_bytes.decode().splitlines()
+          line_index={}
+          for i,line in enumerate(lines):
+              m=re.match(r'^    ("(?:[^"\\]|\\.)+"): \[',line)
+              if m:
+                  line_index[json.loads(m.group(1))]=i
+
+          changed_rows={}
+          for key,(current,candidate) in GLOBAL_REPLACEMENTS.items():
+              row=parsed.get(key)
+              if row is None or row['name'] != key or row['version'] != current:
+                  raise AssertionError(f"unexpected current row for {key}: {row}")
+              current_meta=registry_version(key,current)
+              candidate_meta=registry_version(key,candidate)
+              registry[f'{key}@{current}']=current_meta
+              registry[f'{key}@{candidate}']=candidate_meta
+              if bun_projection(current_meta) != {k:({n:v[n] for n in sorted(v)} if isinstance(v,dict) else v) for k,v in row['info'].items()}:
+                  raise AssertionError(f"current metadata projection drift for {key}")
+              if current_meta.get('dist',{}).get('integrity') != row['sri']:
+                  raise AssertionError(f"current integrity drift for {key}")
+              changed_rows[key]=make_row(key,key,candidate,candidate_meta)
+
+          content_meta=registry_version('content-type','2.0.0')
+          registry['content-type@2.0.0']=content_meta
+          nested_rows={k:make_row(k,name,ver,content_meta) for k,(name,ver) in NESTED_ADDITIONS.items()}
+
+          for key,line in changed_rows.items():
+              if key not in line_index: raise AssertionError(f"missing lock line {key}")
+              lines[line_index[key]]=line
+          insert_anchor='@modelcontextprotocol/sdk/eventsource-parser'
+          if insert_anchor not in line_index: raise AssertionError('nested insertion anchor missing')
+          insertion=[nested_rows[k] for k in sorted(nested_rows)] + ['']
+          at=line_index[insert_anchor]
+          lines[at:at]=insertion
+          proposed_lock_bytes=('\n'.join(lines)+'\n').encode()
+          proposed=json.loads(strip_trailing_commas(proposed_lock_bytes.decode()))
+          packages=proposed['packages']
+          if len(packages) != len(original_packages)+2:
+              raise AssertionError(f"unexpected proposed lock entry count {len(packages)}")
+
+          def parse_packages(packages):
+              out={}
+              for key,row in packages.items():
+                  name,ver=split_identity(row[0])
+                  info=next((x for x in row[2:] if isinstance(x,dict)),{})
+                  sri=next((x for x in reversed(row[2:]) if isinstance(x,str) and x.startswith('sha512-')),None)
+                  if not sri: raise AssertionError(f"missing SRI {key}")
+                  out[key]={'name':name,'version':ver,'info':info,'sri':sri}
+              return out
+          pp=parse_packages(packages)
+
+          # Prove exactly the intended lock keys changed/appeared.
+          all_keys=set(original_packages)|set(packages)
+          semantic_changed=[]
+          for key in sorted(all_keys):
+              if original_packages.get(key) != packages.get(key): semantic_changed.append(key)
+          expected=set(GLOBAL_REPLACEMENTS)|set(NESTED_ADDITIONS)
+          if set(semantic_changed) != expected:
+              raise AssertionError(f"unexpected semantic changed rows: {semantic_changed}")
+
+          # Root manifest/workspace declarations must remain byte/semantic identical.
+          workspace=proposed['workspaces']['']
+          for manifest_key,workspace_key in (('dependencies','dependencies'),('devDependencies','devDependencies'),('optionalDependencies','optionalDependencies')):
+              if dict(package.get(manifest_key,{})) != dict(workspace.get(workspace_key,{})):
+                  raise AssertionError(f"workspace root drift {manifest_key}")
+              if dict(original['workspaces'][''].get(workspace_key,{})) != dict(workspace.get(workspace_key,{})):
+                  raise AssertionError(f"workspace declaration changed {workspace_key}")
+
+          identities={(v['name'],v['version']) for v in pp.values()}
+          bad=sorted(identities & KNOWN_BAD)
+          if bad: raise AssertionError(f"known vulnerable exact identities remain: {bad}")
+
+          def resolve(parent_key: str, dep_name: str) -> str|None:
+              parent_name=pp[parent_key]['name']
+              for candidate in (f'{parent_key}/{dep_name}',f'{parent_name}/{dep_name}',dep_name):
+                  if candidate in pp: return candidate
+              return None
+
+          # Explicit candidate-edge expectations from metadata.
+          candidate_keys=set(GLOBAL_REPLACEMENTS)|set(NESTED_ADDITIONS)
+          changed_edge_resolution=[]
+          unresolved_changed=[]
+          for key in sorted(candidate_keys):
+              info=pp[key]['info']
+              optional=set(info.get('optionalPeers',[])) if isinstance(info.get('optionalPeers',[]),list) else set()
+              for field in ('dependencies','optionalDependencies','peerDependencies'):
+                  deps=info.get(field,{})
+                  if not isinstance(deps,dict): continue
+                  for dep,spec in deps.items():
+                      target=resolve(key,dep)
+                      rec={'parent':key,'field':field,'dependency':dep,'constraint':spec,'resolved_lock_key':target,'resolved_identity':None}
+                      if target: rec['resolved_identity']=f"{pp[target]['name']}@{pp[target]['version']}"
+                      elif not (field=='peerDependencies' and dep in optional): unresolved_changed.append(rec)
+                      changed_edge_resolution.append(rec)
+          if unresolved_changed: raise AssertionError(f"unresolved changed-package edges: {unresolved_changed}")
+
+          # Full static graph for SBOM. Unresolved peers are recorded, not silently treated as package absence.
+          edges={}; unresolved_peers=[]; unresolved_nonpeer=[]
+          for key in sorted(pp):
+              info=pp[key]['info']; targets=[]
+              optional=set(info.get('optionalPeers',[])) if isinstance(info.get('optionalPeers',[]),list) else set()
+              for field in ('dependencies','optionalDependencies','peerDependencies'):
+                  deps=info.get(field,{})
+                  if not isinstance(deps,dict): continue
+                  for dep in sorted(deps):
+                      target=resolve(key,dep)
+                      if target: targets.append(target)
+                      elif field=='peerDependencies': unresolved_peers.append({'parent':key,'dependency':dep,'optional':dep in optional})
+                      else: unresolved_nonpeer.append({'parent':key,'dependency':dep,'field':field})
+              edges[key]=sorted(set(targets))
+          if unresolved_nonpeer: raise AssertionError(f"unresolved non-peer edges: {unresolved_nonpeer}")
+
+          # Full exact-identity OSV qualification.
+          unique=sorted({(v['name'],v['version']) for v in pp.values()})
+          q={'queries':[{'package':{'ecosystem':'npm','name':n},'version':v} for n,v in unique]}
+          qbytes=json.dumps(q,sort_keys=True,separators=(',',':')).encode()
+          req=urllib.request.Request('https://api.osv.dev/v1/querybatch',data=qbytes,headers={'Content-Type':'application/json','User-Agent':'wepld-metadata-only-repair/2'},method='POST')
+          with urllib.request.urlopen(req,timeout=60) as r: osv=json.loads(r.read())
+          if len(osv.get('results',[])) != len(unique): raise AssertionError('OSV cardinality mismatch')
+          affected=[]
+          for ident,res in zip(unique,osv['results'],strict=True):
+              vulns=res.get('vulns',[]) if isinstance(res,dict) else []
+              if vulns: affected.append({'name':ident[0],'version':ident[1],'ids':sorted({x['id'] for x in vulns if 'id' in x})})
+          if affected: raise AssertionError(f"proposed exact graph still OSV-affected: {affected}")
+
+          # CycloneDX from exact proposed lock identities and SRI.
+          components=[]
+          for key in sorted(pp):
+              x=pp[key]
+              digest=base64.b64decode(x['sri'][7:],validate=True).hex()
+              components.append({'type':'library','bom-ref':f'bun-lock:{key}','name':x['name'],'version':x['version'],'purl':f"pkg:npm/{urllib.parse.quote(x['name'],safe='/')}@{urllib.parse.quote(x['version'],safe='.-_+')}",'hashes':[{'alg':'SHA-512','content':digest}],'properties':[{'name':'wepld:bun_lock_key','value':key}]})
+          root='wepld-pictorial@3.6.0'
+          direct=set(package.get('dependencies',{}))|set(package.get('devDependencies',{}))|set(package.get('optionalDependencies',{}))
+          deps=[{'ref':root,'dependsOn':[f'bun-lock:{k}' for k in sorted(direct)]}]
+          deps += [{'ref':f'bun-lock:{k}','dependsOn':[f'bun-lock:{t}' for t in edges[k]]} for k in sorted(edges)]
+          serial=str(uuid.uuid5(uuid.NAMESPACE_URL,f"wepld:pictorial-repair:{SOURCE_HEAD}:{hashlib.sha256(proposed_lock_bytes).hexdigest()}"))
+          bom={'bomFormat':'CycloneDX','specVersion':'1.5','serialNumber':f'urn:uuid:{serial}','version':1,'metadata':{'component':{'type':'application','bom-ref':root,'name':'@wepld/pictorial','version':'3.6.0','properties':[{'name':'wepld:bound_source_head','value':SOURCE_HEAD},{'name':'wepld:original_lock_blob','value':ORIGINAL_LOCK_BLOB},{'name':'wepld:dependency_admission','value':'NONE'},{'name':'wepld:package_execution','value':'NONE'}]}},'components':components,'dependencies':deps}
+          bom_bytes=(json.dumps(bom,sort_keys=True,separators=(',',':'))+'\n').encode()
+
+          out=Path('proposal-output'); out.mkdir()
+          (out/'proposed-bun.lock').write_bytes(proposed_lock_bytes)
+          import difflib
+          diff=''.join(difflib.unified_diff(original_lock_bytes.decode().splitlines(True),proposed_lock_bytes.decode().splitlines(True),fromfile='vendor/pictorial/bun.lock',tofile='vendor/pictorial/bun.lock'))
+          (out/'proposed-bun-lock.diff').write_text(diff)
+          (out/'proposed-pictorial-sbom.cdx.json').write_bytes(bom_bytes)
+          canonical_osv=(json.dumps(osv,sort_keys=True,separators=(',',':'))+'\n').encode()
+          (out/'proposed-osv-response.json').write_bytes(canonical_osv)
+          (out/'changed-edge-resolution.json').write_text(json.dumps(changed_edge_resolution,sort_keys=True,indent=2)+'\n')
+          (out/'registry-metadata.json').write_text(json.dumps(registry,sort_keys=True,separators=(',',':'))+'\n')
+          summary={
+              'bound_source_head':SOURCE_HEAD,
+              'package_json_blob':PACKAGE_BLOB,
+              'original_lock_blob':ORIGINAL_LOCK_BLOB,
+              'original_lock_sha256':hashlib.sha256(original_lock_bytes).hexdigest(),
+              'proposed_lock_sha256':hashlib.sha256(proposed_lock_bytes).hexdigest(),
+              'original_lock_entries':len(original_packages),
+              'proposed_lock_entries':len(packages),
+              'semantic_changed_lock_keys':semantic_changed,
+              'semantic_changed_lock_key_count':len(semantic_changed),
+              'unique_npm_identities':len(unique),
+              'resolved_graph_edges':sum(len(v) for v in edges.values()),
+              'unresolved_nonpeer_edges':len(unresolved_nonpeer),
+              'unresolved_peer_edges':unresolved_peers,
+              'known_bad_remaining':bad,
+              'osv_affected_exact_identities':affected,
+              'cyclonedx_sha256':hashlib.sha256(bom_bytes).hexdigest(),
+              'osv_response_sha256':hashlib.sha256(canonical_osv).hexdigest(),
+              'network_scope':'registry.npmjs.org exact version metadata + api.osv.dev advisory metadata only',
+              'package_download':'NONE','package_installation':'NONE','package_execution':'NONE','donor_code_execution':'NONE','dependency_admission':'NONE'
+          }
+          (out/'proposal-summary.json').write_text(json.dumps(summary,sort_keys=True,indent=2)+'\n')
+          print(json.dumps(summary,sort_keys=True))
+          PY
+
+      - name: Upload proposed lock and qualification evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pr136-pictorial-metadata-only-lock-proposal
+          path: proposal-output/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0

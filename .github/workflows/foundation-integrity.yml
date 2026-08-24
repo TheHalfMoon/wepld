@@ -81,6 +81,22 @@ jobs:
         run: |
           set -euo pipefail
           python /tmp/diag_pr164_v9_three_finding_repair.py
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+          p = Path('.github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py')
+          text = p.read_text(encoding='utf-8')
+          anchor = 'def _local_commit_sha(view: base.LocalRepositoryView) -> str:\n'
+          helper = '''def _memory_view(files: dict[str, bytes]) -> base.MemoryView:\n    return base.MemoryView(\n        files,\n        trees={path: _git_blob_sha1(data) for path, data in files.items()},\n    )\n\n\n'''
+          if text.count(anchor) != 1 or 'def _memory_view(files: dict[str, bytes])' in text:
+              raise SystemExit('memory-view repair anchor drifted')
+          text = text.replace(anchor, helper + anchor, 1)
+          p.write_text(text, encoding='utf-8', newline='\n')
+          summary = Path('diag-v9-repair-summary.txt')
+          lines = [line for line in summary.read_text(encoding='utf-8').splitlines() if not line.startswith('script_sha256=')]
+          lines.insert(1, 'script_sha256=' + hashlib.sha256(text.encode('utf-8')).hexdigest())
+          summary.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          PY
           python -m py_compile .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py
           python .github/scripts/wepld_pictorial_agile_source_admission_v9_integrity.py selftest
 

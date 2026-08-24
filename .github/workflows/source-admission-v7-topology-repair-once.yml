@@ -1,0 +1,440 @@
+name: one-shot v7 topology fail-closed repair
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/source-admission-v7-topology-repair-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'ci/pictorial-agile-source-admission-v7-2026-08-24'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact repair head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ci/pictorial-agile-source-admission-v7-2026-08-24
+          fetch-depth: 0
+          persist-credentials: true
+          lfs: false
+          submodules: false
+
+      - name: Apply deterministic fail-closed topology repair
+        shell: bash
+        env:
+          EXPECTED_PARENT: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_MAIN: 2ab2fae14bc3b3b1f1e9bc2059972456955aeff7
+          BRANCH: ci/pictorial-agile-source-admission-v7-2026-08-24
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_PARENT"
+          git fetch origin main "$BRANCH" --no-tags
+          test "$(git rev-parse origin/main)" = "$EXPECTED_MAIN"
+          test "$(git rev-parse origin/$BRANCH)" = "$EXPECTED_PARENT"
+
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('.github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py')
+          text = path.read_text(encoding='utf-8')
+
+          def replace_function(source: str, name: str, replacement: str) -> str:
+              marker = f'def {name}('
+              start = source.find(marker)
+              if start < 0:
+                  raise SystemExit(f'missing function: {name}')
+              next_def = source.find('\ndef ', start + len(marker))
+              if next_def < 0:
+                  end = len(source)
+              else:
+                  end = next_def + 1
+              replacement = replacement.rstrip() + '\n\n'
+              return source[:start] + replacement + source[end:]
+
+          text = replace_function(text, '_compare_base_controlled_source', r'''
+          def _compare_base_controlled_source(candidate: base.RepositoryView, policy_base: base.RepositoryView) -> None:
+              bootstrap = _is_bootstrap_base(policy_base)
+              try:
+                  controlled_raw = base.BASE_CONTROLLED_PATHS
+              except (AttributeError, TypeError) as exc:
+                  base.fail(f"Pictorial/Agile source-admission-v7 base-control topology is missing or malformed: {exc}")
+              controlled = _require_path_set(controlled_raw, "base-controlled-path")
+              for relative in sorted(controlled):
+                  candidate_bytes = candidate.read_bytes(relative, base.MAX_POLICY_FILE_BYTES)
+                  base_bytes = policy_base.read_bytes(relative, base.MAX_POLICY_FILE_BYTES)
+                  if relative in BOOTSTRAP_WORKFLOWS:
+                      expected_candidate = EXPECTED_WORKFLOW_SHA256[relative]
+                      actual_candidate = _sha256(candidate_bytes)
+                      if actual_candidate != expected_candidate:
+                          base.fail(
+                              f"Pictorial/Agile source-admission-v7 workflow candidate drifted: {relative}: "
+                              f"expected={expected_candidate} actual={actual_candidate}"
+                          )
+                      expected_base = PRIOR_EXPECTED_WORKFLOW_SHA256[relative] if bootstrap else expected_candidate
+                      actual_base = _sha256(base_bytes)
+                      if actual_base != expected_base:
+                          base.fail(
+                              f"Pictorial/Agile source-admission-v7 trusted-base workflow drifted: {relative}: "
+                              f"expected={expected_base} actual={actual_base}"
+                          )
+                      if not bootstrap and candidate_bytes != base_bytes:
+                          base.fail(f"Pictorial/Agile source-admission-v7 steady-state workflow changed: {relative}")
+                      continue
+                  if candidate_bytes != base_bytes:
+                      base.fail(f"base-controlled policy/governance path changed: {relative}")
+
+              base_has_snapshot = _snapshot_present(policy_base)
+              candidate_has_snapshot = _snapshot_present(candidate)
+              if base_has_snapshot:
+                  if not candidate_has_snapshot:
+                      base.fail("canonical Pictorial/Agile source snapshot was deleted")
+                  _verify_snapshot(policy_base, transition=False)
+                  _verify_snapshot(candidate, transition=False)
+              elif candidate_has_snapshot:
+                  if policy_base.tree_identity("docs/acquisition") != BASE_ACQUISITION_TREE:
+                      base.fail("source-admission trusted-base acquisition identity drifted")
+                  _verify_snapshot(candidate, transition=True)
+          ''')
+
+          text = replace_function(text, '_verify_extension_paths', r'''
+          def _verify_extension_paths(candidate: base.RepositoryView, policy_base: base.RepositoryView, controlled: frozenset[str]) -> None:
+              safe_controlled = _require_path_set(controlled, "extension-controlled-path")
+              bootstrap = _is_bootstrap_base(policy_base)
+              candidate_paths = _paths(candidate)
+              base_paths = _paths(policy_base)
+
+              if POLICY_SCRIPT in safe_controlled:
+                  if POLICY_SCRIPT not in candidate_paths:
+                      base.fail("Pictorial/Agile source-admission-v7 policy wrapper is missing")
+                  if bootstrap:
+                      if POLICY_SCRIPT in base_paths:
+                          base.fail("Pictorial/Agile source-admission-v7 wrapper unexpectedly exists in bootstrap base")
+                  else:
+                      if POLICY_SCRIPT not in base_paths:
+                          base.fail("Pictorial/Agile source-admission-v7 steady-state base lacks wrapper")
+                      if candidate.read_bytes(POLICY_SCRIPT, base.MAX_POLICY_FILE_BYTES) != policy_base.read_bytes(POLICY_SCRIPT, base.MAX_POLICY_FILE_BYTES):
+                          base.fail("Pictorial/Agile source-admission-v7 steady-state wrapper changed")
+
+              for relative in sorted(BOOTSTRAP_WORKFLOWS & safe_controlled):
+                  candidate_bytes = candidate.read_bytes(relative, base.MAX_POLICY_FILE_BYTES)
+                  base_bytes = policy_base.read_bytes(relative, base.MAX_POLICY_FILE_BYTES)
+                  expected_candidate = EXPECTED_WORKFLOW_SHA256[relative]
+                  if _sha256(candidate_bytes) != expected_candidate:
+                      base.fail(f"Pictorial/Agile source-admission-v7 controlled workflow candidate drifted: {relative}")
+                  expected_base = PRIOR_EXPECTED_WORKFLOW_SHA256[relative] if bootstrap else expected_candidate
+                  if _sha256(base_bytes) != expected_base:
+                      base.fail(f"Pictorial/Agile source-admission-v7 controlled workflow base drifted: {relative}")
+                  if not bootstrap and candidate_bytes != base_bytes:
+                      base.fail(f"Pictorial/Agile source-admission-v7 controlled workflow changed: {relative}")
+
+              delegated = frozenset(safe_controlled - {POLICY_SCRIPT} - BOOTSTRAP_WORKFLOWS)
+              if delegated:
+                  try:
+                      verifier = prior._verify_extension_paths
+                  except (AttributeError, TypeError) as exc:
+                      base.fail(f"Pictorial/Agile source-admission-v7 inherited extension topology is missing or malformed: {exc}")
+                  if verifier is not PRIOR_VERIFY_EXTENSION_PATHS:
+                      base.fail("Pictorial/Agile source-admission-v7 inherited extension verifier drifted")
+                  if not callable(verifier):
+                      base.fail("Pictorial/Agile source-admission-v7 inherited extension verifier is not callable")
+                  try:
+                      verifier(candidate, policy_base, delegated)
+                  except TypeError as exc:
+                      base.fail(f"Pictorial/Agile source-admission-v7 inherited extension topology is malformed: {exc}")
+          ''')
+
+          text = replace_function(text, '_verify_execution_extension_paths', r'''
+          def _verify_execution_extension_paths(candidate: base.RepositoryView, policy_base: base.RepositoryView) -> None:
+              _, _, _, _, execution = _topology()
+              try:
+                  controlled = execution.EXTENSION_CONTROLLED_PATHS
+              except (AttributeError, TypeError) as exc:
+                  base.fail(f"Pictorial/Agile source-admission-v7 execution extension topology is missing or malformed: {exc}")
+              _verify_extension_paths(candidate, policy_base, _require_path_set(controlled, "execution-extension"))
+          ''')
+
+          text = replace_function(text, '_verify_desktop_extension_paths', r'''
+          def _verify_desktop_extension_paths(candidate: base.RepositoryView, policy_base: base.RepositoryView) -> None:
+              _, _, _, desktop, _ = _topology()
+              try:
+                  controlled = desktop.EXTENSION_CONTROLLED_PATHS
+              except (AttributeError, TypeError) as exc:
+                  base.fail(f"Pictorial/Agile source-admission-v7 desktop extension topology is missing or malformed: {exc}")
+              _verify_extension_paths(candidate, policy_base, _require_path_set(controlled, "desktop-extension"))
+          ''')
+
+          text = replace_function(text, '_validate_allowed_paths_source', r'''
+          def _validate_allowed_paths_source(paths: set[str], stage: str) -> None:
+              projected = {path for path in paths if not _is_source_path(path)}
+              try:
+                  delegated = prior._validate_allowed_paths_repair
+              except (AttributeError, TypeError) as exc:
+                  base.fail(f"Pictorial/Agile source-admission-v7 inherited allowlist topology is missing or malformed: {exc}")
+              if delegated is not PRIOR_VALIDATE_ALLOWED_PATHS:
+                  base.fail("Pictorial/Agile source-admission-v7 inherited allowlist delegate drifted")
+              if not callable(delegated):
+                  base.fail("Pictorial/Agile source-admission-v7 inherited allowlist delegate is not callable")
+              try:
+                  delegated(projected, stage)
+              except TypeError as exc:
+                  base.fail(f"Pictorial/Agile source-admission-v7 inherited allowlist topology is malformed: {exc}")
+          ''')
+
+          text = replace_function(text, '_verify_policy_files', r'''
+          def _verify_policy_files(view: base.RepositoryView) -> None:
+              actual = _git_blob_sha1(view.read_bytes(PRIOR_POLICY_PATH, base.MAX_POLICY_FILE_BYTES))
+              if actual != EXPECTED_PRIOR_POLICY_GIT_BLOB_SHA1:
+                  base.fail(f"frozen Pictorial/Agile repair-v6 predecessor policy drifted: {actual}")
+              try:
+                  verifier = prior._verify_policy_files
+              except (AttributeError, TypeError) as exc:
+                  base.fail(f"Pictorial/Agile source-admission-v7 inherited policy-file topology is missing or malformed: {exc}")
+              if verifier is not PRIOR_VERIFY_POLICY_FILES:
+                  base.fail("Pictorial/Agile source-admission-v7 inherited policy-file verifier drifted")
+              if not callable(verifier):
+                  base.fail("Pictorial/Agile source-admission-v7 inherited policy-file verifier is not callable")
+              try:
+                  verifier(view)
+              except TypeError as exc:
+                  base.fail(f"Pictorial/Agile source-admission-v7 inherited policy-file topology is malformed: {exc}")
+          ''')
+
+          text = replace_function(text, '_require_prebind_identity', r'''
+          def _require_prebind_identity(shell: Any, retention: Any, desktop: Any, execution: Any) -> None:
+              try:
+                  expected = (
+                      (retention.IMPL_REQUIRE_EXACT_DELTA, prior._require_exact_delta_repair, "exact-delta"),
+                      (base.compare_base_controlled, prior._compare_base_controlled_repair, "base-control"),
+                      (base.validate_entries, PRIOR_VALIDATE_ENTRIES, "tracked-mode"),
+                      (desktop.verify_extension_controlled_paths, prior._verify_desktop_extension_paths, "desktop-extension"),
+                      (execution.verify_extension_controlled_paths, prior._verify_execution_extension_paths, "execution-extension"),
+                      (shell.validate_allowed_paths, prior._validate_allowed_paths_repair, "tracked-path"),
+                      (shell.verify_policy_files, prior._verify_policy_files, "policy-file"),
+                      (shell.print_success, prior._print_success, "success-printer"),
+                  )
+              except (AttributeError, TypeError) as exc:
+                  base.fail(f"Pictorial/Agile source-admission-v7 pre-bind topology is missing or malformed: {exc}")
+              for actual, wanted, label in expected:
+                  if actual is not wanted:
+                      base.fail(f"Pictorial/Agile source-admission-v7 pre-bind {label} hook drifted")
+          ''')
+
+          text = replace_function(text, '_require_overlay_identity', r'''
+          def _require_overlay_identity() -> None:
+              shell, retention, _, desktop, execution = _topology()
+              try:
+                  checks = (
+                      (retention.IMPL_REQUIRE_EXACT_DELTA, _require_exact_delta_source, "exact-delta"),
+                      (base.compare_base_controlled, _compare_base_controlled_source, "base-control"),
+                      (base.validate_entries, _validate_entries_source, "tracked-mode"),
+                      (desktop.verify_extension_controlled_paths, _verify_desktop_extension_paths, "desktop-extension"),
+                      (execution.verify_extension_controlled_paths, _verify_execution_extension_paths, "execution-extension"),
+                      (shell.validate_allowed_paths, _validate_allowed_paths_source, "tracked-path"),
+                      (shell.verify_policy_files, _verify_policy_files, "policy-file"),
+                      (shell.print_success, _print_success, "success-printer"),
+                  )
+                  hook_identity = retention._require_exact_delta_hook_identity
+                  retention_exact_delta = retention._require_exact_delta_retention
+                  desktop_paths = desktop.EXTENSION_CONTROLLED_PATHS
+                  execution_paths = execution.EXTENSION_CONTROLLED_PATHS
+                  prior_print_success = prior._print_success
+              except (AttributeError, TypeError) as exc:
+                  base.fail(f"Pictorial/Agile source-admission-v7 overlay topology is missing or malformed: {exc}")
+
+              for actual, wanted, label in checks:
+                  if actual is not wanted:
+                      base.fail(f"Pictorial/Agile source-admission-v7 {label} hook drifted")
+              if not callable(hook_identity):
+                  base.fail("Pictorial/Agile source-admission-v7 hook identity is not callable")
+              if not callable(retention_exact_delta):
+                  base.fail("Pictorial/Agile source-admission-v7 retention exact-delta is not callable")
+              if not callable(prior_print_success):
+                  base.fail("Pictorial/Agile source-admission-v7 prior success-printer is not callable")
+
+              safe_desktop_paths = _require_path_set(desktop_paths, "desktop-extension")
+              safe_execution_paths = _require_path_set(execution_paths, "execution-extension")
+              try:
+                  hook_identity(retention_exact_delta, "pictorial-agile-source-admission-v7-overlay")
+              except TypeError as exc:
+                  base.fail(f"Pictorial/Agile source-admission-v7 overlay topology is malformed: {exc}")
+              if POLICY_SCRIPT not in safe_desktop_paths:
+                  base.fail("Pictorial/Agile source-admission-v7 desktop path registration drifted")
+              if POLICY_SCRIPT not in safe_execution_paths:
+                  base.fail("Pictorial/Agile source-admission-v7 execution path registration drifted")
+              if _PRIOR_PRINT_SUCCESS is None or not callable(_PRIOR_PRINT_SUCCESS):
+                  base.fail("Pictorial/Agile source-admission-v7 prior success-printer is missing or malformed")
+              if _PRIOR_PRINT_SUCCESS is not prior_print_success:
+                  base.fail("Pictorial/Agile source-admission-v7 prior success-printer drifted")
+          ''')
+
+          text = replace_function(text, '_print_success', r'''
+          def _print_success(stage: str, mode: str) -> None:
+              if _PRIOR_PRINT_SUCCESS is None or not callable(_PRIOR_PRINT_SUCCESS):
+                  base.fail("Pictorial/Agile source-admission-v7 prior success printer is unavailable")
+              try:
+                  _PRIOR_PRINT_SUCCESS(stage, mode)
+              except TypeError as exc:
+                  base.fail(f"Pictorial/Agile source-admission-v7 success-printer topology is malformed: {exc}")
+              print(f"pictorial_agile_source_admission_v7_authority={SOURCE_IMPORT_AUTHORITY}")
+              print(f"effective_source_admission={SOURCE_ADMISSION}")
+              print(f"effective_dependency_admission={DEPENDENCY_ADMISSION}")
+              print(f"effective_donor_workflow_execution={DONOR_WORKFLOW_EXECUTION}")
+              print(f"effective_donor_hook_execution={DONOR_HOOK_EXECUTION}")
+              print(f"effective_donor_install_script_execution={DONOR_INSTALL_SCRIPT_EXECUTION}")
+              print(f"effective_product_runtime_admission={PRODUCT_RUNTIME_ADMISSION}")
+              print(f"effective_h0_014_plus={H0_014_PLUS}")
+              print(f"effective_h0_screen_execution={H0_SCREEN_EXECUTION}")
+              print(f"effective_model_provider_execution={MODEL_PROVIDER_EXECUTION}")
+              print(f"effective_model_weight_access={MODEL_WEIGHT_ACCESS}")
+              print(f"effective_model_inference={MODEL_INFERENCE}")
+          ''')
+
+          text = replace_function(text, '_install_policy', r'''
+          def _install_policy() -> None:
+              global _INSTALLED, _PRIOR_PRINT_SUCCESS
+              if _INSTALLED:
+                  _require_overlay_identity()
+                  return
+
+              _activate_predecessor()
+              shell, retention, _, desktop, execution = _topology()
+              _require_prebind_identity(shell, retention, desktop, execution)
+              try:
+                  desktop_paths_raw = desktop.EXTENSION_CONTROLLED_PATHS
+                  execution_paths_raw = execution.EXTENSION_CONTROLLED_PATHS
+                  prior_print_success = prior._print_success
+              except (AttributeError, TypeError) as exc:
+                  base.fail(f"Pictorial/Agile source-admission-v7 installation topology is missing or malformed: {exc}")
+              desktop_paths = _require_path_set(desktop_paths_raw, "desktop-extension")
+              execution_paths = _require_path_set(execution_paths_raw, "execution-extension")
+              if not callable(prior_print_success):
+                  base.fail("Pictorial/Agile source-admission-v7 predecessor success printer is not callable")
+
+              _PRIOR_PRINT_SUCCESS = prior_print_success
+              retention.IMPL_REQUIRE_EXACT_DELTA = _require_exact_delta_source
+              base.compare_base_controlled = _compare_base_controlled_source
+              base.validate_entries = _validate_entries_source
+              desktop.EXTENSION_CONTROLLED_PATHS = frozenset(desktop_paths | {POLICY_SCRIPT})
+              execution.EXTENSION_CONTROLLED_PATHS = frozenset(execution_paths | {POLICY_SCRIPT})
+              desktop.verify_extension_controlled_paths = _verify_desktop_extension_paths
+              execution.verify_extension_controlled_paths = _verify_execution_extension_paths
+              shell.validate_allowed_paths = _validate_allowed_paths_source
+              shell.verify_policy_files = _verify_policy_files
+              shell.print_success = _print_success
+
+              _INSTALLED = True
+              _require_overlay_identity()
+          ''')
+
+          text = replace_function(text, 'main', r'''
+          def main(argv: list[str]) -> int:
+              try:
+                  if argv and argv[0] == "selftest":
+                      selftest()
+                      return 0
+                  _install_policy()
+                  shell, retention, impl, _, _ = _topology()
+                  if argv and argv[0] == "verify-local":
+                      args = base.parse_args(argv)
+                      if args.remote_baseline:
+                          try:
+                              runner = prior._verify_local_with_remote_policy_base
+                          except (AttributeError, TypeError) as exc:
+                              base.fail(f"Pictorial/Agile source-admission-v7 trusted-base local runner topology is missing or malformed: {exc}")
+                          if not callable(runner):
+                              base.fail("Pictorial/Agile source-admission-v7 trusted-base local runner is not callable")
+                          try:
+                              return runner(args, shell, impl)
+                          except TypeError as exc:
+                              base.fail(f"Pictorial/Agile source-admission-v7 trusted-base local runner topology is malformed: {exc}")
+                  try:
+                      runner = retention.main
+                  except (AttributeError, TypeError) as exc:
+                      base.fail(f"Pictorial/Agile source-admission-v7 runtime main topology is missing or malformed: {exc}")
+                  if not callable(runner):
+                      base.fail("Pictorial/Agile source-admission-v7 runtime main is not callable")
+                  try:
+                      return runner(argv)
+                  except TypeError as exc:
+                      base.fail(f"Pictorial/Agile source-admission-v7 runtime main topology is malformed: {exc}")
+              except base.PolicyError as exc:
+                  print(f"wepld integrity verification: FAIL: {exc}", file=sys.stderr)
+                  return 1
+          ''')
+
+          anchor = 'def _selftest_identity_drift() -> None:\n'
+          if anchor not in text:
+              raise SystemExit('missing topology-selftest insertion anchor')
+          topology_selftest = r'''
+          def _selftest_topology_fail_closed() -> None:
+              candidate, policy_base = _bootstrap_views()
+              _, _, _, _, execution = _topology()
+              try:
+                  original_execution_paths = execution.EXTENSION_CONTROLLED_PATHS
+              except (AttributeError, TypeError) as exc:
+                  base.fail(f"Pictorial/Agile source-admission-v7 topology selftest setup is malformed: {exc}")
+              delattr(execution, "EXTENSION_CONTROLLED_PATHS")
+              try:
+                  base.expect_failure_matching(
+                      "source-admission-v7 missing execution extension topology",
+                      "execution extension topology is missing or malformed",
+                      _verify_execution_extension_paths,
+                      candidate,
+                      policy_base,
+                  )
+              finally:
+                  execution.EXTENSION_CONTROLLED_PATHS = original_execution_paths
+
+              local = base.LocalRepositoryView(Path(__file__).resolve().parents[2])
+              try:
+                  original_policy_verifier = prior._verify_policy_files
+              except (AttributeError, TypeError) as exc:
+                  base.fail(f"Pictorial/Agile source-admission-v7 topology selftest policy setup is malformed: {exc}")
+              delattr(prior, "_verify_policy_files")
+              try:
+                  base.expect_failure_matching(
+                      "source-admission-v7 missing inherited policy-file topology",
+                      "inherited policy-file topology is missing or malformed",
+                      _verify_policy_files,
+                      local,
+                  )
+              finally:
+                  prior._verify_policy_files = original_policy_verifier
+
+
+          '''
+          text = text.replace(anchor, topology_selftest + anchor, 1)
+          old_calls = '    _selftest_constants()\n    _selftest_identity_drift()\n'
+          new_calls = '    _selftest_constants()\n    _selftest_topology_fail_closed()\n    _selftest_identity_drift()\n'
+          if text.count(old_calls) != 1:
+              raise SystemExit('unexpected selftest call topology')
+          text = text.replace(old_calls, new_calls, 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+          python .github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py selftest
+          python -m py_compile .github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py
+          rm -rf .github/scripts/__pycache__
+          rm .github/workflows/source-admission-v7-topology-repair-once.yml
+          git diff --check
+
+          mapfile -t changed < <(git diff --name-only)
+          printf '%s\n' "${changed[@]}"
+          test "${#changed[@]}" -eq 2
+          printf '%s\n' "${changed[@]}" | grep -Fx '.github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py'
+          printf '%s\n' "${changed[@]}" | grep -Fx '.github/workflows/source-admission-v7-topology-repair-once.yml'
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py .github/workflows/source-admission-v7-topology-repair-once.yml
+          git commit -m 'fix(ci): fail closed on v7 topology drift'
+
+          git fetch origin main "$BRANCH" --no-tags
+          test "$(git rev-parse origin/main)" = "$EXPECTED_MAIN"
+          test "$(git rev-parse origin/$BRANCH)" = "$EXPECTED_PARENT"
+          git push origin HEAD:"$BRANCH"

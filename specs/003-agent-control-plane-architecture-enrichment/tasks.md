@@ -21,21 +21,21 @@
 
 Exact-head qualification facts are recorded in immutable GitHub PR/check/review evidence. Do **not** flip a tracked qualification checkbox merely to record a live result on the same head: doing so changes the head and invalidates that result. Historical results may be cited in PR evidence, but only evidence bound to the current head can satisfy acceptance.
 
-- [ ] T015 Run exact-head Foundation on the current planning-PR head and record exact head/run/job/conclusion in PR/check evidence.
+- [ ] T015 Run both exact-head deterministic gates on the current planning-PR head: Foundation and trusted-base `s1-admission-integrity`; record exact head/run/job/conclusion for both in PR/check evidence. Neither check alone is sufficient.
 - [ ] T016 Verify the current changed-file set and record the exact paths plus documentation/specification-only classification in PR evidence.
 - [ ] T017 If an external reviewer is used, perform and record the exact-head egress preflight **before** the trigger, covering scope classification, secret/private-data screening, provider handling/retention/training/tenant-isolation decisions, `EGRESS_APPROVAL`, and result limitations.
 - [ ] T018 Obtain an independent exact-head engineering review. If a required qualified reviewer is unavailable, record `REVIEW_BLOCKED` and stop; T019–T022 cannot proceed on absence of review.
 - [ ] T019 Reconcile every material finding from a completed independent review. Do not proceed while any material finding remains unresolved.
-- [ ] T020 Rerun all affected gates after any repair on the repaired exact head, including a new external-review egress preflight and exact-head rereview when external review is used.
-- [ ] T021 Perform the final live-evidence race: re-read current GitHub PR state, base SHA, head SHA, exact changed-file set, required checks, review submissions/threads, and unresolved findings; record the exact values compared before any acceptance decision.
-- [ ] T022 Decide whether the planning package may be accepted/merged as a **non-canonical V2.3 candidate**. V2.3 canonicalization itself requires a separately governed bootstrap/override event for the base-controlled canonical index.
+- [ ] T020 Rerun both deterministic gates and all other affected gates after any repair on the repaired exact head, including a new external-review egress preflight and exact-head rereview when external review is used.
+- [ ] T021 Perform the final live-evidence race: re-read current GitHub PR state, base SHA, head SHA, exact changed-file set, Foundation result, trusted-base `s1-admission-integrity` result, review submissions/threads, and unresolved findings; record the exact values compared before any acceptance decision.
+- [ ] T022 Decide whether the planning package may be accepted/merged as a **non-canonical V2.3 candidate** only after both current-head deterministic checks and the review/reconciliation gates are satisfied. V2.3 canonicalization itself requires a separately governed bootstrap/override event for the base-controlled canonical index.
 
 ## Future work — explicitly not authorized by Spec 003
 
 - [ ] F001 S4-G Tree-sitter/SCIP/graph path-level Source Acquisition.
 - [ ] F002 S6-AH VS Code Agent Host/AHP/ACP path-level Source Acquisition.
 - [ ] F003 S6-N ACS/Cedar path-level Source Acquisition.
-- [ ] F004 S7-S OpenGrep/Joern/CodeQL/security graph evaluation.
+- [ ] F004 S7-S OpenGrep/Joern path-level evaluation plus CodeQL reference-only security-oracle evaluation; CodeQL source/dependency admission is not authorized by Spec 003.
 - [ ] F005 S3/S6 Windows/gVisor/Firecracker/OpenSandbox containment evaluation.
 - [ ] F006 S9-P in-toto/SLSA/OpenTelemetry evidence export profile.
 - [ ] F007 Next source-registry revision reconciliation for post-V1 candidates.

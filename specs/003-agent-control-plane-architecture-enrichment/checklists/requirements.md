@@ -17,7 +17,8 @@
 - [x] No source/dependency/runtime/model execution authorization.
 - [x] Base-controlled `MASTER_PLAN_INDEX.md` mutation excluded from the planning PR; V2.2 remains canonical.
 - [ ] Exact-head Foundation PASS recorded in immutable PR/check evidence.
+- [ ] Exact-head trusted-base `s1-admission-integrity` PASS recorded for the same candidate head; Foundation alone is insufficient.
 - [ ] If external review is used, exact-head `EGRESS_PREFLIGHT` evidence is recorded before trigger, including scope classification, secret/private-data screening, provider handling/retention/training/tenant-isolation decisions, `EGRESS_APPROVAL`, and result limitations.
 - [ ] Independent exact-head review recorded. If a required qualified review is unavailable, record `REVIEW_BLOCKED`; absence must never imply PASS and later qualification/canonicalization remains closed.
 - [ ] Finding reconciliation complete on the reviewed exact head or a fully requalified repaired successor.
-- [ ] Final live-evidence race records current PR/base/head/changed-file/check/review values before any acceptance decision.
+- [ ] Final live-evidence race records current PR/base/head/changed-file/Foundation/admission-check/review values before any acceptance decision.

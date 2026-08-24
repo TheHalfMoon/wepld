@@ -84,12 +84,13 @@ For each future path-mining gate require:
 
 ## Phase 5 — Qualification of planning candidate
 - Foundation exact-head check.
+- Trusted-base `s1-admission-integrity` exact-head check against the same candidate head; Foundation alone is insufficient.
 - Documentation/specification changed-file scope check.
 - If an external reviewer is used, exact-head egress preflight before review trigger.
 - Independent engineering review, with `REVIEW_BLOCKED` recorded if a required qualified review is unavailable.
 - Findings reconciliation.
-- Rerun affected checks and external-review preflight/review after any repair that changes the head.
-- Final live-evidence race over current PR/base/head/changed-file/check/review state.
+- Rerun both deterministic checks and any affected external-review preflight/review after any repair that changes the head.
+- Final live-evidence race over current PR/base/head/changed-file/check/review state, including both deterministic check results.
 - No implementation, source admission, dependency admission, or canonical-index mutation.
 
 ## Implementation sequencing impact

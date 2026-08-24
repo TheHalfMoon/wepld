@@ -254,7 +254,7 @@ V2.3 may become canonical only if:
 3. acquisition research differentiates source donor, protocol, reference-only and negative oracle.
 4. no frozen registry evidence is silently rewritten.
 5. current Pictorial/Agile work is not entangled with this amendment.
-6. Foundation exact-head checks pass.
+6. both the Foundation exact-head check and trusted-base `s1-admission-integrity` exact-head check pass and are recorded for the same candidate head.
 7. at least one qualified independent engineering review examines the exact head.
 8. all material findings are reconciled.
 9. final diff changes planning/research only and grants no source/dependency/runtime authority.

@@ -25,6 +25,8 @@ DONOR_EXECUTION = NONE
 
 `anthropics/claude-code` is reference-only under its current repository terms. Do not copy source unless a future exact rights review establishes a different permissible source surface.
 
+CodeQL is a **reference-only security oracle/evaluation surface in Spec 003**. This planning package does not classify CodeQL as an admitted donor or dependency candidate. Any future source/dependency use would require a separate capability-triggered exact pin, rights/license/notice, dependency, security, portability, maintenance, and exit-strategy qualification.
+
 ## Additional mining queue
 
 Tree-sitter, SCIP, ast-grep, Joern/CPG, OpenGrep, OPA, OpenHands, Goose, Cline, Aider, OpenSandbox, E2B, gVisor, Firecracker, in-toto, SLSA and OpenTelemetry.

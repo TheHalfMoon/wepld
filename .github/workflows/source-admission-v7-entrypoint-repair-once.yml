@@ -55,8 +55,7 @@ jobs:
           if text.count(old_calls) != 1:
               raise SystemExit('unexpected selftest call topology')
           text = text.replace(old_calls, new_calls, 1)
-          text = text.rstrip() + '\n\n' + entry
-          path.write_text(text, encoding='utf-8')
+          path.write_text(text.rstrip() + '\n\n' + entry, encoding='utf-8')
           PY
 
           python -m py_compile .github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py
@@ -64,23 +63,10 @@ jobs:
 
           output="$(python .github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py selftest)"
           printf '%s\n' "$output"
-          printf '%s\n' "$output" | grep -Fx 'wepld Pictorial/Agile source admission v7 self-tests: PASS'
+          test "$(printf '%s\n' "$output" | grep -Fxc 'wepld Pictorial/Agile source admission v7 self-tests: PASS')" -eq 1
 
-          set +e
-          broken="$(python - <<'PY' 2>&1
-          from pathlib import Path
-          p = Path('.github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py')
-          s = p.read_text(encoding='utf-8')
-          s = s.rsplit('if __name__ == "__main__":', 1)[0].rstrip() + '\n'
-          Path('/tmp/v7-no-entry.py').write_text(s, encoding='utf-8')
-          PY
-          python /tmp/v7-no-entry.py selftest 2>&1)"
-          status=$?
-          set -e
-          # A script without the entrypoint silently exits 0 and emits no v7 PASS marker;
-          # the repository self-test above therefore protects the committed source identity.
-          test "$status" -eq 0
-          ! printf '%s\n' "$broken" | grep -F 'wepld Pictorial/Agile source admission v7 self-tests: PASS'
+          tail -n 2 .github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py | grep -Fx 'if __name__ == "__main__":'
+          tail -n 1 .github/scripts/wepld_pictorial_agile_source_admission_v7_integrity.py | grep -Fx '    raise SystemExit(main(sys.argv[1:]))'
 
           rm .github/workflows/source-admission-v7-entrypoint-repair-once.yml
           git diff --check

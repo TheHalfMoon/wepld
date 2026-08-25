@@ -10,7 +10,7 @@ Spec 004 planning is accepted only when the exact final planning head satisfies 
 - Source Acquisition Check concludes that no new external source/dependency/runtime/provider is required;
 - Ponytail FULL selects the minimum two-event design: separate policy bootstrap, then separate exact canonicalization;
 - Foundation and trusted-base `s1-admission-integrity` both pass for the same exact **Spec 004 planning head**;
-- before any hosted external review trigger, an exact-head egress preflight is recorded under `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md`, covering scope classification, secret/private-data screening, provider-handling decisions, `EGRESS_APPROVAL`, and advisory-result limitations;
+- before any external review run/trigger, including hosted engineering review or Codex Security, an exact-head egress preflight is recorded under `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md` and includes **every field required by its `Egress record` schema**: `PROVIDER / PRODUCT`, `OFFICIAL_REFERENCE`, `EVALUATION_DATE`, `BASE_SHA / HEAD_SHA or immutable scope`, `FILE_SCOPE`, `CONTENT_CLASSIFICATION`, `SCREENING_EVIDENCE`, `REDACTIONS`, `RETENTION / TRAINING-USE DECISION`, `TENANT-ISOLATION DECISION`, `EGRESS_APPROVAL`, and `RESULT / COVERAGE LIMITATIONS`;
 - at least one independently qualified engineering reviewer reviews the exact final head; if no independently qualified reviewer is available, record `REVIEW_BLOCKED` and stop rather than inferring PASS;
 - every material finding is reconciled;
 - every head-changing repair invalidates prior exact-head qualification and causes deterministic checks, egress preflight where applicable, and independent review to be repeated;

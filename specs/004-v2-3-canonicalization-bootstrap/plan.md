@@ -22,7 +22,7 @@ This planning package is documentation-only and must remain within the current b
 - Foundation PASS;
 - trusted-base `s1-admission-integrity` PASS;
 - exact changed-file set = Spec 004 Markdown only;
-- exact-head egress preflight under `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md` before any hosted reviewer trigger;
+- before any external review run/trigger, including hosted engineering review or Codex Security, an exact-head preflight under `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md` containing every field required by its `Egress record` schema;
 - at least one independently qualified engineering review; if unavailable, record `REVIEW_BLOCKED` and stop rather than inferring PASS;
 - reconciliation of every material finding;
 - fresh requalification after every head change;
@@ -61,7 +61,7 @@ EXPECTED_BOOTSTRAP_FAILURE != PASS
 
 The expected old-base failure is not a waiver and is never relabeled PASS. The separate bootstrap event instead requires exact-head candidate Foundation/self-tests, every other applicable deterministic gate, applicable security accounting, independent exact-head engineering review, finding reconciliation, and a final live race. Candidate-side Foundation verification remains non-authoritative evidence; standing founder authorization permits the governed bootstrap event but does not convert any failed gate to PASS.
 
-Because this phase changes CI/admission trust behavior, security review is applicable.
+Because this phase changes CI/admission trust behavior, security review is applicable. Any Codex Security or other external security-review run/trigger must first satisfy the complete exact-head `Egress record` required by `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md`.
 
 ## Phase 3 — Prove v5 policy activation
 
@@ -85,7 +85,7 @@ Require:
 - Foundation exact-head PASS;
 - trusted-base v5 admission exact-head PASS;
 - changed-file set exactly the two canonicalization files;
-- exact-head egress preflight under `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md` before any hosted external review trigger;
+- before any external review run/trigger, including hosted engineering review or Codex Security, an exact-head preflight under `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md` containing every field required by its `Egress record` schema;
 - independent exact-head engineering review; if unavailable, record `REVIEW_BLOCKED` and stop rather than inferring PASS;
 - all material findings reconciled;
 - requalification after any repair;

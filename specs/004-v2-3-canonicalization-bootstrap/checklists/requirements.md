@@ -22,7 +22,7 @@
 - [x] Deterministic exact-head gates required.
 - [x] Independent exact-head correctness review required; if an independently qualified reviewer is unavailable, record `REVIEW_BLOCKED` and stop — absence never implies PASS.
 - [x] Security review applicability defined for policy bootstrap.
-- [x] Exact-head egress preflight under `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md` required before hosted review.
+- [x] Before every external review run/trigger, including hosted engineering review or Codex Security, an exact-head preflight under `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md` is required with every field from its `Egress record` schema; partial field subsets are not sufficient.
 - [x] Findings reconciliation and full requalification after head changes required.
 - [x] Final live races and the two named post-merge activation gates are required at their respective policy-bootstrap and V2.3-canonicalization stages.
 - [x] Future slice/source work remains separately gated.

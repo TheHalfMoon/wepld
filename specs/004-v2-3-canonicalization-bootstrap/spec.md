@@ -29,7 +29,7 @@ Acceptance:
 - P0 + S1..S10 numbering is unchanged;
 - no source registry, acquisition PR, runtime, dependency, model, or provider authority changes;
 - exact-head checks and independent review bind the same final head;
-- post-merge canonical activation passes.
+- **post-merge V2.3 canonicalization activation** passes.
 
 ## Out of scope
 

@@ -31,12 +31,12 @@ PRs #136/#159/#162/#164/#166 and PR #88 remain outside Spec 004. No branch relat
 | Candidate policy appears to self-authorize a governance edit | Separate bootstrap event; preserve trusted v4 rejection as `EXPECTED_BOOTSTRAP_FAILURE`; require candidate exact-head evidence and independent review before founder-authorized merge |
 | Old-base bootstrap failure is mislabeled PASS | Record `OLD_BASE_S1_PASS=NO`; never use the old-base result as acceptance evidence |
 | Bootstrap accidentally canonicalizes V2.3 | Exact three-file bootstrap delta; no index/plan path allowed |
-| v5 grants broad governance mutation | Exact post-activation two-file V2.3 route only |
+| v5 grants broad governance mutation | Exact two-file V2.3 route only after v5 policy activation is proven |
 | Candidate plan changed after Spec 003 review | Bind exact trusted-base candidate Git blob |
 | Canonical plan differs materially from reviewed candidate | Deterministic metadata-only transformation |
 | Index points to wrong/unstable bytes | Bind index to derived canonical-plan digest/path |
 | Extra file piggybacks canonicalization | Exact changed-path set |
-| v5 is merged but not actually active as trusted base | Require post-merge Foundation activation and trusted-base v5 PASS on the first successor canonicalization PR before that PR can merge |
+| v5 is merged but not actually active as trusted base | Require **post-merge Foundation activation on canonical v5 main** and trusted-base v5 PASS on the first successor canonicalization PR before that PR can merge |
 | Head changes after review/check | Re-run every invalidated exact-head gate |
 | Reviewer unavailable | `REVIEW_BLOCKED`, not PASS |
 | Security scan unavailable | `NOT_RUN_NON_BLOCKING`, never PASS |

@@ -15,7 +15,7 @@ No. Canonicalization preserves `P0 + S1..S10`; V2.3 enriches existing slices wit
 No. The current document explicitly declares `STATUS = CANDIDATE / NON-CANONICAL`. The canonicalization event should create a distinct canonical document derived deterministically from the exact merged candidate bytes and update the lightweight canonical index to point to it.
 
 ### Q5 — Should Spec 004 update `CURRENT_STATE.md`?
-Not inside either acceptance-critical transition. Keep the bootstrap delta and canonicalization delta minimal. Durable continuation-memory refresh can be separately governed after canonical activation if needed.
+Not inside either acceptance-critical transition. Keep the bootstrap delta and canonicalization delta minimal. Durable continuation-memory refresh can be separately governed after **post-merge V2.3 canonicalization activation** if needed.
 
 ### Q6 — Does this authorize future source-acquisition gates such as S4-G or S6-AH?
 No. Canonicalizing roadmap intent does not execute future gates. Each owning slice still requires its own Spec Kit, Ponytail FULL, path-level Source Acquisition Check, deterministic gates, independent review, and applicable security review.

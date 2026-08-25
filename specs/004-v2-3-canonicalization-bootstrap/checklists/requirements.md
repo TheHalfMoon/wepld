@@ -8,7 +8,7 @@
 - [x] Bootstrap policy delta minimized to successor wrapper plus two selecting workflows.
 - [x] Successor-bootstrap limitation matched to canonical PR #169 precedent: unseen successor policy produces an expected old-base failure, never a fabricated PASS.
 - [x] `TRUSTED_BASE_V4_CLASS=EXPECTED_BOOTSTRAP_FAILURE` / `OLD_BASE_S1_PASS=NO` required for the future v5 bootstrap event.
-- [x] Post-bootstrap activation requires Foundation PASS plus trusted-base v5 PASS on the first successor PR before that successor may merge.
+- [x] Post-bootstrap policy activation requires **post-merge Foundation activation on canonical v5 main** plus trusted-base v5 PASS on the first successor PR before that successor may merge.
 - [x] Canonicalization delta minimized to canonical V2.3 document plus canonical index.
 - [x] V2.3 canonical bytes required to derive from exact merged candidate bytes.
 - [x] P0 + S1..S10 numbering preserved.
@@ -24,5 +24,5 @@
 - [x] Security review applicability defined for policy bootstrap.
 - [x] Egress preflight required before hosted review.
 - [x] Findings reconciliation and full requalification after head changes required.
-- [x] Final live race and post-merge activation required.
+- [x] Final live races and the two named post-merge activation gates are required at their respective policy-bootstrap and V2.3-canonicalization stages.
 - [x] Future slice/source work remains separately gated.

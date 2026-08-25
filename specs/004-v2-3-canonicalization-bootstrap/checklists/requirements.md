@@ -20,9 +20,9 @@
 - [x] Product runtime authority remains NONE.
 - [x] Model/provider/weight/inference authority remains NONE.
 - [x] Deterministic exact-head gates required.
-- [x] Independent exact-head correctness review required.
+- [x] Independent exact-head correctness review required; if an independently qualified reviewer is unavailable, record `REVIEW_BLOCKED` and stop — absence never implies PASS.
 - [x] Security review applicability defined for policy bootstrap.
-- [x] Egress preflight required before hosted review.
+- [x] Exact-head egress preflight under `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md` required before hosted review.
 - [x] Findings reconciliation and full requalification after head changes required.
 - [x] Final live races and the two named post-merge activation gates are required at their respective policy-bootstrap and V2.3-canonicalization stages.
 - [x] Future slice/source work remains separately gated.

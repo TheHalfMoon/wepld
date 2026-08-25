@@ -23,7 +23,7 @@ The work MUST preserve P0 + S1..S10 numbering, the frozen 402-entry source-regis
 
 1. Plan and qualify this Spec 004 package under the current V2.2 trusted base.
 2. Bootstrap a successor admission policy that authorizes only the exact future V2.3 canonicalization transition.
-3. Qualify, independently review, merge, and prove **post-merge Foundation activation on canonical main** for that bootstrap policy.
+3. Qualify, independently review, merge, and prove **post-merge Foundation activation on canonical v5 main** for that bootstrap policy.
 4. Create the separate V2.3 canonicalization PR.
 5. Require exact-head deterministic checks, independent review, finding reconciliation, final live race, merge, and **post-merge V2.3 canonicalization activation**.
 6. Only after V2.3 canonicalization activation may later roadmap work use V2.3 as canonical planning authority.

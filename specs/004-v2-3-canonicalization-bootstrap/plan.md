@@ -22,8 +22,8 @@ This planning package is documentation-only and must remain within the current b
 - Foundation PASS;
 - trusted-base `s1-admission-integrity` PASS;
 - exact changed-file set = Spec 004 Markdown only;
-- exact-head egress preflight before any hosted reviewer trigger;
-- at least one independently qualified engineering review;
+- exact-head egress preflight under `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md` before any hosted reviewer trigger;
+- at least one independently qualified engineering review; if unavailable, record `REVIEW_BLOCKED` and stop rather than inferring PASS;
 - reconciliation of every material finding;
 - fresh requalification after every head change;
 - final live base/head/check/review race.
@@ -65,9 +65,9 @@ Because this phase changes CI/admission trust behavior, security review is appli
 
 ## Phase 3 — Prove v5 policy activation
 
-Merge the v5 bootstrap only after the bounded bootstrap qualification above is complete and the expected old-base failure is explicitly preserved. Then require **post-merge Foundation activation on canonical main** to PASS on the v5 merge commit.
+Merge the v5 bootstrap only after the bounded bootstrap qualification above is complete and the expected old-base failure is explicitly preserved. Then require **post-merge Foundation activation on canonical v5 main** to PASS on the v5 merge commit.
 
-The first successor PR that relies on v5 authority is the V2.3 canonicalization PR in Phase 4. Its trusted-base `s1-admission-integrity` run MUST execute v5 from canonical main and PASS before that PR can merge. That exact successor PASS is the authoritative proof that the new trusted-base route is active.
+The first successor PR that relies on v5 authority is the V2.3 canonicalization PR in Phase 4. Its trusted-base `s1-admission-integrity` run MUST execute v5 from canonical v5 main and PASS before that PR can merge. That exact successor PASS is the authoritative proof that the new trusted-base route is active.
 
 ## Phase 4 — V2.3 canonicalization PR
 
@@ -85,7 +85,8 @@ Require:
 - Foundation exact-head PASS;
 - trusted-base v5 admission exact-head PASS;
 - changed-file set exactly the two canonicalization files;
-- independent exact-head engineering review;
+- exact-head egress preflight under `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md` before any hosted external review trigger;
+- independent exact-head engineering review; if unavailable, record `REVIEW_BLOCKED` and stop rather than inferring PASS;
 - all material findings reconciled;
 - requalification after any repair;
 - final live race;

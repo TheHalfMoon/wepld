@@ -1,11 +1,13 @@
 # Master Architecture & Execution Plan Index
 
 ```text
-CANONICAL_PLAN_VERSION = V2.2
-FULL_PLAN_SHA256 = e269b10ef711731c4ad3af7b1135546f92d82a78975cabc9ff52c2dea4b5bf44
+CANONICAL_PLAN_VERSION = V2.3
+FULL_PLAN_SHA256 = ab93dee9dfdaae9d10aaf7ee1e53e71921f1e6c1c76710b2b655ac2cdbbdbe37
+CANONICAL_PLAN_PATH = docs/canonical/MASTER_PLAN_V2_3_AGENT_CONTROL_PLANE.md
 ROADMAP = P0 + S1..S10
 NON_PRIMARY_GATE = S3-D
 ARCHITECTURE_REOPENED = NO
+ENRICHMENT_CLASS = BOUNDED_ENRICHMENT
 ```
 
 ## Roadmap
@@ -23,4 +25,4 @@ ARCHITECTURE_REOPENED = NO
 - S9 — Quality Passport + Recovery Time Machine + ChangeUnit/Delivery evidence.
 - S10 — Fehrest expansion + Byan outcome/benchmark analytics candidate.
 
-The exact frozen V2.2 source artifact is identified by the SHA-256 above. This index exists as the lightweight restoration entrypoint; byte-identical raw-plan publication is tracked separately from architectural authority.
+The exact canonical V2.3 plan is identified by the path and SHA-256 above. V2.3 is a bounded enrichment of V2.2 and preserves the P0 + S1..S10 roadmap. This index remains the lightweight restoration entrypoint; source, dependency, runtime, provider, model, and future-slice authority remain separately governed.

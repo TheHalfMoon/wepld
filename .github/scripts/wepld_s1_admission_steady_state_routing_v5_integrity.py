@@ -88,6 +88,13 @@ def _paths(view: base.RepositoryView) -> set[str]:
     return {entry.path for entry in view.entries()}
 
 
+def _memory_view(files: dict[str, bytes]) -> base.MemoryView:
+    return base.MemoryView(
+        files,
+        trees={path: _git_blob_sha1(data) for path, data in files.items()},
+    )
+
+
 def _bind_v4_before_import() -> None:
     view = base.LocalRepositoryView(Path(__file__).resolve().parents[2])
     actual = _git_blob_sha1(view.read_bytes(V4_POLICY_PATH, base.MAX_POLICY_FILE_BYTES))
@@ -551,6 +558,47 @@ def _expect_policy_error(callable_obj: Callable[[], Any], label: str) -> None:
     base.fail(f"S1 steady-state routing v5 negative self-test did not fail: {label}")
 
 
+def _selftest_bootstrap_contract() -> None:
+    root = Path(__file__).resolve().parents[2]
+    local = base.LocalRepositoryView(root)
+    base_files = {
+        V4_POLICY_PATH: local.read_bytes(V4_POLICY_PATH, base.MAX_POLICY_FILE_BYTES),
+        FOUNDATION_WORKFLOW: b"old-f",
+        ADMISSION_WORKFLOW: b"old-a",
+    }
+    candidate_files = dict(base_files)
+    candidate_files.update(
+        {
+            POLICY_SCRIPT: b"policy-v5",
+            FOUNDATION_WORKFLOW: b"new-f",
+            ADMISSION_WORKFLOW: b"new-a",
+        }
+    )
+    candidate = _memory_view(candidate_files)
+    policy_base = _memory_view(base_files)
+    _require_exact_delta_v5(candidate, policy_base)
+
+    mixed = dict(candidate_files)
+    mixed["README.md"] = b"unexpected"
+    base.expect_failure_matching(
+        "S1 routing v5 mixed bootstrap rejection",
+        "bootstrap delta must be exactly",
+        _require_exact_delta_v5,
+        _memory_view(mixed),
+        policy_base,
+    )
+
+    partial = dict(candidate_files)
+    partial[ADMISSION_WORKFLOW] = base_files[ADMISSION_WORKFLOW]
+    base.expect_failure_matching(
+        "S1 routing v5 partial bootstrap rejection",
+        "bootstrap delta must be exactly",
+        _require_exact_delta_v5,
+        _memory_view(partial),
+        policy_base,
+    )
+
+
 def _selftest_canonicalization_contract() -> None:
     view = base.LocalRepositoryView(Path(__file__).resolve().parents[2])
     candidate = view.read_bytes(V2_3_CANDIDATE_PATH, base.MAX_POLICY_FILE_BYTES)
@@ -591,6 +639,7 @@ def selftest() -> None:
     _install_policy()
     _selftest_workflows()
     _selftest_authority()
+    _selftest_bootstrap_contract()
     _selftest_canonicalization_contract()
     print("wepld S1 steady-state planning-route v5 policy self-tests: PASS")
 

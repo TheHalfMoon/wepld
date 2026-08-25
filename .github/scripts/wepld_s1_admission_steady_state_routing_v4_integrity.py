@@ -346,7 +346,7 @@ def _git_head(root: Path) -> str:
 def _require_clean(root: Path, label: str) -> None:
     try:
         raw = subprocess.check_output(
-            ["git", "-C", str(root), "status", "--porcelain=v1", "--untracked-files=no"],
+            ["git", "-C", str(root), "status", "--porcelain=v1", "--untracked-files=all"],
             stderr=subprocess.STDOUT,
             text=True,
         )

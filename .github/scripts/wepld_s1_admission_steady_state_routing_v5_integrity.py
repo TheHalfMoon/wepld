@@ -599,14 +599,29 @@ def _selftest_bootstrap_contract() -> None:
     )
 
 
+def _require_selftest_index_state(index: bytes, canonical_plan: bytes) -> None:
+    if _git_blob_sha1(index) == EXPECTED_V2_2_INDEX_GIT_BLOB_SHA1:
+        return
+    expected_canonical_index = _derive_index(canonical_plan)
+    if index == expected_canonical_index:
+        return
+    base.fail(
+        "self-test master-plan index is neither the frozen V2.2 index nor the "
+        f"exact derived canonical V2.3 index: actual={_git_blob_sha1(index)}"
+    )
+
+
 def _selftest_canonicalization_contract() -> None:
     view = base.LocalRepositoryView(Path(__file__).resolve().parents[2])
     candidate = view.read_bytes(V2_3_CANDIDATE_PATH, base.MAX_POLICY_FILE_BYTES)
     index = view.read_bytes(MASTER_PLAN_INDEX, base.MAX_POLICY_FILE_BYTES)
     _require_blob(candidate, EXPECTED_V2_3_CANDIDATE_GIT_BLOB_SHA1, "self-test V2.3 candidate")
-    _require_blob(index, EXPECTED_V2_2_INDEX_GIT_BLOB_SHA1, "self-test V2.2 index")
 
     canonical = _derive_canonical_plan(candidate)
+    derived_index = _derive_index(canonical)
+    _require_selftest_index_state(index, canonical)
+    _require_selftest_index_state(derived_index, canonical)
+
     if canonical == candidate:
         base.fail("V2.3 canonicalization transform made no change")
     if not canonical.startswith(
@@ -615,7 +630,6 @@ def _selftest_canonicalization_contract() -> None:
         base.fail("V2.3 canonicalization title transform drifted")
     if b"STATUS = CANONICAL\n" not in canonical:
         base.fail("V2.3 canonicalization status transform drifted")
-    derived_index = _derive_index(canonical)
     if f"FULL_PLAN_SHA256 = {_sha256(canonical)}\n".encode("utf-8") not in derived_index:
         base.fail("V2.3 canonicalization index digest binding drifted")
     if f"CANONICAL_PLAN_PATH = {CANONICAL_PLAN_PATH}\n".encode("utf-8") not in derived_index:
@@ -628,8 +642,12 @@ def _selftest_canonicalization_contract() -> None:
         "candidate-byte mutation",
     )
     _expect_policy_error(
-        lambda: _require_blob(index + b"\n", EXPECTED_V2_2_INDEX_GIT_BLOB_SHA1, "mutated index"),
-        "index-byte mutation",
+        lambda: _require_selftest_index_state(index + b"\n", canonical),
+        "current-index mutation",
+    )
+    _expect_policy_error(
+        lambda: _require_selftest_index_state(derived_index + b"\n", canonical),
+        "canonical-index mutation",
     )
 
 

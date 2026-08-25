@@ -107,6 +107,8 @@ _EXPECTED_V5_VERIFY_POLICY_FILES = v5._verify_policy_files_v5
 _EXPECTED_V5_DESKTOP_EXTENSION = v5._verify_desktop_extension_paths_v5
 _EXPECTED_V5_EXECUTION_EXTENSION = v5._verify_execution_extension_paths_v5
 _EXPECTED_V5_PRINT_SUCCESS = v5._print_success
+_EXPECTED_V5_CANDIDATE_LOCAL = v5.v4.verify_candidate_local
+_EXPECTED_V5_RUNTIME_MAIN = v5.v4.main
 
 
 def _topology() -> tuple[Any, Any, Any, Any, Any]:
@@ -703,6 +705,8 @@ def _selftest_authority() -> None:
         base.fail("S1 steady-state routing v6 old-base truth classification drifted")
     if CANDIDATE_POLICY_BASE_SOURCE != "LOCAL_FETCHED_GIT_WORKTREE":
         base.fail("S1 steady-state routing v6 candidate base-source contract drifted")
+    if not callable(_EXPECTED_V5_CANDIDATE_LOCAL) or not callable(_EXPECTED_V5_RUNTIME_MAIN):
+        base.fail("S1 steady-state routing v6 predecessor execution entrypoint drifted")
 
 
 def _memory_view(files: dict[str, bytes]) -> base.MemoryView:
@@ -813,13 +817,13 @@ def main(argv: list[str]) -> int:
             args = _candidate_parser(argv[1:])
             return _guard(
                 "predecessor candidate-local verifier",
-                v5.verify_candidate_local,
+                _EXPECTED_V5_CANDIDATE_LOCAL,
                 args.root,
                 args.policy_base_root,
                 args.policy_base_sha,
             )
 
-        return _guard("predecessor runtime main", v5.main, argv)
+        return _guard("predecessor runtime main", _EXPECTED_V5_RUNTIME_MAIN, argv)
     except base.PolicyError as exc:
         print(f"wepld integrity verification: FAIL: {exc}", file=sys.stderr)
         return 1

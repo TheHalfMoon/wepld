@@ -39,6 +39,7 @@ jobs:
           unset GITHUB_TOKEN
           POLICY_BASE_WORKTREE="${RUNNER_TEMP}/wepld-policy-base"
           rm -rf "$POLICY_BASE_WORKTREE"
+          git worktree prune
           git worktree add --detach "$POLICY_BASE_WORKTREE" "$CANDIDATE_BASE_SHA"
           cleanup() {
             git worktree remove --force "$POLICY_BASE_WORKTREE" >/dev/null 2>&1 || true

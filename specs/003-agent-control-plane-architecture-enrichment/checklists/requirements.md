@@ -1,0 +1,24 @@
+# Requirements Checklist — Spec 003
+
+- [x] Product thesis preserved.
+- [x] Roadmap numbering preserved.
+- [x] Rust-first/local-authoritative/air-gap constraints preserved.
+- [x] Protocols separated from authority.
+- [x] Graph context separated from authority.
+- [x] Containment separated from authorization.
+- [x] Provider-neutral host contract defined.
+- [x] Nawat effect-time boundary made explicit.
+- [x] Fehrest.Maemar semantic graph direction defined.
+- [x] AMAN staged evidence direction defined.
+- [x] Evidence Timeline direction defined.
+- [x] Frozen registry remains immutable.
+- [x] Claude Code rights boundary explicit.
+- [x] Tier-1 reproducible pins recorded.
+- [x] No source/dependency/runtime/model execution authorization.
+- [x] Base-controlled `MASTER_PLAN_INDEX.md` mutation excluded from the planning PR; V2.2 remains canonical.
+- [ ] Exact-head Foundation PASS recorded in immutable PR/check evidence.
+- [ ] Exact-head trusted-base `s1-admission-integrity` PASS recorded for the same candidate head; Foundation alone is insufficient.
+- [ ] If external review is used, exact-head `EGRESS_PREFLIGHT` evidence is recorded before trigger, including scope classification, secret/private-data screening, provider handling/retention/training/tenant-isolation decisions, `EGRESS_APPROVAL`, and result limitations.
+- [ ] Independent exact-head review recorded. If an independently qualified reviewer is unavailable, record `REVIEW_BLOCKED`; absence must never imply PASS and later qualification/canonicalization remains closed.
+- [ ] Finding reconciliation complete on the reviewed exact head or a fully requalified repaired successor.
+- [ ] Final live-evidence race records current PR/base/head/changed-file/Foundation/admission-check/review values and the exact unresolved-material-findings value before any acceptance decision.

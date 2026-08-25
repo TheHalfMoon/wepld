@@ -13,6 +13,8 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
     steps:
       - name: Checkout exact revision with canonical history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -27,7 +29,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python .github/scripts/wepld_s1_admission_steady_state_routing_v3_integrity.py selftest
+          python .github/scripts/wepld_s1_admission_steady_state_routing_v4_integrity.py selftest
 
       - name: Verify pull-request candidate against exact trusted base (non-authoritative)
         if: github.event_name == 'pull_request'
@@ -37,8 +39,17 @@ jobs:
         run: |
           set -euo pipefail
           unset GITHUB_TOKEN
-          python .github/scripts/wepld_s1_admission_steady_state_routing_v3_integrity.py verify-candidate-local \
+          POLICY_BASE_WORKTREE="${RUNNER_TEMP}/wepld-policy-base"
+          rm -rf "$POLICY_BASE_WORKTREE"
+          git worktree prune
+          git worktree add --detach "$POLICY_BASE_WORKTREE" "$CANDIDATE_BASE_SHA"
+          cleanup() {
+            git worktree remove --force "$POLICY_BASE_WORKTREE" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          python .github/scripts/wepld_s1_admission_steady_state_routing_v4_integrity.py verify-candidate-local \
             --root . \
+            --policy-base-root "$POLICY_BASE_WORKTREE" \
             --policy-base-sha "$CANDIDATE_BASE_SHA"
 
       - name: Record pull-request candidate-policy boundary
@@ -47,6 +58,7 @@ jobs:
         run: |
           set -euo pipefail
           echo 'candidate_policy_authority=NONE'
+          echo 'candidate_policy_base_source=LOCAL_FETCHED_GIT_WORKTREE'
           echo 'authoritative_candidate_admission=pull_request_target'
 
       - name: Verify canonical activation against predecessor and pushed head
@@ -62,7 +74,7 @@ jobs:
             echo 'canonical activation identities could not be established' >&2
             exit 1
           fi
-          python .github/scripts/wepld_s1_admission_steady_state_routing_v3_integrity.py verify-local \
+          python .github/scripts/wepld_s1_admission_steady_state_routing_v4_integrity.py verify-local \
             --root . \
             --remote-baseline \
             --pr-base-sha "$WEPLD_BASELINE_CHECK_SHA"

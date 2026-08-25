@@ -1,0 +1,43 @@
+# Analyze — Spec 004
+
+## Consistency analysis
+
+### Governance
+
+The current trusted base says ordinary future candidates may not mutate base-controlled governance and that legitimate policy migration requires an explicitly governed bootstrap/override event. Spec 003 acceptance separately requires that event before V2.3 canonicalization. Spec 004 satisfies both by splitting policy bootstrap from plan adoption.
+
+### Authority
+
+No contradiction with standing founder authorization exists. Standing authorization allows governed execution; it does not mint PASS or permit a candidate to redefine its own trusted-base controls.
+
+### Roadmap
+
+V2.3 keeps `P0 + S1..S10` and adds named non-primary gates inside existing slices. Therefore canonicalization is a bounded architecture enrichment, not a roadmap reset.
+
+### Source registry
+
+The frozen 402-entry registry is untouched. Post-V1 candidates remain pending a later separately governed registry revision.
+
+### Active acquisition work
+
+PRs #136/#159/#162/#164/#166 and PR #88 remain outside Spec 004. No branch relationship, source import, lock repair, dependency admission, or donor execution is required for V2.3 canonicalization.
+
+## Failure modes and controls
+
+| Failure mode | Required control |
+|---|---|
+| Candidate policy self-authorizes a governance edit | Separate bootstrap PR judged by trusted v4 base |
+| Bootstrap accidentally canonicalizes V2.3 | Exact three-file bootstrap delta; no index/plan path allowed |
+| v5 grants broad governance mutation | Exact post-activation two-file V2.3 route only |
+| Candidate plan changed after Spec 003 review | Bind exact trusted-base candidate Git blob |
+| Canonical plan differs materially from reviewed candidate | Deterministic metadata-only transformation |
+| Index points to wrong/unstable bytes | Bind index to derived canonical-plan digest/path |
+| Extra file piggybacks canonicalization | Exact changed-path set |
+| Head changes after review/check | Re-run every invalidated exact-head gate |
+| Reviewer unavailable | `REVIEW_BLOCKED`, not PASS |
+| Security scan unavailable | `NOT_RUN_NON_BLOCKING`, never PASS |
+| Canonicalization reused for later mutation | One-time precondition: trusted base must still be V2.2 with no canonical V2.3 file |
+
+## Conclusion
+
+The two-event design is internally consistent, minimum-sufficient, and preserves authority separation. Implementation may begin only after this Spec 004 planning package itself is exactly qualified and accepted.

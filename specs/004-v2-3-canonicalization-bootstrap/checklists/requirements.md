@@ -1,0 +1,25 @@
+# Requirements Checklist — Spec 004
+
+- [x] Trusted-base rule preserved.
+- [x] Current canonical V2.2 status stated explicitly.
+- [x] Spec 003 candidate/non-canonical status preserved until separate adoption event.
+- [x] Standing founder authorization distinguished from qualification evidence.
+- [x] Two-event bootstrap/canonicalization sequencing defined.
+- [x] Bootstrap policy delta minimized to successor wrapper plus two selecting workflows.
+- [x] Canonicalization delta minimized to canonical V2.3 document plus canonical index.
+- [x] V2.3 canonical bytes required to derive from exact merged candidate bytes.
+- [x] P0 + S1..S10 numbering preserved.
+- [x] Frozen 402 registry untouched.
+- [x] Active Pictorial/Agile and MiniMax PR chains excluded.
+- [x] Source admission remains NONE.
+- [x] Dependency admission remains NONE.
+- [x] Donor execution remains NONE.
+- [x] Product runtime authority remains NONE.
+- [x] Model/provider/weight/inference authority remains NONE.
+- [x] Deterministic exact-head gates required.
+- [x] Independent exact-head correctness review required.
+- [x] Security review applicability defined for policy bootstrap.
+- [x] Egress preflight required before hosted review.
+- [x] Findings reconciliation and full requalification after head changes required.
+- [x] Final live race and post-merge activation required.
+- [x] Future slice/source work remains separately gated.

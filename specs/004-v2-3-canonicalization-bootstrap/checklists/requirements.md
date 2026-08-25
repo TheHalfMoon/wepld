@@ -1,0 +1,28 @@
+# Requirements Checklist — Spec 004
+
+- [x] Trusted-base rule preserved.
+- [x] Current canonical V2.2 status stated explicitly.
+- [x] Spec 003 candidate/non-canonical status preserved until separate adoption event.
+- [x] Standing founder authorization distinguished from qualification evidence.
+- [x] Two-event bootstrap/canonicalization sequencing defined.
+- [x] Bootstrap policy delta minimized to successor wrapper plus two selecting workflows.
+- [x] Successor-bootstrap limitation matched to canonical PR #169 precedent: unseen successor policy produces an expected old-base failure, never a fabricated PASS.
+- [x] `TRUSTED_BASE_V4_CLASS=EXPECTED_BOOTSTRAP_FAILURE` / `OLD_BASE_S1_PASS=NO` required for the future v5 bootstrap event.
+- [x] Post-bootstrap policy activation requires **post-merge Foundation activation on canonical v5 main** plus trusted-base v5 PASS on the first successor PR before that successor may merge.
+- [x] Canonicalization delta minimized to canonical V2.3 document plus canonical index.
+- [x] V2.3 canonical bytes required to derive from exact merged candidate bytes.
+- [x] P0 + S1..S10 numbering preserved.
+- [x] Frozen 402 registry untouched.
+- [x] Active Pictorial/Agile and MiniMax PR chains excluded.
+- [x] Source admission remains NONE.
+- [x] Dependency admission remains NONE.
+- [x] Donor execution remains NONE.
+- [x] Product runtime authority remains NONE.
+- [x] Model/provider/weight/inference authority remains NONE.
+- [x] Deterministic exact-head gates required.
+- [x] Independent exact-head correctness review required; if an independently qualified reviewer is unavailable, record `REVIEW_BLOCKED` and stop — absence never implies PASS.
+- [x] Security review applicability defined for policy bootstrap.
+- [x] Before every external review run/trigger, including hosted engineering review or Codex Security, an exact-head preflight under `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md` is required with every field from its `Egress record` schema; partial field subsets are not sufficient.
+- [x] Findings reconciliation and full requalification after head changes required.
+- [x] Final live races and the two named post-merge activation gates are required at their respective policy-bootstrap and V2.3-canonicalization stages.
+- [x] Future slice/source work remains separately gated.

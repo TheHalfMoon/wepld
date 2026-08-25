@@ -51,11 +51,23 @@ The v5 wrapper must:
 - include deterministic positive and negative self-tests;
 - report no source/dependency/donor/runtime/model authority expansion.
 
+The canonical v4 trusted-base admission policy cannot authorize an unseen v5 successor. This is the same structural bootstrap limitation recorded for PR #169 (v3 -> v4). Therefore the v5 bootstrap qualification MUST preserve the old-base result truthfully:
+
+```text
+TRUSTED_BASE_V4_CLASS = EXPECTED_BOOTSTRAP_FAILURE
+OLD_BASE_S1_PASS = NO
+EXPECTED_BOOTSTRAP_FAILURE != PASS
+```
+
+The expected old-base failure is not a waiver and is never relabeled PASS. The separate bootstrap event instead requires exact-head candidate Foundation/self-tests, every other applicable deterministic gate, applicable security accounting, independent exact-head engineering review, finding reconciliation, and a final live race. Candidate-side Foundation verification remains non-authoritative evidence; standing founder authorization permits the governed bootstrap event but does not convert any failed gate to PASS.
+
 Because this phase changes CI/admission trust behavior, security review is applicable.
 
 ## Phase 3 — Prove v5 activation
 
-Qualify the exact bootstrap head with every applicable deterministic and independent-review gate. Merge only after final live race. Then require post-merge Foundation/canonical activation PASS on the merge commit before Phase 4.
+Merge the v5 bootstrap only after the bounded bootstrap qualification above is complete and the expected old-base failure is explicitly preserved. Then require post-merge Foundation/canonical activation PASS on the merge commit.
+
+The first successor PR that relies on v5 authority is the V2.3 canonicalization PR in Phase 4. Its trusted-base `s1-admission-integrity` run MUST execute v5 from canonical main and PASS before that PR can merge. That exact successor PASS is the authoritative proof that the new trusted-base route is active.
 
 ## Phase 4 — V2.3 canonicalization PR
 
@@ -71,7 +83,7 @@ The v5 policy must verify the trusted-base candidate blob identity and exact can
 
 Require:
 - Foundation exact-head PASS;
-- trusted-base admission exact-head PASS;
+- trusted-base v5 admission exact-head PASS;
 - changed-file set exactly the two canonicalization files;
 - independent exact-head engineering review;
 - all material findings reconciled;

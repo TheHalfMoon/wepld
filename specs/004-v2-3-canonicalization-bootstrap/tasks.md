@@ -21,7 +21,7 @@
 - [ ] T014 After any head-changing repair, repeat T008–T013 on the new exact head.
 - [ ] T015 Perform final live base/head/file/check/review/unresolved-finding race.
 - [ ] T016 Merge Spec 004 planning package only if all exact-head gates genuinely pass.
-- [ ] T017 Verify post-merge Foundation/canonical activation on main.
+- [ ] T017 Verify **post-merge Foundation activation on canonical main**.
 
 ## Bootstrap policy v5
 
@@ -36,7 +36,7 @@
 - [ ] T026 Perform exact-head egress preflight then independent engineering review.
 - [ ] T027 Reconcile findings and fully requalify any repaired head.
 - [ ] T028 Perform final live race and merge the separately governed v5 bootstrap with expected-head binding only after all applicable bootstrap evidence passes and the expected old-base failure is explicitly retained.
-- [ ] T029 Verify post-merge Foundation/canonical activation on v5 main.
+- [ ] T029 Verify **post-merge Foundation activation on canonical v5 main**.
 
 ## V2.3 canonicalization
 
@@ -48,7 +48,7 @@
 - [ ] T035 Record exact-head egress preflight then obtain independent engineering review.
 - [ ] T036 Reconcile all material findings and requalify any new head.
 - [ ] T037 Perform final live race and merge with expected-head binding.
-- [ ] T038 Verify post-merge activation and direct canonical index = V2.3.
+- [ ] T038 Verify **post-merge V2.3 canonicalization activation** and direct canonical index = V2.3.
 
 ## Continuation
 

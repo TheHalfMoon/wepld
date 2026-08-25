@@ -15,7 +15,7 @@ Spec 004 planning is accepted only when the exact final planning head satisfies 
 - every material finding is reconciled;
 - every head-changing repair invalidates prior exact-head qualification and causes deterministic checks, egress preflight where applicable, and independent review to be repeated;
 - the final live race re-reads PR base/head, exact changed files, both deterministic checks, review state/threads, and unresolved material findings before acceptance;
-- merge uses the exact qualified head and post-merge canonical activation is verified.
+- merge uses the exact qualified head and **post-merge Foundation activation on canonical main** is verified.
 
 The planning-head trusted-base PASS above does **not** impose an impossible old-base PASS on the later policy-successor bootstrap. The v5 bootstrap is a separately governed event. Canonical PR #169 records the controlling precedent: an old canonical policy cannot authorize an unseen successor policy. Therefore v4 -> v5 must preserve the old-base result as:
 
@@ -25,7 +25,7 @@ OLD_BASE_S1_PASS=NO
 EXPECTED_BOOTSTRAP_FAILURE!=PASS
 ```
 
-That expected failure is never waived, hidden, or renamed. The v5 bootstrap may merge only after its candidate exact-head Foundation/self-tests, every other applicable deterministic gate, applicable security accounting, independent exact-head review, finding reconciliation, final live race, and standing-founder bootstrap authority are all satisfied. After merge, Foundation canonical activation must pass. The subsequent V2.3 canonicalization PR must then obtain a genuine trusted-base **v5** `s1-admission-integrity` PASS before it may merge.
+That expected failure is never waived, hidden, or renamed. The v5 bootstrap may merge only after its candidate exact-head Foundation/self-tests, every other applicable deterministic gate, applicable security accounting, independent exact-head review, finding reconciliation, final live race, and standing-founder bootstrap authority are all satisfied. After merge, **post-merge Foundation activation on canonical v5 main** must pass. The subsequent V2.3 canonicalization PR must then obtain a genuine trusted-base **v5** `s1-admission-integrity` PASS before it may merge, followed after merge by separate **post-merge V2.3 canonicalization activation** proof.
 
 Acceptance of Spec 004 authorizes only execution of the governed bootstrap/canonicalization sequence described by the package under standing founder authorization. It does not itself make V2.3 canonical and does not grant source, dependency, donor-execution, runtime, model-provider, model-weight, inference, or future-slice implementation authority.
 

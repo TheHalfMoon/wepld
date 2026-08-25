@@ -63,9 +63,9 @@ The expected old-base failure is not a waiver and is never relabeled PASS. The s
 
 Because this phase changes CI/admission trust behavior, security review is applicable.
 
-## Phase 3 — Prove v5 activation
+## Phase 3 — Prove v5 policy activation
 
-Merge the v5 bootstrap only after the bounded bootstrap qualification above is complete and the expected old-base failure is explicitly preserved. Then require post-merge Foundation/canonical activation PASS on the merge commit.
+Merge the v5 bootstrap only after the bounded bootstrap qualification above is complete and the expected old-base failure is explicitly preserved. Then require **post-merge Foundation activation on canonical main** to PASS on the v5 merge commit.
 
 The first successor PR that relies on v5 authority is the V2.3 canonicalization PR in Phase 4. Its trusted-base `s1-admission-integrity` run MUST execute v5 from canonical main and PASS before that PR can merge. That exact successor PASS is the authoritative proof that the new trusted-base route is active.
 
@@ -79,7 +79,7 @@ Exact intended transition:
 
 The v5 policy must verify the trusted-base candidate blob identity and exact canonicalization transformation rather than accepting arbitrary plan text.
 
-## Phase 5 — Canonicalization qualification and activation
+## Phase 5 — V2.3 canonicalization qualification and activation
 
 Require:
 - Foundation exact-head PASS;
@@ -90,7 +90,7 @@ Require:
 - requalification after any repair;
 - final live race;
 - merge with expected-head binding;
-- post-merge canonical activation PASS;
+- **post-merge V2.3 canonicalization activation** PASS;
 - direct re-read of `MASTER_PLAN_INDEX.md` on canonical main proving V2.3.
 
 ## Phase 6 — Continue roadmap

@@ -77,7 +77,8 @@ _PRIOR_PRINT_SUCCESS: Any = None
 
 
 def _git_blob_sha1(data: bytes) -> str:
-    return hashlib.sha1(f"blob {len(data)}\0".encode("ascii") + data).hexdigest()
+    # SHA-1 is required by the Git object model, not used as a security primitive.
+    return hashlib.sha1(f"blob {len(data)}\0".encode("ascii") + data).hexdigest()  # noqa: S324
 
 
 def _sha256(data: bytes) -> str:
@@ -108,9 +109,20 @@ def _bind_v4_before_import() -> None:
 _bind_v4_before_import()
 import wepld_s1_admission_steady_state_routing_v4_integrity as v4  # noqa: E402
 
+_EXPECTED_V4_REQUIRE_EXACT_DELTA = v4._require_exact_delta_v4
+_EXPECTED_V4_COMPARE_BASE_CONTROLLED = v4._compare_base_controlled_v4
+_EXPECTED_V4_VALIDATE_ALLOWED_PATHS = v4._validate_allowed_paths_v4
+_EXPECTED_V4_VERIFY_POLICY_FILES = v4._verify_policy_files_v4
+_EXPECTED_V4_DESKTOP_EXTENSION = v4._verify_desktop_extension_paths_v4
+_EXPECTED_V4_EXECUTION_EXTENSION = v4._verify_execution_extension_paths_v4
+_EXPECTED_V4_PRINT_SUCCESS = v4._print_success
+
 
 def _topology() -> tuple[Any, Any, Any, Any, Any]:
-    topology = v4._topology()
+    try:
+        topology = v4._topology()
+    except (AttributeError, TypeError) as exc:
+        base.fail(f"S1 steady-state routing v5 topology/layout drifted: {exc}")
     if not isinstance(topology, tuple) or len(topology) != 5:
         base.fail("S1 steady-state routing v5 inherited topology is malformed")
     return topology
@@ -122,6 +134,52 @@ def _require_path_set(value: Any, label: str) -> frozenset[str]:
     if any(not isinstance(path, str) for path in value):
         base.fail(f"S1 steady-state routing v5 {label} contains non-string path")
     return frozenset(value)
+
+
+def _require_attr(obj: Any, name: str, label: str) -> Any:
+    try:
+        return getattr(obj, name)
+    except (AttributeError, TypeError) as exc:
+        base.fail(f"S1 steady-state routing v5 {label} topology/layout drifted: {exc}")
+
+
+def _guard_topology_call(label: str, callable_obj: Any, *args: Any, **kwargs: Any) -> Any:
+    if not callable(callable_obj):
+        base.fail(f"S1 steady-state routing v5 {label} topology/layout drifted: not callable")
+    try:
+        return callable_obj(*args, **kwargs)
+    except (AttributeError, TypeError) as exc:
+        base.fail(f"S1 steady-state routing v5 {label} topology/layout drifted: {exc}")
+
+
+def _changed_paths_v5(
+    candidate: base.RepositoryView,
+    policy_base: base.RepositoryView,
+) -> frozenset[str]:
+    _, _, impl, _, _ = _topology()
+    changed_paths = _require_attr(impl, "_changed_paths", "changed-path")
+    raw = _guard_topology_call("changed-path", changed_paths, candidate, policy_base)
+    return _require_path_set(raw, "changed-path")
+
+
+def _source_snapshot_api() -> tuple[Callable[..., Any], Callable[..., Any], str]:
+    try:
+        source_layer = v4.v3.v2.v1.prior.prior
+        snapshot_present = source_layer._snapshot_present
+        verify_snapshot = source_layer._verify_snapshot
+        base_acquisition_tree = source_layer.BASE_ACQUISITION_TREE
+    except (AttributeError, TypeError) as exc:
+        base.fail(f"S1 steady-state routing v5 source-snapshot topology/layout drifted: {exc}")
+    if not callable(snapshot_present) or not callable(verify_snapshot):
+        base.fail("S1 steady-state routing v5 source-snapshot topology/layout drifted: verifier not callable")
+    if not isinstance(base_acquisition_tree, str) or not base_acquisition_tree:
+        base.fail("S1 steady-state routing v5 source-snapshot topology/layout drifted: base tree malformed")
+    return snapshot_present, verify_snapshot, base_acquisition_tree
+
+
+def _extension_controlled_paths(component: Any, label: str) -> frozenset[str]:
+    raw = _require_attr(component, "EXTENSION_CONTROLLED_PATHS", label)
+    return _require_path_set(raw, label)
 
 
 def _replace_once(data: bytes, old: bytes, new: bytes, label: str) -> bytes:
@@ -217,9 +275,7 @@ def _is_canonicalization_delta(
     candidate: base.RepositoryView,
     policy_base: base.RepositoryView,
 ) -> bool:
-    _, _, impl, _, _ = _topology()
-    changed = _require_path_set(impl._changed_paths(candidate, policy_base), "changed-path")
-    return changed == CANONICALIZATION_DELTA_PATHS
+    return _changed_paths_v5(candidate, policy_base) == CANONICALIZATION_DELTA_PATHS
 
 
 def _require_v4_candidate(candidate: base.RepositoryView) -> None:
@@ -281,8 +337,7 @@ def _require_exact_delta_v5(
     candidate: base.RepositoryView,
     policy_base: base.RepositoryView,
 ) -> None:
-    _, _, impl, _, _ = _topology()
-    changed = _require_path_set(impl._changed_paths(candidate, policy_base), "changed-path")
+    changed = _changed_paths_v5(candidate, policy_base)
 
     if _is_bootstrap_base(policy_base):
         if changed == BOOTSTRAP_DELTA_PATHS:
@@ -295,8 +350,14 @@ def _require_exact_delta_v5(
                     "S1 steady-state routing v5 trusted-base v4 predecessor drifted: "
                     f"expected={EXPECTED_V4_POLICY_GIT_BLOB_SHA1} actual={actual_base_v4}"
                 )
-            snapshot_present = v4.v3.v2.v1.prior.prior._snapshot_present
-            if snapshot_present(candidate) and not snapshot_present(policy_base):
+            snapshot_present, _, _ = _source_snapshot_api()
+            candidate_snapshot = _guard_topology_call(
+                "source-snapshot presence", snapshot_present, candidate
+            )
+            base_snapshot = _guard_topology_call(
+                "source-snapshot presence", snapshot_present, policy_base
+            )
+            if candidate_snapshot and not base_snapshot:
                 base.fail("source snapshot cannot transition during S1 routing v5 bootstrap")
             return
         if changed & BOOTSTRAP_DELTA_PATHS:
@@ -313,7 +374,12 @@ def _require_exact_delta_v5(
             "V2.3 canonicalization delta must be exactly the canonical plan plus master-plan index"
         )
 
-    v4._require_exact_delta_v4(candidate, policy_base)
+    _guard_topology_call(
+        "predecessor exact-delta verifier",
+        _EXPECTED_V4_REQUIRE_EXACT_DELTA,
+        candidate,
+        policy_base,
+    )
 
 
 def _compare_base_controlled_v5(
@@ -325,7 +391,11 @@ def _compare_base_controlled_v5(
     if canonicalizing:
         _require_exact_canonicalization(candidate, policy_base)
 
-    controlled = _require_path_set(base.BASE_CONTROLLED_PATHS, "base-controlled-path")
+    try:
+        controlled_raw = base.BASE_CONTROLLED_PATHS
+    except (AttributeError, TypeError) as exc:
+        base.fail(f"S1 steady-state routing v5 base-controlled topology/layout drifted: {exc}")
+    controlled = _require_path_set(controlled_raw, "base-controlled-path")
     expected_index = None
     if canonicalizing:
         base_candidate = policy_base.read_bytes(V2_3_CANDIDATE_PATH, base.MAX_POLICY_FILE_BYTES)
@@ -364,19 +434,28 @@ def _compare_base_controlled_v5(
         if candidate_bytes != base_bytes:
             base.fail(f"base-controlled policy/governance path changed: {relative}")
 
-    snapshot_present = v4.v3.v2.v1.prior.prior._snapshot_present
-    verify_snapshot = v4.v3.v2.v1.prior.prior._verify_snapshot
-    base_has_snapshot = snapshot_present(policy_base)
-    candidate_has_snapshot = snapshot_present(candidate)
+    snapshot_present, verify_snapshot, base_acquisition_tree = _source_snapshot_api()
+    base_has_snapshot = _guard_topology_call(
+        "source-snapshot presence", snapshot_present, policy_base
+    )
+    candidate_has_snapshot = _guard_topology_call(
+        "source-snapshot presence", snapshot_present, candidate
+    )
     if base_has_snapshot:
         if not candidate_has_snapshot:
             base.fail("canonical Pictorial/Agile source snapshot was deleted")
-        verify_snapshot(policy_base, transition=False)
-        verify_snapshot(candidate, transition=False)
+        _guard_topology_call(
+            "source-snapshot base verification", verify_snapshot, policy_base, transition=False
+        )
+        _guard_topology_call(
+            "source-snapshot candidate verification", verify_snapshot, candidate, transition=False
+        )
     elif candidate_has_snapshot:
-        if policy_base.tree_identity("docs/acquisition") != v4.v3.v2.v1.prior.prior.BASE_ACQUISITION_TREE:
+        if policy_base.tree_identity("docs/acquisition") != base_acquisition_tree:
             base.fail("source-admission trusted-base acquisition identity drifted")
-        verify_snapshot(candidate, transition=True)
+        _guard_topology_call(
+            "source-snapshot transition verification", verify_snapshot, candidate, transition=True
+        )
 
 
 def _verify_extension_paths_v5(
@@ -405,7 +484,13 @@ def _verify_extension_paths_v5(
 
     delegated = frozenset(safe - {POLICY_SCRIPT})
     if delegated:
-        v4._verify_extension_paths_v4(candidate, policy_base, delegated)
+        _guard_topology_call(
+            "predecessor extension verifier",
+            v4._verify_extension_paths_v4,
+            candidate,
+            policy_base,
+            delegated,
+        )
 
 
 def _verify_desktop_extension_paths_v5(
@@ -416,7 +501,7 @@ def _verify_desktop_extension_paths_v5(
     _verify_extension_paths_v5(
         candidate,
         policy_base,
-        _require_path_set(desktop.EXTENSION_CONTROLLED_PATHS, "desktop-extension"),
+        _extension_controlled_paths(desktop, "desktop-extension"),
     )
 
 
@@ -428,7 +513,7 @@ def _verify_execution_extension_paths_v5(
     _verify_extension_paths_v5(
         candidate,
         policy_base,
-        _require_path_set(execution.EXTENSION_CONTROLLED_PATHS, "execution-extension"),
+        _extension_controlled_paths(execution, "execution-extension"),
     )
 
 
@@ -441,7 +526,12 @@ def _validate_allowed_paths_v5(paths: set[str], stage: str) -> None:
 
     base.is_common_allowed = routed
     try:
-        v4._validate_allowed_paths_v4(projected, stage)
+        _guard_topology_call(
+            "predecessor tracked-path verifier",
+            _EXPECTED_V4_VALIDATE_ALLOWED_PATHS,
+            projected,
+            stage,
+        )
     finally:
         base.is_common_allowed = original
 
@@ -453,13 +543,22 @@ def _verify_policy_files_v5(view: base.RepositoryView) -> None:
             "frozen S1 steady-state routing v4 predecessor policy drifted: "
             f"expected={EXPECTED_V4_POLICY_GIT_BLOB_SHA1} actual={actual}"
         )
-    v4._verify_policy_files_v4(view)
+    _guard_topology_call(
+        "predecessor policy-file verifier",
+        _EXPECTED_V4_VERIFY_POLICY_FILES,
+        view,
+    )
 
 
 def _print_success(stage: str, mode: str) -> None:
-    if _PRIOR_PRINT_SUCCESS is None or not callable(_PRIOR_PRINT_SUCCESS):
-        base.fail("S1 steady-state routing v5 predecessor success printer is unavailable")
-    _PRIOR_PRINT_SUCCESS(stage, mode)
+    if _PRIOR_PRINT_SUCCESS is not _EXPECTED_V4_PRINT_SUCCESS:
+        base.fail("S1 steady-state routing v5 predecessor success-printer drifted")
+    _guard_topology_call(
+        "predecessor success-printer",
+        _PRIOR_PRINT_SUCCESS,
+        stage,
+        mode,
+    )
     print("s1_admission_steady_state_route_v5=V4_PRESERVED_PLUS_EXACT_V2_3_CANONICALIZATION")
     print(f"s1_admission_authority_expansion_v5={AUTHORITY_EXPANSION}")
     print(f"effective_source_admission_v5={SOURCE_ADMISSION}")
@@ -471,50 +570,70 @@ def _print_success(stage: str, mode: str) -> None:
     print(f"effective_model_inference_v5={MODEL_INFERENCE}")
 
 
+def _require_overlay_identity_v5() -> None:
+    shell, retention, _, desktop, execution = _topology()
+    expected = (
+        (_require_attr(retention, "IMPL_REQUIRE_EXACT_DELTA", "overlay exact-delta"), _require_exact_delta_v5, "exact-delta"),
+        (base.compare_base_controlled, _compare_base_controlled_v5, "base-control"),
+        (_require_attr(desktop, "verify_extension_controlled_paths", "overlay desktop-extension"), _verify_desktop_extension_paths_v5, "desktop-extension"),
+        (_require_attr(execution, "verify_extension_controlled_paths", "overlay execution-extension"), _verify_execution_extension_paths_v5, "execution-extension"),
+        (_require_attr(shell, "validate_allowed_paths", "overlay tracked-path"), _validate_allowed_paths_v5, "tracked-path"),
+        (_require_attr(shell, "verify_policy_files", "overlay policy-file"), _verify_policy_files_v5, "policy-file"),
+        (_require_attr(shell, "print_success", "overlay success-printer"), _print_success, "success-printer"),
+    )
+    for actual, wanted, label in expected:
+        if actual is not wanted:
+            base.fail(f"S1 steady-state routing v5 overlay {label} hook drifted")
+    if base.compare_base_controlled is not _compare_base_controlled_v5:
+        base.fail("S1 steady-state routing v5 overlay base-control hook drifted")
+    if _PRIOR_PRINT_SUCCESS is not _EXPECTED_V4_PRINT_SUCCESS:
+        base.fail("S1 steady-state routing v5 predecessor success-printer drifted")
+    if POLICY_SCRIPT not in _extension_controlled_paths(desktop, "desktop-extension"):
+        base.fail("S1 steady-state routing v5 desktop extension registration drifted")
+    if POLICY_SCRIPT not in _extension_controlled_paths(execution, "execution-extension"):
+        base.fail("S1 steady-state routing v5 execution extension registration drifted")
+
+
 def _install_policy() -> None:
     global _INSTALLED, _PRIOR_PRINT_SUCCESS
     if _INSTALLED:
+        _require_overlay_identity_v5()
         return
 
     v4.EXPECTED_WORKFLOW_SHA256 = dict(EXPECTED_WORKFLOW_SHA256)
-    v4._install_policy()
+    _guard_topology_call("predecessor policy install", v4._install_policy)
 
     shell, retention, _, desktop, execution = _topology()
     expected = (
-        (retention.IMPL_REQUIRE_EXACT_DELTA, v4._require_exact_delta_v4, "exact-delta"),
-        (base.compare_base_controlled, v4._compare_base_controlled_v4, "base-control"),
-        (shell.validate_allowed_paths, v4._validate_allowed_paths_v4, "tracked-path"),
-        (shell.verify_policy_files, v4._verify_policy_files_v4, "policy-file"),
-        (
-            desktop.verify_extension_controlled_paths,
-            v4._verify_desktop_extension_paths_v4,
-            "desktop-extension",
-        ),
-        (
-            execution.verify_extension_controlled_paths,
-            v4._verify_execution_extension_paths_v4,
-            "execution-extension",
-        ),
+        (_require_attr(retention, "IMPL_REQUIRE_EXACT_DELTA", "predecessor exact-delta"), _EXPECTED_V4_REQUIRE_EXACT_DELTA, "exact-delta"),
+        (base.compare_base_controlled, _EXPECTED_V4_COMPARE_BASE_CONTROLLED, "base-control"),
+        (_require_attr(shell, "validate_allowed_paths", "predecessor tracked-path"), _EXPECTED_V4_VALIDATE_ALLOWED_PATHS, "tracked-path"),
+        (_require_attr(shell, "verify_policy_files", "predecessor policy-file"), _EXPECTED_V4_VERIFY_POLICY_FILES, "policy-file"),
+        (_require_attr(desktop, "verify_extension_controlled_paths", "predecessor desktop-extension"), _EXPECTED_V4_DESKTOP_EXTENSION, "desktop-extension"),
+        (_require_attr(execution, "verify_extension_controlled_paths", "predecessor execution-extension"), _EXPECTED_V4_EXECUTION_EXTENSION, "execution-extension"),
+        (_require_attr(shell, "print_success", "predecessor success-printer"), _EXPECTED_V4_PRINT_SUCCESS, "success-printer"),
     )
     for actual, wanted, label in expected:
         if actual is not wanted:
             base.fail(f"S1 steady-state routing v5 predecessor {label} hook drifted")
 
-    _PRIOR_PRINT_SUCCESS = shell.print_success
-    desktop.EXTENSION_CONTROLLED_PATHS = frozenset(
-        set(desktop.EXTENSION_CONTROLLED_PATHS) | {POLICY_SCRIPT}
-    )
-    execution.EXTENSION_CONTROLLED_PATHS = frozenset(
-        set(execution.EXTENSION_CONTROLLED_PATHS) | {POLICY_SCRIPT}
-    )
-    retention.IMPL_REQUIRE_EXACT_DELTA = _require_exact_delta_v5
-    base.compare_base_controlled = _compare_base_controlled_v5
-    desktop.verify_extension_controlled_paths = _verify_desktop_extension_paths_v5
-    execution.verify_extension_controlled_paths = _verify_execution_extension_paths_v5
-    shell.validate_allowed_paths = _validate_allowed_paths_v5
-    shell.verify_policy_files = _verify_policy_files_v5
-    shell.print_success = _print_success
+    _PRIOR_PRINT_SUCCESS = _EXPECTED_V4_PRINT_SUCCESS
+    desktop_paths = _extension_controlled_paths(desktop, "desktop-extension")
+    execution_paths = _extension_controlled_paths(execution, "execution-extension")
+    try:
+        desktop.EXTENSION_CONTROLLED_PATHS = frozenset(set(desktop_paths) | {POLICY_SCRIPT})
+        execution.EXTENSION_CONTROLLED_PATHS = frozenset(set(execution_paths) | {POLICY_SCRIPT})
+        retention.IMPL_REQUIRE_EXACT_DELTA = _require_exact_delta_v5
+        base.compare_base_controlled = _compare_base_controlled_v5
+        desktop.verify_extension_controlled_paths = _verify_desktop_extension_paths_v5
+        execution.verify_extension_controlled_paths = _verify_execution_extension_paths_v5
+        shell.validate_allowed_paths = _validate_allowed_paths_v5
+        shell.verify_policy_files = _verify_policy_files_v5
+        shell.print_success = _print_success
+    except (AttributeError, TypeError) as exc:
+        base.fail(f"S1 steady-state routing v5 overlay installation topology/layout drifted: {exc}")
     _INSTALLED = True
+    _require_overlay_identity_v5()
 
 
 def _selftest_workflows() -> None:
@@ -599,6 +718,21 @@ def _selftest_bootstrap_contract() -> None:
     )
 
 
+def _selftest_topology_guards() -> None:
+    original_topology = v4._topology
+    try:
+        v4._topology = lambda: (None, None, object(), None, None)
+        base.expect_failure_matching(
+            "S1 routing v5 changed-path topology guard",
+            "changed-path topology/layout drifted",
+            _changed_paths_v5,
+            _memory_view({}),
+            _memory_view({}),
+        )
+    finally:
+        v4._topology = original_topology
+
+
 def _require_selftest_index_state(index: bytes, canonical_plan: bytes) -> None:
     if _git_blob_sha1(index) == EXPECTED_V2_2_INDEX_GIT_BLOB_SHA1:
         return
@@ -651,14 +785,45 @@ def _selftest_canonicalization_contract() -> None:
     )
 
 
+def _selftest_overlay_reentry() -> None:
+    _require_overlay_identity_v5()
+    shell, retention, _, _, _ = _topology()
+
+    original_printer = _require_attr(shell, "print_success", "self-test success-printer")
+    try:
+        shell.print_success = lambda *_args, **_kwargs: None
+        base.expect_failure_matching(
+            "S1 routing v5 post-install success-printer drift",
+            "overlay success-printer hook drifted",
+            _install_policy,
+        )
+    finally:
+        shell.print_success = original_printer
+
+    original_delta = _require_attr(retention, "IMPL_REQUIRE_EXACT_DELTA", "self-test exact-delta")
+    try:
+        retention.IMPL_REQUIRE_EXACT_DELTA = _EXPECTED_V4_REQUIRE_EXACT_DELTA
+        base.expect_failure_matching(
+            "S1 routing v5 post-install exact-delta drift",
+            "overlay exact-delta hook drifted",
+            _install_policy,
+        )
+    finally:
+        retention.IMPL_REQUIRE_EXACT_DELTA = original_delta
+
+    _require_overlay_identity_v5()
+
+
 def selftest() -> None:
     v4.EXPECTED_WORKFLOW_SHA256 = dict(EXPECTED_WORKFLOW_SHA256)
     v4.selftest()
+    _selftest_topology_guards()
     _install_policy()
     _selftest_workflows()
     _selftest_authority()
     _selftest_bootstrap_contract()
     _selftest_canonicalization_contract()
+    _selftest_overlay_reentry()
     print("wepld S1 steady-state planning-route v5 policy self-tests: PASS")
 
 
@@ -680,13 +845,15 @@ def main(argv: list[str]) -> int:
 
         if argv and argv[0] == "verify-candidate-local":
             args = _candidate_parser(argv[1:])
-            return v4.verify_candidate_local(
+            return _guard_topology_call(
+                "predecessor candidate-local verifier",
+                v4.verify_candidate_local,
                 args.root,
                 args.policy_base_root,
                 args.policy_base_sha,
             )
 
-        return v4.main(argv)
+        return _guard_topology_call("predecessor runtime main", v4.main, argv)
     except base.PolicyError as exc:
         print(f"wepld integrity verification: FAIL: {exc}", file=sys.stderr)
         return 1

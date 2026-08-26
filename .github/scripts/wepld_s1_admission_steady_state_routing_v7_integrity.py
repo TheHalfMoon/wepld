@@ -160,9 +160,12 @@ def _require_v6(view: base.RepositoryView, label: str) -> None:
 
 
 def _require_predecessor_identity() -> None:
-    if v6._verify_extension_paths_v6 is not _EXPECTED_V6_EXTENSION_HELPER:
+    if _attr(v6, "_verify_extension_paths_v6", "v6 extension verifier") is not _EXPECTED_V6_EXTENSION_HELPER:
         base.fail("S1 routing v7 v6 extension verifier identity drifted")
-    if v6.v5._verify_extension_paths_v5 is not _EXPECTED_V5_EXTENSION_HELPER:
+    if (
+        _attr(v6.v5, "_verify_extension_paths_v5", "frozen v5 extension verifier")
+        is not _EXPECTED_V5_EXTENSION_HELPER
+    ):
         base.fail("S1 routing v7 frozen v5 extension verifier identity drifted")
 
 
@@ -531,7 +534,7 @@ def _selftest_bootstrap_contract() -> None:
 
 
 def _selftest_identity_hardening() -> None:
-    original = v6.v5._verify_extension_paths_v5
+    original = _attr(v6.v5, "_verify_extension_paths_v5", "self-test v5 extension verifier")
     try:
         v6.v5._verify_extension_paths_v5 = lambda *_args, **_kwargs: None
         base.expect_failure_matching(
@@ -541,6 +544,17 @@ def _selftest_identity_hardening() -> None:
         )
     finally:
         v6.v5._verify_extension_paths_v5 = original
+    _require_predecessor_identity()
+
+    delattr(v6.v5, "_verify_extension_paths_v5")
+    try:
+        base.expect_failure_matching(
+            "S1 routing v7 missing predecessor verifier rejection",
+            "frozen v5 extension verifier topology/layout drifted",
+            _require_predecessor_identity,
+        )
+    finally:
+        setattr(v6.v5, "_verify_extension_paths_v5", original)
     _require_predecessor_identity()
 
 

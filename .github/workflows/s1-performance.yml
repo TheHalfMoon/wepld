@@ -1,0 +1,252 @@
+name: s1-performance
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/scripts/wepld_s1_performance_probe.py"
+      - ".github/workflows/s1-performance.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".github/scripts/wepld_s1_performance_probe.py"
+      - ".github/workflows/s1-performance.yml"
+
+permissions: {}
+
+jobs:
+  windows-performance:
+    runs-on: windows-latest
+    timeout-minutes: 55
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          lfs: false
+          submodules: false
+
+      - name: Verify clean checkout and pinned Windows Rust toolchain
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ((git status --porcelain).Length -ne 0) { throw 'checkout is not clean' }
+          $expected = python -c "import tomllib; print(tomllib.load(open('rust-toolchain.toml','rb'))['toolchain']['channel'])"
+          $rustc = rustc --version
+          $cargo = cargo --version
+          $pythonVersion = python --version
+          if ($rustc.Split()[1] -ne $expected) { throw 'rustc version mismatch' }
+          if ($cargo.Split()[1] -ne $expected) { throw 'cargo version mismatch' }
+          $hostTriple = ((rustc -vV | Select-String '^host:').Line -split ':',2)[1].Trim()
+          if ($hostTriple -ne 'x86_64-pc-windows-msvc') { throw "unexpected Windows host triple: $hostTriple" }
+          $lines = @(
+            "S1_PERF_RUSTC=$rustc"
+            "S1_PERF_CARGO=$cargo"
+            "S1_PERF_PYTHON=$pythonVersion"
+            "S1_PERF_TARGET=$hostTriple"
+            "S1_PERF_RUNNER_OS=$env:RUNNER_OS"
+            "S1_PERF_RUNNER_ARCH=$env:RUNNER_ARCH"
+            "S1_PERF_IMAGE_OS=$env:ImageOS"
+            "S1_PERF_IMAGE_VERSION=$env:ImageVersion"
+            "S1_PERF_OS_VERSION=$([System.Environment]::OSVersion.VersionString)"
+          )
+          $lines | ForEach-Object { Write-Host $_ }
+          $lines | Out-File $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Build release Core and run direct protocol measurements
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          cargo build --locked --release --package wepld-core
+          python .github/scripts/wepld_s1_performance_probe.py `
+            --core target\release\wepld-core.exe `
+            --cargo-lock Cargo.lock `
+            --output s1-013-core-performance.json
+          $m = Get-Content s1-013-core-performance.json -Raw | ConvertFrom-Json
+          $lines = @(
+            "S1_PERF_COLD_SCOPE=$($m.cold_measurement_scope)"
+            "S1_PERF_COLD_P50_MS=$($m.cold_p50_ms)"
+            "S1_PERF_COLD_P95_MS=$($m.cold_p95_ms)"
+            "S1_PERF_HEALTH_P50_MS=$($m.health_p50_ms)"
+            "S1_PERF_HEALTH_P95_MS=$($m.health_p95_ms)"
+            "S1_PERF_HEALTH_P99_MS=$($m.health_p99_ms)"
+            "S1_PERF_THROUGHPUT_RPS=$($m.throughput_rps)"
+            "S1_PERF_CANCEL_P95_MS=$($m.cancel_p95_ms)"
+            "S1_PERF_CORE_PROCESS_TERMINATION_P95_MS=$($m.core_process_termination_p95_ms)"
+            "S1_PERF_CORE_REPLACEMENT_HANDSHAKE_P95_MS=$($m.core_replacement_handshake_p95_ms)"
+            "S1_PERF_MALFORMED_REJECT_P95_MS=$($m.malformed_reject_p95_ms)"
+            "S1_PERF_OVERSIZED_REJECT_P95_MS=$($m.oversized_reject_p95_ms)"
+            "S1_PERF_CORE_SHA256=$($m.core_sha256)"
+            "S1_PERF_CARGO_LOCK_SHA256=$($m.cargo_lock_sha256)"
+            "S1_PERF_PROTOCOL_VERSION=$($m.protocol_version)"
+          )
+          $lines | ForEach-Object { Write-Host $_ }
+          $lines | Out-File $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Measure Desktop-owned crash detection and fresh-handshake recovery
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $testName = 'core_client::s1_011_tests::core_crash_invalidates_then_restart_uses_fresh_launch'
+          cargo test --locked --package wepld-desktop --no-run
+          if ($LASTEXITCODE -ne 0) { throw "Desktop test precompile failed: $LASTEXITCODE" }
+          $samples = @()
+          1..10 | ForEach-Object {
+            $timer = [System.Diagnostics.Stopwatch]::StartNew()
+            cargo test --locked --package wepld-desktop $testName -- --exact
+            if ($LASTEXITCODE -ne 0) { throw "Desktop crash/recovery test failed: $LASTEXITCODE" }
+            $timer.Stop()
+            $samples += $timer.Elapsed.TotalMilliseconds
+          }
+          $ordered = @($samples | Sort-Object)
+          $rank = [int]([Math]::Ceiling(0.95 * $ordered.Count) - 1)
+          $p95 = $ordered[$rank]
+          $lines = @(
+            "S1_PERF_DESKTOP_CRASH_RECOVERY_SAMPLES=$($samples.Count)"
+            "S1_PERF_DESKTOP_CRASH_RECOVERY_P95_MS=$p95"
+            "S1_PERF_DESKTOP_CRASH_RECOVERY_SUBJECT=CORECLIENT_CHILD_EXIT_DETECTION_EXPLICIT_RESTART_FRESH_LAUNCH_HEALTH_HANDSHAKE"
+            "S1_PERF_DESKTOP_CRASH_RECOVERY_SCOPE=END_TO_END_EXISTING_TEST_WITH_CARGO_AND_TEST_HARNESS_OVERHEAD"
+          )
+          $lines | ForEach-Object { Write-Host $_ }
+          $lines | Out-File $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Measure bounded diagnostic-drain behavior
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $timer = [System.Diagnostics.Stopwatch]::StartNew()
+          cargo test --locked --package wepld-desktop stderr_pressure_beyond_retained_capacity_does_not_block_protocol_round_trip
+          if ($LASTEXITCODE -ne 0) { throw "diagnostic-pressure test failed: $LASTEXITCODE" }
+          $timer.Stop()
+          $lines = @(
+            "S1_PERF_DIAGNOSTIC_DRAIN_ELAPSED_MS=$($timer.Elapsed.TotalMilliseconds)"
+            "S1_PERF_DIAGNOSTIC_TRUNCATION_OBSERVED=PASS"
+            "S1_PERF_DIAGNOSTIC_RETAINED_BOUND_BYTES=65536"
+          )
+          $lines | ForEach-Object { Write-Host $_ }
+          $lines | Out-File $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Stage release Core and deterministic icon fixture
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force apps\desktop\src-tauri\binaries,apps\desktop\src-tauri\icons | Out-Null
+          Copy-Item -Force target\release\wepld-core.exe apps\desktop\src-tauri\binaries\wepld-core-x86_64-pc-windows-msvc.exe
+          python -c "from pathlib import Path; import struct,zlib; w=h=32; raw=b''.join(b'\0'+bytes((57,89,77,255))*w for _ in range(h)); c=lambda k,p: struct.pack('>I',len(p))+k+p+struct.pack('>I',zlib.crc32(k+p)&0xffffffff); Path('apps/desktop/src-tauri/icons/icon.png').write_bytes(b'\x89PNG\r\n\x1a\n'+c(b'IHDR',struct.pack('>IIBBBBB',w,h,8,6,0,0,0))+c(b'IDAT',zlib.compress(raw,9))+c(b'IEND',b''))"
+          $hash = (Get-FileHash target\release\wepld-core.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          "WEPLD_RELEASE_CORE_SHA256=$hash" | Out-File $env:GITHUB_ENV -Append
+          Write-Host "S1_PERF_RELEASE_CORE_SHA256=$hash"
+
+      - name: Install exact admitted-source Tauri CLI build tool
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:RUNNER_TEMP 'wepld-tauri-cli'
+          cargo install --git https://github.com/tauri-apps/tauri --rev 7cd71369c00978a3783b6ae3e9972358abbe4ae6 --locked --root $root tauri-cli
+          $bin = Join-Path $root 'bin'
+          $env:PATH = "$bin;$env:PATH"
+          if ((cargo tauri --version) -notmatch '2\.11\.4') { throw 'unexpected Tauri CLI version' }
+          $bin | Out-File $env:GITHUB_PATH -Append
+          $lines = @(
+            'S1_PERF_TAURI_SOURCE_COMMIT=7cd71369c00978a3783b6ae3e9972358abbe4ae6'
+            'S1_PERF_TAURI_CLI=2.11.4'
+            'S1_PERF_TAURI_CLI_ROLE=EXISTING_ADMITTED_CI_BUILD_TOOL_ONLY'
+          )
+          $lines | ForEach-Object { Write-Host $_ }
+          $lines | Out-File $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Build and install exact Windows Desktop package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $repoRoot = (Get-Location).Path
+          Push-Location apps\desktop
+          try { cargo tauri build --ci --bundles nsis } finally { Pop-Location }
+          $installer = @(Get-ChildItem (Join-Path $repoRoot 'target\release\bundle\nsis\*.exe'))
+          if ($installer.Count -ne 1) { throw "expected one NSIS installer, observed=$($installer.Count)" }
+          $install = Start-Process $installer[0].FullName -ArgumentList '/S' -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "NSIS install failed: $($install.ExitCode)" }
+          $dir = Join-Path $env:LOCALAPPDATA 'WePLD'
+          $core = Join-Path $dir 'wepld-core.exe'
+          if (-not (Test-Path $core -PathType Leaf)) { throw "packaged Core missing: $core" }
+          $coreHash = (Get-FileHash $core -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($coreHash -ne $env:WEPLD_RELEASE_CORE_SHA256) { throw 'packaged Core hash mismatch' }
+          $desktop = @(Get-ChildItem $dir\*.exe | Where-Object { $_.Name -notin @('wepld-core.exe','uninstall.exe') })
+          if ($desktop.Count -ne 1) { throw "expected one Desktop executable, observed=$($desktop.Count)" }
+          "WEPLD_INSTALL_DIR=$dir" | Out-File $env:GITHUB_ENV -Append
+          "WEPLD_INSTALLED_CORE=$core" | Out-File $env:GITHUB_ENV -Append
+          "WEPLD_INSTALLED_DESKTOP=$($desktop[0].FullName)" | Out-File $env:GITHUB_ENV -Append
+          Write-Host "S1_PERF_NSIS_INSTALL=PASS"
+          Write-Host "S1_PERF_PACKAGED_CORE_HASH_MATCH=PASS"
+
+      - name: Measure packaged Desktop and Core idle memory and CPU
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          function Stop-WePLD($p) {
+            if ($null -ne $p -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+            Get-Process -Name 'wepld-core' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          }
+
+          $desktop = Start-Process $env:WEPLD_INSTALLED_DESKTOP -PassThru
+          try {
+            $deadline = (Get-Date).AddSeconds(20)
+            $child = $null
+            do {
+              $child = Get-CimInstance Win32_Process -Filter "ParentProcessId = $($desktop.Id)" |
+                Where-Object { $_.Name -eq 'wepld-core.exe' -and $_.ExecutablePath -eq $env:WEPLD_INSTALLED_CORE } |
+                Select-Object -First 1
+              if ($null -eq $child) { Start-Sleep -Milliseconds 250 }
+            } while ($null -eq $child -and (Get-Date) -lt $deadline)
+            if ($null -eq $child) { throw 'Desktop did not launch exact packaged Core sibling' }
+
+            Start-Sleep -Seconds 2
+            $desktopSamples = @()
+            $coreSamples = @()
+            $desktopCpuStart = (Get-Process -Id $desktop.Id).CPU
+            $coreCpuStart = (Get-Process -Id $child.ProcessId).CPU
+            1..12 | ForEach-Object {
+              $desktopSamples += (Get-Process -Id $desktop.Id).WorkingSet64
+              $coreSamples += (Get-Process -Id $child.ProcessId).WorkingSet64
+              Start-Sleep -Milliseconds 250
+            }
+            $desktopCpuEnd = (Get-Process -Id $desktop.Id).CPU
+            $coreCpuEnd = (Get-Process -Id $child.ProcessId).CPU
+
+            $desktopMean = [math]::Round(($desktopSamples | Measure-Object -Average).Average)
+            $coreMean = [math]::Round(($coreSamples | Measure-Object -Average).Average)
+            $desktopHash = (Get-FileHash $env:WEPLD_INSTALLED_DESKTOP -Algorithm SHA256).Hash.ToLowerInvariant()
+            $coreHash = (Get-FileHash $env:WEPLD_INSTALLED_CORE -Algorithm SHA256).Hash.ToLowerInvariant()
+            $lines = @(
+              "S1_PERF_IDLE_DESKTOP_WORKING_SET_MEAN_BYTES=$desktopMean"
+              "S1_PERF_IDLE_CORE_WORKING_SET_MEAN_BYTES=$coreMean"
+              "S1_PERF_IDLE_DESKTOP_CPU_SECONDS=$([math]::Max(0, $desktopCpuEnd - $desktopCpuStart))"
+              "S1_PERF_IDLE_CORE_CPU_SECONDS=$([math]::Max(0, $coreCpuEnd - $coreCpuStart))"
+              "S1_PERF_DESKTOP_SHA256=$desktopHash"
+              "S1_PERF_PACKAGED_CORE_SHA256=$coreHash"
+              "S1_PERF_SUBJECT_SHA=${{ github.event.pull_request.head.sha || github.sha }}"
+              "SOURCE_ADMISSION=NONE"
+              "DEPENDENCY_ADMISSION=NONE"
+              "NEW_PRODUCT_RUNTIME_AUTHORITY=NONE"
+              "MODEL_PROVIDER_EXECUTION=NONE"
+              "BUDGET_TIGHTENING_DECISION=DEFER_TO_EVIDENCE_RECONCILIATION"
+            )
+            $lines | ForEach-Object { Write-Host $_ }
+            $lines | Out-File $env:GITHUB_STEP_SUMMARY -Append
+          } finally {
+            Stop-WePLD $desktop
+          }
+
+      - name: Cleanup installed package
+        if: always()
+        shell: pwsh
+        run: |
+          Get-Process -Name 'wepld-desktop','wepld-core' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          if ($env:WEPLD_INSTALL_DIR) {
+            $uninstaller = Join-Path $env:WEPLD_INSTALL_DIR 'uninstall.exe'
+            if (Test-Path $uninstaller) {
+              Start-Process $uninstaller -ArgumentList '/S' -Wait | Out-Null
+            }
+          }

@@ -62,6 +62,8 @@ OLD_BASE_S1_PASS = "NO"
 _INST = False
 _PRINT: Any = None
 _COMPAT = False
+_EXPECTED_DESKTOP_EXTENSIONS: frozenset[str] | None = None
+_EXPECTED_EXECUTION_EXTENSIONS: frozenset[str] | None = None
 
 
 def blob(data: bytes) -> str:
@@ -338,10 +340,37 @@ def printer(stage: str, mode_: str) -> None:
     print(f"s1_014_plus_v11={S1_014}")
 
 
+def overlay() -> None:
+    """Fail closed if any installed v11 binding drifts between invocations."""
+    patch_compat()
+    shell, routing, _, desktop, execution = topo()
+    pairs = (
+        (_attr(routing, "IMPL_REQUIRE_EXACT_DELTA", "routing exact-delta hook"), delta),
+        (base.compare_base_controlled, basectrl),
+        (_attr(desktop, "verify_extension_controlled_paths", "desktop extension hook"), dext),
+        (_attr(execution, "verify_extension_controlled_paths", "execution extension hook"), eext),
+        (_attr(shell, "validate_allowed_paths", "shell allowed-path hook"), allowed),
+        (_attr(shell, "verify_policy_files", "shell policy-file hook"), files),
+        (_attr(shell, "print_success", "shell success hook"), printer),
+    )
+    if any(actual is not expected for actual, expected in pairs):
+        base.fail("v11 installed overlay drifted")
+    if _PRINT is not V10_PRINT:
+        base.fail("v11 predecessor printer identity drifted")
+    if dict(v10.WF) != dict(WF):
+        base.fail("v11 workflow identity projection drifted")
+    if _EXPECTED_DESKTOP_EXTENSIONS is None or _EXPECTED_EXECUTION_EXTENSIONS is None:
+        base.fail("v11 installed extension registration is unavailable")
+    if extset(desktop) != _EXPECTED_DESKTOP_EXTENSIONS:
+        base.fail("v11 desktop extension registration drifted")
+    if extset(execution) != _EXPECTED_EXECUTION_EXTENSIONS:
+        base.fail("v11 execution extension registration drifted")
+
+
 def install() -> None:
-    global _INST, _PRINT
+    global _INST, _PRINT, _EXPECTED_DESKTOP_EXTENSIONS, _EXPECTED_EXECUTION_EXTENSIONS
     if _INST:
-        patch_compat()
+        overlay()
         return
 
     patch_compat()
@@ -362,16 +391,18 @@ def install() -> None:
         base.fail("v11 predecessor hook drifted")
 
     _PRINT = V10_PRINT
+    _EXPECTED_DESKTOP_EXTENSIONS = frozenset(set(extset(desktop)) | {P})
+    _EXPECTED_EXECUTION_EXTENSIONS = frozenset(set(extset(execution)) | {P})
     _bind(
         desktop,
         "EXTENSION_CONTROLLED_PATHS",
-        frozenset(set(extset(desktop)) | {P}),
+        _EXPECTED_DESKTOP_EXTENSIONS,
         "desktop extension registration",
     )
     _bind(
         execution,
         "EXTENSION_CONTROLLED_PATHS",
-        frozenset(set(extset(execution)) | {P}),
+        _EXPECTED_EXECUTION_EXTENSIONS,
         "execution extension registration",
     )
     _bind(routing, "IMPL_REQUIRE_EXACT_DELTA", delta, "routing exact-delta binding")
@@ -382,6 +413,7 @@ def install() -> None:
     _bind(shell, "verify_policy_files", files, "shell policy-file hook binding")
     _bind(shell, "print_success", printer, "shell success hook binding")
     _INST = True
+    overlay()
 
 
 def mem(values: dict[str, bytes]) -> Any:
@@ -451,6 +483,61 @@ def _selftest_ledger_compatibility() -> None:
         h0._git_blob_sha1 = original_h0
 
 
+def _selftest_repeated_install_drift() -> None:
+    shell, routing, _, desktop, execution = topo()
+
+    original_delta = _attr(routing, "IMPL_REQUIRE_EXACT_DELTA", "routing exact-delta hook")
+    try:
+        _bind(routing, "IMPL_REQUIRE_EXACT_DELTA", V10_DELTA, "self-test routing drift")
+        base.expect_failure_matching(
+            "v11 repeated install routing hook drift",
+            "installed overlay drifted",
+            install,
+        )
+    finally:
+        _bind(routing, "IMPL_REQUIRE_EXACT_DELTA", original_delta, "self-test routing restore")
+    overlay()
+
+    original_desktop_extensions = extset(desktop)
+    try:
+        _bind(
+            desktop,
+            "EXTENSION_CONTROLLED_PATHS",
+            frozenset(set(original_desktop_extensions) - {P}),
+            "self-test desktop extension drift",
+        )
+        base.expect_failure_matching(
+            "v11 repeated install extension registration drift",
+            "desktop extension registration drifted",
+            install,
+        )
+    finally:
+        _bind(
+            desktop,
+            "EXTENSION_CONTROLLED_PATHS",
+            original_desktop_extensions,
+            "self-test desktop extension restore",
+        )
+    overlay()
+
+    original_workflows = dict(v10.WF)
+    try:
+        _bind(v10, "WF", dict(V10_WF), "self-test workflow identity drift")
+        base.expect_failure_matching(
+            "v11 repeated install workflow identity drift",
+            "workflow identity projection drifted",
+            install,
+        )
+    finally:
+        _bind(v10, "WF", original_workflows, "self-test workflow identity restore")
+    overlay()
+
+    if extset(execution) != _EXPECTED_EXECUTION_EXTENSIONS or _attr(
+        shell, "print_success", "shell success hook"
+    ) is not printer:
+        base.fail("v11 repeated-install self-test failed to restore installed overlay")
+
+
 def selftest() -> None:
     patch_compat()
     patch_workflows()
@@ -485,6 +572,7 @@ def selftest() -> None:
     )
 
     _selftest_ledger_compatibility()
+    _selftest_repeated_install_drift()
     print("wepld S1 steady-state routing v11 policy self-tests: PASS")
 
 

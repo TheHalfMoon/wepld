@@ -131,6 +131,7 @@ V10_DEXT = v10.dext
 V10_EEXT = v10.eext
 V10_EXT = v10.ext
 V10_PRINT = v10.printer
+V10_WF = dict(v10.WF)
 CAND = v10.CAND
 RUNTIME = v10.RUNTIME
 
@@ -224,6 +225,14 @@ def _compat_hr_ledger(view: Any) -> None:
 def _compat_h0_base(view: Any) -> None:
     expected = _ledger_state(view, h0._git_blob_sha1)
     _with_expected_ledger(expected, H0_BASE, view, "Harness H0 base verifier")
+
+
+def patch_workflows() -> None:
+    expected = {FW: OLD_WF[FW], AW: OLD_WF[AW], CW: WF[CW]}
+    current = dict(v10.WF)
+    if current not in (expected, dict(WF)):
+        base.fail(f"v11 predecessor workflow identity map drifted: actual={current}")
+    _bind(v10, "WF", dict(WF), "v10 workflow identity projection")
 
 
 def patch_compat() -> None:
@@ -336,6 +345,7 @@ def install() -> None:
         return
 
     patch_compat()
+    patch_workflows()
     _call("v10 install", getattr(v10, "install", None))
     shell, routing, _, desktop, execution = topo()
 
@@ -443,6 +453,7 @@ def _selftest_ledger_compatibility() -> None:
 
 def selftest() -> None:
     patch_compat()
+    patch_workflows()
     _call("v10 self-test", getattr(v10, "selftest", None))
     install()
 

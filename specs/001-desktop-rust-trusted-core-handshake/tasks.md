@@ -5,17 +5,19 @@ This is the execution-authoritative S1 task ledger. A checked box requires stabl
 ```text
 SLICE = S1
 S1_ORIGINAL_BASE_MAIN = 6eff72319cad99c878a80f0d5bce9f107d213679
-CANONICAL_EXECUTION_HEAD = 848566d89e5995e215295b92d9da4a9cfbe28927
-LEDGER_RECONCILIATION_BASE = 848566d89e5995e215295b92d9da4a9cfbe28927
+CANONICAL_EXECUTION_HEAD = 96fa229610f31598326493b75b40a3353b46bbbf
+LEDGER_RECONCILIATION_BASE = 96fa229610f31598326493b75b40a3353b46bbbf
 LIVE_MAIN = MUST_BE_READ_FROM_GITHUB
 ACTIVE_TASK = NONE
-NEXT_TASK = S1-013_NOT_STARTED
+NEXT_TASK = S1-014_NOT_STARTED
 FOUNDER_STANDING_AUTHORIZATION = GRANTED
 SOURCE_ACQUISITION_CHECK = PASS
 RUNTIME_DEPENDENCY_ADMISSION = EXACT_S1_GRAPH
 IMPLEMENTATION = CANONICAL_THROUGH_S1_011
 S1_012_CANONICAL_ACTIVATION = PROVEN
-S1_013_PLUS = NOT_STARTED
+S1_013_CANONICAL_MEASUREMENT = PROVEN
+S1_013_EVIDENCE_RECONCILIATION = PROVEN_BY_THIS_CANONICAL_LEDGER
+S1_014_PLUS = NOT_STARTED
 ```
 
 ## Canonical reconciliation checkpoint — 2026-08-20
@@ -40,6 +42,26 @@ S1-013_PLUS = NOT_STARTED
 ```
 
 `CANONICAL_EXECUTION_HEAD` records the last code/policy execution milestone, not a promise that the live `main` ref will remain byte-identical after later docs-only reconciliation commits. Read live GitHub before every write, review, Ready transition, merge, or next-task start.
+
+## Canonical S1-013 reconciliation checkpoint — 2026-08-26
+
+This checkpoint reconciles the execution-authoritative ledger against the exact repaired S1-013 performance measurement now canonical on `main`. The candidate text used to propose this checkpoint did not grant closeout authority; the checkpoint counts only when its exact content-addressed transition has been qualified, merged, and verified from canonical `main` under the governing successor policy.
+
+```text
+S1-013 = CLOSED_CANONICAL_PROVEN
+S1-013_MEASUREMENT_PR = #179
+S1-013_MEASUREMENT_HEAD = c4fe5b1bbc4c27c68413e57019d3b47c9520997c
+S1-013_MEASUREMENT_MERGE = 96fa229610f31598326493b75b40a3353b46bbbf
+S1-013_POST_MERGE_FOUNDATION = run 32955349075 / #700 / push / PASS
+S1-013_POST_MERGE_CONTRACTS = run 32955348827 / #162 / push / PASS_3_OF_3
+S1-013_POST_MERGE_PERFORMANCE = run 32955348872 / #5 / push / PASS
+S1-013_EVIDENCE = specs/001-desktop-rust-trusted-core-handshake/s1-013-performance-evidence.md
+S1-013_RAW_ACTION_ARTIFACT = NONE_UPLOADED
+S1-013_BUDGET_TIGHTENING_DECISION = NO_SAFE_LOWER_BOUND_PROVEN_KEEP_EXISTING_SAFETY_LIMITS
+S1-014_PLUS = NOT_STARTED
+```
+
+The absence of an uploaded Actions artifact is retained as an evidence-retention limitation; the canonical GitHub workflow log/summary remains the source of measured values. The measured values do not justify lowering any existing S1 safety upper bound, so keeping the existing limits is the evidence-based S1-013 decision rather than an unproven tuning change.
 
 ## S1-001 — Establish planning baseline
 
@@ -278,16 +300,18 @@ Evidence: PR #37 merged as `848566d89e5995e215295b92d9da4a9cfbe28927`. Post-merg
 
 ## S1-013 — Performance and evidence packet
 
-- [ ] Measure cold Core spawn + handshake.
-- [ ] Measure health request p50/p95/p99.
-- [ ] Measure bounded small-request throughput.
-- [ ] Measure idle Desktop/Core memory and idle CPU.
-- [ ] Measure cancellation latency.
-- [ ] Measure crash detection + fresh-handshake recovery.
-- [ ] Measure malformed/oversized-payload rejection cost.
-- [ ] Measure sustained diagnostic-drain behavior and retained-diagnostics truncation.
-- [ ] Tighten initial budgets where evidence supports a lower bound.
-- [ ] Record exact Desktop/Core binaries, toolchain, lockfile, protocol version, commit and platform identities.
+- [x] Measure cold Core spawn + handshake.
+- [x] Measure health request p50/p95/p99.
+- [x] Measure bounded small-request throughput.
+- [x] Measure idle Desktop/Core memory and idle CPU.
+- [x] Measure cancellation latency.
+- [x] Measure crash detection + fresh-handshake recovery.
+- [x] Measure malformed/oversized-payload rejection cost.
+- [x] Measure sustained diagnostic-drain behavior and retained-diagnostics truncation.
+- [x] Tighten initial budgets where evidence supports a lower bound.
+- [x] Record exact Desktop/Core binaries, toolchain, lockfile, protocol version, commit and platform identities.
+
+Evidence: PR #179 merged as `96fa229610f31598326493b75b40a3353b46bbbf`. Post-merge push `foundation-integrity #700` / run `32955349075` passed, `s1-contracts #162` / run `32955348827` passed 3/3 jobs, and `s1-performance #5` / run `32955348872` passed on that exact merge SHA. The durable measurement reconciliation is `s1-013-performance-evidence.md`. No uploaded Actions artifact exists for the performance run; exact run logs/summary retain the measured values. Measurement did not prove a safe lower bound for any existing safety limit, so no limit was lowered merely because latency/throughput measurements were favorable.
 
 ## S1-014 — Security and independent correctness review
 
@@ -316,12 +340,14 @@ Evidence: PR #37 merged as `848566d89e5995e215295b92d9da4a9cfbe28927`. Post-merg
 ## Current gate
 
 ```text
-COMPLETED = S1-001 THROUGH S1-012
-CURRENT = CANONICAL_LEDGER_RECONCILIATION_ONLY
-CANONICAL_EXECUTION_HEAD = 848566d89e5995e215295b92d9da4a9cfbe28927
+COMPLETED = S1-001 THROUGH S1-013
+CURRENT = NONE
+CANONICAL_EXECUTION_HEAD = 96fa229610f31598326493b75b40a3353b46bbbf
 S1_012_CANONICAL_ACTIVATION = PROVEN
-NEXT = S1-013_ONLY_AFTER_THIS_LEDGER_RECONCILIATION_IS_QUALIFIED_AND_MERGED
-S1_013_PLUS = NOT_STARTED
+S1_013_CANONICAL_MEASUREMENT = PROVEN
+S1_013_EVIDENCE_RECONCILIATION = PROVEN
+NEXT = S1-014
+S1_014_PLUS = NOT_STARTED
 SOURCE_ACQUISITION_CHECK = PASS
 RUNTIME_DEPENDENCY_ADMISSION = EXACT_S1_GRAPH
 IMPLEMENTATION = CANONICAL_THROUGH_S1_011

@@ -291,10 +291,12 @@ def eext(candidate: Any, policy_base: Any) -> None:
 
 def allowed(paths: Any, stage: str) -> None:
     current = set(paths)
-    if current in (set(BOOT), set(REPAIR)):
+    if current and current.issubset(BOOT):
         return
-    if P in current:
-        base.fail("v15 wrapper may change only in exact bootstrap")
+    if current == set(REPAIR):
+        return
+    if current & set(BOOT):
+        base.fail("v15 bootstrap-controlled paths may not mix with non-bootstrap paths")
     _call("v14 allowed-path verification", V14_ALLOWED, current, stage)
 
 
@@ -420,6 +422,15 @@ def selftest() -> None:
         delta,
         mem(mixed),
         mem(policy_base),
+    )
+    allowed({P}, "S1_PRODUCT_RUNTIME")
+    allowed({FW, AW}, "S1_PRODUCT_RUNTIME")
+    base.expect_failure_matching(
+        "v15 mixed bootstrap stage subset",
+        "bootstrap-controlled paths may not mix",
+        allowed,
+        {P, "README.md"},
+        "S1_PRODUCT_RUNTIME",
     )
 
     tasks = b"closed-s1-014-ledger"

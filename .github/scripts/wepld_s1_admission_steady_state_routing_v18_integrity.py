@@ -430,25 +430,34 @@ def corrected_v17_selftest() -> None:
 
 
 def acceptance_path_selftest() -> None:
-    global FINAL_ACCEPTANCE_BLOB, FINAL_LEARNING_BLOB
+    global PRE_ACCEPTANCE_BLOB, PRE_LEARNING_BLOB, FINAL_ACCEPTANCE_BLOB, FINAL_LEARNING_BLOB
 
     vb = root.read_bytes(V17, base.MAX_POLICY_FILE_BYTES)
-    pre_tasks = root.read_bytes(TASKS, base.MAX_POLICY_FILE_BYTES)
-    pre_acceptance = root.read_bytes(ACCEPTANCE, base.MAX_POLICY_FILE_BYTES)
-    pre_learning = root.read_bytes(LEARNING, base.MAX_POLICY_FILE_BYTES)
+    root_state = state(root)
+    root_tasks = root.read_bytes(TASKS, base.MAX_POLICY_FILE_BYTES)
+    if root_state == "PRE_S1_016":
+        pre_tasks = root_tasks
+    elif root_state == "ACCEPTED_S1":
+        pre_tasks = reverse_tasks(root_tasks)
+    else:
+        base.fail(f"v18 acceptance self-test root state drifted: {root_state}")
     evidence = root.read_bytes(S1_015_EVID, base.MAX_POLICY_FILE_BYTES)
     if blob(pre_tasks) != PRE_TASKS_BLOB:
-        base.fail("v18 acceptance self-test requires exact canonical pre-S1-016 task ledger")
-    if blob(pre_acceptance) != PRE_ACCEPTANCE_BLOB or blob(pre_learning) != PRE_LEARNING_BLOB:
-        base.fail("v18 acceptance self-test requires exact canonical pre-S1-016 acceptance/learning bytes")
+        base.fail("v18 acceptance self-test could not recover exact pre-S1-016 task ledger")
     if blob(evidence) != S1_015_EVID_BLOB:
         base.fail("v18 acceptance self-test S1-015 evidence drifted")
 
     accepted_tasks = expected_tasks(pre_tasks)
+    fixture_pre_acceptance = b"v18-selftest-pre-acceptance\n"
+    fixture_pre_learning = b"v18-selftest-pre-build-learning\n"
     fixture_acceptance = b"v18-selftest-accepted-acceptance\n"
     fixture_learning = b"v18-selftest-accepted-build-learning\n"
+    old_pre_acceptance_blob = PRE_ACCEPTANCE_BLOB
+    old_pre_learning_blob = PRE_LEARNING_BLOB
     old_acceptance_blob = FINAL_ACCEPTANCE_BLOB
     old_learning_blob = FINAL_LEARNING_BLOB
+    PRE_ACCEPTANCE_BLOB = blob(fixture_pre_acceptance)
+    PRE_LEARNING_BLOB = blob(fixture_pre_learning)
     FINAL_ACCEPTANCE_BLOB = blob(fixture_acceptance)
     FINAL_LEARNING_BLOB = blob(fixture_learning)
     try:
@@ -456,8 +465,8 @@ def acceptance_path_selftest() -> None:
             P: b"v18-canonical",
             V17: vb,
             TASKS: pre_tasks,
-            ACCEPTANCE: pre_acceptance,
-            LEARNING: pre_learning,
+            ACCEPTANCE: fixture_pre_acceptance,
+            LEARNING: fixture_pre_learning,
             S1_015_EVID: evidence,
         }
         accepted_values = dict(policy_values)
@@ -518,6 +527,8 @@ def acceptance_path_selftest() -> None:
             mem(malformed),
         )
     finally:
+        PRE_ACCEPTANCE_BLOB = old_pre_acceptance_blob
+        PRE_LEARNING_BLOB = old_pre_learning_blob
         FINAL_ACCEPTANCE_BLOB = old_acceptance_blob
         FINAL_LEARNING_BLOB = old_learning_blob
 

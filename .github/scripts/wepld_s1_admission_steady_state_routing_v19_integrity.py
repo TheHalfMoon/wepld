@@ -186,7 +186,7 @@ def basectrl(candidate: Any, policy_base: Any) -> None:
             if sha(cb) != WF[path] or sha(bb) != OLD_WF[path]:
                 base.fail(f"v19 bootstrap workflow drifted: {path}")
         elif cb != bb:
-            base.fail(f"base-controlled policy/governance path changed: {path}")
+            base.fail(f"base-controlled path changed: {path}")
 
 
 def ext(candidate: Any, policy_base: Any, safe: Any) -> None:
@@ -414,6 +414,17 @@ def _accepted_state_projection_regression() -> None:
         if _call("v18 state classifier", getattr(v18, "state", None), accepted_view) != "ACCEPTED_S1":
             base.fail("v19 accepted-state fixture did not classify as ACCEPTED_S1")
 
+        def success_probe() -> None:
+            if _attr(v18, "root", "v18 projected root") is not accepted_view:
+                base.fail("v19 success probe did not observe accepted v18 root")
+            for module, _prior in descendant_priors:
+                observed = _attr(module, "root", f"{module.__name__} projected root").read_bytes(
+                    TASKS, base.MAX_POLICY_FILE_BYTES
+                )
+                if observed != pre_tasks:
+                    base.fail(f"v19 success probe did not project predecessor tasks into {module.__name__}")
+
+        _bind(v18, "selftest", success_probe, "v18 success-probe selftest")
         _projected_v18_selftest(accepted_view)
         for module, prior in descendant_priors:
             if _attr(module, "root", f"{module.__name__} restored root") is not prior:

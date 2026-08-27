@@ -41,7 +41,7 @@ BOOT = frozenset({P, FW, AW})
 AUTH = "S1_013_CLOSEOUT_SELFTEST_SEQUENCING_REPAIR_ONLY"
 S1_014 = "NOT_AUTHORIZED"
 TRUSTED_BASE_V11_CLASS = "EXPECTED_BOOTSTRAP_FAILURE"
-OLD_BASE_S1_PASS = "NO"
+OLD_BASE_S1_PASS = "NO"  # noqa: S105
 
 _INST = False
 _PRINT: Any = None
@@ -314,19 +314,40 @@ def mem(values: dict[str, bytes]) -> Any:
 
 def _corrected_v11_selftest() -> None:
     """Project candidate workflows, then test predecessors before compat hooks."""
-    v11.patch_workflows()
-    _call("v10 predecessor self-test", getattr(v11.v10, "selftest", None))
-    v11.patch_compat()
-    _call("v11 install for corrected self-test", getattr(v11, "install", None))
+    _call(
+        "v11 workflow identity projection",
+        _attr(v11, "patch_workflows", "v11 workflow identity projection"),
+    )
+    predecessor_v10 = _attr(v11, "v10", "v11 v10 predecessor module")
+    _call(
+        "v10 predecessor self-test",
+        _attr(predecessor_v10, "selftest", "v10 predecessor self-test"),
+    )
+    _call(
+        "v11 compatibility hook installation",
+        _attr(v11, "patch_compat", "v11 compatibility hook installer"),
+    )
+    _call(
+        "v11 install for corrected self-test",
+        _attr(v11, "install", "v11 install"),
+    )
 
     for path in (FW, AW):
         if sha(root.read_bytes(path, base.MAX_POLICY_FILE_BYTES)) != WF[path]:
             base.fail(f"v12 workflow drifted while validating v11 predecessor: {path}")
 
-    if v11.AUTH != "S1_013_CLOSEOUT_HARNESS_LEDGER_COMPATIBILITY_REPAIR_ONLY":
+    if _attr(v11, "AUTH", "v11 authority marker") != (
+        "S1_013_CLOSEOUT_HARNESS_LEDGER_COMPATIBILITY_REPAIR_ONLY"
+    ):
         base.fail("v12 observed v11 authority drift")
-    if v11.S1_014 != "NOT_AUTHORIZED":
+    if _attr(v11, "S1_014", "v11 S1-014 boundary") != "NOT_AUTHORIZED":
         base.fail("v12 observed v11 S1-014 boundary drift")
+    if (
+        _attr(v11, "TRUSTED_BASE_V10_CLASS", "v11 bootstrap class")
+        != "EXPECTED_BOOTSTRAP_FAILURE"
+        or _attr(v11, "OLD_BASE_S1_PASS", "v11 old-base status") != "NO"  # noqa: S105
+    ):
+        base.fail("v12 observed v11 bootstrap status semantics drift")
 
     vb = root.read_bytes(v11.V10, base.MAX_POLICY_FILE_BYTES)
     policy_base = {v11.V10: vb, FW: b"old-foundation", AW: b"old-admission"}
@@ -344,8 +365,22 @@ def _corrected_v11_selftest() -> None:
         mem(policy_base),
     )
 
-    v11._selftest_ledger_compatibility()
-    v11._selftest_repeated_install_drift()
+    _call(
+        "v11 ledger compatibility self-test",
+        _attr(
+            v11,
+            "_selftest_ledger_compatibility",
+            "v11 ledger compatibility self-test",
+        ),
+    )
+    _call(
+        "v11 repeated-install self-test",
+        _attr(
+            v11,
+            "_selftest_repeated_install_drift",
+            "v11 repeated-install self-test",
+        ),
+    )
 
 
 def _selftest_repeated_install_drift() -> None:
@@ -414,7 +449,10 @@ def selftest() -> None:
         base.fail("v12 authority drifted")
     if S1_014 != "NOT_AUTHORIZED":
         base.fail("v12 S1-014 boundary drifted")
-    if TRUSTED_BASE_V11_CLASS != "EXPECTED_BOOTSTRAP_FAILURE" or OLD_BASE_S1_PASS != "NO":
+    if (
+        TRUSTED_BASE_V11_CLASS != "EXPECTED_BOOTSTRAP_FAILURE"
+        or OLD_BASE_S1_PASS != "NO"  # noqa: S105
+    ):
         base.fail("v12 bootstrap status semantics drifted")
 
     vb = root.read_bytes(V11, base.MAX_POLICY_FILE_BYTES)

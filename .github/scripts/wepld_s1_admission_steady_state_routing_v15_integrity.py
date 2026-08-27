@@ -11,7 +11,7 @@ The repair is fail-closed:
   ledger/review-evidence state;
 - candidate delta must be exactly s1-performance.yml;
 - the base performance workflow must be the exact pre-repair blob;
-- candidate bytes must equal the base workflow with exactly two path-filter
+- candidate bytes must equal to the base workflow with exactly two path-filter
   blocks replaced by the bounded dependency/input coverage block;
 - benchmark commands, jobs, permissions, timeouts, and all other workflow bytes
   remain unchanged;
@@ -291,9 +291,10 @@ def eext(candidate: Any, policy_base: Any) -> None:
 
 def allowed(paths: Any, stage: str) -> None:
     current = set(paths)
-    if current == set(REPAIR):
+    remaining = current - {P, PW}
+    if not remaining:
         return
-    _call("v14 allowed-path verification", V14_ALLOWED, current - {P, PW}, stage)
+    _call("v14 allowed-path verification", V14_ALLOWED, remaining, stage)
 
 
 def files(view: Any) -> None:

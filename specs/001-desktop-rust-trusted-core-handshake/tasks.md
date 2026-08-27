@@ -5,11 +5,11 @@ This is the execution-authoritative S1 task ledger. A checked box requires stabl
 ```text
 SLICE = S1
 S1_ORIGINAL_BASE_MAIN = 6eff72319cad99c878a80f0d5bce9f107d213679
-CANONICAL_EXECUTION_HEAD = 9ae784106f36c2234e3cdf6befdb03449a224c34
-LEDGER_RECONCILIATION_BASE = 9ae784106f36c2234e3cdf6befdb03449a224c34
+CANONICAL_EXECUTION_HEAD = 9a826e14fa2dd213f656b0ea2fec1ff737eb56dd
+LEDGER_RECONCILIATION_BASE = 9a826e14fa2dd213f656b0ea2fec1ff737eb56dd
 LIVE_MAIN = MUST_BE_READ_FROM_GITHUB
 ACTIVE_TASK = NONE
-NEXT_TASK = S1-016_NOT_STARTED
+NEXT_TASK = S2_NOT_STARTED_NOT_AUTHORIZED
 FOUNDER_STANDING_AUTHORIZATION = GRANTED
 SOURCE_ACQUISITION_CHECK = PASS
 RUNTIME_DEPENDENCY_ADMISSION = EXACT_S1_GRAPH
@@ -19,7 +19,10 @@ S1_013_CANONICAL_MEASUREMENT = PROVEN
 S1_013_EVIDENCE_RECONCILIATION = PROVEN
 S1_014_REVIEW_RECONCILIATION = PROVEN_BY_THIS_CANONICAL_LEDGER
 S1_015 = CLOSED_CANONICAL_PROVEN
-S1_016 = NOT_STARTED
+S1_016 = CLOSED_CANONICAL_PROVEN
+S1_ACCEPTED = YES
+S2 = NOT_STARTED
+S2_AUTHORITY = NOT_GRANTED
 ```
 
 ## Canonical reconciliation checkpoint — 2026-08-20
@@ -111,6 +114,30 @@ S1-016 = NOT_STARTED
 ```
 
 The Codex Security coverage limitation remains explicit and is not converted into PASS. S1-015 closeout also does not accept S1; S1-016 remains the separate acceptance and Build Learning task.
+
+## Canonical S1-016 acceptance and Build Learning reconciliation checkpoint — 2026-08-27
+
+This checkpoint accepts S1 only after the complete S1 evidence chain, bounded repair, canonical S1-015 closeout, and post-merge Foundation verification are reconciled. It records the accepted execution head and the Build Learning material promoted by this exact transition. It grants no S2 implementation or roadmap-mutation authority.
+
+```text
+S1-016 = CLOSED_CANONICAL_PROVEN
+S1_ACCEPTED = YES
+S1_ACCEPTANCE_EXECUTION_HEAD = 9a826e14fa2dd213f656b0ea2fec1ff737eb56dd
+S1_ACCEPTANCE_EXECUTION_TREE = c63bea084edd9cc1f3fcfe5f574518339f510426
+S1-015_CLOSEOUT_PR = #199
+S1-015_CLOSEOUT_MERGE = 9a826e14fa2dd213f656b0ea2fec1ff737eb56dd
+S1-015_CLOSEOUT_POST_MERGE_FOUNDATION = run 33083905553 / #744 / PASS
+S1_ACCEPTANCE_RECORD = specs/001-desktop-rust-trusted-core-handshake/acceptance.md
+S1_BUILD_LEARNING_LEDGER = docs/learning/BUILD_LEARNING_LEDGER.md
+S1_BUILD_LEARNING_QUALIFIED = BL-0004..BL-0009
+S1-014_CODEX_SECURITY_STATUS = NOT_RUN_NON_BLOCKING
+S1-014_SECURITY_PASS = NO
+S1-015_UNRESOLVED_MATERIAL_FINDINGS = 0
+S2 = NOT_STARTED
+S2_AUTHORITY = NOT_GRANTED
+```
+
+The accepted head does not erase explicit coverage limitations. Codex Security remains non-PASS, S3 containment is not claimed, and no later-slice authority is inferred from S1 acceptance.
 
 ## S1-001 — Establish planning baseline
 
@@ -383,26 +410,31 @@ Evidence: PR #197 repaired exactly `F1_PERFORMANCE_WORKFLOW_TRIGGER_COVERAGE` at
 
 ## S1-016 — Accept S1 and capture learning
 
-- [ ] Verify all S1 acceptance criteria on exact head.
-- [ ] Record standing-founder-authority S1 acceptance bound to that exact head.
-- [ ] Do not treat merge/deploy/reviewer output as completion authority.
-- [ ] Capture qualified positive mechanics and negative oracles in Build Learning.
-- [ ] Merge only after exact-head acceptance/evidence and repository merge rules are satisfied.
-- [ ] Do not begin S2 until S1 is accepted and merged or otherwise canonically closed.
+- [x] Verify all S1 acceptance criteria on exact head.
+- [x] Record standing-founder-authority S1 acceptance bound to that exact head.
+- [x] Do not treat merge/deploy/reviewer output as completion authority.
+- [x] Capture qualified positive mechanics and negative oracles in Build Learning.
+- [x] Merge only after exact-head acceptance/evidence and repository merge rules are satisfied.
+- [x] Do not begin S2 until S1 is accepted and merged or otherwise canonically closed.
+
+Evidence: `acceptance.md` binds S1 acceptance to canonical execution head `9a826e14fa2dd213f656b0ea2fec1ff737eb56dd` after post-merge Foundation #744; `docs/learning/BUILD_LEARNING_LEDGER.md` promotes BL-0004 through BL-0009 in the same exact transition. This transition becomes canonical only after v18 exact-head qualification, independent review, guarded merge, and post-merge verification. S2 remains not started and not authorized by S1 acceptance.
 
 ## Current gate
 
 ```text
-COMPLETED = S1-001 THROUGH S1-015
+COMPLETED = S1-001 THROUGH S1-016
 CURRENT = NONE
-CANONICAL_EXECUTION_HEAD = 9ae784106f36c2234e3cdf6befdb03449a224c34
+CANONICAL_EXECUTION_HEAD = 9a826e14fa2dd213f656b0ea2fec1ff737eb56dd
 S1_012_CANONICAL_ACTIVATION = PROVEN
 S1_013_CANONICAL_MEASUREMENT = PROVEN
 S1_013_EVIDENCE_RECONCILIATION = PROVEN
 S1_014_REVIEW_RECONCILIATION = PROVEN
 S1_015_REPAIR_CLOSEOUT = PROVEN
-NEXT = S1-016
-S1_016 = NOT_STARTED
+S1_016_ACCEPTANCE_CLOSEOUT = PROVEN
+S1_ACCEPTED = YES
+NEXT = S2
+S2 = NOT_STARTED
+S2_AUTHORITY = NOT_GRANTED
 SOURCE_ACQUISITION_CHECK = PASS
 RUNTIME_DEPENDENCY_ADMISSION = EXACT_S1_GRAPH
 IMPLEMENTATION = CANONICAL_THROUGH_S1_011

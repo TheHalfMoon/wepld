@@ -29,7 +29,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python .github/scripts/wepld_s1_admission_steady_state_routing_v19_integrity.py selftest
+          python .github/scripts/wepld_s1_admission_steady_state_routing_v20_integrity.py selftest
 
       - name: Verify pull-request candidate against exact trusted base (non-authoritative)
         if: github.event_name == 'pull_request'
@@ -47,7 +47,7 @@ jobs:
             git worktree remove --force "$POLICY_BASE_WORKTREE" >/dev/null 2>&1 || true
           }
           trap cleanup EXIT
-          python .github/scripts/wepld_s1_admission_steady_state_routing_v19_integrity.py verify-candidate-local \
+          python .github/scripts/wepld_s1_admission_steady_state_routing_v20_integrity.py verify-candidate-local \
             --root . \
             --policy-base-root "$POLICY_BASE_WORKTREE" \
             --policy-base-sha "$CANDIDATE_BASE_SHA"
@@ -74,7 +74,7 @@ jobs:
             echo 'canonical activation identities could not be established' >&2
             exit 1
           fi
-          python .github/scripts/wepld_s1_admission_steady_state_routing_v19_integrity.py verify-local \
+          python .github/scripts/wepld_s1_admission_steady_state_routing_v20_integrity.py verify-local \
             --root . \
             --remote-baseline \
             --pr-base-sha "$WEPLD_BASELINE_CHECK_SHA"

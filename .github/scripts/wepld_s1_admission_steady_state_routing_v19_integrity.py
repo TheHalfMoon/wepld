@@ -186,7 +186,7 @@ def basectrl(candidate: Any, policy_base: Any) -> None:
             if sha(cb) != WF[path] or sha(bb) != OLD_WF[path]:
                 base.fail(f"v19 bootstrap workflow drifted: {path}")
         elif cb != bb:
-            base.fail(f"base-controlled path changed: {path}")
+            base.fail(f"base-controlled policy/governance path changed: {path}")
 
 
 def ext(candidate: Any, policy_base: Any, safe: Any) -> None:

@@ -294,6 +294,29 @@ def install() -> None:
     overlay()
 
 
+class _OverlayView:
+    def __init__(self, view: Any, overrides: dict[str, bytes]) -> None:
+        self._view = view
+        self._overrides = dict(overrides)
+
+    def entries(self) -> Any:
+        return self._view.entries()
+
+    def read_bytes(self, path: str, max_bytes: int) -> bytes:
+        if path in self._overrides:
+            data = self._overrides[path]
+            if len(data) > max_bytes:
+                base.fail(f"v19 overlay fixture exceeds read bound: {path}")
+            return data
+        return self._view.read_bytes(path, max_bytes)
+
+    def tree_identity(self, path: str) -> str | None:
+        return self._view.tree_identity(path)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._view, name)
+
+
 def _policy_descendants(module: ModuleType) -> list[ModuleType]:
     stack = [module]
     seen: set[int] = set()
@@ -320,33 +343,116 @@ def _policy_descendants(module: ModuleType) -> list[ModuleType]:
     return result
 
 
-def corrected_v18_selftest() -> None:
+def _projected_v18_selftest(view: Any) -> None:
     patch_predecessor()
-    current = _call("v18 state classifier", getattr(v18, "state", None), root)
-    if current == "PRE_S1_016":
-        _call("v18 predecessor self-test", getattr(v18, "selftest", None))
-        return
-    if current != "ACCEPTED_S1":
-        base.fail(f"v19 observed unknown v18 state: {current}")
-
-    predecessor = _call(
-        "v18 accepted-ledger reversal",
-        getattr(v18, "reverse_tasks", None),
-        root.read_bytes(TASKS, base.MAX_POLICY_FILE_BYTES),
-    )
-    projection_cls = _attr(v18, "_TaskProjection", "v18 task projection class")
-    projection = projection_cls(root, predecessor)
-    modules = _policy_descendants(_attr(v18, "v17", "v18 v17 predecessor module"))
+    current = _call("v18 state classifier", getattr(v18, "state", None), view)
+    prior_v18_root = _attr(v18, "root", "v18 root")
+    _bind(v18, "root", view, "v18 self-test root projection")
+    modules: list[ModuleType] = []
     priors: list[tuple[ModuleType, Any]] = []
-    for module in modules:
-        prior = _attr(module, "root", f"{module.__name__} root")
-        priors.append((module, prior))
-        _bind(module, "root", projection, f"{module.__name__} accepted-state projection")
     try:
+        if current == "PRE_S1_016":
+            _call("v18 predecessor self-test", getattr(v18, "selftest", None))
+            return
+        if current != "ACCEPTED_S1":
+            base.fail(f"v19 observed unknown v18 state: {current}")
+
+        predecessor = _call(
+            "v18 accepted-ledger reversal",
+            getattr(v18, "reverse_tasks", None),
+            view.read_bytes(TASKS, base.MAX_POLICY_FILE_BYTES),
+        )
+        projection_cls = _attr(v18, "_TaskProjection", "v18 task projection class")
+        projection = projection_cls(view, predecessor)
+        modules = _policy_descendants(_attr(v18, "v17", "v18 v17 predecessor module"))
+        for module in modules:
+            prior = _attr(module, "root", f"{module.__name__} root")
+            priors.append((module, prior))
+            _bind(module, "root", projection, f"{module.__name__} accepted-state projection")
         _call("v18 predecessor self-test", getattr(v18, "selftest", None))
     finally:
         for module, prior in reversed(priors):
             _bind(module, "root", prior, f"{module.__name__} root restoration")
+        _bind(v18, "root", prior_v18_root, "v18 root restoration")
+
+
+def corrected_v18_selftest() -> None:
+    _projected_v18_selftest(root)
+
+
+def _accepted_state_projection_regression() -> None:
+    if _call("v18 state classifier", getattr(v18, "state", None), root) != "PRE_S1_016":
+        return
+
+    pre_tasks = root.read_bytes(TASKS, base.MAX_POLICY_FILE_BYTES)
+    accepted_tasks = _call("v18 accepted-ledger builder", getattr(v18, "expected_tasks", None), pre_tasks)
+    acceptance_path = _attr(v18, "ACCEPTANCE", "v18 acceptance path")
+    learning_path = _attr(v18, "LEARNING", "v18 learning path")
+    acceptance_fixture = b"v19 accepted-state acceptance fixture\n"
+    learning_fixture = b"v19 accepted-state learning fixture\n"
+    accepted_view = _OverlayView(
+        root,
+        {
+            TASKS: accepted_tasks,
+            acceptance_path: acceptance_fixture,
+            learning_path: learning_fixture,
+        },
+    )
+
+    prior_final_acceptance = _attr(v18, "FINAL_ACCEPTANCE_BLOB", "v18 final acceptance identity")
+    prior_final_learning = _attr(v18, "FINAL_LEARNING_BLOB", "v18 final learning identity")
+    prior_v18_selftest = _attr(v18, "selftest", "v18 selftest")
+    prior_v18_root = _attr(v18, "root", "v18 root")
+    descendants = _policy_descendants(_attr(v18, "v17", "v18 v17 predecessor module"))
+    descendant_priors = [(module, _attr(module, "root", f"{module.__name__} root")) for module in descendants]
+    if not descendants or not any(module.__name__.endswith("v14_integrity") for module in descendants):
+        base.fail("v19 accepted-state projection does not reach S1-014 predecessor module")
+
+    _bind(v18, "FINAL_ACCEPTANCE_BLOB", blob(acceptance_fixture), "v18 accepted fixture identity")
+    _bind(v18, "FINAL_LEARNING_BLOB", blob(learning_fixture), "v18 learning fixture identity")
+    try:
+        if _call("v18 state classifier", getattr(v18, "state", None), accepted_view) != "ACCEPTED_S1":
+            base.fail("v19 accepted-state fixture did not classify as ACCEPTED_S1")
+
+        _projected_v18_selftest(accepted_view)
+        for module, prior in descendant_priors:
+            if _attr(module, "root", f"{module.__name__} restored root") is not prior:
+                base.fail(f"v19 accepted-state success path did not restore {module.__name__}.root")
+        if _attr(v18, "root", "v18 restored root") is not prior_v18_root:
+            base.fail("v19 accepted-state success path did not restore v18.root")
+
+        def fail_probe() -> None:
+            if _attr(v18, "root", "v18 projected root") is not accepted_view:
+                base.fail("v19 failure probe did not observe accepted v18 root")
+            for module, _prior in descendant_priors:
+                observed = _attr(module, "root", f"{module.__name__} projected root").read_bytes(
+                    TASKS, base.MAX_POLICY_FILE_BYTES
+                )
+                if observed != pre_tasks:
+                    base.fail(f"v19 failure probe did not project predecessor tasks into {module.__name__}")
+            raise base.PolicyError("v19 accepted-state restoration sentinel")
+
+        _bind(v18, "selftest", fail_probe, "v18 failure-probe selftest")
+        try:
+            _projected_v18_selftest(accepted_view)
+        except base.PolicyError as exc:
+            if str(exc) != "v19 accepted-state restoration sentinel":
+                raise
+        else:
+            base.fail("v19 accepted-state failure probe unexpectedly succeeded")
+
+        for module, prior in descendant_priors:
+            if _attr(module, "root", f"{module.__name__} failure-restored root") is not prior:
+                base.fail(f"v19 accepted-state failure path did not restore {module.__name__}.root")
+        if _attr(v18, "root", "v18 failure-restored root") is not prior_v18_root:
+            base.fail("v19 accepted-state failure path did not restore v18.root")
+    finally:
+        _bind(v18, "selftest", prior_v18_selftest, "v18 selftest restoration")
+        _bind(v18, "FINAL_ACCEPTANCE_BLOB", prior_final_acceptance, "v18 final acceptance restoration")
+        _bind(v18, "FINAL_LEARNING_BLOB", prior_final_learning, "v18 final learning restoration")
+        _bind(v18, "root", prior_v18_root, "v18 final root restoration")
+        for module, prior in descendant_priors:
+            _bind(module, "root", prior, f"{module.__name__} final root restoration")
 
 
 def mem(values: dict[str, bytes]) -> Any:
@@ -355,6 +461,7 @@ def mem(values: dict[str, bytes]) -> Any:
 
 def selftest() -> None:
     corrected_v18_selftest()
+    _accepted_state_projection_regression()
     install()
     for path in (FW, AW):
         if sha(root.read_bytes(path, base.MAX_POLICY_FILE_BYTES)) != WF[path]:
@@ -380,12 +487,6 @@ def selftest() -> None:
         mem(mixed),
         mem(policy_base),
     )
-
-    descendants = _policy_descendants(_attr(v18, "v17", "v18 v17 predecessor module"))
-    if not descendants:
-        base.fail("v19 accepted-state predecessor root set is empty")
-    if not any(module.__name__.endswith("v14_integrity") for module in descendants):
-        base.fail("v19 accepted-state projection does not reach S1-014 predecessor module")
 
     print("wepld S1 steady-state routing v19 projection-repair self-tests: PASS")
 

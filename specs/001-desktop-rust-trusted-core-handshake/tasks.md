@@ -9,15 +9,16 @@ CANONICAL_EXECUTION_HEAD = 96fa229610f31598326493b75b40a3353b46bbbf
 LEDGER_RECONCILIATION_BASE = 96fa229610f31598326493b75b40a3353b46bbbf
 LIVE_MAIN = MUST_BE_READ_FROM_GITHUB
 ACTIVE_TASK = NONE
-NEXT_TASK = S1-014_NOT_STARTED
+NEXT_TASK = S1-015_NOT_STARTED
 FOUNDER_STANDING_AUTHORIZATION = GRANTED
 SOURCE_ACQUISITION_CHECK = PASS
 RUNTIME_DEPENDENCY_ADMISSION = EXACT_S1_GRAPH
 IMPLEMENTATION = CANONICAL_THROUGH_S1_011
 S1_012_CANONICAL_ACTIVATION = PROVEN
 S1_013_CANONICAL_MEASUREMENT = PROVEN
-S1_013_EVIDENCE_RECONCILIATION = PROVEN_BY_THIS_CANONICAL_LEDGER
-S1_014_PLUS = NOT_STARTED
+S1_013_EVIDENCE_RECONCILIATION = PROVEN
+S1_014_REVIEW_RECONCILIATION = PROVEN_BY_THIS_CANONICAL_LEDGER
+S1_015_PLUS = NOT_STARTED
 ```
 
 ## Canonical reconciliation checkpoint — 2026-08-20
@@ -62,6 +63,26 @@ S1-014_PLUS = NOT_STARTED
 ```
 
 The absence of an uploaded Actions artifact is retained as an evidence-retention limitation; the canonical GitHub workflow log/summary remains the source of measured values. The measured values do not justify lowering any existing S1 safety upper bound, so keeping the existing limits is the evidence-based S1-013 decision rather than an unproven tuning change.
+
+## Canonical S1-014 review reconciliation checkpoint — 2026-08-27
+
+This checkpoint reconciles the exact S1 review gate against the complete S1 range and the canonical acceptance candidate at `58ad0d166b6177ae69d04ff59da17aa8cc0e3c28`. Completion of S1-014 means the required review/accounting work was performed and normalized; it does **not** mean the review was clean, the unavailable Codex Security surface passed, or S1 is accepted. One valid material finding remains and is routed to S1-015.
+
+```text
+S1-014 = CLOSED_CANONICAL_PROVEN
+S1-014_ACCEPTANCE_CANDIDATE = 58ad0d166b6177ae69d04ff59da17aa8cc0e3c28
+S1-014_ORIGINAL_RANGE_BASE = 6eff72319cad99c878a80f0d5bce9f107d213679
+S1-014_REVIEW_ONLY_PR = #191 / CLOSED_UNMERGED
+S1-014_QODO_REVIEW_COMMENT = 5434723966 / DEEP / 2_BUGS / 2_RULE_VIOLATIONS
+S1-014_CODEX_SECURITY_STATUS = NOT_RUN_NON_BLOCKING
+S1-014_SECURITY_PASS = NO
+S1-014_VALID_MATERIAL_FINDINGS = 1
+S1-014_VALID_FINDING = F1_PERFORMANCE_WORKFLOW_TRIGGER_COVERAGE
+S1-014_EVIDENCE = specs/001-desktop-rust-trusted-core-handshake/s1-014-review-evidence.md
+S1-015 = NOT_STARTED
+```
+
+The review-only PR intentionally used the original S1 base solely to expose the complete 427-commit / 286-file range to hosted review and was closed without merge. Its synthetic-base Foundation failure is not acceptance evidence. The exact candidate remains the canonical `main` commit above, whose Foundation #723 passed. Findings were validated against that exact candidate: one performance-workflow trigger-coverage defect is material and requires bounded S1-015 repair; two machine-readable-report rule findings are non-material external policy rules with canonical rejection precedent; and the alleged missing-v13 admission script is a synthetic-review-base false positive contradicted by genuine trusted-base admission runs #561 and #562.
 
 ## S1-001 — Establish planning baseline
 
@@ -315,10 +336,12 @@ Evidence: PR #179 merged as `96fa229610f31598326493b75b40a3353b46bbbf`. Post-mer
 
 ## S1-014 — Security and independent correctness review
 
-- [ ] Run exact-range Codex Security diff scan when available and egress policy permits; otherwise record canonical non-PASS status/coverage limitation.
-- [ ] Obtain at least one independently qualified correctness/engineering review on exact S1 acceptance candidate.
-- [ ] Account every named reviewer surface actually used/unavailable without implying PASS.
-- [ ] Normalize findings; do not vote them away.
+- [x] Run exact-range Codex Security diff scan when available and egress policy permits; otherwise record canonical non-PASS status/coverage limitation.
+- [x] Obtain at least one independently qualified correctness/engineering review on exact S1 acceptance candidate.
+- [x] Account every named reviewer surface actually used/unavailable without implying PASS.
+- [x] Normalize findings; do not vote them away.
+
+Evidence: `s1-014-review-evidence.md` binds the complete S1 review range to acceptance candidate `58ad0d166b6177ae69d04ff59da17aa8cc0e3c28`, records `CODEX_SECURITY_STATUS=NOT_RUN_NON_BLOCKING` / `SECURITY_PASS=NO`, records Qodo Deep review comment `5434723966`, and normalizes all four reported findings. One finding is valid and material, so S1-015 is required.
 
 ## S1-015 — Finding reconciliation / bounded repair / rerun
 
@@ -340,14 +363,15 @@ Evidence: PR #179 merged as `96fa229610f31598326493b75b40a3353b46bbbf`. Post-mer
 ## Current gate
 
 ```text
-COMPLETED = S1-001 THROUGH S1-013
+COMPLETED = S1-001 THROUGH S1-014
 CURRENT = NONE
 CANONICAL_EXECUTION_HEAD = 96fa229610f31598326493b75b40a3353b46bbbf
 S1_012_CANONICAL_ACTIVATION = PROVEN
 S1_013_CANONICAL_MEASUREMENT = PROVEN
 S1_013_EVIDENCE_RECONCILIATION = PROVEN
-NEXT = S1-014
-S1_014_PLUS = NOT_STARTED
+S1_014_REVIEW_RECONCILIATION = PROVEN
+NEXT = S1-015
+S1_015_PLUS = NOT_STARTED
 SOURCE_ACQUISITION_CHECK = PASS
 RUNTIME_DEPENDENCY_ADMISSION = EXACT_S1_GRAPH
 IMPLEMENTATION = CANONICAL_THROUGH_S1_011

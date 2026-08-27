@@ -667,6 +667,7 @@ def _with_v14_close_tasks(tasks_blob: str, fn: Any) -> Any:
 
 
 def corrected_v16_selftest() -> None:
+    _bind(v16, "WF", dict(WF), "v16 workflow identity projection for predecessor self-test")
     tasks = root.read_bytes(TASKS, base.MAX_POLICY_FILE_BYTES)
     current_blob = blob(tasks)
     if current_blob == PRE_TASKS_BLOB:

@@ -501,6 +501,7 @@ def delta(candidate: Any, policy_base: Any) -> None:
             return
         if paths & BOOT:
             base.fail("v17 bootstrap delta must be exactly policy plus two workflows")
+        base.fail("v17 bootstrap base authorizes only exact policy/workflow activation")
     elif P in paths:
         base.fail("canonical v17 wrapper is frozen after activation")
 
@@ -707,6 +708,15 @@ def selftest() -> None:
         delta,
         mem(mixed),
         mem(policy_base),
+    )
+    premature_base = {TASKS: b"pre-closeout"}
+    premature_candidate = {TASKS: b"closed", S1_015_EVID: b"evidence"}
+    base.expect_failure_matching(
+        "v17 premature closeout before activation",
+        "bootstrap base authorizes only exact policy/workflow activation",
+        delta,
+        mem(premature_candidate),
+        mem(premature_base),
     )
 
     predecessor = root.read_bytes(TASKS, base.MAX_POLICY_FILE_BYTES)

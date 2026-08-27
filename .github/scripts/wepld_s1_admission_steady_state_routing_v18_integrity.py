@@ -107,6 +107,13 @@ def _bind(obj: Any, name: str, value: Any, label: str) -> None:
         base.fail(f"v18 {label} topology/layout drifted: {exc}")
 
 
+def _decode_utf8(data: bytes, label: str) -> str:
+    try:
+        return data.decode("utf-8", errors="strict")
+    except UnicodeDecodeError as exc:
+        base.fail(f"S1-016 {label} is not UTF-8: {exc}")
+
+
 root = base.LocalRepositoryView(Path(__file__).resolve().parents[2])
 if blob(root.read_bytes(V17, base.MAX_POLICY_FILE_BYTES)) != V17_BLOB:
     base.fail("frozen v17 predecessor drifted")
@@ -173,7 +180,7 @@ def _replace_once(text: str, old: str, new: str, label: str) -> str:
 def expected_tasks(predecessor: bytes) -> bytes:
     if blob(predecessor) != PRE_TASKS_BLOB:
         base.fail("S1-016 predecessor ledger identity drifted")
-    text = predecessor.decode("utf-8")
+    text = _decode_utf8(predecessor, "predecessor ledger")
     text = _replace_once(text, TOP_PRE, TOP_POST, "top checkpoint")
     text = _replace_once(text, CHECKPOINT_ANCHOR, CHECKPOINT_ANCHOR + S1_016_CHECKPOINT, "checkpoint")
     text = _replace_once(text, S1_016_PRE, S1_016_POST, "checklist")
@@ -182,7 +189,7 @@ def expected_tasks(predecessor: bytes) -> bytes:
 
 
 def reverse_tasks(accepted: bytes) -> bytes:
-    text = accepted.decode("utf-8")
+    text = _decode_utf8(accepted, "accepted ledger")
     text = _replace_once(text, TOP_POST, TOP_PRE, "reverse top checkpoint")
     text = _replace_once(text, CHECKPOINT_ANCHOR + S1_016_CHECKPOINT, CHECKPOINT_ANCHOR, "reverse checkpoint")
     text = _replace_once(text, S1_016_POST, S1_016_PRE, "reverse checklist")
@@ -422,6 +429,99 @@ def corrected_v17_selftest() -> None:
         _bind(v17, "root", prior_root, "v17 root restoration")
 
 
+def acceptance_path_selftest() -> None:
+    global FINAL_ACCEPTANCE_BLOB, FINAL_LEARNING_BLOB
+
+    vb = root.read_bytes(V17, base.MAX_POLICY_FILE_BYTES)
+    pre_tasks = root.read_bytes(TASKS, base.MAX_POLICY_FILE_BYTES)
+    pre_acceptance = root.read_bytes(ACCEPTANCE, base.MAX_POLICY_FILE_BYTES)
+    pre_learning = root.read_bytes(LEARNING, base.MAX_POLICY_FILE_BYTES)
+    evidence = root.read_bytes(S1_015_EVID, base.MAX_POLICY_FILE_BYTES)
+    if blob(pre_tasks) != PRE_TASKS_BLOB:
+        base.fail("v18 acceptance self-test requires exact canonical pre-S1-016 task ledger")
+    if blob(pre_acceptance) != PRE_ACCEPTANCE_BLOB or blob(pre_learning) != PRE_LEARNING_BLOB:
+        base.fail("v18 acceptance self-test requires exact canonical pre-S1-016 acceptance/learning bytes")
+    if blob(evidence) != S1_015_EVID_BLOB:
+        base.fail("v18 acceptance self-test S1-015 evidence drifted")
+
+    accepted_tasks = expected_tasks(pre_tasks)
+    fixture_acceptance = b"v18-selftest-accepted-acceptance\n"
+    fixture_learning = b"v18-selftest-accepted-build-learning\n"
+    old_acceptance_blob = FINAL_ACCEPTANCE_BLOB
+    old_learning_blob = FINAL_LEARNING_BLOB
+    FINAL_ACCEPTANCE_BLOB = blob(fixture_acceptance)
+    FINAL_LEARNING_BLOB = blob(fixture_learning)
+    try:
+        policy_values = {
+            P: b"v18-canonical",
+            V17: vb,
+            TASKS: pre_tasks,
+            ACCEPTANCE: pre_acceptance,
+            LEARNING: pre_learning,
+            S1_015_EVID: evidence,
+        }
+        accepted_values = dict(policy_values)
+        accepted_values.update(
+            {
+                TASKS: accepted_tasks,
+                ACCEPTANCE: fixture_acceptance,
+                LEARNING: fixture_learning,
+            }
+        )
+        policy_view = mem(policy_values)
+        accepted_view = mem(accepted_values)
+
+        if state(policy_view) != "PRE_S1_016" or state(accepted_view) != "ACCEPTED_S1":
+            base.fail("v18 acceptance self-test state classification drifted")
+        accept(accepted_view, policy_view)
+        delta(accepted_view, policy_view)
+        projected = _TaskProjection(accepted_view, reverse_tasks(accepted_tasks))
+        if projected.read_bytes(TASKS, base.MAX_POLICY_FILE_BYTES) != pre_tasks:
+            base.fail("v18 accepted-state task projection drifted")
+
+        partial = dict(policy_values)
+        partial[TASKS] = accepted_tasks
+        base.expect_failure_matching(
+            "v18 partial acceptance delta",
+            "delta must be exactly tasks plus acceptance plus Build Learning",
+            delta,
+            mem(partial),
+            policy_view,
+        )
+
+        mixed = dict(accepted_values)
+        mixed["README.md"] = b"unexpected"
+        base.expect_failure_matching(
+            "v18 mixed acceptance delta",
+            "delta must be exactly tasks plus acceptance plus Build Learning",
+            delta,
+            mem(mixed),
+            policy_view,
+        )
+
+        drifted = dict(accepted_values)
+        drifted[ACCEPTANCE] = fixture_acceptance + b"drift"
+        base.expect_failure_matching(
+            "v18 acceptance byte drift",
+            "acceptance bytes drifted",
+            accept,
+            mem(drifted),
+            policy_view,
+        )
+
+        malformed = dict(accepted_values)
+        malformed[TASKS] = b"\xff\xfe\xfd"
+        base.expect_failure_matching(
+            "v18 malformed accepted ledger",
+            "accepted ledger is not UTF-8",
+            state,
+            mem(malformed),
+        )
+    finally:
+        FINAL_ACCEPTANCE_BLOB = old_acceptance_blob
+        FINAL_LEARNING_BLOB = old_learning_blob
+
+
 def selftest() -> None:
     corrected_v17_selftest()
     install()
@@ -451,6 +551,7 @@ def selftest() -> None:
         predecessor = root.read_bytes(TASKS, base.MAX_POLICY_FILE_BYTES)
         if reverse_tasks(expected_tasks(predecessor)) != predecessor:
             base.fail("v18 task round-trip drifted")
+    acceptance_path_selftest()
     print("wepld S1 steady-state routing v18 policy self-tests: PASS")
 
 

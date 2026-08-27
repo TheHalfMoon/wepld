@@ -5,11 +5,11 @@ This is the execution-authoritative S1 task ledger. A checked box requires stabl
 ```text
 SLICE = S1
 S1_ORIGINAL_BASE_MAIN = 6eff72319cad99c878a80f0d5bce9f107d213679
-CANONICAL_EXECUTION_HEAD = 96fa229610f31598326493b75b40a3353b46bbbf
-LEDGER_RECONCILIATION_BASE = 96fa229610f31598326493b75b40a3353b46bbbf
+CANONICAL_EXECUTION_HEAD = 9ae784106f36c2234e3cdf6befdb03449a224c34
+LEDGER_RECONCILIATION_BASE = 9ae784106f36c2234e3cdf6befdb03449a224c34
 LIVE_MAIN = MUST_BE_READ_FROM_GITHUB
 ACTIVE_TASK = NONE
-NEXT_TASK = S1-015_NOT_STARTED
+NEXT_TASK = S1-016_NOT_STARTED
 FOUNDER_STANDING_AUTHORIZATION = GRANTED
 SOURCE_ACQUISITION_CHECK = PASS
 RUNTIME_DEPENDENCY_ADMISSION = EXACT_S1_GRAPH
@@ -18,7 +18,8 @@ S1_012_CANONICAL_ACTIVATION = PROVEN
 S1_013_CANONICAL_MEASUREMENT = PROVEN
 S1_013_EVIDENCE_RECONCILIATION = PROVEN
 S1_014_REVIEW_RECONCILIATION = PROVEN_BY_THIS_CANONICAL_LEDGER
-S1_015_PLUS = NOT_STARTED
+S1_015 = CLOSED_CANONICAL_PROVEN
+S1_016 = NOT_STARTED
 ```
 
 ## Canonical reconciliation checkpoint — 2026-08-20
@@ -83,6 +84,33 @@ S1-015 = NOT_STARTED
 ```
 
 The review-only PR intentionally used the original S1 base solely to expose the complete 427-commit / 286-file range to hosted review and was closed without merge. Its synthetic-base Foundation failure is not acceptance evidence. The exact candidate remains the canonical `main` commit above, whose Foundation #723 passed. Findings were validated against that exact candidate: one performance-workflow trigger-coverage defect is material and requires bounded S1-015 repair; two machine-readable-report rule findings are non-material external policy rules with canonical rejection precedent; and the alleged missing-v13 admission script is a synthetic-review-base false positive contradicted by genuine trusted-base admission runs #561 and #562.
+
+## Canonical S1-015 repair reconciliation checkpoint — 2026-08-27
+
+This checkpoint closes only the bounded repair/reconciliation task after the exact repair was qualified, reviewed, merged, and exercised by the canonical post-merge performance workflow.
+
+```text
+S1-015 = CLOSED_CANONICAL_PROVEN
+S1-015_FINDING = F1_PERFORMANCE_WORKFLOW_TRIGGER_COVERAGE
+S1-015_REPAIR_PR = #197
+S1-015_REPAIR_HEAD = 1229bdd9a411c70cce5494185c1f6c7814fa2085
+S1-015_REPAIR_MERGE = 9ae784106f36c2234e3cdf6befdb03449a224c34
+S1-015_REPAIRED_WORKFLOW_BLOB = 3ccd118aea80fd31866973371babc329913aafb8
+S1-015_EXACT_HEAD_FOUNDATION = run 33068200273 / #737 / PASS
+S1-015_EXACT_HEAD_ADMISSION = run 33069378037 / #576 / PASS
+S1-015_EXACT_HEAD_PERFORMANCE = run 33068200332 / #7 / PASS
+S1-015_QODO_REVIEW = comment 5438445407 / 0_BUGS / 0_RULE_VIOLATIONS / 0_REQUIREMENT_GAPS
+S1-015_POST_MERGE_FOUNDATION = run 33069506354 / #738 / PASS
+S1-015_POST_MERGE_PERFORMANCE = run 33069506387 / #8 / PASS
+S1-015_UNRESOLVED_MATERIAL_FINDINGS = 0
+S1-015_EVIDENCE = specs/001-desktop-rust-trusted-core-handshake/s1-015-repair-evidence.md
+S1-014_CODEX_SECURITY_STATUS = NOT_RUN_NON_BLOCKING
+S1-014_SECURITY_PASS = NO
+S1_ACCEPTED = NO
+S1-016 = NOT_STARTED
+```
+
+The Codex Security coverage limitation remains explicit and is not converted into PASS. S1-015 closeout also does not accept S1; S1-016 remains the separate acceptance and Build Learning task.
 
 ## S1-001 — Establish planning baseline
 
@@ -345,11 +373,13 @@ Evidence: `s1-014-review-evidence.md` binds the complete S1 review range to acce
 
 ## S1-015 — Finding reconciliation / bounded repair / rerun
 
-- [ ] Validate each finding against exact current code.
-- [ ] Repair only valid findings within bounded scope.
-- [ ] Rerun every affected deterministic/dependency/platform/security/review/benchmark gate on the resulting exact head.
-- [ ] Zero unresolved material findings.
-- [ ] Zero stale-evidence inheritance across changed heads.
+- [x] Validate each finding against exact current code.
+- [x] Repair only valid findings within bounded scope.
+- [x] Rerun every affected deterministic/dependency/platform/security/review/benchmark gate on the resulting exact head.
+- [x] Zero unresolved material findings.
+- [x] Zero stale-evidence inheritance across changed heads.
+
+Evidence: PR #197 repaired exactly `F1_PERFORMANCE_WORKFLOW_TRIGGER_COVERAGE` at head `1229bdd9a411c70cce5494185c1f6c7814fa2085` and merged as `9ae784106f36c2234e3cdf6befdb03449a224c34`. Exact-head Foundation #737, authoritative admission #576, performance #7, and Qodo review comment `5438445407` were clean for the repair; post-merge Foundation #738 and performance #8 passed on the canonical merge. Durable closeout evidence is `s1-015-repair-evidence.md`.
 
 ## S1-016 — Accept S1 and capture learning
 
@@ -363,15 +393,16 @@ Evidence: `s1-014-review-evidence.md` binds the complete S1 review range to acce
 ## Current gate
 
 ```text
-COMPLETED = S1-001 THROUGH S1-014
+COMPLETED = S1-001 THROUGH S1-015
 CURRENT = NONE
-CANONICAL_EXECUTION_HEAD = 96fa229610f31598326493b75b40a3353b46bbbf
+CANONICAL_EXECUTION_HEAD = 9ae784106f36c2234e3cdf6befdb03449a224c34
 S1_012_CANONICAL_ACTIVATION = PROVEN
 S1_013_CANONICAL_MEASUREMENT = PROVEN
 S1_013_EVIDENCE_RECONCILIATION = PROVEN
 S1_014_REVIEW_RECONCILIATION = PROVEN
-NEXT = S1-015
-S1_015_PLUS = NOT_STARTED
+S1_015_REPAIR_CLOSEOUT = PROVEN
+NEXT = S1-016
+S1_016 = NOT_STARTED
 SOURCE_ACQUISITION_CHECK = PASS
 RUNTIME_DEPENDENCY_ADMISSION = EXACT_S1_GRAPH
 IMPLEMENTATION = CANONICAL_THROUGH_S1_011

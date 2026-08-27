@@ -313,10 +313,10 @@ def mem(values: dict[str, bytes]) -> Any:
 
 
 def _corrected_v11_selftest() -> None:
-    """Run frozen predecessor tests before v11 installs closeout compatibility."""
+    """Project candidate workflows, then test predecessors before compat hooks."""
+    v11.patch_workflows()
     _call("v10 predecessor self-test", getattr(v11.v10, "selftest", None))
     v11.patch_compat()
-    v11.patch_workflows()
     _call("v11 install for corrected self-test", getattr(v11, "install", None))
 
     for path in (FW, AW):

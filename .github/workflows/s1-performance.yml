@@ -6,11 +6,25 @@ on:
     paths:
       - ".github/scripts/wepld_s1_performance_probe.py"
       - ".github/workflows/s1-performance.yml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - "crates/contracts/**"
+      - "crates/core/**"
+      - "apps/desktop/**"
+      - "third_party/glib-0.18.5-wepld1/**"
   push:
     branches: [main]
     paths:
       - ".github/scripts/wepld_s1_performance_probe.py"
       - ".github/workflows/s1-performance.yml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - "crates/contracts/**"
+      - "crates/core/**"
+      - "apps/desktop/**"
+      - "third_party/glib-0.18.5-wepld1/**"
 
 permissions: {}
 

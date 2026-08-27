@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
-"""Repair accepted-S1 inherited policy-root projection; grant no new product or S2 authority.
+"""Repair accepted-S1 fresh local-view projection; grant no new product or S2 authority.
 
-v20 is an append-only successor to canonical v19. It repairs only the
-accepted-state predecessor self-test projection discovered by the exact S1-016
-candidate: reachable WePLD policy modules outside the `wepld_s1_*` namespace
-can also own repository `root` views and must observe the exact pre-S1-016 task
-ledger while v19 validates the accepted transition.
+v20 is an append-only successor to canonical v19. The exact S1-016 candidate
+proved that v19 correctly projects already-imported S1 predecessor roots, but
+some inherited Harness policy self-tests construct a fresh LocalRepositoryView
+for the canonical checkout. That fresh view bypasses v19's root projection and
+observes the accepted task ledger instead of the exact pre-S1-016 ledger.
 
-The repair generalizes the bounded predecessor traversal from S1-only modules
-to reachable `wepld_*` policy modules with roots. It preserves v19's exact
-delegated S1-016 authority and keeps S2, roadmap, source, dependency, runtime,
-provider, model, and effect authority closed.
+This repair temporarily projects only `tasks.md` for fresh LocalRepositoryView
+instances whose root is the exact canonical checkout, and only while v19 runs
+accepted-state inherited self-tests. Other roots and all other paths remain
+unchanged. The original constructor is restored on success and failure.
+
+v19's exact delegated S1-016 authority is preserved. S2, roadmap, source,
+dependency, runtime, provider, model, and effect authority remain closed.
 """
 
 from __future__ import annotations
@@ -19,7 +22,6 @@ import argparse
 import hashlib
 import sys
 from pathlib import Path
-from types import ModuleType
 from typing import Any
 
 import wepld_integrity as base
@@ -30,6 +32,7 @@ V19_BLOB = "be0504049258234e910c17e10622d2012316d95e"
 FW = ".github/workflows/foundation-integrity.yml"
 AW = ".github/workflows/s1-admission-integrity.yml"
 CW = ".github/workflows/s1-contracts.yml"
+TASKS = "specs/001-desktop-rust-trusted-core-handshake/tasks.md"
 
 OLD_WF = {
     FW: "f1de24d95ce654e1cd6de5618d556d76dd7d07165945fce96ff7a0e3a0722085",
@@ -42,13 +45,12 @@ WF = {
 }
 
 BOOT = frozenset({P, FW, AW})
-AUTH = "S1_016_ACCEPTED_STATE_POLICY_GRAPH_PROJECTION_REPAIR_ONLY"
+AUTH = "S1_016_ACCEPTED_STATE_FRESH_LOCAL_VIEW_PROJECTION_REPAIR_ONLY"
 S1_016 = "EXACT_V19_DELEGATED_TRANSITION_ONLY"
 S2 = "NOT_AUTHORIZED"
 ROADMAP = "NOT_AUTHORIZED"
 TRUSTED_BASE_V19_CLASS = "EXPECTED_BOOTSTRAP_FAILURE"
 OLD_BASE_S1_PASS = "NO"  # noqa: S105
-MAX_POLICY_MODULES = 128
 
 _INST = False
 _PRINT: Any = None
@@ -99,6 +101,8 @@ def _bind(obj: Any, name: str, value: Any, label: str) -> None:
 
 
 root = base.LocalRepositoryView(Path(__file__).resolve().parents[2])
+REPOSITORY_ROOT = root.root
+BASE_LOCAL_REPOSITORY_VIEW = base.LocalRepositoryView
 if blob(root.read_bytes(V19, base.MAX_POLICY_FILE_BYTES)) != V19_BLOB:
     base.fail("frozen v19 predecessor drifted")
 
@@ -113,7 +117,7 @@ V19_EEXT = v19.eext
 V19_EXT = v19.ext
 V19_PRINT = v19.printer
 V19_WF = dict(v19.WF)
-V19_POLICY_DESCENDANTS = v19._policy_descendants
+V19_PROJECTED_SELFTEST = v19._projected_v18_selftest
 CAND = v19.CAND
 RUNTIME = v19.RUNTIME
 
@@ -160,55 +164,53 @@ def bootbase(view: Any) -> bool:
     return P not in ps(view)
 
 
-def _policy_modules(module: ModuleType) -> list[ModuleType]:
-    stack = [module]
-    seen: set[int] = set()
-    result: list[ModuleType] = []
-    while stack:
-        current = stack.pop()
-        identity = id(current)
-        if identity in seen:
-            continue
-        seen.add(identity)
-        if len(seen) > MAX_POLICY_MODULES:
-            base.fail("v20 predecessor policy-module traversal exceeded bound")
-        for value in vars(current).values():
-            if not isinstance(value, ModuleType):
-                continue
-            name = getattr(value, "__name__", "")
-            if not name.startswith("wepld_"):
-                continue
-            if value is v19:
-                continue
-            stack.append(value)
-        if current is not module and current is not v19 and hasattr(current, "root"):
-            result.append(current)
-    result.sort(key=lambda item: getattr(item, "__name__", ""))
-    return result
-
-
-def _policy_graph_regression() -> None:
+def _projected_v19_predecessor_selftest(view: Any) -> None:
     v18 = _attr(v19, "v18", "v19 v18 predecessor module")
-    start = _attr(v18, "v17", "v18 v17 predecessor module")
-    modules = _policy_modules(start)
-    names = {getattr(module, "__name__", "") for module in modules}
-    if not any(name.endswith("v14_integrity") for name in names):
-        base.fail("v20 policy projection does not reach S1-014 predecessor module")
-    if "wepld_harness_h0_spec_integrity" not in names:
-        base.fail("v20 policy projection does not reach Harness H0 Spec Kit module")
-    if "wepld_harness_research_integrity" not in names:
-        base.fail("v20 policy projection does not reach Harness research module")
+    current = _call("v18 state classifier", getattr(v18, "state", None), view)
+    if current == "PRE_S1_016":
+        _call("v19 predecessor projection", V19_PROJECTED_SELFTEST, view)
+        return
+    if current != "ACCEPTED_S1":
+        base.fail(f"v20 observed unknown v18 state: {current}")
+
+    predecessor = _call(
+        "v18 accepted-ledger reversal",
+        getattr(v18, "reverse_tasks", None),
+        view.read_bytes(TASKS, base.MAX_POLICY_FILE_BYTES),
+    )
+    prior_local_view = base.LocalRepositoryView
+    if prior_local_view is not BASE_LOCAL_REPOSITORY_VIEW:
+        base.fail("v20 LocalRepositoryView constructor drifted before accepted-state projection")
+
+    class _AcceptedStateLocalRepositoryView(BASE_LOCAL_REPOSITORY_VIEW):
+        def read_bytes(self, relative: str, limit: int) -> bytes:
+            if self.root == REPOSITORY_ROOT and relative == TASKS:
+                if len(predecessor) > limit:
+                    base.fail("v20 projected S1 task ledger exceeds local-view read bound")
+                return predecessor
+            return super().read_bytes(relative, limit)
+
+    base.LocalRepositoryView = _AcceptedStateLocalRepositoryView
+    try:
+        _call("v19 predecessor projection", V19_PROJECTED_SELFTEST, view)
+    finally:
+        base.LocalRepositoryView = prior_local_view
 
 
 def patch_predecessor() -> None:
     current_wf = dict(v19.WF)
     if current_wf not in (V19_WF, dict(WF)):
         base.fail(f"v20 predecessor workflow identity map drifted: actual={current_wf}")
-    current_traversal = _attr(v19, "_policy_descendants", "v19 policy traversal")
-    if current_traversal not in (V19_POLICY_DESCENDANTS, _policy_modules):
-        base.fail("v20 predecessor policy traversal drifted")
+    current_projection = _attr(v19, "_projected_v18_selftest", "v19 projected selftest")
+    if current_projection not in (V19_PROJECTED_SELFTEST, _projected_v19_predecessor_selftest):
+        base.fail("v20 predecessor projected-selftest hook drifted")
     _bind(v19, "WF", dict(WF), "v19 workflow identity projection")
-    _bind(v19, "_policy_descendants", _policy_modules, "v19 policy-graph traversal repair")
+    _bind(
+        v19,
+        "_projected_v18_selftest",
+        _projected_v19_predecessor_selftest,
+        "v19 fresh-local-view projection repair",
+    )
 
 
 def delta(candidate: Any, policy_base: Any) -> None:
@@ -282,7 +284,7 @@ def printer(stage: str, mode_: str) -> None:
     if _PRINT is not V19_PRINT:
         base.fail("v20 predecessor printer drifted")
     _call("v19 success printer", _PRINT, stage, mode_)
-    print("s1_admission_steady_state_route_v20=V19_PLUS_POLICY_GRAPH_ROOT_PROJECTION_REPAIR")
+    print("s1_admission_steady_state_route_v20=V19_PLUS_FRESH_LOCAL_VIEW_PROJECTION_REPAIR")
     print(f"s1_admission_authority_expansion_v20={AUTH}")
     print(f"s1_016_authority_v20={S1_016}")
     print(f"s2_authority_v20={S2}")
@@ -308,8 +310,10 @@ def overlay() -> None:
         base.fail("v20 installed overlay drifted")
     if dict(v19.WF) != dict(WF):
         base.fail("v20 workflow identity projection drifted")
-    if _attr(v19, "_policy_descendants", "v19 repaired traversal") is not _policy_modules:
-        base.fail("v20 policy-graph traversal repair drifted")
+    if _attr(v19, "_projected_v18_selftest", "v19 repaired projected selftest") is not _projected_v19_predecessor_selftest:
+        base.fail("v20 fresh-local-view projection repair drifted")
+    if base.LocalRepositoryView is not BASE_LOCAL_REPOSITORY_VIEW:
+        base.fail("v20 LocalRepositoryView constructor leaked outside projection scope")
 
 
 def install() -> None:
@@ -347,19 +351,86 @@ def install() -> None:
     overlay()
 
 
+def _fresh_local_view_projection_regression() -> None:
+    v18 = _attr(v19, "v18", "v19 v18 predecessor module")
+    if _call("v18 state classifier", getattr(v18, "state", None), root) != "PRE_S1_016":
+        return
+
+    pre_tasks = root.read_bytes(TASKS, base.MAX_POLICY_FILE_BYTES)
+    accepted_tasks = _call("v18 accepted-ledger builder", getattr(v18, "expected_tasks", None), pre_tasks)
+    acceptance_path = _attr(v18, "ACCEPTANCE", "v18 acceptance path")
+    learning_path = _attr(v18, "LEARNING", "v18 learning path")
+    acceptance_fixture = b"v20 accepted-state acceptance fixture\n"
+    learning_fixture = b"v20 accepted-state learning fixture\n"
+    overlay_cls = _attr(v19, "_OverlayView", "v19 overlay view")
+    accepted_view = overlay_cls(
+        root,
+        {
+            TASKS: accepted_tasks,
+            acceptance_path: acceptance_fixture,
+            learning_path: learning_fixture,
+        },
+    )
+
+    prior_final_acceptance = _attr(v18, "FINAL_ACCEPTANCE_BLOB", "v18 final acceptance identity")
+    prior_final_learning = _attr(v18, "FINAL_LEARNING_BLOB", "v18 final learning identity")
+    prior_v18_selftest = _attr(v18, "selftest", "v18 selftest")
+    prior_local_view = base.LocalRepositoryView
+
+    _bind(v18, "FINAL_ACCEPTANCE_BLOB", blob(acceptance_fixture), "v18 accepted fixture identity")
+    _bind(v18, "FINAL_LEARNING_BLOB", blob(learning_fixture), "v18 learning fixture identity")
+    try:
+        if _call("v18 state classifier", getattr(v18, "state", None), accepted_view) != "ACCEPTED_S1":
+            base.fail("v20 accepted-state fixture did not classify as ACCEPTED_S1")
+
+        def success_probe() -> None:
+            fresh = base.LocalRepositoryView(REPOSITORY_ROOT)
+            observed = fresh.read_bytes(TASKS, base.MAX_POLICY_FILE_BYTES)
+            if observed != pre_tasks:
+                base.fail("v20 fresh local repository view did not project predecessor tasks")
+
+        _bind(v18, "selftest", success_probe, "v18 fresh-view success probe")
+        _projected_v19_predecessor_selftest(accepted_view)
+        if base.LocalRepositoryView is not prior_local_view:
+            base.fail("v20 success path did not restore LocalRepositoryView constructor")
+
+        def fail_probe() -> None:
+            fresh = base.LocalRepositoryView(REPOSITORY_ROOT)
+            observed = fresh.read_bytes(TASKS, base.MAX_POLICY_FILE_BYTES)
+            if observed != pre_tasks:
+                base.fail("v20 failure probe did not project predecessor tasks")
+            raise base.PolicyError("v20 fresh-local-view restoration sentinel")
+
+        _bind(v18, "selftest", fail_probe, "v18 fresh-view failure probe")
+        try:
+            _projected_v19_predecessor_selftest(accepted_view)
+        except base.PolicyError as exc:
+            if str(exc) != "v20 fresh-local-view restoration sentinel":
+                raise
+        else:
+            base.fail("v20 fresh-local-view failure probe unexpectedly succeeded")
+        if base.LocalRepositoryView is not prior_local_view:
+            base.fail("v20 failure path did not restore LocalRepositoryView constructor")
+    finally:
+        _bind(v18, "selftest", prior_v18_selftest, "v18 selftest restoration")
+        _bind(v18, "FINAL_ACCEPTANCE_BLOB", prior_final_acceptance, "v18 final acceptance restoration")
+        _bind(v18, "FINAL_LEARNING_BLOB", prior_final_learning, "v18 final learning restoration")
+        base.LocalRepositoryView = prior_local_view
+
+
 def mem(values: dict[str, bytes]) -> Any:
     return base.MemoryView(values, trees={path: blob(data) for path, data in values.items()})
 
 
 def selftest() -> None:
     patch_predecessor()
-    _policy_graph_regression()
+    _fresh_local_view_projection_regression()
     _call("v19 predecessor self-test", getattr(v19, "selftest", None))
     install()
     for path in (FW, AW):
         if sha(root.read_bytes(path, base.MAX_POLICY_FILE_BYTES)) != WF[path]:
             base.fail(f"v20 workflow drifted: {path}")
-    if AUTH != "S1_016_ACCEPTED_STATE_POLICY_GRAPH_PROJECTION_REPAIR_ONLY":
+    if AUTH != "S1_016_ACCEPTED_STATE_FRESH_LOCAL_VIEW_PROJECTION_REPAIR_ONLY":
         base.fail("v20 repair authority drifted")
     if (
         S1_016 != "EXACT_V19_DELEGATED_TRANSITION_ONLY"
@@ -385,7 +456,7 @@ def selftest() -> None:
         mem(policy_base),
     )
 
-    print("wepld S1 steady-state routing v20 policy-graph projection-repair self-tests: PASS")
+    print("wepld S1 steady-state routing v20 fresh-local-view projection-repair self-tests: PASS")
 
 
 def main(argv: list[str]) -> int:

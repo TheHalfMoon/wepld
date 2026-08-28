@@ -17,6 +17,7 @@ exact v24 Core tranche. All other frozen S1 state paths remain byte-identical.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import sys
 from pathlib import Path
 from typing import Any
@@ -26,6 +27,8 @@ import wepld_integrity as base
 P = ".github/scripts/wepld_s2_core_observation_bootstrap_v24_integrity.py"
 T = ".github/scripts/wepld_s2_core_observation_v24_selftest.py"
 H = ".github/scripts/wepld_s2_core_observation_v24_support.py"
+T_BLOB = "b3ff641cd2c5f41d5f0f9b3dbf7a379c745ad2fc"
+H_BLOB = "d0c40a968da60e9be26cbfefd3305da45cd432a5"
 V23 = ".github/scripts/wepld_s2_contracts_freeze_repair_v23_integrity.py"
 V23_BLOB = "5e5ff96b7887cb48bcbd4105676d02a9b41b28a8"
 FW = ".github/workflows/foundation-integrity.yml"
@@ -75,6 +78,17 @@ SOURCE_ADMISSION = "NONE"
 DEPENDENCY_ADMISSION = "NONE"
 S3_PLUS_AUTHORITY = "NONE"
 
+
+def _git_blob(data: bytes) -> str:
+    return hashlib.sha1(f"blob {len(data)}\0".encode("ascii") + data).hexdigest()  # noqa: S324
+
+
+root = base.LocalRepositoryView(Path(__file__).resolve().parents[2])
+for _path, _expected in ((V23, V23_BLOB), (T, T_BLOB), (H, H_BLOB)):
+    _actual = _git_blob(root.read_bytes(_path, base.MAX_POLICY_FILE_BYTES))
+    if _actual != _expected:
+        base.fail(f"frozen v24 package input drifted: {_path}: expected={_expected} actual={_actual}")
+
 from wepld_s2_core_observation_v24_support import (  # noqa: E402
     attr as _attr,
     bind as _bind,
@@ -93,10 +107,6 @@ _PRINT: Any = None
 _EXPECTED_DESKTOP_EXTENSIONS: frozenset[str] | None = None
 _EXPECTED_EXECUTION_EXTENSIONS: frozenset[str] | None = None
 
-
-root = base.LocalRepositoryView(Path(__file__).resolve().parents[2])
-if blob(root.read_bytes(V23, base.MAX_POLICY_FILE_BYTES)) != V23_BLOB:
-    base.fail("frozen v23 predecessor drifted")
 
 import wepld_s2_contracts_freeze_repair_v23_integrity as v23  # noqa: E402
 

@@ -2,7 +2,10 @@
 
 use std::path::{Path, PathBuf};
 
-use wepld_contracts::{MachinePath, Observation, ObservationErrorClass, UnixMillis};
+use wepld_contracts::{
+    MachinePath, Observation, ObservationErrorClass, ProjectContractVersion, ProjectLocator,
+    UnixMillis,
+};
 use wepld_core::{
     DataRootInputs, DataRootSource, MAX_PATH_COMPONENT_OBSERVATIONS, PathEntryKind,
     ProjectObservationError, ProjectRootBasis, classify_path_io_error, lexical_absolute_path,
@@ -163,6 +166,27 @@ fn non_git_directory_root_uses_revalidated_resolved_path() {
         }
         Observation::Unavailable { error } => panic!("unexpected root unavailability: {error:?}"),
     }
+}
+
+#[test]
+fn non_git_directory_root_rejects_locator_path_mismatch_before_fallback() {
+    let base = manifest_dir();
+    let locator = ProjectLocator {
+        schema_version: ProjectContractVersion::V1,
+        input_path: machine_path_from_path(Path::new("different")).unwrap(),
+        lexical_absolute_path: machine_path_from_path(&base.join("different")).unwrap(),
+        resolved_path: Observation::Unavailable {
+            error: ObservationErrorClass::PermissionDenied,
+        },
+        observation_time: UnixMillis::new(12),
+    };
+
+    assert_eq!(
+        observe_non_git_project_root(&locator, &base).unwrap(),
+        Observation::Unavailable {
+            error: ObservationErrorClass::RaceDetected
+        }
+    );
 }
 
 #[cfg(target_os = "linux")]

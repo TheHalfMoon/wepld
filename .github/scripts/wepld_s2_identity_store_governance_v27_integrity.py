@@ -99,6 +99,11 @@ def delta(candidate: Any, policy_base: Any) -> None:
     if paths & ALL_POLICY_FILES:
         base.fail("canonical v27/v26/v25 policy files are frozen after activation")
 
+    if paths == q.DEPENDENCY_FILES:
+        expected = q.expected_admitted_register(q._read_register(policy_base))
+        if q._read_register(candidate) != expected:
+            base.fail("v26 dependency candidate must use exact S2 dependency-register append")
+
     Q_DELTA(candidate, policy_base)
 
 

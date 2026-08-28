@@ -296,11 +296,11 @@ impl MachinePath {
             }
             Self::WindowsWtf16(value) => {
                 for unit in value {
-                    if let Some(character) = char::from_u32(u32::from(*unit)) {
-                        if !character.is_control() {
-                            output.push(character);
-                            continue;
-                        }
+                    if let Some(character) = char::from_u32(u32::from(*unit))
+                        && !character.is_control()
+                    {
+                        output.push(character);
+                        continue;
                     }
                     use std::fmt::Write as _;
                     write!(&mut output, "\\u{unit:04x}").expect("writing to String cannot fail");

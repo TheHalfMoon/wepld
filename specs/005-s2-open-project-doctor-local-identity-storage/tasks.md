@@ -7,7 +7,8 @@ SLICE = S2
 NAME = Open Project + Project Doctor + local identity/storage
 PLANNING_BASE = 46b1fc423f3fc5175d79acaf0f134747bf0d90f0
 INITIAL_REVIEWED_HEAD = 4a9b3566c74818c6b53a4ac4026b3a4937678d2e
-PLANNING_STATE = REPAIRED_CANDIDATE_PENDING_FRESH_EXACT_HEAD_QUALIFICATION
+SECOND_REVIEWED_HEAD = 63270002470a32d8ffef34be9c75e0befc30e7a9
+PLANNING_STATE = SECOND_REPAIR_CANDIDATE_PENDING_FRESH_EXACT_HEAD_QUALIFICATION
 S2_IMPLEMENTATION_AUTHORITY = NOT_GRANTED
 ACTIVE_IMPLEMENTATION_TASK = NONE
 NEXT_IMPLEMENTATION_TASK = S2-AUTH-001_NOT_AUTHORIZED_UNTIL_PLANNING_CANONICAL
@@ -28,25 +29,29 @@ NEXT_IMPLEMENTATION_TASK = S2-AUTH-001_NOT_AUTHORIZED_UNTIL_PLANNING_CANONICAL
 - [x] **S2-P011** Complete Source Acquisition Check for planning/no-import boundary.
 - [x] **S2-P012** Complete threat model.
 - [x] **S2-P013** Complete acceptance contract.
-- [x] **S2-P014A** Obtain initial exact-head Foundation qualification on `4a9b356...` (historical after tracked repair).
-- [x] **S2-P015A** Record initial exact-head external-review egress preflight for `4a9b356...` (historical after tracked repair).
-- [x] **S2-P016A** Obtain qualified independent CodeRabbit review on `4a9b356...`; review produced material findings.
+- [x] **S2-P014A** Superseded/pre-repair Foundation qualification evidence on `4a9b356...`; it does not qualify any later repaired head.
+- [x] **S2-P015A** Superseded/pre-repair external-review egress preflight evidence on `4a9b356...`; it does not authorize review of any later repaired head.
+- [x] **S2-P016A** Obtain qualified independent CodeRabbit review on `4a9b356...`; review produced nine material findings.
 - [x] **S2-P017A** Normalize/reconcile the nine CodeRabbit planning findings in the planning contracts/tasks.
-- [ ] **S2-P014** Obtain fresh exact-head deterministic Foundation qualification on the repaired head.
-- [ ] **S2-P015** Record fresh external-review egress preflight for the repaired exact head.
-- [ ] **S2-P016** Obtain at least one qualified independent exact-head rereview of the repaired head.
-- [ ] **S2-P017** Reconcile every valid material finding from the fresh rereview.
+- [x] **S2-P014B** Superseded Foundation/trusted-admission qualification completed on `632700...` before the second tracked repair; stale after the current head changes.
+- [x] **S2-P015B** Superseded external-review egress preflight completed for `632700...`; stale after the current head changes.
+- [x] **S2-P016B** Qualified independent CodeRabbit rereview completed on `632700...`; it produced five material findings and therefore did not satisfy planning acceptance.
+- [x] **S2-P017B** Reconcile the five CodeRabbit findings from `632700...` in the current planning candidate.
+- [ ] **S2-P014** Obtain fresh exact-head deterministic Foundation/trusted-admission qualification on the current repaired head.
+- [ ] **S2-P015** Record fresh canonical-policy external-review egress preflight for the current repaired exact head.
+- [ ] **S2-P016** Obtain at least one qualified independent exact-head rereview of the current repaired head.
+- [ ] **S2-P017** Reconcile every valid material finding from that fresh rereview.
 - [ ] **S2-P018** Rerun qualification/review after any further tracked repair.
 - [ ] **S2-P019** Final race check and move planning PR Ready only with exact-head evidence.
 - [ ] **S2-P019A** Reread Ready-triggered trusted-base admission and require genuine PASS on the same exact head.
-- [ ] **S2-P020** Guarded merge with expected-head protection.
+- [ ] **S2-P020** Guarded merge with current founder/canonical authorization evidence plus expected-head protection.
 - [ ] **S2-P021** Prove post-merge canonical planning activation/Foundation on exact `main`.
 
-Historical checks/reviews on a superseded head are evidence of the review process, not acceptance evidence for the repaired head. Tracked checkboxes are coordination only; live GitHub exact-head/post-merge evidence is authority for qualification claims.
+Historical checks/reviews on a superseded head are evidence of the review process, not acceptance evidence for the current repaired head. Tracked checkboxes are coordination only; live GitHub exact-head/post-merge evidence is authority for qualification claims.
 
-## Initial independent-review finding reconciliation
+## Independent-review finding reconciliation
 
-The CodeRabbit review of `4a9b356...` created nine actionable threads. The repaired planning candidate incorporates these exact contract changes:
+The CodeRabbit review of `4a9b356...` created nine actionable threads. The first repaired candidate incorporated these contract changes:
 
 - [x] **S2-R001** Record exact live PR base SHA + trusted canonical main SHA and require equality before acceptance.
 - [x] **S2-R002** Define qualified independent-review evidence and `REVIEW_BLOCKED`; reviewer unavailability is not PASS.
@@ -57,7 +62,15 @@ The CodeRabbit review of `4a9b356...` created nine actionable threads. The repai
 - [x] **S2-R007** Replace open-ended descriptor discovery with an exact root allowlist and explicit candidate/per-file/aggregate/depth limits.
 - [x] **S2-R008** Bind Source Acquisition registry observations to trusted-base OID + source-check input head + exact registry blob SHA; require live GitHub verification for acceptance.
 - [x] **S2-R009** Extend privacy to Doctor TTY/JSON/log/diagnostic output using WePLD-owned templates and allowlisted safe parameters.
-- [ ] **S2-R010** Fresh independent rereview confirms the repaired head resolves the findings with no remaining material contradiction.
+
+The fresh CodeRabbit rereview of `632700...` created five additional material findings. The current candidate incorporates these repairs:
+
+- [x] **S2-R010** Make external-review egress fail closed against the exact canonical `EXTERNAL_REVIEW_EGRESS_POLICY.md`: classification, screening, provider handling, approval, and exact scope are required; unavailable controls become `EGRESS_BLOCKED`.
+- [x] **S2-R011** Require current founder/canonical authorization evidence for each GitHub mutation in the acceptance flow, and separately bind merge to the exact authorized head plus `expected_head_sha`.
+- [x] **S2-R012** Include required negative secret-safety task `S2-C009` in the first contracts-only authority tranche and its self-tests.
+- [x] **S2-R013** Label `4a9b356...` Foundation/egress evidence explicitly superseded/pre-repair rather than implying it qualifies a repaired head.
+- [x] **S2-R014** Define the evidence-store authenticity boundary: unkeyed schema/version/digest/manifest/reference checks detect corruption/coherence only and do not defend against writer-level tampering.
+- [ ] **S2-R015** Fresh independent rereview confirms the current repaired head resolves both review waves with no remaining material contradiction.
 
 ## Next authority transition — not yet authorized
 
@@ -67,11 +80,11 @@ The successor strategy is now staged so the plan in the repository is directly e
 
 - [ ] **S2-AUTH-001** Re-read canonical S2 planning from live `main` after S2-P021.
 - [ ] **S2-AUTH-002** Design the minimum append-only contracts-only successor using S1 staged-authority precedent.
-- [ ] **S2-AUTH-003** Freeze exact `crates/contracts` S2 contract/export/test path allowlist for S2-C001..S2-C008.
+- [ ] **S2-AUTH-003** Freeze exact `crates/contracts` S2 contract/export/test path allowlist for S2-C001..S2-C009.
 - [ ] **S2-AUTH-004** Keep Core filesystem/process/network/model/S3/S4 effects structurally unavailable in S2-AUTH-C.
 - [ ] **S2-AUTH-005** Preserve `SOURCE_ADMISSION=NONE`.
 - [ ] **S2-AUTH-006** Preserve `DEPENDENCY_ADMISSION=NONE` unless a separately qualified dependency is genuinely required by the contracts tranche.
-- [ ] **S2-AUTH-007** Self-test positive exact contracts candidate and negative mixed/extra-path/dependency/effect candidates.
+- [ ] **S2-AUTH-007** Self-test a positive exact S2-C001..S2-C009 contracts candidate, including the C009 secret-safe negative contract surface, plus negative mixed/extra-path/dependency/effect candidates.
 - [ ] **S2-AUTH-008** Exact-head deterministic/review/security accounting.
 - [ ] **S2-AUTH-009** Guarded merge + post-merge activation proof before S2 contract implementation.
 
@@ -134,6 +147,7 @@ No S2 implementation task below becomes eligible until the canonical successor f
 - [ ] **S2-E014** Add failure injection at every catalog reservation, generation-file, manifest, and `CURRENT` commit boundary.
 - [ ] **S2-E015** Prove process-crash lock release on claimed platforms/filesystem classes; lock-file existence alone never blocks ownership recovery.
 - [ ] **S2-E016** Add platform durability evidence; do not overclaim unsupported directory-entry/power-loss semantics.
+- [ ] **S2-E017** Preserve the explicit S2 authenticity limitation: structurally valid unkeyed generations are not authenticated against an actor with writer access to the complete store; any future authenticated trust anchor requires separate planning/authority.
 
 ## Project Doctor tasks
 
@@ -182,6 +196,7 @@ No S2 implementation task below becomes eligible until the canonical successor f
 - [ ] **S2-S012** Descriptor amplification tests for count/per-file/aggregate/depth limits.
 - [ ] **S2-S013** Repository mutation negative oracle: open/doctor/status leave project tree unchanged.
 - [ ] **S2-S014** Network negative oracle: S2 command path has no required network effect.
+- [ ] **S2-S015** Writer-level tampering fixture proves an internally self-consistent forged unkeyed store cannot be labeled cryptographically authenticated/tamper-evident; the implementation reports the documented authenticity limitation rather than a false PASS.
 
 ## Platform / performance tasks
 
@@ -203,7 +218,7 @@ No S2 implementation task below becomes eligible until the canonical successor f
 - [ ] **S2-A004** Reconcile all findings; no voting away valid defects.
 - [ ] **S2-A005** Final race check and Ready-triggered trusted admission.
 - [ ] **S2-A006** Guarded S2 acceptance decision with exact-head evidence.
-- [ ] **S2-A007** Merge only under canonical authority with expected-head protection.
+- [ ] **S2-A007** Merge only under current canonical/founder authorization with expected-head protection.
 - [ ] **S2-A008** Post-merge canonical verification.
 - [ ] **S2-A009** Build Learning capture including donor/reviewer positive and negative mechanisms.
 

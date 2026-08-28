@@ -5,7 +5,10 @@
 ```text
 CHECK_DATE = 2026-08-28
 CHECK_SCOPE = S2_PLANNING_ONLY
-SOURCE_ACQUISITION_CHECK = COMPLETE_FOR_PLANNING
+TRUSTED_BASE_OID = 46b1fc423f3fc5175d79acaf0f134747bf0d90f0
+SOURCE_CHECK_INPUT_HEAD_OID = 4a9b3566c74818c6b53a4ac4026b3a4937678d2e
+SOURCE_REGISTRY_INDEX_GIT_BLOB_SHA1 = 4a2fe363e0e66f7183e0221743258fcf558a3733
+SOURCE_ACQUISITION_CHECK = COMPLETE_FOR_PLANNING_INPUT
 SOURCE_IMPORT = NONE
 SOURCE_ADMISSION = NONE
 NEW_DEPENDENCY_ADMISSION = NONE
@@ -13,22 +16,25 @@ EXTERNAL_BINARY_EXECUTION_AUTHORITY = NONE
 DONOR_EXECUTION_DURING_PLANNING = NONE
 ```
 
+`SOURCE_CHECK_INPUT_HEAD_OID` identifies the exact planning candidate whose assumptions were used for this acquisition pass. It is **not** a self-declared current acceptance head. Any tracked planning repair creates a new PR head; live GitHub base/head/check state must then be re-read and all head-bound qualification/review evidence refreshed before canonical planning acceptance.
+
 This check identifies behavior oracles and native/admitted machinery. It does not import donor code or grant implementation authority.
 
-## 1. Canonical registry
+## 1. Canonical registry — revision-bound
 
-Read first:
-
-- `docs/acquisition/SOURCE_REGISTRY_INDEX.md`
-
-Registry state at the trusted base remains:
+Registry input:
 
 ```text
+PATH = docs/acquisition/SOURCE_REGISTRY_INDEX.md
+TRUSTED_BASE_OID = 46b1fc423f3fc5175d79acaf0f134747bf0d90f0
+GIT_BLOB_SHA1 = 4a2fe363e0e66f7183e0221743258fcf558a3733
 CURRENT_ACCOUNTED_NAMED_ENTRIES = 402
 BROAD_DISCOVERY = CLOSED
 SOURCE_ADMISSION = NONE
 PATH_LEVEL_MINING = CAPABILITY_TRIGGERED
 ```
+
+The registry bytes above were read from the trusted base rather than inferred from candidate text. Canonical acceptance additionally requires live PR/check-state verification under `acceptance.md`; this file does not turn registry observations into completion authority.
 
 S2 uses capability-triggered source research only.
 
@@ -51,7 +57,11 @@ Relevant qualified behavior:
 - `canonicalize` resolves symbolic links and on Windows can return extended-length path syntax;
 - filesystem operations are subject to TOCTOU;
 - Rust 1.97.1 includes file locking/try-lock primitives;
-- `rename` has platform-dependent replacement behavior and cannot cross mount points.
+- blocking file locks can wait indefinitely, so S2 planning selects bounded non-blocking `try_lock` polling rather than unbounded `lock` for command operations;
+- OS file locks are a writer-coordination primitive, not a security boundary;
+- lock-file existence alone is not ownership proof;
+- `rename` has platform-dependent replacement/durability behavior and cannot cross mount points;
+- file close errors can require explicit synchronization handling; directory-entry/power-loss semantics must not be overclaimed cross-platform.
 
 Role:
 
@@ -62,7 +72,7 @@ SOURCE_IMPORT = NONE
 
 ### Existing WePLD serialization
 
-Trusted base manifests:
+Trusted-base manifests:
 
 ```text
 wepld-contracts
@@ -95,7 +105,9 @@ Relevant behavior:
 - `rev-parse` exposes worktree top-level, Git directory, Git common directory, bare/worktree state, and superproject context;
 - linked worktrees carry distinct worktree metadata while sharing repository data;
 - `git worktree list --porcelain -z` is intended for stable script parsing;
-- `safe.directory` is protected configuration intended to prevent an untrusted repository from declaring itself trusted.
+- `safe.directory` is protected configuration intended to prevent an untrusted repository from declaring itself trusted;
+- `--no-optional-locks` disables optional locking side effects;
+- runtime `GIT_CONFIG_*` and repository-redirection `GIT_*` variables can alter behavior and therefore must be scrubbed by any future adapter.
 
 Acquisition decision:
 
@@ -104,76 +116,29 @@ GIT_SOURCE_IMPORT = NONE
 GIT_BINARY_BUNDLING = NONE
 GIT_EXECUTION_AUTHORITY = NOT_GRANTED
 GIT_ROLE = BEHAVIOR_ORACLE + NARROW_SYSTEM_TOOL_ADAPTER_CANDIDATE
+FIRST_S2_SUCCESSOR_GIT_AUTHORITY = NONE
 ```
 
-If implementation selects the Git adapter, qualify the installed executable, exact commands, environment, output bounds, timeout, parser, trust-refusal behavior, and no-network/no-hook guarantees before authority is granted.
+If implementation later selects the Git adapter, qualify the installed executable, exact commands, environment, output bounds, timeout, parser, trust-refusal behavior, no-network/no-hook guarantees, and project-tree/index non-mutation before authority is granted.
 
-## 4. Cargo
+## 4. Cargo / npm / pnpm / uv / mise / just / Gradle / Maven / Go / Nx
 
-Official references:
+These ecosystems are behavior oracles for workspace/toolchain descriptors only in baseline S2. Their commands are not executed.
 
-- `https://doc.rust-lang.org/cargo/reference/workspaces.html`
-- `https://doc.rust-lang.org/cargo/commands/cargo-metadata.html`
-
-Useful behavior patterns:
-
-- workspaces separate root/member concepts;
-- `cargo metadata` provides versioned machine-readable workspace/package information.
+The planning package now freezes a closed root-level descriptor/marker list in `clarify.md` and `plan.md`, plus explicit candidate-count, per-file, aggregate-byte, and nesting-depth ceilings.
 
 Decision:
 
 ```text
-ROLE = WORKSPACE_BEHAVIOR_ORACLE
-CARGO_EXECUTION_IN_S2 = NOT_ADMITTED_BY_PLANNING
+ROLE = DESCRIPTOR_AND_WORKSPACE_BEHAVIOR_ORACLE
+EXECUTION = NOT_ADMITTED
+RECURSIVE_DISCOVERY = NOT_ADMITTED_IN_BASELINE_S2
 SOURCE_IMPORT = NONE
 ```
 
-S2 may detect Cargo descriptors without running Cargo. Later execution/metadata use requires exact authority.
+Presence-only lock/package-manager markers are not parsed merely to identify ambiguity.
 
-## 5. npm / pnpm / uv
-
-Official references:
-
-- `https://docs.npmjs.com/cli/using-npm/workspaces/`
-- `https://pnpm.io/workspaces`
-- `https://docs.astral.sh/uv/concepts/projects/workspaces/`
-
-Useful behavior:
-
-- workspace root/member semantics;
-- explicit lock/workspace descriptors;
-- ecosystem-native commands remain visible rather than hidden behind WePLD.
-
-Decision:
-
-```text
-ROLE = WORKSPACE_AND_TOOLCHAIN_BEHAVIOR_ORACLE
-EXECUTION = NOT_ADMITTED_IN_S2_PLANNING
-SOURCE_IMPORT = NONE
-```
-
-## 6. mise / just
-
-Official references:
-
-- `https://mise.jdx.dev/tasks/`
-- `https://just.systems/man/en/`
-
-Useful behavior:
-
-- discoverable task definitions;
-- source/output freshness concepts;
-- excellent command-runner UX and errors.
-
-Decision:
-
-```text
-ROLE = DOCTOR/FUTURE_COMMAND_PLANE_BEHAVIOR_ORACLE
-TASK_EXECUTION = LATER_SLICE
-SOURCE_IMPORT = NONE
-```
-
-## 7. GitHub CLI
+## 5. GitHub CLI
 
 Official reference:
 
@@ -193,79 +158,142 @@ SOURCE_IMPORT = NONE
 
 S2 adopts the pattern, not GitHub CLI code.
 
-## 8. Dagger / Nx
+## 6. Dagger / Nx graph behavior
 
-References:
-
-- `https://docs.dagger.io/`
-- `https://nx.dev/ci/features/affected`
-
-Useful later behavior:
-
-- local/CI workflow parity;
-- affected/task graph computation.
+Useful later behavior includes local/CI workflow parity and affected/task graph computation.
 
 Decision:
 
 ```text
-ROLE = FUTURE_S3/S4_ORACLE
-S2_IMPLEMENTATION_USE = REJECT_PULL_FORWARD
+ROLE = FUTURE_S3_S4_ORACLE
+S2_GRAPH_OR_TASK_EXECUTION_USE = REJECT_PULL_FORWARD
 SOURCE_IMPORT = NONE
 ```
 
-Nx graph behavior belongs with S4 semantic/project graph work, not S2.
+## 7. OpenAI/Codex-style process safety architecture
 
-## 9. OpenAI Codex safety architecture
-
-Current official product guidance is useful as a later process-boundary oracle for sandbox/approval/network policy, but S2 does not execute agents or general commands.
+Current process/sandbox/approval/network patterns are useful as later process-boundary oracles. S2 does not execute agents or general commands.
 
 Decision:
 
 ```text
-ROLE = FUTURE_PROCESS/AUTHORITY_ORACLE
+ROLE = FUTURE_PROCESS_AUTHORITY_ORACLE
 S2_RUNTIME_USE = NONE
 ```
 
-## 10. Database candidates
+## 8. Database candidates
 
 SQLite/embedded KV stores were considered as solved machinery for durability/querying.
 
-Decision:
+Initial decision remains:
 
 ```text
-STATUS = REJECT_INITIAL / TOO_EARLY
-RATIONALE = S2 only requires a small identity/evidence foundation; a DB expands dependency, migration, native/supply-chain, and recovery surfaces before need is proven.
+STATUS = REJECT_INITIAL_TOO_EARLY
+RATIONALE = S2 needs identity/evidence durability, not a general query engine
 ```
 
-Reopen only if deterministic implementation evidence shows the file-backed design cannot satisfy required cross-platform durability/concurrency semantics.
+The CodeRabbit planning review exposed two real requirements that a naïve multi-file store had not solved: serialized first-open identity creation and a whole-project commit boundary. The minimum repair is **not** automatic database adoption. The plan now requires:
 
-## 11. Directory helper candidates
+```text
+STORE_WIDE_IDENTITY_RESERVATION = YES
+IMMUTABLE_PROJECT_GENERATIONS = YES
+ATOMIC_CURRENT_GENERATION_POINTER = YES
+DATABASE = STILL_NOT_REQUIRED_BY_PLANNING
+```
 
-`dirs`/`directories`-class crates were considered for platform data roots.
+Reopen database/dependency acquisition only if deterministic cross-platform implementation evidence shows this bounded file-backed design cannot satisfy the required correctness/recovery contract.
 
-Decision:
+## 9. Directory helper candidates
+
+`dirs`/`directories`-class crates remain deferred. Platform data-root semantics are recorded separately in research issue #214; exact implementation machinery is qualified only when Core authority exists.
 
 ```text
 STATUS = DEFER
-RATIONALE = first qualify the small platform path contract against standard/platform APIs; admit a helper only if concrete complexity/coverage evidence justifies it.
-```
-
-## 12. Hash/ID candidates
-
-A digest and opaque local ID may require implementation machinery not yet frozen.
-
-Decision:
-
-```text
-STATUS = TASK_SPECIFIC_ACQUISITION_REQUIRED_BEFORE_USE
 SILENT_DEPENDENCY_ADMISSION = PROHIBITED
 ```
 
-The requirement is retained; the package is not selected prematurely.
+## 10. Hash / opaque-ID candidates — focused research completed, admission still none
+
+Planning research issue #212 inspected the canonical Rust graph and upstream behavior.
+
+Observed canonical lock candidates:
+
+```text
+uuid = 1.24.1
+sha2 = 0.10.9
+```
+
+Provisional behavior choices:
+
+```text
+PROJECT_ID_CONTRACT = WEPLD_OWNED_OPAQUE_ID
+CORE_GENERATION_CANDIDATE = UUID_V4
+EVIDENCE_DIGEST_ALGORITHM_CANDIDATE = SHA_256
+```
+
+Important boundary:
+
+```text
+TRANSITIVE_PRESENCE != DIRECT_DEPENDENCY_ADMISSION
+CONTRACTS_TRANCHE_DIRECT_UUID_EDGE = NONE
+CONTRACTS_TRANCHE_DIRECT_SHA2_EDGE = NONE
+CORE_DIRECT_EDGE = REQUIRES_SEPARATE_EXACT_ADMISSION_IF_USED
+```
+
+Never fall back to timestamp/PID/path hashing for opaque IDs if qualified randomness is unavailable.
+
+## 11. Donor capability research — issues #211–#214
+
+Non-authoritative research was durably recorded in GitHub without mutating the reviewed planning head:
+
+```text
+#211 memory/agent/search/evaluation donor capability map
+#212 opaque ID and SHA-256 existing-graph research
+#213 bounded read-only Git topology adapter research
+#214 local data-root, lossless path, locking, and durability research
+```
+
+Representative donor dispositions:
+
+- Mem0: history/lineage concept donor for future memory, not S2 evidence runtime;
+- LangGraph: durable checkpoint/reconstruction concept donor for later mission state;
+- Braintrust AgentBehavior: high-value evaluation/governance concept donor;
+- Hermes: resilient state/migration/quarantine concept donor, rebuild contracts in Rust rather than porting trusted core;
+- DeepSeek Harness: capability/plugin/event concept donor only; its own safety notice prevents treating it as a trust boundary;
+- Qdrant: Project Brain/S4+ vector/search donor, not S2;
+- Firecrawl: later acquisition adapter/oracle, not Rust trusted core; licensing/security isolation must be reviewed;
+- LlamaIndex/LangChain: later retrieval/interoperability surfaces;
+- AutoResearch: experiment-loop behavior oracle; source import blocked unless licensing is resolved.
+
+Current S2 impact:
+
+```text
+MATERIAL_S2_RUNTIME_DEPENDENCY_DISCOVERED = NO
+SOURCE_IMPORT_REQUIRED = NO
+AGENT_FRAMEWORK_REQUIRED = NO
+VECTOR_DATABASE_REQUIRED = NO
+WEB_CRAWLER_REQUIRED = NO
+MODEL_PROVIDER_REQUIRED = NO
+```
+
+## 12. Secret-safe Doctor output
+
+The independent review identified that storage-only redaction is insufficient. No external package is required to fix this planning gap.
+
+Selected minimum:
+
+```text
+FINDING_PROSE = WEPLD_OWNED_TEMPLATES
+PARAMETERS = CLOSED_ALLOWLIST_SAFE_VALUES
+RAW_ENV_CONFIG_REMOTE_COMMAND_OUTPUT_INTERPOLATION = PROHIBITED
+TTY_JSON_REDACTION_POLICY = SHARED
+```
+
+This is contract/design work using admitted string/serialization machinery. A dedicated secret-scanner/redaction dependency is not admitted by planning.
 
 ## 13. License / provenance posture
 
-No donor code is copied in this planning package. Behavior-oracle documentation is cited by public URL. Therefore:
+No donor code is copied in this planning package. Behavior-oracle documentation is cited by public URL or recorded research issue. Therefore:
 
 ```text
 THIRD_PARTY_SOURCE_COPIED = NO
@@ -276,12 +304,31 @@ SBOM_CHANGE = NONE
 
 Any later source import requires exact revision, license/NOTICE obligations, source review, tests/failure-mode review, security/maintenance/exit strategy, and canonical source admission.
 
-## 14. Final acquisition decision
+## 14. Live verification boundary
+
+Before this source check contributes to canonical planning acceptance, the acceptance workflow must re-read from GitHub:
+
+```text
+LIVE_CANONICAL_MAIN_SHA
+LIVE_PR_BASE_SHA
+LIVE_PR_HEAD_SHA
+LIVE_11_FILE_DIFF
+LIVE_FOUNDATION_STATE
+LIVE_TRUSTED_BASE_ADMISSION_STATE
+LIVE_REVIEW_THREADS_AND_REVIEW_STATE
+```
+
+The values must satisfy `acceptance.md`. This document cannot embed its own future commit SHA and must never pretend that a historical source-check input head is the live repaired acceptance head.
+
+## 15. Final acquisition decision
 
 ```text
 USE_EXISTING_ADMITTED_CONTRACT_SERIALIZATION = YES_PREFERRED
-USE_RUST_STDLIB_FILESYSTEM_LOCKING = YES_PREFERRED_SUBJECT_TO_TESTS
-NARROW_GIT_ADAPTER = CANDIDATE_REQUIRES_SEPARATE_EFFECT_AUTHORITY
+USE_RUST_STDLIB_FILESYSTEM_LOCKING = YES_PREFERRED_WITH_BOUNDED_TRY_LOCK_AND_PLATFORM_TESTS
+FILE_BACKED_GENERATION_STORE = MINIMUM_PREFERRED
+STORE_WIDE_CATALOG_RESERVATION = REQUIRED_BY_CORRECTNESS
+NARROW_GIT_ADAPTER = LATER_CANDIDATE_REQUIRES_SEPARATE_EFFECT_AUTHORITY
+FIRST_IMPLEMENTATION_SUCCESSOR = CONTRACTS_ONLY_PREFERRED
 NEW_DATABASE = NO
 NEW_ASYNC_RUNTIME = NO
 NEW_AGENT_FRAMEWORK = NO
@@ -291,4 +338,4 @@ NEW_SOURCE_IMPORT = NO
 NEW_DEPENDENCY_ADMISSION = NO
 ```
 
-Source Acquisition is complete for the planning/no-import boundary. Before any S2 implementation authority is granted, unresolved task-specific machinery (Git execution, digest, opaque ID generation, data root, durability claims) must be reconciled explicitly; this planning result never auto-admits them.
+Source Acquisition is complete for the planning/no-import boundary. Before any S2 implementation authority is granted, unresolved task-specific machinery and current dependency/security state must be revalidated explicitly; this planning result never auto-admits them.

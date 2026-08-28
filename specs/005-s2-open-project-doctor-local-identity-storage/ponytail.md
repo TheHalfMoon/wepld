@@ -4,7 +4,7 @@
 
 ```text
 PONYTAIL_MODE = FULL
-PONYTAIL_STATUS = COMPLETE_FOR_PLANNING_CANDIDATE
+PONYTAIL_STATUS = COMPLETE_FOR_REPAIRED_PLANNING_CANDIDATE_PENDING_FRESH_EXACT_HEAD_REVIEW
 NEW_DEPENDENCY_REQUIRED_BY_PLAN = NO
 SOURCE_IMPORT_REQUIRED_BY_PLAN = NO
 DATABASE_REQUIRED_BY_PLAN = NO
@@ -14,69 +14,98 @@ WHOLE_REPOSITORY_GRAPH_REQUIRED = NO
 IMPLEMENTATION_AUTHORITY = NOT_GRANTED
 ```
 
-Ponytail asks whether each proposed mechanism needs to exist now, already exists in admitted/native machinery, can be smaller, or belongs to a later slice.
+Ponytail asks whether each proposed mechanism needs to exist now, already exists in admitted/native machinery, can be smaller, or belongs to a later slice. The independent planning review invalidated a few mechanisms as **too small to be correct**; the repair adds only the minimum machinery needed to close those concrete races/crash/privacy/bounds gaps.
 
 ## 1. Project identity
 
-### Candidate: canonical path as identity
+### Canonical path as identity
 
 **Reject.** Too weak and unstable across moves, symlinks, mounts, worktrees, Windows path forms, and copies.
 
-### Candidate: remote URL as identity
+### Remote URL as identity
 
 **Reject.** Mutable, optional, duplicate, secret-bearing, and not local authority.
 
-### Candidate: current Git HEAD as identity
+### Current Git HEAD as identity
 
 **Reject.** Normal development changes it; different clones/worktrees can share it.
 
-### Candidate: custom global repository fingerprint with broad tree hashing
+### Broad tree fingerprint
 
-**Reject for S2.** Expensive, whole-repository traversal, false certainty, and overlaps later Fehrest/content machinery.
+**Reject for S2.** Whole-repository traversal, false certainty, and overlap with later Fehrest/content machinery.
 
 ### Selected minimum
 
 WePLD local project identity + layered locator/repository topology evidence + conservative reassociation.
 
-## 2. Git topology machinery
+## 2. First-open concurrency — per-project lock alone
 
-### Candidate: hand-reimplement Git repository/worktree semantics
+### Candidate: choose ID, then lock `<project-id>/lock`
 
-**Reject as default.** Git worktrees, gitfiles, alternates/common-dir, submodules, and protected trust behavior are mature and subtle.
+**Reject after independent review.** This cannot serialize first-open identity selection because competing processes can choose different project IDs before either project-specific lock exists.
 
-### Candidate: arbitrary Git invocation
+### Candidate: global database/transaction engine
 
-**Reject.** Process effects and broad command surface are unnecessary.
-
-### Selected candidate
-
-A narrowly allowlisted official Git read-only topology adapter **only if** separately authorized; otherwise a smaller filesystem-only subset with explicit unavailable facts.
-
-## 3. Local storage
-
-### Candidate: SQLite immediately
-
-**Reject initial.** S2 needs a small identity/evidence foundation, not a query engine. A database introduces dependency/native-binary/migration/recovery surface before evidence proves need.
-
-### Candidate: embedded KV database
-
-**Reject initial.** Same overbuild problem.
-
-### Candidate: repository-local `.wepld` database
-
-**Reject initial.** Mutates user projects, creates ignore/commit/privacy ambiguity, and entangles project ownership with local WePLD state.
+**Reject initial.** Solves more than S2 needs and adds dependency/schema/query/recovery surface.
 
 ### Selected minimum
 
-Versioned file-backed per-user local store using admitted serialization contracts and qualified Rust standard-library filesystem/locking primitives. Reopen dependency admission only if cross-platform durability/concurrency evidence disproves sufficiency.
+A small versioned **store-wide catalog reservation** under one OS catalog lock:
 
-## 4. Serialization
+- revalidate matching facts while locked;
+- reuse existing/reserved binding;
+- otherwise commit one opaque project ID with `reserved` state;
+- complete first project generation and transition to `initialized`;
+- retry after crash reuses/revalidates the reservation;
+- fixed lock order catalog → project.
 
-### Candidate: new serialization framework
+This is necessary coordination, not a global authority database.
 
-**Reject.** `wepld-contracts` already has admitted `serde=1.0.229` and `serde_json=1.0.151`.
+## 3. Project-store atomicity — mutable current files
 
-### Candidate: duplicate handwritten JSON parser
+### Candidate: independently replace `identity.json`, `index.json`, and evidence files
+
+**Reject after independent review.** A crash or concurrent reader can observe a valid-looking mixture of generations.
+
+### Candidate: SQLite/KV immediately
+
+**Reject initial.** Still overbuild unless platform evidence proves the corrected file protocol insufficient.
+
+### Selected minimum
+
+Immutable project generations + manifest + one small atomic `CURRENT` selector:
+
+- build/validate a complete new generation off to the side;
+- commit only by replacing `CURRENT`;
+- readers select one immutable generation once;
+- orphan/incomplete generations are never current;
+- cleanup is not automatic authority.
+
+This is the smallest explicit whole-state commit boundary that preserves the file-backed design.
+
+## 4. Git topology machinery
+
+### Hand-reimplement broad Git semantics
+
+**Reject as default.** Worktrees, gitfiles, common-dir, submodules, and protected trust are subtle.
+
+### Arbitrary Git invocation
+
+**Reject.** Broad process authority is unnecessary.
+
+### Selected candidate
+
+A narrowly allowlisted official Git read-only topology adapter only if separately authorized later; otherwise a smaller filesystem-only subset with explicit unavailable facts.
+
+The preferred first S2 successor grants **no Git process authority**.
+
+## 5. Serialization
+
+### New serialization framework
+
+**Reject.** `wepld-contracts` already has admitted serde/serde_json.
+
+### Duplicate handwritten JSON parser
 
 **Reject.** Unnecessary security/compatibility surface.
 
@@ -84,167 +113,256 @@ Versioned file-backed per-user local store using admitted serialization contract
 
 WePLD-owned versioned contracts and bounded serialization helpers in the existing admitted contract crate.
 
-## 5. File locking
+## 6. File locking
 
-Rust 1.97.1 standard library already includes file lock/try-lock primitives. Prefer them if deterministic cross-platform tests support the claim. Do not add a locking crate without evidence of a concrete missing requirement.
+Rust 1.97.1 standard library already provides file lock/try-lock primitives.
 
-## 6. Hashing/content identity
+### Candidate: blocking `File::lock`
 
-### Candidate: add a new hashing crate now
+**Reject for ordinary S2 command acquisition.** It may wait indefinitely and convert another process into an unbounded availability failure.
 
-**Defer.** First inspect whether an already-admitted digest implementation exists in the trusted graph or whether the implementation-authority slice needs a minimal standard/system strategy. The planning model requires an algorithm-labelled digest but does not self-admit a package.
+### Candidate: PID/stale-lock file protocol
 
-If cryptographic content addressing becomes mandatory and no admitted implementation exists, run a focused source/dependency acquisition gate rather than weakening the requirement.
-
-## 7. Data-directory helper crate
-
-### Candidate: add `dirs`/`directories` immediately
-
-**Reject initial assumption.** Platform data-directory rules are small enough to evaluate against standard/platform APIs first. If the qualified implementation becomes error-prone or incomplete, dependency acquisition can be reopened with concrete evidence.
-
-## 8. Async runtime
-
-**Reject.** Baseline S2 operations are bounded local request/response operations. No Tokio/general async runtime is needed merely to open a project, inspect descriptors, or update a small local store.
-
-## 9. Watcher/file monitoring
-
-**Reject for S2 minimum.** Freshness can be represented/invalidation-aware without continuous watchers. File watching can be added only when a later slice proves it is necessary for user-visible latency/accuracy.
-
-## 10. Semantic parser/code graph
-
-**Reject for S2.** Canonical roadmap places semantic Project Graph in S4.
-
-## 11. Search/vector database/embeddings
-
-**Reject.** No S2 requirement needs them.
-
-## 12. LLM/model explanation
-
-**Reject.** Doctor findings are deterministic and evidence-linked. A later model may explain facts but cannot invent them.
-
-## 13. Agent framework/MCP/ACP/A2A
-
-**Reject for S2.** Agent Host interoperability belongs later. S2 contracts should be machine-readable but do not need an agent protocol stack.
-
-## 14. Terminal/process fabric
-
-**Reject except the narrowly qualified Git adapter seam.** S3 owns general trusted process execution. The Git seam, if granted, must remain special-purpose and incapable of becoming a hidden general runner.
-
-## 15. Project task runner abstraction
-
-**Reject for S2.** WePLD should eventually orchestrate Cargo/npm/pnpm/uv/mise/just/Taskfile/Make/Gradle/Maven/Go/Nx, but S2 only detects descriptive indicators. Running tasks comes later.
-
-## 16. Workspace parser depth
-
-### Candidate: fully parse every ecosystem
-
-**Reject.** Minimum Doctor discovery only.
+**Reject.** File existence/PID text is not reliable ownership and creates takeover races.
 
 ### Selected minimum
 
-Bounded descriptors and unambiguous metadata needed to identify workspace/tool candidates. Exact deeper parsers are capability-triggered later.
+Qualified OS lock handles with non-blocking `try_lock` polling, cancellation, and frozen planning defaults:
 
-## 17. Whole-repository traversal
+```text
+deadline = 2000 ms
+poll = 25 ms
+catalog busy = identity_catalog_busy
+project busy = store_busy
+```
 
-**Reject.** `open` and baseline Doctor must stay bounded and fast. S4 performs semantic graph work later.
+Tune only through later evidence-backed contract change; never silently fall back to indefinite waiting.
 
-## 18. Automatic remediation
+## 7. Hashing/content identity
+
+### Add a new hashing crate now
+
+**Reject for contracts tranche.** Planning research #212 found `sha2 0.10.9` already in the canonical lock graph, but transitive presence is not direct dependency admission.
+
+### Selected planning choice
+
+Algorithm-labelled SHA-256 evidence contract. If Core later needs direct `sha2`, admit the exact existing candidate/version/features under a focused dependency gate.
+
+## 8. Opaque project IDs
+
+### Timestamp/PID/path-derived IDs
+
+**Reject.** Leak structure, may collide, and are unsafe fallbacks when randomness is unavailable.
+
+### Add random-ID dependency to contracts now
+
+**Reject.** Contract should own representation, not generator package.
+
+### Selected planning choice
+
+WePLD-owned opaque project-ID contract. Research #212 identifies UUID v4 via existing `uuid 1.24.1` as a later Core generation candidate; direct edge requires explicit admission.
+
+## 9. Data-directory helper crate
+
+**Reject initial assumption.** Platform semantics are small enough to qualify first. Research #214 records XDG/Windows/macOS targets and lossless path issues. Admit a helper only with concrete evidence.
+
+## 10. Async runtime
+
+**Reject.** Baseline S2 operations are bounded local request/response operations. Lock polling does not justify a general async runtime by itself.
+
+## 11. Watcher/file monitoring
+
+**Reject for S2 minimum.** Freshness can be explicit without continuous background workers.
+
+## 12. Semantic parser/code graph
+
+**Reject for S2.** Canonical roadmap places semantic Project Graph in S4.
+
+## 13. Search/vector database/embeddings
+
+**Reject.** Qdrant and related donors are useful S4+ oracles; no S2 requirement needs them.
+
+## 14. LLM/model explanation
+
+**Reject.** Doctor findings are deterministic and evidence-linked. A later model may explain facts but cannot invent them.
+
+## 15. Agent framework/MCP/ACP/A2A
+
+**Reject for S2.** Donor research #211 informs later Agent Host/memory/evaluation design only.
+
+## 16. Terminal/process fabric
+
+**Reject except separately governed narrow Git seam.** S3 owns general process execution.
+
+## 17. Project task runner abstraction
+
+**Reject for S2.** Detect descriptive indicators only. Running Cargo/npm/pnpm/uv/mise/just/Make/Gradle/Maven/Go/Nx comes later.
+
+## 18. Workspace descriptor discovery
+
+### Candidate: “such as” examples / broad ecosystem globs
+
+**Reject after independent review.** Open-ended discovery cannot prove bounded work and is easy to amplify.
+
+### Candidate: recursively discover every workspace/member manifest
+
+**Reject.** Pulls graph/task discovery forward and makes cost repository-size dependent.
+
+### Selected minimum
+
+Exact root descriptor + presence-marker allowlists frozen in `clarify.md`/`plan.md`, with:
+
+```text
+MAX_ROOT_DESCRIPTOR_CANDIDATES = 32
+MAX_PARSED_DESCRIPTOR_BYTES = 1_048_576
+MAX_PARSED_DESCRIPTOR_AGGREGATE_BYTES = 4_194_304
+MAX_STRUCTURED_NESTING_DEPTH = 64
+ROOT_DISCOVERY_RECURSION = NONE
+```
+
+Presence-only lock markers are not parsed just for ecosystem ambiguity. Deeper member parsing is capability-triggered later.
+
+## 19. Doctor output construction
+
+### Candidate: interpolate raw observed values into finding text
+
+**Reject after independent review.** Escaping makes terminal rendering safer but does not stop token/credential disclosure.
+
+### Candidate: add a generic secret-scanner dependency now
+
+**Reject initial.** The S2 output contract can be safer and smaller by preventing unsafe values from entering trusted prose at all.
+
+### Selected minimum
+
+WePLD-owned finding templates + closed safe parameter types + opaque evidence references + shared TTY/JSON semantic redaction. Presentation escaping is an additional layer, not the secret policy.
+
+## 20. Whole-repository traversal
+
+**Reject.** `open` and baseline Doctor remain root/topology bounded. S4 performs semantic graph work later.
+
+## 21. Automatic remediation
 
 **Reject.** Doctor recommendations are evidence/advice; execution needs later authority.
 
-## 19. Git trust overrides
+## 22. Git trust overrides
 
 **Reject.** WePLD does not make an untrusted repository trusted by changing `safe.directory` or related protected settings.
 
-## 20. Raw environment capture
+## 23. Raw environment capture
 
-**Reject.** High privacy/secret risk and not needed for S2. Use explicit allowlisted environment facts only if a later diagnostic requirement proves need.
+**Reject.** High privacy/secret risk and unnecessary for S2. Any later environment fact is individually allowlisted.
 
-## 21. Remote/cloud project identity
+## 24. Remote/cloud project identity
 
-**Reject for S2.** Local-first identity is sufficient. Remote services may become adapters later but never replace local authority by default.
+**Reject for S2.** Local-first identity is sufficient.
 
-## 22. Telemetry
+## 25. Telemetry
 
 **Reject.** No hidden telemetry. S2 acceptance does not depend on remote analytics.
 
-## 23. Project-local daemon
+## 26. Daemons/background services
 
-**Reject.** No need for a daemon/service to satisfy bounded S2 commands.
+**Reject.** Neither project-local nor global daemon is required for bounded S2 commands.
 
-## 24. Global daemon
-
-**Reject.** Same reason. Revisit only if later event/terminal/agent orchestration requires it.
-
-## 25. Continuous background indexing
+## 27. Continuous background indexing
 
 **Reject.** S4/later concern.
 
-## 26. Identity UUID/random package
+## 28. Human-only CLI
 
-A local project ID needs opaque uniqueness, but a new random-ID dependency is not automatically necessary. Evaluate existing admitted/system capabilities under the implementation gate. If collision-safe opaque IDs cannot be produced within admitted machinery, run a focused dependency acquisition decision. Never derive store path directly from secret-bearing project input.
+**Reject.** Stable JSON/no-input must exist from the first command-plane slice.
 
-## 27. Human-only CLI
+## 29. JSONL streaming implementation now
 
-**Reject.** Stable JSON/no-input must exist from the first command-plane slice to avoid later compatibility debt.
+**Reject initial.** Preserve schema/event seam; S2 commands are bounded.
 
-## 28. JSONL streaming implementation now
-
-**Reject initial.** Preserve schema/event seam; S2 commands are bounded. Implement streaming only when an S2 requirement actually streams progress/results.
-
-## 29. AI fallback for unknown command
+## 30. AI fallback for unknown command
 
 **Reject constitutionally.** Unknown commands remain errors.
 
-## 30. Automatic package-manager selection
+## 31. Automatic package-manager selection
 
-**Reject when ambiguous.** Doctor reports conflicts. A future task router may select based on explicit qualified project authority.
+**Reject when ambiguous.** Doctor reports conflicts.
 
-## 31. Git remote credential persistence
+## 32. Git remote credential persistence/output
 
-**Reject.** Sanitized remote metadata only when genuinely useful.
+**Reject.** Sanitized safe metadata only when genuinely useful; raw userinfo/tokens never enter store or Doctor output.
 
-## 32. Evidence store as authority engine
+## 33. Evidence store as authority engine
 
 **Reject.** Store facts/evidence only. Nawat later owns effect-time authority.
 
-## 33. Evidence store as final Fehrest database
+## 34. Evidence store as final Fehrest database
 
-**Reject.** S2 supplies foundations, not the final Project Brain schema/index.
+**Reject.** S2 supplies foundations, not Project Brain index architecture.
 
-## 34. Strong durability claims without platform proof
+## 35. Strong durability claims without platform proof
 
-**Reject.** File/dir flush and replace semantics differ. Implement the strongest proven portable contract and retain residual limitations explicitly.
+**Reject.** File/dir flush and replace semantics differ. Report the strongest measured level and explicit residual limitation.
 
-## 35. Path equality using lowercasing
+## 36. Path equality using lowercasing
 
-**Reject.** Case behavior differs by platform/filesystem and Unicode rules. Use qualified platform/filesystem identity observations; never generic lowercase normalization as identity truth.
+**Reject.** Case behavior differs by platform/filesystem and Unicode rules.
 
-## 36. Canonicalization as sandbox
+## 37. Canonicalization as sandbox
 
 **Reject.** It resolves links at observation time but is not containment/authority.
 
-## 37. S2 dependency decision
+## 38. Reviewer unavailability as exception
 
-Current preferred implementation dependency posture:
+**Reject.** A requested, pending, rate-limited, or unavailable independent reviewer is `REVIEW_BLOCKED`, not a clean review.
+
+## 39. One broad S2 implementation authorization
+
+**Reject.** Too much authority at once and inconsistent with proven S1 staged admission.
+
+### Selected staged strategy
+
+1. **S2-AUTH-C:** contracts-only paths/tests, no Core effects/process/network/model/new dependencies by default.
+2. **S2-AUTH-I/E:** bounded locator/identity/catalog/generation-store Core behavior after contracts are canonical.
+3. **S2-AUTH-GIT:** optional exact Git adapter separately qualified.
+4. **S2-AUTH-D/CLI:** Doctor + output projections after underlying facts exist.
+
+## 40. Current dependency posture
 
 ```text
 NEW_RUNTIME_DEPENDENCIES = NONE_PREFERRED
 EXISTING_ADMITTED_SERIALIZATION = wepld-contracts -> serde + serde_json
 RUST_STDLIB = PRIMARY_FILESYSTEM_LOCKING_PRIMITIVES
+UUID_1_24_1 = LATER_CORE_CANDIDATE_NOT_ADMITTED_DIRECTLY
+SHA2_0_10_9 = LATER_CORE_CANDIDATE_NOT_ADMITTED_DIRECTLY
 GIT = SYSTEM_TOOL_ADAPTER_CANDIDATE_NOT_ADMITTED_FOR_EXECUTION
+DATABASE = REJECT_INITIAL
 ```
 
 Any exception must be justified by a concrete failing requirement and separately admitted.
 
-## 38. Ponytail residual questions converted to tasks
+## 41. Ponytail residual questions converted to tasks
 
-- opaque ID generation mechanism;
-- digest algorithm/implementation;
-- per-platform data directory;
-- directory flush durability;
-- Git executable qualification;
-- non-UTF8 path JSON representation;
-- exact CLI exit codes.
+- exact contract source path allowlist in S2-AUTH-C;
+- per-platform data-root acquisition mechanism;
+- lossless Unix/Windows path representation details;
+- exact direct UUID/SHA-256 dependency/features if Core requires them;
+- directory-entry/power-loss durability evidence;
+- Git executable/environment qualification;
+- identity reassociation thresholds;
+- exact CLI numeric exit codes;
+- platform evidence for lock semantics;
+- evidence-backed tuning if 2000ms lock deadline proves inadequate.
 
-These are not reasons to overbuild now. They are explicit pre-implementation decisions in `tasks.md`.
+These are explicit tasks in `tasks.md`; they are not permission to overbuild.
+
+## 42. Final minimum-sufficient result
+
+The repaired plan deliberately adds **only** the mechanisms whose absence created concrete correctness/security/availability defects:
+
+```text
+catalog reservation for first-open race
+immutable generations + CURRENT for cross-file crash consistency
+bounded try_lock for lock DoS
+closed descriptor allowlist + limits for discovery amplification
+safe output templates for secret leakage
+complete acceptance/review gates for governance correctness
+```
+
+No database, async runtime, agent framework, vector engine, crawler, model, source import, or general process fabric is required to close those findings. That is the Ponytail justification for the repaired plan.

@@ -4,6 +4,7 @@
 
 ```text
 CLARIFICATION_STATUS = COMPLETE_FOR_PLANNING_CANDIDATE
+INITIAL_REVIEW_FINDINGS_RECONCILED_IN_PLAN = YES_PENDING_FRESH_EXACT_HEAD_REVIEW
 IMPLEMENTATION_AUTHORITY = NOT_GRANTED
 ```
 
@@ -71,7 +72,7 @@ Official Git porcelain commands are attractive behavior oracles for complex topo
 
 **Decision:** The planning preference is a WePLD-owned, versioned, file-backed evidence foundation using already-admitted serialization machinery in `wepld-contracts` and Rust standard-library filesystem/locking primitives where sufficient.
 
-No SQLite/database/network dependency is admitted by this plan. If deterministic implementation proves the standard-library design insufficient for required atomicity/concurrency/recovery, that becomes an explicit dependency-acquisition decision rather than an invisible expansion.
+No SQLite/database/network dependency is admitted by this plan. Reviewer-discovered concurrency/crash requirements are solved first with a bounded store-wide reservation plus immutable project generations and an atomic current-generation pointer. If deterministic implementation proves this standard-library design insufficient for required atomicity/concurrency/recovery, that becomes an explicit dependency-acquisition decision rather than an invisible expansion.
 
 ## Q15 — Can `crates/core` directly add `serde_json` because it is already transitive?
 
@@ -116,3 +117,95 @@ No SQLite/database/network dependency is admitted by this plan. If deterministic
 ## Q25 — Does canonical planning grant implementation?
 
 **Decision:** No. Even after this package is reviewed and merged, implementation remains blocked until a separately governed successor policy grants exact implementation paths/effects/dependencies.
+
+## Q26 — How is first-open identity allocation serialized?
+
+**Decision:** Before a per-project directory/lock exists, a **store-wide catalog reservation** serializes identity selection. The operation takes a bounded catalog lock, revalidates the locator/topology facts used for matching, and either reuses an existing/reserved project ID or commits one durable `reserved` binding before project initialization. A crash-recovered opener reuses that reservation and completes initialization; it does not allocate a second identity.
+
+Lock order is fixed: if an operation needs both, catalog lock is acquired before the project lock. Ordinary updates to an already-resolved project need only the project lock unless catalog state itself changes.
+
+## Q27 — What is the atomic commit boundary for project evidence?
+
+**Decision:** A project update creates an **immutable complete generation** containing identity/index/evidence plus a manifest. The update validates and syncs that generation according to the qualified durability level, then atomically replaces a small `CURRENT` pointer/record in the same project store. Readers read `CURRENT` once and validate exactly that generation. They never combine files from different generations.
+
+Incomplete/unreferenced generations remain orphan/stale artifacts and are not current. Cleanup is separate and must never promote them.
+
+## Q28 — Can file locking wait forever?
+
+**Decision:** No. S2 command operations use non-blocking `try_lock` polling with a hard bounded deadline and cancellation checks. Planning freezes candidate defaults of:
+
+```text
+LOCK_ACQUIRE_DEADLINE_MS = 2000
+LOCK_POLL_INTERVAL_MS = 25
+CATALOG_BUSY_ERROR = identity_catalog_busy
+PROJECT_STORE_BUSY_ERROR = store_busy
+```
+
+If platform qualification requires different timing, changing these values requires an explicit contract update; unbounded waiting is not an acceptable fallback. OS lock ownership, not lock-file existence or a PID text file, determines active ownership.
+
+## Q29 — What exactly may baseline Doctor inspect for workspace/tool discovery?
+
+**Decision:** Root-level discovery is a closed allowlist. Parsed descriptor candidates are:
+
+```text
+Cargo.toml
+package.json
+pnpm-workspace.yaml
+pyproject.toml
+mise.toml
+.mise.toml
+justfile
+Justfile
+Makefile
+settings.gradle
+settings.gradle.kts
+build.gradle
+build.gradle.kts
+pom.xml
+go.mod
+go.work
+nx.json
+workspace.json
+```
+
+Presence-only lock/package-manager markers are:
+
+```text
+Cargo.lock
+package-lock.json
+npm-shrinkwrap.json
+pnpm-lock.yaml
+yarn.lock
+bun.lock
+bun.lockb
+uv.lock
+poetry.lock
+go.sum
+```
+
+Baseline S2 does not recursively discover arbitrary manifests. The hard planning limits are:
+
+```text
+MAX_ROOT_DESCRIPTOR_CANDIDATES = 32
+MAX_PARSED_DESCRIPTOR_BYTES = 1_048_576
+MAX_PARSED_DESCRIPTOR_AGGREGATE_BYTES = 4_194_304
+MAX_STRUCTURED_NESTING_DEPTH = 64
+```
+
+Presence-only markers are not parsed merely to identify the ecosystem. Any deeper/member parsing is a later capability-triggered contract with its own bounds.
+
+## Q30 — How are secrets prevented from leaking through Doctor output?
+
+**Decision:** Redaction applies to **all output surfaces**, not only persisted evidence. `DoctorFinding.summary`, `explanation`, and `remediation_text` are selected from WePLD-owned templates keyed by finding code and safe enums/booleans/counts; they do not interpolate raw environment values, remote URLs, repository configuration values, command output, or arbitrary repository-controlled strings.
+
+Machine hints are closed descriptive enums/structured safe fields, not arbitrary shell strings. Evidence references are opaque IDs. Any user-visible path projection is explicitly escaped and remains separate from secret-bearing configuration. Both TTY and JSON are tested with credential-bearing URLs/tokens/control characters and must remain secret-free.
+
+## Q31 — What does independent-review unavailability mean?
+
+**Decision:** It is not PASS. Review evidence must identify a qualified independent reviewer and exact base/head coverage. If no qualified reviewer can complete, record `REVIEW_BLOCKED`; planning remains unaccepted and cannot transition Ready/merge under the ordinary gate.
+
+## Q32 — What is the preferred first implementation-authority tranche after planning is canonical?
+
+**Decision:** **Contracts-only** is the preferred first successor, following the repository's proven S1 staged-authority pattern. It should grant only the exact `wepld-contracts` S2 contract/test paths needed for S2-C001..C008, with no filesystem, external process, network, model/provider, source import, or new dependency authority unless a separate canonical acquisition decision proves one is required.
+
+Core locator/store authority and any Git adapter authority are later separately bounded transitions; the contracts tranche must not silently pre-authorize them.

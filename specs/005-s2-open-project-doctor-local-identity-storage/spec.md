@@ -26,7 +26,7 @@ A developer can conceptually run:
 wepld doctor
 ```
 
-and receive structured findings about project identity, repository state, project/toolchain descriptors, lockfile/package-manager ambiguity, evidence freshness, and security-sensitive configuration—without S2 installing, fixing, building, testing, or executing project tasks.
+and receive structured findings about project identity, repository state, project/toolchain descriptors, lockfile/package-manager ambiguity, evidence freshness, and security-sensitive configuration—without S2 installing, fixing, building, testing, executing project tasks, or leaking secret-bearing configuration through output.
 
 ### UO-3 — Inspect current WePLD project state
 
@@ -45,11 +45,12 @@ and receive the currently associated project identity plus evidence-store health
 - local path/project opening semantics;
 - Git-aware repository/worktree topology as an observed fact source;
 - non-Git local project support with explicitly weaker repository facts;
-- local identity records and conservative reassociation;
+- local identity records, serialized first-open reservation, and conservative reassociation;
 - deterministic Project Doctor findings;
 - content/freshness/provenance primitives;
-- local evidence-store durability foundation;
-- human + JSON command contract design;
+- local evidence-store durability foundation with committed-generation consistency;
+- human + JSON command contract design with one redaction policy;
+- bounded root descriptor discovery;
 - negative/adversarial/path-platform qualification;
 - Windows-first behavior plus Linux/macOS portability contracts.
 
@@ -100,7 +101,7 @@ linked_worktree_state = known | unknown
 trust_state = trusted | refused_by_git | unknown
 ```
 
-Remote URLs are optional sanitized observations only. Credentials/userinfo must never be persisted in plaintext evidence. Remote identity is mutable and is not repository authority.
+Remote URLs are optional sanitized observations only. Credentials/userinfo must never be persisted or emitted in plaintext. Remote identity is mutable and is not repository authority.
 
 ### 4.3 LocalProjectIdentity
 
@@ -108,15 +109,36 @@ A WePLD-owned local identifier stored outside the repository and bound to a vers
 
 Required behavior:
 
-- opening a never-seen project may create a new local identity record;
+- opening a never-seen project may create a new local identity record only through the serialized first-open reservation protocol;
 - opening the same confidently matched project may reuse that identity;
+- an existing durable `reserved` first-open binding is reused/recovered after crash rather than replaced with another ID;
 - moves/renames may reassociate only under deterministic evidence rules;
 - copies/clones/worktrees with ambiguous evidence must not silently collapse into one identity;
-- an ambiguity result must expose candidate identities and require a later explicit reconciliation mechanism rather than guessing.
+- an ambiguity result must expose candidate identities through safe identifiers and require a later explicit reconciliation mechanism rather than guessing.
 
 The spec does not claim a universal immutable Git repository ID exists.
 
-### 4.4 EvidenceEnvelope
+### 4.4 IdentityCatalogReservation
+
+First-open selection requires a store-wide coordination record because a per-project lock cannot protect an ID before that ID exists.
+
+Minimum semantics:
+
+```text
+schema_version
+reservation_key_version
+revalidated_match_facts_digest
+project_id
+state = reserved | initialized
+created_at
+updated_at
+```
+
+The reservation key is derived only from the versioned, revalidated matching inputs defined by the identity algorithm; it is not a raw path/remote store filename and is not global repository authority.
+
+A process that finds `reserved` under the catalog lock revalidates the match facts and completes/rejects the reservation deterministically. It does not invent a second ID.
+
+### 4.5 EvidenceEnvelope
 
 Minimum durable envelope:
 
@@ -147,7 +169,27 @@ unavailable
 
 An evidence record is information, never effect authority.
 
-### 4.5 DoctorFinding
+### 4.6 ProjectGenerationManifest
+
+A project-store update is current only through one committed generation.
+
+Minimum conceptual facts:
+
+```text
+generation_schema_version
+generation_id
+project_id
+identity_record_ref
+index_record_ref
+evidence_record_refs[]
+record_digests[]
+producer_contract_version
+created_at
+```
+
+The implementation may choose the exact serialized shape under later authority, but it must preserve this semantic rule: one `CURRENT` pointer/record selects exactly one complete generation, and readers never combine identity/index/evidence from different generations.
+
+### 4.7 DoctorFinding
 
 Minimum structure:
 
@@ -155,13 +197,16 @@ Minimum structure:
 finding_code
 severity
 category
-summary
-explanation
+summary_template_id
+explanation_template_id
 observed_evidence_refs[]
 remediation_kind
-remediation_text
-machine_action_hint = optional descriptive value only
+remediation_template_id
+machine_action_hint = optional closed descriptive value only
+safe_parameters = allowlisted non-secret structured values only
 ```
+
+Human `summary`, `explanation`, and `remediation_text` are projections from WePLD-owned templates plus allowlisted safe parameters. Arbitrary repository-controlled strings, raw config/environment values, remote URLs, or command output are not trusted prose inputs.
 
 S2 remediation hints are non-executable descriptions.
 
@@ -207,9 +252,11 @@ Linked worktrees sharing a common Git repository remain distinguishable as workt
 
 Identity matching uses a versioned deterministic rule set. Weak observations cannot silently override stronger contradictory evidence.
 
-### FR-011 — Identity collision guard
+### FR-011 — Identity collision and first-open serialization guard
 
 If two observed projects map to the same candidate identity key but contradict required topology evidence, the operation fails into an identity-conflict state rather than overwriting the existing record.
+
+When no binding exists, selection/creation occurs under the bounded store-wide catalog reservation protocol **before** per-project locking can be relied upon. Concurrent opens of the same previously unseen project must converge on one reserved project ID or fail explicitly; they must not silently create two local identities.
 
 ### FR-012 — External local store
 
@@ -219,17 +266,38 @@ The default S2 evidence/identity store lives under a WePLD-owned per-user local 
 
 Opening/doctor/status must not create or modify files inside the target project in S2.
 
-### FR-014 — Durable writes
+### FR-014 — Generation-atomic durable writes
 
-Local-store updates use a crash-aware transaction pattern: construct a complete new record, validate it, write to a same-store temporary location, flush at the required durability level, then commit/replace according to qualified platform semantics. Partial writes must not be accepted as complete records.
+Local-store project updates use a crash-aware generation transaction:
 
-### FR-015 — Concurrent writers
+1. hold the required bounded project lock;
+2. construct a complete immutable generation containing identity/index/evidence records plus a manifest;
+3. validate schema, references, and digests before commit;
+4. write generation files to same-store temporary/final immutable locations and synchronize only to the durability level actually claimed;
+5. atomically replace a small same-filesystem `CURRENT` pointer/record selecting that generation;
+6. readers load `CURRENT` once and validate exactly that generation;
+7. incomplete/orphan generations and temp files remain non-current.
 
-Two WePLD processes must not silently corrupt the same project identity/evidence state. The implementation plan must use an admitted standard-library or otherwise qualified locking/serialization strategy and define stale-lock/crash behavior.
+A crash between individual file writes/replacements must not create a current mixed generation. The implementation must not claim stronger power-loss or directory-entry durability than platform evidence proves.
+
+### FR-015 — Concurrent writers and bounded lock acquisition
+
+Two WePLD processes must not silently corrupt the same identity/evidence state. The implementation uses qualified OS file-lock semantics or an explicitly admitted equivalent.
+
+Command operations must not block indefinitely waiting for catalog/project locks. The initial contract candidate is:
+
+```text
+LOCK_ACQUIRE_DEADLINE_MS = 2000
+LOCK_POLL_INTERVAL_MS = 25
+CATALOG_BUSY_ERROR = identity_catalog_busy
+PROJECT_STORE_BUSY_ERROR = store_busy
+```
+
+Polling uses non-blocking acquisition with cancellation checks. Lock-file existence alone is not ownership proof. A process crash/handle close must rely on qualified OS lock release semantics rather than homegrown stale-PID takeover.
 
 ### FR-016 — Content addressing
 
-Evidence payloads that claim content identity use a deterministic digest with explicit algorithm/version label. Digest equality is content equality evidence only; it is not authority.
+Evidence payloads that claim content identity use a deterministic digest with explicit algorithm/version label. Digest equality is content equality evidence only; it is not authenticity, freshness, or authority.
 
 ### FR-017 — Freshness
 
@@ -253,9 +321,20 @@ Minimum doctor categories:
 
 The contract supports dirty/untracked/conflicted repository diagnostics, but actual Git process invocation or repository-parser machinery requires separately granted implementation/effect authority. Planning must not self-authorize it.
 
-### FR-020 — Toolchain discovery is descriptive
+### FR-020 — Toolchain discovery is descriptive, closed, and bounded
 
-Detecting manifests/configuration (for example Cargo/npm/pnpm/uv/mise/just/Make/Gradle/Maven/Go/Nx) identifies project-native ecosystems and candidate commands. Detection does not execute or install them.
+Baseline S2 examines only the exact root-level descriptor/marker allowlist frozen in `clarify.md` and `plan.md`. Detection identifies project-native ecosystems and candidate commands; it does not execute or install them.
+
+Parsed descriptor inputs are bounded before allocation/parse by:
+
+```text
+MAX_ROOT_DESCRIPTOR_CANDIDATES = 32
+MAX_PARSED_DESCRIPTOR_BYTES = 1_048_576
+MAX_PARSED_DESCRIPTOR_AGGREGATE_BYTES = 4_194_304
+MAX_STRUCTURED_NESTING_DEPTH = 64
+```
+
+Lock/package-manager markers designated presence-only are not parsed merely for baseline ecosystem detection. Recursive arbitrary manifest discovery is not part of baseline S2.
 
 ### FR-021 — Package-manager ambiguity
 
@@ -263,23 +342,25 @@ If multiple package-manager indicators or conflicting lockfiles exist, Doctor re
 
 ### FR-022 — Workspace awareness seam
 
-S2 may identify workspace roots/members from deterministic descriptors or qualified read-only metadata sources, but does not construct the S4 semantic code graph.
+S2 may identify root/workspace facts from the exact bounded descriptors or qualified read-only metadata sources, but does not construct the S4 semantic code graph. Deeper/member traversal requires a separately frozen capability-triggered contract.
 
 ### FR-023 — Evidence corruption handling
 
-Malformed, truncated, digest-mismatched, unsupported-version, or partially committed records are quarantined/ignored as invalid and surfaced by Doctor. They are never silently promoted to current evidence.
+Malformed, truncated, digest-mismatched, unsupported-version, generation-mismatched, or partially committed records are quarantined/ignored as invalid and surfaced by Doctor. They are never silently promoted to current evidence.
 
-### FR-024 — Privacy
+### FR-024 — Privacy across storage and outputs
 
 The store must not persist secrets merely because they appear in repository configuration, remote URLs, environment variables, or command output. Stored evidence schemas use allowlisted fields; raw environment capture is prohibited.
 
+The same protection applies to Doctor findings, TTY/JSON projections, logs, and diagnostics. Raw secret-bearing values are not interpolated into summary/explanation/remediation text or machine hints.
+
 ### FR-025 — Human output
 
-TTY output prioritizes the selected project, health summary, important findings, evidence age, and next safe actions.
+TTY output prioritizes the selected project, health summary, important findings, evidence age, and next safe actions. Project-controlled strings are escaped for terminal safety. Finding prose uses WePLD-owned templates plus allowlisted/redacted safe values only.
 
 ### FR-026 — JSON output
 
-`--json` returns a versioned deterministic schema with no ANSI formatting and no prose-only fields required for machine interpretation.
+`--json` returns a versioned deterministic schema with no ANSI formatting and no prose-only fields required for machine interpretation. It is subject to the same field allowlist/redaction policy as human output; JSON mode is not a bypass for secret suppression.
 
 ### FR-027 — Noninteractive behavior
 
@@ -299,6 +380,8 @@ S2 planning reserves stable classes at minimum for:
 1 unexpected/internal failure
 ```
 
+Busy/contended conditions must be machine-distinguishable within the documented command error contract even if final numeric mapping reuses an existing compatible non-success class.
+
 Exact numeric compatibility must be reconciled against existing CLI conventions before implementation; this list is a planning candidate, not yet runtime contract.
 
 ### FR-029 — Unknown commands
@@ -308,6 +391,14 @@ Unknown CLI tokens are errors with suggestions. They are never treated as model 
 ### FR-030 — Evidence for `wepld why`
 
 S2 evidence must retain enough provenance to support a later `wepld why this project is unhealthy` explanation without requiring an LLM to invent project facts. S2 does not implement the full `why` command.
+
+### FR-031 — One generation per read decision
+
+Any read operation that consumes durable project state records the selected generation ID and validates all referenced records against that generation manifest. If the pointer changes concurrently, the read either completes against the already-selected immutable generation or retries explicitly; it never opportunistically mixes the old and new generation.
+
+### FR-032 — Reservation recovery
+
+A durable catalog reservation has explicit `reserved|initialized` state. Under the catalog lock, a later opener may complete an abandoned `reserved` initialization only after revalidating the stored matching facts. Conflicting facts fail closed into ambiguity/conflict; the reservation is not silently rebound.
 
 ## 6. Security requirements
 
@@ -333,21 +424,29 @@ Store paths and filenames must be derived from WePLD-owned safe encodings/identi
 
 ### SR-006
 
-Evidence parsing is bounded by file count/record size/field size/version limits defined before implementation.
+Evidence and descriptor parsing is bounded by file count/record size/aggregate size/field size/version and parser-depth limits defined before implementation.
 
 ### SR-007
 
-Store corruption or permission anomalies fail closed for claims that depend on durable evidence.
+Store corruption, generation mismatch, reservation conflict, permission anomalies, and unsupported schemas fail closed for claims that depend on durable evidence.
+
+### SR-008
+
+No raw secret-bearing repository/config/environment/remote/command-output value may cross into Doctor finding prose, TTY/JSON output, logs, or diagnostics. Safe output parameters are explicitly allowlisted and tested.
+
+### SR-009
+
+Lock contention is an availability boundary: acquisition is bounded/cancellable and returns stable typed errors. An untrusted or crashed peer must not cause an ordinary S2 command to wait forever.
 
 ## 7. Non-functional requirements
 
 ### NFR-001 — Fast open
 
-S2 opening must avoid whole-repository traversal. Identity and baseline Doctor should be proportional to a bounded set of root/topology descriptors, not repository file count.
+S2 opening must avoid whole-repository traversal. Identity and baseline Doctor are proportional to a bounded set of root/topology descriptors, not repository file count.
 
 ### NFR-002 — Determinism
 
-Given the same qualified local observations, output ordering, finding codes, JSON field semantics, and identity matching decisions are deterministic.
+Given the same qualified local observations, output ordering, finding codes, JSON field semantics, identity matching decisions, reservation decisions, and generation selection are deterministic.
 
 ### NFR-003 — Cross-platform
 
@@ -355,11 +454,15 @@ Windows is first-class. Tests must cover Windows path forms, drive roots, case b
 
 ### NFR-004 — Explainability
 
-Every blocking Doctor finding references the evidence that caused it and a safe remediation explanation.
+Every blocking Doctor finding references the safe evidence identifiers that caused it and a safe remediation explanation.
 
 ### NFR-005 — Backward-compatible schemas
 
 Machine-facing schemas are versioned from first release; unknown future fields must not be confused with authority.
+
+### NFR-006 — Bounded waiting
+
+Baseline command behavior has no unbounded lock wait, unbounded descriptor parse, unbounded evidence parse, or unbounded external-process wait if a Git adapter is later admitted.
 
 ## 8. Acceptance scenarios
 
@@ -371,15 +474,21 @@ Machine-facing schemas are versioned from first release; unknown future fields m
 6. Broken symlink/reparse target yields explicit resolution failure/diagnostic, not fallback to a guessed root.
 7. Multiple lockfiles/package-manager indicators produce Doctor ambiguity.
 8. Truncated/corrupt local evidence is not consumed as current and is reported.
-9. Two concurrent writers cannot silently produce a valid-looking torn record.
-10. `--json --no-input` produces deterministic machine output and never prompts.
-11. Opening does not mutate the target repository.
-12. No S2 operation requires network/model/provider access.
+9. Two concurrent ordinary writers cannot silently produce a valid-looking torn/mixed state.
+10. Two concurrent first opens of one unseen project converge on one reserved project ID or one gets a stable busy outcome; they never commit two identities.
+11. Crash after reservation but before initialization reuses/reconciles the reservation on retry.
+12. Crash at every generation-file/manifest/`CURRENT` transition leaves either the prior generation current or the complete new generation current, never a mixed generation.
+13. Held catalog/project locks reach the bounded deadline/cancellation path and return the documented busy error without hanging.
+14. Descriptor candidates above per-file, aggregate, count, or nesting limits fail boundedly; presence-only lock markers are not parsed.
+15. Credential-bearing remote URLs/config values/tokens/control characters do not appear in Doctor TTY or JSON output.
+16. `--json --no-input` produces deterministic machine output and never prompts.
+17. Opening does not mutate the target repository.
+18. No S2 operation requires network/model/provider access.
 
 ## 9. Planning status
 
 ```text
-SPEC_STATUS = PROPOSED_FOR_REVIEW
+SPEC_STATUS = REPAIRED_PLANNING_CANDIDATE_PENDING_FRESH_EXACT_HEAD_REVIEW
 IMPLEMENTATION = BLOCKED_BY_AUTHORITY
 SOURCE_IMPORT = NONE
 DEPENDENCY_ADMISSION = NONE

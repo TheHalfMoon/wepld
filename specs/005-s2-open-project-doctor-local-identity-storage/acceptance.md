@@ -7,12 +7,13 @@ This file defines evidence required to accept S2 planning and, later, S2 impleme
 ```text
 PLANNING_TRUSTED_BASE_EXPECTED_SHA = 46b1fc423f3fc5175d79acaf0f134747bf0d90f0
 INITIAL_REVIEWED_PLANNING_HEAD_SHA = 4a9b3566c74818c6b53a4ac4026b3a4937678d2e
+SECOND_REVIEWED_PLANNING_HEAD_SHA = 63270002470a32d8ffef34be9c75e0befc30e7a9
 PLANNING_ACCEPTED = NO
 S2_IMPLEMENTATION_ACCEPTED = NO
 S2_IMPLEMENTATION_AUTHORITY = NOT_GRANTED
 ```
 
-`INITIAL_REVIEWED_PLANNING_HEAD_SHA` is historical review input only. Any tracked repair creates a new head and makes all prior head-bound qualification/review evidence stale.
+`INITIAL_REVIEWED_PLANNING_HEAD_SHA` and `SECOND_REVIEWED_PLANNING_HEAD_SHA` are historical review inputs only. Any tracked repair creates a new head and makes all prior head-bound qualification/review evidence stale.
 
 ## A. Planning-package acceptance
 
@@ -25,16 +26,17 @@ All of the following are required before the eleven-file package can be describe
 - [ ] Exact-head Foundation/candidate policy qualification succeeds.
 - [ ] Trusted-base v21 admission genuinely accepts the exact candidate as data; candidate policy is not allowed to self-authorize.
 - [ ] v21 exact-package enforcement is exercised successfully.
-- [ ] External-review egress preflight is recorded for the exact current base/head/file scope before hosted review.
+- [ ] External-review egress applies `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md` from the exact trusted canonical `main` and records content classification, approved secret/private-data screening evidence, provider-handling decision, egress approval, and the exact current base/head/file scope before any hosted review. If any required control is missing, fails, is unavailable, or yields prohibited/unknown egress, record `EGRESS_BLOCKED`, do not trigger hosted review, and keep `PLANNING_ACCEPTED = NO`.
 - [ ] Independent review evidence records reviewer identity/product, qualification for the change class, independence, exact base/head coverage, completion state, and findings. If no qualified reviewer can complete, record `REVIEW_BLOCKED` and keep `PLANNING_ACCEPTED = NO`.
 - [ ] Every valid material finding is reconciled; clean output from another reviewer never erases a valid finding.
 - [ ] Any tracked repair invalidates stale head-bound evidence and is requalified/rereviewed as required.
 - [ ] No unresolved material review threads remain.
 - [ ] Security accounting is explicit; missing specialist review is never called PASS.
+- [ ] Before each GitHub mutation in this acceptance flow, the current founder/canonical authorizing identity, explicit decision, authorized operation/scope, and the head/base facts the decision depends on are recorded as live evidence. Missing, withdrawn, stale, or scope-mismatched authorization prohibits that mutation.
 - [ ] Final race check re-reads live canonical `main`, PR base/head, exact diff, review threads, and required check state immediately before Ready.
 - [ ] Ready transition occurs only after the exact-head evidence above is complete.
 - [ ] Ready-triggered trusted-base admission is reread and genuinely PASSes on the same exact head.
-- [ ] Merge is guarded with `expected_head_sha` protection and uses an allowed non-destructive merge method.
+- [ ] Merge is separately guarded with `expected_head_sha` protection and uses an allowed non-destructive merge method; authorization evidence must still be current for the exact merge head.
 - [ ] Post-merge canonical `main` is re-read and must contain the guarded merge result.
 - [ ] Post-merge Foundation succeeds on the exact canonical merge head before planning is called canonical.
 
@@ -99,6 +101,7 @@ Evidence must prove:
 - [ ] malformed/truncated records cannot become current evidence;
 - [ ] unsupported schema is explicit;
 - [ ] payload/digest mismatch is detected where digest applies;
+- [ ] schema/version/digest/manifest/reference checks are explicitly treated as corruption/coherence checks, not writer-authentication. S2 makes no authenticity/tamper-evidence claim against an actor able to rewrite the complete local store and its unkeyed digests consistently.
 - [ ] lock acquisition is bounded and cancellable; exhaustion maps to a stable busy error rather than an indefinite wait;
 - [ ] lock-file existence alone is never ownership proof; OS-owned locks release on handle/process termination under the qualified platform semantics;
 - [ ] concurrent writer tests prove no silent mixed/torn state;
@@ -185,7 +188,7 @@ UNRESOLVED_MATERIAL_FINDINGS = 0
 FINAL_RACE_CHECK = REQUIRED
 READY_TRIGGERED_ADMISSION = REQUIRED
 SECURITY_ACCOUNTING = REQUIRED
-FOUNDER/CANONICAL_AUTHORITY = REQUIRED
+FOUNDER/CANONICAL_AUTHORITY = REQUIRED_FOR_EACH_GITHUB_MUTATION
 GUARDED_MERGE = REQUIRED
 POST_MERGE_CANONICAL_EVIDENCE = REQUIRED
 BUILD_LEARNING_CAPTURE = REQUIRED
@@ -211,8 +214,10 @@ Planning complete != Implementation authorized
 PONYTAIL_FULL = COMPLETE_FOR_PLANNING_CANDIDATE
 SOURCE_ACQUISITION_CHECK = COMPLETE_FOR_PLANNING_CANDIDATE
 THREAT_MODEL = COMPLETE_FOR_PLANNING_CANDIDATE
-INITIAL_HEAD_REVIEW = COMPLETE_WITH_MATERIAL_FINDINGS
-TRACKED_REPAIR = REQUIRED
+INITIAL_HEAD_REVIEW = COMPLETE_WITH_9_MATERIAL_FINDINGS
+INITIAL_TRACKED_REPAIR = COMPLETE_ON_63270002470a32d8ffef34be9c75e0befc30e7a9
+SECOND_HEAD_REVIEW = COMPLETE_WITH_5_MATERIAL_FINDINGS
+SECOND_TRACKED_REPAIR = COMPLETE_IN_CURRENT_CANDIDATE_PENDING_FRESH_EXACT_HEAD_QUALIFICATION
 EXACT_HEAD_FOUNDATION_AFTER_REPAIR = REQUIRED
 INDEPENDENT_REVIEW_AFTER_REPAIR = REQUIRED
 PLANNING_CANONICAL = NO

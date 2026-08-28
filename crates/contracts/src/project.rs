@@ -83,6 +83,7 @@ pub enum ContractValueError {
         max: usize,
     },
     SafeDisplayPathContainsControl,
+    SafeDisplayPathContainsSensitiveUriData,
     DigestHexInvalid,
     ItemsTooMany {
         length: usize,
@@ -128,6 +129,12 @@ impl fmt::Display for ContractValueError {
                 write!(
                     formatter,
                     "safe display path contains an unescaped control character"
+                )
+            }
+            Self::SafeDisplayPathContainsSensitiveUriData => {
+                write!(
+                    formatter,
+                    "safe display path contains unredacted URI credential or query data"
                 )
             }
             Self::DigestHexInvalid => write!(
@@ -307,6 +314,7 @@ impl MachinePath {
                 }
             }
         }
+        let output = redact_uri_sensitive_components(&output);
         debug_assert!(output.len() <= MAX_SAFE_DISPLAY_PATH_BYTES);
         SafeDisplayPath(output)
     }
@@ -318,7 +326,12 @@ impl<'de> Deserialize<'de> for MachinePath {
         D: Deserializer<'de>,
     {
         #[derive(Deserialize)]
-        #[serde(tag = "encoding", content = "value", rename_all = "snake_case")]
+        #[serde(
+            tag = "encoding",
+            content = "value",
+            rename_all = "snake_case",
+            deny_unknown_fields
+        )]
         enum Wire {
             Utf8(String),
             UnixBytes(Vec<u8>),
@@ -344,6 +357,60 @@ fn push_escaped_text(output: &mut String, value: &str) {
             output.push(character);
         }
     }
+}
+
+const REDACTED_SAFE_DISPLAY_COMPONENT: &str = "<redacted>";
+
+fn uri_scheme_separator(value: &str) -> Option<usize> {
+    let separator = value.find("://")?;
+    let mut scheme = value[..separator].chars();
+    let first = scheme.next()?;
+    if !first.is_ascii_alphabetic()
+        || !scheme.all(|character| {
+            character.is_ascii_alphanumeric() || matches!(character, '+' | '-' | '.')
+        })
+    {
+        return None;
+    }
+    Some(separator)
+}
+
+fn redact_uri_sensitive_components(value: &str) -> String {
+    let Some(separator) = uri_scheme_separator(value) else {
+        return value.to_owned();
+    };
+
+    let authority_start = separator + 3;
+    let authority_tail = &value[authority_start..];
+    let authority_len = authority_tail
+        .find(|character: char| matches!(character, '/' | '\\' | '?' | '#'))
+        .unwrap_or(authority_tail.len());
+    let authority_end = authority_start + authority_len;
+    let authority = &value[authority_start..authority_end];
+
+    let mut safe = String::with_capacity(value.len());
+    safe.push_str(&value[..authority_start]);
+    if let Some(at) = authority.rfind('@') {
+        safe.push_str(REDACTED_SAFE_DISPLAY_COMPONENT);
+        safe.push('@');
+        safe.push_str(&authority[at + 1..]);
+    } else {
+        safe.push_str(authority);
+    }
+
+    let suffix = &value[authority_end..];
+    if let Some(redact_at) = suffix.find(|character: char| matches!(character, '?' | '#')) {
+        safe.push_str(&suffix[..redact_at]);
+        safe.push(if suffix[redact_at..].starts_with('?') {
+            '?'
+        } else {
+            '#'
+        });
+        safe.push_str(REDACTED_SAFE_DISPLAY_COMPONENT);
+    } else {
+        safe.push_str(suffix);
+    }
+    safe
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -375,6 +442,11 @@ impl<'de> Deserialize<'de> for SafeDisplayPath {
                 ContractValueError::SafeDisplayPathContainsControl,
             ));
         }
+        if redact_uri_sensitive_components(&value) != value {
+            return Err(de::Error::custom(
+                ContractValueError::SafeDisplayPathContainsSensitiveUriData,
+            ));
+        }
         Ok(Self(value))
     }
 }
@@ -394,18 +466,42 @@ pub enum ObservationErrorClass {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "state", rename_all = "snake_case")]
+#[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Observation<T> {
     Available { value: T },
     Unavailable { error: ObservationErrorClass },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum OptionalObservation<T> {
     Value { value: T },
     None,
     Unavailable { error: ObservationErrorClass },
+}
+
+impl<'de, T> Deserialize<'de> for OptionalObservation<T>
+where
+    T: Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
+        enum Wire<T> {
+            Value { value: T },
+            None {},
+            Unavailable { error: ObservationErrorClass },
+        }
+
+        Ok(match Wire::deserialize(deserializer)? {
+            Wire::Value { value } => Self::Value { value },
+            Wire::None {} => Self::None,
+            Wire::Unavailable { error } => Self::Unavailable { error },
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -675,7 +771,7 @@ pub enum StoreLockScope {
 pub type IdentityCandidateList = BoundedList<ProjectId, MAX_IDENTITY_CANDIDATES>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "result", rename_all = "snake_case")]
+#[serde(tag = "result", rename_all = "snake_case", deny_unknown_fields)]
 pub enum IdentityResolution {
     Existing {
         project_id: ProjectId,
@@ -871,7 +967,7 @@ pub enum PackageManagerKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SafeParameter {
     Boolean { value: bool },
     Count { value: u64 },
@@ -956,7 +1052,7 @@ pub struct ProjectCommandError {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "outcome", rename_all = "snake_case")]
+#[serde(tag = "outcome", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ProjectCommandEnvelope<T> {
     Success {
         schema_version: ProjectContractVersion,

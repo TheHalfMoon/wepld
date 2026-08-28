@@ -138,6 +138,60 @@ fn repository_topology_round_trips_and_future_contract_values_fail_closed() {
 }
 
 #[test]
+fn tagged_project_contract_enums_reject_unknown_fields() {
+    assert!(
+        serde_json::from_value::<MachinePath>(json!({
+            "encoding": "utf8",
+            "value": "/tmp/workspace",
+            "unexpected": true
+        }))
+        .is_err()
+    );
+    assert!(
+        serde_json::from_value::<Observation<MachinePath>>(json!({
+            "state": "available",
+            "value": {"encoding": "utf8", "value": "/tmp/workspace"},
+            "unexpected": true
+        }))
+        .is_err()
+    );
+    assert!(
+        serde_json::from_value::<OptionalObservation<MachinePath>>(json!({
+            "state": "none",
+            "unexpected": true
+        }))
+        .is_err()
+    );
+    assert!(
+        serde_json::from_value::<IdentityResolution>(json!({
+            "result": "busy",
+            "scope": "identity_catalog",
+            "unexpected": true
+        }))
+        .is_err()
+    );
+    assert!(
+        serde_json::from_value::<SafeParameter>(json!({
+            "kind": "count",
+            "value": 1,
+            "unexpected": true
+        }))
+        .is_err()
+    );
+    assert!(
+        serde_json::from_value::<ProjectCommandEnvelope<()>>(json!({
+            "outcome": "success",
+            "schema_version": 1,
+            "command": "status",
+            "project_id": null,
+            "data": null,
+            "unexpected": true
+        }))
+        .is_err()
+    );
+}
+
+#[test]
 fn identity_reservation_resolution_and_busy_states_are_versioned_and_bounded() {
     let reservation = IdentityCatalogReservation {
         schema_version: ProjectContractVersion::V1,
@@ -359,6 +413,25 @@ fn c009_raw_secret_bearing_text_cannot_enter_safe_parameter_contract() {
         ]
     });
     assert!(serde_json::from_value::<DoctorFinding>(finding).is_err());
+
+    let unsafe_path_parameter = json!({"kind": "path", "value": secret});
+    assert!(serde_json::from_value::<SafeParameter>(unsafe_path_parameter).is_err());
+
+    let redacted = MachinePath::utf8(secret)
+        .expect("secret-shaped fixture must fit machine path contract")
+        .safe_display();
+    assert_eq!(
+        redacted.as_str(),
+        "https://<redacted>@example.invalid/repo?<redacted>"
+    );
+    assert!(!redacted.as_str().contains("supersecret"));
+
+    let safe_path_parameter = SafeParameter::Path { value: redacted };
+    let safe_path_json = String::from_utf8(
+        canonical_project_json(&safe_path_parameter).expect("safe path parameter must serialize"),
+    )
+    .expect("canonical JSON is UTF-8");
+    assert!(!safe_path_json.contains("supersecret"));
 
     let safe = safe_finding();
     let encoded =

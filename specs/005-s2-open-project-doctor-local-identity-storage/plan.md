@@ -238,6 +238,18 @@ The timing constants are part of the initial planning contract. A later change r
 - an orphan generation is not recovery authority merely because it parses;
 - destructive cleanup is not automatic.
 
+### 4.5.1 Authenticity boundary
+
+S2's schema/version/digest/manifest/reference checks are **corruption and internal-coherence checks only**. The planned digests are unkeyed and the store has no authenticated trust anchor in S2. Therefore:
+
+- the implementation must not label a structurally valid generation cryptographically authenticated, tamper-evident, or writer-authentic;
+- an actor able to rewrite the complete local store, including records, manifests, references, `CURRENT`, catalog state, and corresponding unkeyed digests, can construct an internally self-consistent forged generation that passes structural validation;
+- contradictions against stronger freshly observed live facts may still surface, but absence of contradiction is not authenticity proof;
+- evidence remains non-authoritative for effects regardless of structural validity;
+- adding a keyed MAC, signature, OS-protected trust anchor, or other authenticated store mechanism is a separate future security/design/authority decision, not an implicit S2 requirement.
+
+This limitation is intentional for the minimum S2 file-backed foundation and must be surfaced in threat-model, contract, test, and acceptance evidence rather than hidden behind the word “integrity.”
+
 ### 4.6 Durability claim levels
 
 The implementation reports the strongest measured guarantee, conceptually:
@@ -457,7 +469,8 @@ Required test classes before S2 implementation acceptance:
 - canonical JSON ordering/contract snapshots where required;
 - finding ordering/codes;
 - freshness state transitions;
-- output redaction/template parameter validation.
+- output redaction/template parameter validation;
+- authenticity-status semantics prove unkeyed structural validation is never represented as writer authentication.
 
 ### Filesystem adversarial
 
@@ -521,7 +534,8 @@ If Route A is authorized:
 - permission loss;
 - store move/partial deletion;
 - catalog `reserved` recovery;
-- recovery never fabricates PASS.
+- recovery never fabricates PASS;
+- writer-level tampering fixture demonstrates that an internally self-consistent forged unkeyed store is not claimed authenticated/tamper-evident.
 
 ### Workspace/tool descriptors
 
@@ -583,7 +597,7 @@ After this planning package becomes canonical, use staged authority rather than 
 
 Preferred first successor scope:
 
-- only exact `crates/contracts` S2 contract modules/exports/tests needed for S2-C001..S2-C008;
+- only exact `crates/contracts` S2 contract modules/exports/tests needed for S2-C001..S2-C009, including the negative secret-safety contract test;
 - existing admitted contract serialization graph only;
 - no `crates/core` filesystem behavior;
 - no external process;

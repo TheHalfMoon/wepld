@@ -82,9 +82,31 @@ def run() -> None:
         mem(base_values),
     )
 
+    spaced_process = dict(candidate_values)
+    spaced_process[p.CORE_MODULE] += (
+        b"\nfn bad_spaced() { let _ = std /* trivia */ :: process :: Command :: new(\"git\"); }\n"
+    )
+    base.expect_failure_matching(
+        "v24 whitespace/comment-separated external process effect",
+        "unauthorized runtime effect token",
+        p.delta,
+        mem(spaced_process),
+        mem(base_values),
+    )
+
     freeze_base = {
         path: p.root.read_bytes(path, base.MAX_POLICY_FILE_BYTES) for path in p.FROZEN_STATE_PATHS
     }
+    partial_freeze_candidate = dict(freeze_base)
+    partial_freeze_candidate[p.CORE_EXPORT] = freeze_base[p.CORE_EXPORT] + b"\npub mod project;\n"
+    base.expect_failure_matching(
+        "v24 freeze repair requires complete Core tranche",
+        "frozen S1-007 state",
+        p.freeze_s1_007_state,
+        mem(partial_freeze_candidate),
+        mem(freeze_base),
+    )
+
     freeze_candidate = dict(freeze_base)
     freeze_candidate[p.CORE_EXPORT] = freeze_base[p.CORE_EXPORT] + b"\npub mod project;\n"
     freeze_candidate[p.CORE_MODULE] = candidate_values[p.CORE_MODULE]

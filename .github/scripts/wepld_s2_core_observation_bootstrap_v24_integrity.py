@@ -27,8 +27,8 @@ import wepld_integrity as base
 P = ".github/scripts/wepld_s2_core_observation_bootstrap_v24_integrity.py"
 T = ".github/scripts/wepld_s2_core_observation_v24_selftest.py"
 H = ".github/scripts/wepld_s2_core_observation_v24_support.py"
-T_BLOB = "b3ff641cd2c5f41d5f0f9b3dbf7a379c745ad2fc"
-H_BLOB = "d0c40a968da60e9be26cbfefd3305da45cd432a5"
+T_BLOB = "1e0c3db0a6204631ec512123f0ee3d79d7a507b7"
+H_BLOB = "c61b85446af799857f4c983333b04a9ebfcf27ab"
 V23 = ".github/scripts/wepld_s2_contracts_freeze_repair_v23_integrity.py"
 V23_BLOB = "5e5ff96b7887cb48bcbd4105676d02a9b41b28a8"
 FW = ".github/workflows/foundation-integrity.yml"
@@ -335,6 +335,9 @@ def freeze_s1_007_state(candidate: Any, policy_base: Any) -> None:
         return
     if paths != core_changed:
         base.fail("v24 Core freeze repair refuses mixed Core/non-Core delta")
+    if not CORE_NEW_FILES <= ps(candidate):
+        _call("v23 inherited S1 state freeze", V23_FREEZE_STATE, candidate, policy_base)
+        return
 
     for relative in sorted(FROZEN_STATE_PATHS - {CORE_EXPORT}):
         if candidate.read_bytes(relative, MAX_S1_STATE_BYTES) != policy_base.read_bytes(

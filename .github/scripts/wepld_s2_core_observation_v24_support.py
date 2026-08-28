@@ -5,6 +5,7 @@ import hashlib
 from typing import Any
 
 import wepld_integrity as base
+import wepld_s1_execution_integrity as execution
 
 FORBIDDEN_CORE_TOKENS = (
     b"unsafe {", b"std::process", b"std::net", b"std::env", b"Command::",
@@ -76,8 +77,14 @@ def verify_core_files(view: Any, core_files: frozenset[str], core_module: str) -
         source = view.read_bytes(core_module, base.MAX_POLICY_FILE_BYTES)
         if not source.startswith(b"#![forbid(unsafe_code)]"):
             base.fail("v24 Core project module must forbid unsafe code")
+        try:
+            scrubbed = execution.strip_rust_comments_and_strings(source.decode("utf-8"))
+        except UnicodeDecodeError:
+            base.fail(f"v24 S2 Core file is not UTF-8: {core_module}")
+        normalized = "".join(scrubbed.split()).encode("utf-8")
         for token in FORBIDDEN_CORE_TOKENS:
-            if token in source:
+            normalized_token = b"".join(token.split())
+            if normalized_token in normalized:
                 base.fail(
                     "v24 Core observation tranche contains unauthorized runtime effect token: "
                     + token.decode("ascii", errors="replace")

@@ -4,10 +4,10 @@ use std::path::{Path, PathBuf};
 
 use wepld_contracts::{MachinePath, Observation, ObservationErrorClass, UnixMillis};
 use wepld_core::{
-    classify_path_io_error, lexical_absolute_path, machine_path_from_path,
-    observe_non_git_project_root, observe_path_metadata, observe_project_locator,
-    platform_data_root, DataRootInputs, DataRootSource, PathEntryKind, ProjectObservationError,
-    ProjectRootBasis, MAX_PATH_COMPONENT_OBSERVATIONS,
+    DataRootInputs, DataRootSource, MAX_PATH_COMPONENT_OBSERVATIONS, PathEntryKind,
+    ProjectObservationError, ProjectRootBasis, classify_path_io_error, lexical_absolute_path,
+    machine_path_from_path, observe_non_git_project_root, observe_path_metadata,
+    observe_project_locator, platform_data_root,
 };
 
 fn manifest_dir() -> PathBuf {
@@ -54,12 +54,18 @@ fn project_locator_preserves_input_lexical_and_resolved_layers() {
     let locator = observe_project_locator(Path::new("."), &base, UnixMillis::new(7))
         .expect("the Core crate directory should be observable");
 
-    assert_eq!(locator.input_path, machine_path_from_path(Path::new(".")).unwrap());
+    assert_eq!(
+        locator.input_path,
+        machine_path_from_path(Path::new(".")).unwrap()
+    );
     assert_eq!(
         locator.lexical_absolute_path,
         machine_path_from_path(&base).unwrap()
     );
-    assert!(matches!(locator.resolved_path, Observation::Available { .. }));
+    assert!(matches!(
+        locator.resolved_path,
+        Observation::Available { .. }
+    ));
     assert_eq!(locator.observation_time, UnixMillis::new(7));
 }
 
@@ -81,7 +87,8 @@ fn project_locator_records_canonicalization_failure_instead_of_fabricating_resol
 #[test]
 fn metadata_observation_is_bounded_to_path_components_and_does_not_walk_the_tree() {
     let base = manifest_dir();
-    let trail = observe_path_metadata(&base).expect("manifest directory metadata should be readable");
+    let trail =
+        observe_path_metadata(&base).expect("manifest directory metadata should be readable");
     let expected_components = base
         .components()
         .filter(|component| matches!(component, std::path::Component::Normal(_)))
@@ -89,7 +96,10 @@ fn metadata_observation_is_bounded_to_path_components_and_does_not_walk_the_tree
 
     assert_eq!(trail.components.len(), expected_components);
     assert!(trail.components.len() <= MAX_PATH_COMPONENT_OBSERVATIONS);
-    let last = trail.components.last().expect("manifest path has normal components");
+    let last = trail
+        .components
+        .last()
+        .expect("manifest path has normal components");
     assert_eq!(
         last.entry_kind,
         Observation::Available {
@@ -110,21 +120,30 @@ fn metadata_observation_rejects_non_absolute_input() {
 #[test]
 fn linux_eloop_maps_to_symlink_loop() {
     let error = std::io::Error::from_raw_os_error(40);
-    assert_eq!(classify_path_io_error(&error), ObservationErrorClass::SymlinkLoop);
+    assert_eq!(
+        classify_path_io_error(&error),
+        ObservationErrorClass::SymlinkLoop
+    );
 }
 
 #[cfg(target_os = "macos")]
 #[test]
 fn macos_eloop_maps_to_symlink_loop() {
     let error = std::io::Error::from_raw_os_error(62);
-    assert_eq!(classify_path_io_error(&error), ObservationErrorClass::SymlinkLoop);
+    assert_eq!(
+        classify_path_io_error(&error),
+        ObservationErrorClass::SymlinkLoop
+    );
 }
 
 #[cfg(windows)]
 #[test]
 fn windows_cant_resolve_filename_maps_to_symlink_loop() {
     let error = std::io::Error::from_raw_os_error(1921);
-    assert_eq!(classify_path_io_error(&error), ObservationErrorClass::SymlinkLoop);
+    assert_eq!(
+        classify_path_io_error(&error),
+        ObservationErrorClass::SymlinkLoop
+    );
 }
 
 #[test]
@@ -161,7 +180,10 @@ fn linux_data_root_prefers_absolute_xdg_state_home() {
 
     assert_eq!(root.source, DataRootSource::XdgStateHome);
     assert!(!root.ignored_relative_xdg_state_home);
-    assert_eq!(root.path, machine_path_from_path(&xdg.join("wepld")).unwrap());
+    assert_eq!(
+        root.path,
+        machine_path_from_path(&xdg.join("wepld")).unwrap()
+    );
 }
 
 #[cfg(target_os = "linux")]
@@ -210,7 +232,10 @@ fn macos_data_root_uses_explicit_application_support_base() {
     })
     .unwrap();
     assert_eq!(root.source, DataRootSource::MacosApplicationSupport);
-    assert_eq!(root.path, machine_path_from_path(&support.join("WePLD")).unwrap());
+    assert_eq!(
+        root.path,
+        machine_path_from_path(&support.join("WePLD")).unwrap()
+    );
 }
 
 #[cfg(windows)]
@@ -225,7 +250,10 @@ fn windows_data_root_uses_explicit_local_app_data_base() {
     })
     .unwrap();
     assert_eq!(root.source, DataRootSource::WindowsLocalAppData);
-    assert_eq!(root.path, machine_path_from_path(&local.join("WePLD")).unwrap());
+    assert_eq!(
+        root.path,
+        machine_path_from_path(&local.join("WePLD")).unwrap()
+    );
 }
 
 #[cfg(unix)]
@@ -248,7 +276,13 @@ fn windows_machine_path_preserves_wtf16_units_losslessly() {
     use std::ffi::OsString;
     use std::os::windows::ffi::OsStringExt as _;
 
-    let units = vec![u16::from(b'C'), u16::from(b':'), u16::from(b'\\'), 0xd800, u16::from(b'x')];
+    let units = vec![
+        u16::from(b'C'),
+        u16::from(b':'),
+        u16::from(b'\\'),
+        0xd800,
+        u16::from(b'x'),
+    ];
     let path = PathBuf::from(OsString::from_wide(&units));
     assert_eq!(
         machine_path_from_path(&path).unwrap(),

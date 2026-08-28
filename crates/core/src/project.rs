@@ -52,10 +52,16 @@ impl fmt::Display for ProjectObservationError {
                 "path component count {components} exceeds maximum {max}"
             ),
             Self::DataRootBaseUnavailable => {
-                write!(formatter, "qualified platform data-root base is unavailable")
+                write!(
+                    formatter,
+                    "qualified platform data-root base is unavailable"
+                )
             }
             Self::DataRootBaseNotAbsolute => {
-                write!(formatter, "qualified platform data-root base must be absolute")
+                write!(
+                    formatter,
+                    "qualified platform data-root base must be absolute"
+                )
             }
             Self::UnsupportedPlatform => write!(formatter, "platform data-root is unsupported"),
             Self::Contract(error) => write!(formatter, "project contract value error: {error}"),
@@ -346,7 +352,9 @@ pub fn observe_non_git_project_root(
     }
 
     match &locator.resolved_path {
-        Observation::Available { value: first_resolved } => {
+        Observation::Available {
+            value: first_resolved,
+        } => {
             let resolved = match std::fs::canonicalize(lexical_absolute_path) {
                 Ok(path) => path,
                 Err(_) => {
@@ -376,35 +384,37 @@ pub fn observe_non_git_project_root(
                 }),
             }
         }
-        Observation::Unavailable { error } => match std::fs::symlink_metadata(lexical_absolute_path) {
-            Ok(metadata) if metadata.file_type().is_dir() => {
-                if matches!(
-                    error,
-                    ObservationErrorClass::NotFound
-                        | ObservationErrorClass::InvalidPath
-                        | ObservationErrorClass::SymlinkLoop
-                ) {
-                    return Ok(Observation::Unavailable {
-                        error: ObservationErrorClass::RaceDetected,
-                    });
+        Observation::Unavailable { error } => {
+            match std::fs::symlink_metadata(lexical_absolute_path) {
+                Ok(metadata) if metadata.file_type().is_dir() => {
+                    if matches!(
+                        error,
+                        ObservationErrorClass::NotFound
+                            | ObservationErrorClass::InvalidPath
+                            | ObservationErrorClass::SymlinkLoop
+                    ) {
+                        return Ok(Observation::Unavailable {
+                            error: ObservationErrorClass::RaceDetected,
+                        });
+                    }
+                    Ok(Observation::Available {
+                        value: NonGitProjectRoot {
+                            path: machine_path_from_path(lexical_absolute_path)?,
+                            basis: ProjectRootBasis::LexicalAbsolute,
+                        },
+                    })
                 }
-                Ok(Observation::Available {
-                    value: NonGitProjectRoot {
-                        path: machine_path_from_path(lexical_absolute_path)?,
-                        basis: ProjectRootBasis::LexicalAbsolute,
-                    },
-                })
+                Ok(metadata) if metadata.file_type().is_symlink() => {
+                    Ok(Observation::Unavailable { error: *error })
+                }
+                Ok(_) => Ok(Observation::Unavailable {
+                    error: ObservationErrorClass::InvalidPath,
+                }),
+                Err(metadata_error) => Ok(Observation::Unavailable {
+                    error: classify_path_io_error(&metadata_error),
+                }),
             }
-            Ok(metadata) if metadata.file_type().is_symlink() => Ok(Observation::Unavailable {
-                error: *error,
-            }),
-            Ok(_) => Ok(Observation::Unavailable {
-                error: ObservationErrorClass::InvalidPath,
-            }),
-            Err(metadata_error) => Ok(Observation::Unavailable {
-                error: classify_path_io_error(&metadata_error),
-            }),
-        },
+        }
     }
 }
 
@@ -415,12 +425,7 @@ pub fn platform_data_root(
     if let Some(xdg_state_home) = inputs.xdg_state_home
         && xdg_state_home.is_absolute()
     {
-        return data_root_from_base(
-            xdg_state_home,
-            "wepld",
-            DataRootSource::XdgStateHome,
-            false,
-        );
+        return data_root_from_base(xdg_state_home, "wepld", DataRootSource::XdgStateHome, false);
     }
 
     let home = inputs

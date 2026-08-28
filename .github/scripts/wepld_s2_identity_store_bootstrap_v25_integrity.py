@@ -450,7 +450,12 @@ def verify_component_base(
     *,
     allow_core_main_change: bool,
 ) -> None:
-    if not deps_ready(view):
+    view_paths = ps(view)
+    admitted_manifest = (
+        CORE_MANIFEST in view_paths
+        and view.read_bytes(CORE_MANIFEST, base.MAX_POLICY_FILE_BYTES) == ADMITTED_CORE_MANIFEST
+    )
+    if not admitted_manifest:
         _call(
             "v24 component-base verifier",
             V24_COMPONENT_BASE,

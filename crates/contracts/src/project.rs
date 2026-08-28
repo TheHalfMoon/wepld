@@ -56,27 +56,55 @@ impl<'de> Deserialize<'de> for ProjectContractVersion {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ContractValueError {
-    UnsupportedSchemaVersion { value: u16 },
-    TokenEmpty { kind: &'static str },
-    TokenTooLong { kind: &'static str, bytes: usize, max: usize },
-    TokenPrefixInvalid { kind: &'static str, expected: &'static str },
-    TokenCharacterInvalid { kind: &'static str },
-    MachinePathTooLong { units: usize, max: usize },
-    SafeDisplayPathTooLong { bytes: usize, max: usize },
+    UnsupportedSchemaVersion {
+        value: u16,
+    },
+    TokenEmpty {
+        kind: &'static str,
+    },
+    TokenTooLong {
+        kind: &'static str,
+        bytes: usize,
+        max: usize,
+    },
+    TokenPrefixInvalid {
+        kind: &'static str,
+        expected: &'static str,
+    },
+    TokenCharacterInvalid {
+        kind: &'static str,
+    },
+    MachinePathTooLong {
+        units: usize,
+        max: usize,
+    },
+    SafeDisplayPathTooLong {
+        bytes: usize,
+        max: usize,
+    },
     SafeDisplayPathContainsControl,
     DigestHexInvalid,
-    ItemsTooMany { length: usize, max: usize },
+    ItemsTooMany {
+        length: usize,
+        max: usize,
+    },
 }
 
 impl fmt::Display for ContractValueError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::UnsupportedSchemaVersion { value } => {
-                write!(formatter, "unsupported project contract schema version: {value}")
+                write!(
+                    formatter,
+                    "unsupported project contract schema version: {value}"
+                )
             }
             Self::TokenEmpty { kind } => write!(formatter, "{kind} must not be empty"),
             Self::TokenTooLong { kind, bytes, max } => {
-                write!(formatter, "{kind} length {bytes} exceeds maximum {max} bytes")
+                write!(
+                    formatter,
+                    "{kind} length {bytes} exceeds maximum {max} bytes"
+                )
             }
             Self::TokenPrefixInvalid { kind, expected } => {
                 write!(formatter, "{kind} must start with {expected}")
@@ -85,13 +113,22 @@ impl fmt::Display for ContractValueError {
                 write!(formatter, "{kind} contains a prohibited character")
             }
             Self::MachinePathTooLong { units, max } => {
-                write!(formatter, "machine path length {units} exceeds maximum {max}")
+                write!(
+                    formatter,
+                    "machine path length {units} exceeds maximum {max}"
+                )
             }
             Self::SafeDisplayPathTooLong { bytes, max } => {
-                write!(formatter, "safe display path length {bytes} exceeds maximum {max} bytes")
+                write!(
+                    formatter,
+                    "safe display path length {bytes} exceeds maximum {max} bytes"
+                )
             }
             Self::SafeDisplayPathContainsControl => {
-                write!(formatter, "safe display path contains an unescaped control character")
+                write!(
+                    formatter,
+                    "safe display path contains an unescaped control character"
+                )
             }
             Self::DigestHexInvalid => write!(
                 formatter,
@@ -326,10 +363,12 @@ impl<'de> Deserialize<'de> for SafeDisplayPath {
     {
         let value = String::deserialize(deserializer)?;
         if value.len() > MAX_SAFE_DISPLAY_PATH_BYTES {
-            return Err(de::Error::custom(ContractValueError::SafeDisplayPathTooLong {
-                bytes: value.len(),
-                max: MAX_SAFE_DISPLAY_PATH_BYTES,
-            }));
+            return Err(de::Error::custom(
+                ContractValueError::SafeDisplayPathTooLong {
+                    bytes: value.len(),
+                    max: MAX_SAFE_DISPLAY_PATH_BYTES,
+                },
+            ));
         }
         if value.chars().any(char::is_control) {
             return Err(de::Error::custom(
@@ -949,10 +988,16 @@ impl fmt::Display for ProjectContractCodecError {
                 )
             }
             Self::SerializationFailed { category } => {
-                write!(formatter, "project contract serialization failed: {category:?}")
+                write!(
+                    formatter,
+                    "project contract serialization failed: {category:?}"
+                )
             }
             Self::DeserializationFailed { category } => {
-                write!(formatter, "project contract deserialization failed: {category:?}")
+                write!(
+                    formatter,
+                    "project contract deserialization failed: {category:?}"
+                )
             }
         }
     }
@@ -1037,7 +1082,9 @@ where
             max: MAX_PROJECT_CONTRACT_JSON_BYTES,
         });
     }
-    serde_json::from_slice(bytes).map_err(|error| ProjectContractCodecError::DeserializationFailed {
-        category: error.classify(),
+    serde_json::from_slice(bytes).map_err(|error| {
+        ProjectContractCodecError::DeserializationFailed {
+            category: error.classify(),
+        }
     })
 }

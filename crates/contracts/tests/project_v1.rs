@@ -89,7 +89,10 @@ fn safe_finding() -> DoctorFinding {
 
 #[test]
 fn project_contract_v1_constants_are_frozen() {
-    assert_eq!(ProjectContractVersion::V1.get(), PROJECT_CONTRACT_VERSION_V1);
+    assert_eq!(
+        ProjectContractVersion::V1.get(),
+        PROJECT_CONTRACT_VERSION_V1
+    );
     assert_eq!(PROJECT_CONTRACT_VERSION_V1, 1);
     assert_eq!(MAX_PROJECT_CONTRACT_JSON_BYTES, 1_048_576);
     assert_eq!(MAX_MACHINE_PATH_BYTES, 32_768);
@@ -358,10 +361,9 @@ fn c009_raw_secret_bearing_text_cannot_enter_safe_parameter_contract() {
     assert!(serde_json::from_value::<DoctorFinding>(finding).is_err());
 
     let safe = safe_finding();
-    let encoded = String::from_utf8(
-        canonical_project_json(&safe).expect("safe finding must serialize"),
-    )
-    .expect("canonical JSON is UTF-8");
+    let encoded =
+        String::from_utf8(canonical_project_json(&safe).expect("safe finding must serialize"))
+            .expect("canonical JSON is UTF-8");
     assert!(!encoded.contains("supersecret"));
     assert!(!encoded.contains("raw_text"));
 }

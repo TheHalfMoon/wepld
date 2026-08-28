@@ -126,6 +126,32 @@ fn v25_fixture() { assert!(true); }
     admitted_base[p.CORE_MANIFEST] = p.ADMITTED_CORE_MANIFEST
     admitted_base[p.ROOT_CARGO_LOCK] = p.expected_admitted_lock(cargo_lock)
 
+    original_component_base = p.V24_COMPONENT_BASE
+
+    def component_probe(view: Any, paths: set[str], *, allow_core_main_change: bool) -> None:
+        del paths, allow_core_main_change
+        if p.CORE_MANIFEST in base.STAGE_B_TEXT:
+            base.fail("v25 dependency component seam did not relax only the Core manifest")
+        base.require_frozen_component_lock_identity(p._read_lock(view))
+
+    p.V24_COMPONENT_BASE = component_probe
+    try:
+        p.verify_component_base(
+            mem(admitted_base), set(admitted_base), allow_core_main_change=False
+        )
+        bad_component_lock = dict(admitted_base)
+        bad_component_lock[p.ROOT_CARGO_LOCK] = cargo_lock
+        base.expect_failure_matching(
+            "v25 admitted component lock identity remains exact",
+            "admitted component Cargo.lock identity drifted",
+            p.verify_component_base,
+            mem(bad_component_lock),
+            set(bad_component_lock),
+            allow_core_main_change=False,
+        )
+    finally:
+        p.V24_COMPONENT_BASE = original_component_base
+
     product = dict(admitted_base)
     product.update(
         {

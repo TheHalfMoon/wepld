@@ -137,9 +137,14 @@ def eext(candidate: Any, policy_base: Any) -> None:
 
 
 def allowed(paths: Any, stage: str) -> None:
-    remaining = set(paths) - POLICY_FILES
+    # validate_allowed_paths receives the complete tracked tree, not the diff.
+    # Remove only successor policy files here. Preserve DEPENDENCY_REGISTER so
+    # the inherited v24 required-path verifier can continue proving that the
+    # canonical governance record is present in every tree. v26's exact future
+    # register mutation is governed by delta(), not by hiding the path here.
+    remaining = set(paths) - POLICY_FILES - q.POLICY_FILES
     if remaining:
-        Q_ALLOWED(remaining, stage)
+        q.V25_ALLOWED(remaining, stage)
 
 
 def files(view: Any) -> None:

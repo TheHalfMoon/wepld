@@ -311,7 +311,7 @@ def patch_predecessor() -> None:
 
 
 def delta(candidate: Any, policy_base: Any) -> None:
-    paths = changed(v24, candidate, policy_base)
+    paths = changed(v24.v23, candidate, policy_base)
     if bootbase(policy_base):
         if paths == BOOT:
             req_v24(candidate)
@@ -439,7 +439,7 @@ def files(view: Any) -> None:
 
 
 def freeze_s1_007_state(candidate: Any, policy_base: Any) -> None:
-    paths = changed(v24, candidate, policy_base)
+    paths = changed(v24.v23, candidate, policy_base)
     product_changed = frozenset(paths & PRODUCT_FILES)
     if not product_changed:
         _call("v24 inherited S1 state freeze", V24_FREEZE_STATE, candidate, policy_base)

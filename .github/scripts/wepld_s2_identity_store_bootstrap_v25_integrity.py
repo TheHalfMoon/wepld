@@ -32,7 +32,7 @@ import wepld_integrity as base
 P = ".github/scripts/wepld_s2_identity_store_bootstrap_v25_integrity.py"
 T = ".github/scripts/wepld_s2_identity_store_v25_selftest.py"
 H = ".github/scripts/wepld_s2_identity_store_v25_support.py"
-T_BLOB = "f52625471ff9935a799c0b8689e1662829d8faf5"
+T_BLOB = "d297032a3ce9564b276dba2f026b039d24142a45"
 H_BLOB = "5251b0a67b4ac18b69edafa55112b5caf25cb4ee"
 V24 = ".github/scripts/wepld_s2_core_observation_bootstrap_v24_integrity.py"
 V24_BLOB = "a547b48a0517b3cac2b33aaa832a0f31be2b585e"
@@ -438,6 +438,47 @@ def files(view: Any) -> None:
     _verify_product_files(view)
 
 
+def _require_admitted_component_lock_identity(data: bytes) -> None:
+    _require_package_identities(data)
+    if data.count(ADMITTED_CORE_LOCK_STANZA) != 1 or BASE_CORE_LOCK_STANZA in data:
+        base.fail("v25 admitted component Cargo.lock identity drifted")
+
+
+def verify_component_base(
+    view: Any,
+    paths: set[str],
+    *,
+    allow_core_main_change: bool,
+) -> None:
+    if not deps_ready(view):
+        _call(
+            "v24 component-base verifier",
+            V24_COMPONENT_BASE,
+            view,
+            paths,
+            allow_core_main_change=allow_core_main_change,
+        )
+        return
+
+    original_text = base.STAGE_B_TEXT
+    original_lock_check = base.require_frozen_component_lock_identity
+    patched_text = dict(original_text)
+    patched_text.pop(CORE_MANIFEST, None)
+    base.STAGE_B_TEXT = patched_text
+    base.require_frozen_component_lock_identity = _require_admitted_component_lock_identity
+    try:
+        _call(
+            "v24 admitted-dependency component-base verifier",
+            V24_COMPONENT_BASE,
+            view,
+            paths,
+            allow_core_main_change=allow_core_main_change,
+        )
+    finally:
+        base.STAGE_B_TEXT = original_text
+        base.require_frozen_component_lock_identity = original_lock_check
+
+
 def freeze_s1_007_state(candidate: Any, policy_base: Any) -> None:
     paths = changed(v24.v23, candidate, policy_base)
     product_changed = frozenset(paths & PRODUCT_FILES)
@@ -491,7 +532,7 @@ def overlay() -> None:
         (_attr(shell, "validate_allowed_paths", "allowed hook"), allowed),
         (_attr(shell, "verify_policy_files", "files hook"), files),
         (_attr(shell, "print_success", "printer hook"), printer),
-        (_attr(execution, "_verify_component_base", "component-base hook"), V24_COMPONENT_BASE),
+        (_attr(execution, "_verify_component_base", "component-base hook"), verify_component_base),
         (_attr(execution, "freeze_s1_007_state", "S1 state freeze hook"), freeze_s1_007_state),
     )
     if any(actual is not expected for actual, expected in pairs):
@@ -535,6 +576,7 @@ def install() -> None:
     _bind(shell, "validate_allowed_paths", allowed, "allowed hook")
     _bind(shell, "verify_policy_files", files, "files hook")
     _bind(shell, "print_success", printer, "printer hook")
+    _bind(execution, "_verify_component_base", verify_component_base, "component-base hook")
     _bind(execution, "freeze_s1_007_state", freeze_s1_007_state, "S1 state freeze hook")
     _INST = True
     overlay()

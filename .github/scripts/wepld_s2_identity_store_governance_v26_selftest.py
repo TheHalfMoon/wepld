@@ -30,6 +30,7 @@ def run() -> None:
     ):
         base.fail("v26 authority marker drift")
 
+    v24_predecessor = q.root.read_bytes(q.p.V24, base.MAX_POLICY_FILE_BYTES)
     predecessor = q.root.read_bytes(q.p.P, base.MAX_POLICY_FILE_BYTES)
     predecessor_test = q.root.read_bytes(q.p.T, base.MAX_POLICY_FILE_BYTES)
     predecessor_support = q.root.read_bytes(q.p.H, base.MAX_POLICY_FILE_BYTES)
@@ -41,6 +42,7 @@ def run() -> None:
     dependency_register = q.root.read_bytes(q.DEPENDENCY_REGISTER, base.MAX_POLICY_FILE_BYTES)
 
     base_values = {
+        q.p.V24: v24_predecessor,
         q.p.P: predecessor,
         q.p.T: predecessor_test,
         q.p.H: predecessor_support,

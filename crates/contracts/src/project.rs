@@ -383,7 +383,7 @@ fn redact_uri_sensitive_components(value: &str) -> String {
     let authority_start = separator + 3;
     let authority_tail = &value[authority_start..];
     let authority_len = authority_tail
-        .find(|character: char| matches!(character, '/' | '\\' | '?' | '#'))
+        .find(['/', '\\', '?', '#'])
         .unwrap_or(authority_tail.len());
     let authority_end = authority_start + authority_len;
     let authority = &value[authority_start..authority_end];
@@ -399,7 +399,7 @@ fn redact_uri_sensitive_components(value: &str) -> String {
     }
 
     let suffix = &value[authority_end..];
-    if let Some(redact_at) = suffix.find(|character: char| matches!(character, '?' | '#')) {
+    if let Some(redact_at) = suffix.find(['?', '#']) {
         safe.push_str(&suffix[..redact_at]);
         safe.push(if suffix[redact_at..].starts_with('?') {
             '?'

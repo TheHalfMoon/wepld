@@ -350,6 +350,11 @@ pub fn observe_non_git_project_root(
     if !lexical_absolute_path.is_absolute() {
         return Err(ProjectObservationError::ObservedPathNotAbsolute);
     }
+    if machine_path_from_path(lexical_absolute_path)? != locator.lexical_absolute_path {
+        return Ok(Observation::Unavailable {
+            error: ObservationErrorClass::RaceDetected,
+        });
+    }
 
     match &locator.resolved_path {
         Observation::Available {

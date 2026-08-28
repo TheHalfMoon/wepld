@@ -206,6 +206,6 @@ Machine hints are closed descriptive enums/structured safe fields, not arbitrary
 
 ## Q32 — What is the preferred first implementation-authority tranche after planning is canonical?
 
-**Decision:** **Contracts-only** is the preferred first successor, following the repository's proven S1 staged-authority pattern. It should grant only the exact `wepld-contracts` S2 contract/test paths needed for S2-C001..C008, with no filesystem, external process, network, model/provider, source import, or new dependency authority unless a separate canonical acquisition decision proves one is required.
+**Decision:** **Contracts-only** is the preferred first successor, following the repository's proven S1 staged-authority pattern. It should grant only the exact `wepld-contracts` S2 contract/test paths needed for S2-C001..C009, including the negative secret-safe contract test, with no filesystem, external process, network, model/provider, source import, or new dependency authority unless a separate canonical acquisition decision proves one is required.
 
 Core locator/store authority and any Git adapter authority are later separately bounded transitions; the contracts tranche must not silently pre-authorize them.

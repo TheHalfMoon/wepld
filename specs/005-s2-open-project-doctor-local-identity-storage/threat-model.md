@@ -2,7 +2,7 @@
 
 ## 1. Scope
 
-S2 introduces a new trust boundary: WePLD begins reading local user-selected projects and persisting local identity/evidence about them. The target repository is untrusted input. The local evidence store is trusted only to the extent that its catalog, current-generation reference, generation manifest, records, freshness, and provenance can be verified.
+S2 introduces a new trust boundary: WePLD begins reading local user-selected projects and persisting local identity/evidence about them. The target repository is untrusted input. The local evidence store is trusted only to the extent that its catalog, current-generation reference, generation manifest, records, freshness, and provenance can be structurally verified. S2 does not authenticate the store against an actor with writer-level access to the complete store.
 
 This threat model is planning evidence. It grants no implementation/effect authority.
 
@@ -45,7 +45,7 @@ Writes must survive concurrency/crash without creating valid-looking mixed gener
 
 ### TB-6 — local catalog/store → trusted core
 
-Store contents can be stale, tampered, truncated, downgraded, partially deleted, generation-mismatched, or replaced.
+Store contents can be stale, tampered, truncated, downgraded, partially deleted, generation-mismatched, or replaced. Schema/version/digest/manifest/reference validation can prove bounded structural consistency and detect many corruption classes, but because S2 has no authenticated trust anchor it cannot prove writer authenticity when an attacker can replace the complete store and recompute unkeyed digests consistently.
 
 ### TB-7 — core contracts → human/machine/Desktop projections
 
@@ -165,9 +165,11 @@ A projection must not change semantic status, hide ambiguity, manufacture PASS, 
 
 ### T-019 — Store tampering/downgrade
 
-**Attack:** old/modified record is injected to make Doctor green.
+**Attack:** an old/modified record is injected to make Doctor green, or an actor with writer-level access rewrites records, manifests, references, `CURRENT`, catalog state, and corresponding unkeyed digests into one internally self-consistent forged store.
 
-**Mitigation:** schema/version/digest/manifest/reference validation; explicit provenance/freshness; contradictions with stronger live facts surface; evidence does not authorize effects.
+**Mitigation:** schema/version/digest/manifest/reference validation detects corruption, truncation, version/reference mismatch, and internal incoherence; explicit provenance/freshness and contradictions with stronger live facts can surface additional problems; evidence never authorizes effects. These checks are **not an authenticity mechanism**. S2 has no keyed MAC, signature, OS-protected trust anchor, or equivalent writer-authentication primitive, so a complete self-consistent rewrite by a store writer is outside the protection claim. The implementation must surface this limitation and must never report structural validation as cryptographic authentication or tamper evidence. Any authenticated store trust anchor is a separate future planning/security/authority decision.
+
+**Residual:** a writer-level attacker can forge an internally coherent S2 store that passes the unkeyed structural checks when no stronger live contradiction is observed.
 
 ### T-020 — Oversized store record denial
 
@@ -335,9 +337,10 @@ At minimum, implementation qualification must include negative tests proving:
 10. lock contention completes within the bounded contract or explicit platform limitation;
 11. descriptor count/size/aggregate/depth limits are enforced without recursion/execution;
 12. secret-bearing remote/config/environment/manifest fixtures are absent from TTY/JSON/log/diagnostic outputs;
-13. unknown command cannot invoke AI/tool fallback;
-14. no S2 network call is required;
-15. linked worktrees remain distinct contexts.
+13. a self-consistent writer-level rewrite with recomputed unkeyed digests is never reported as authenticated/tamper-evident merely because structural validation passes;
+14. unknown command cannot invoke AI/tool fallback;
+15. no S2 network call is required;
+16. linked worktrees remain distinct contexts.
 
 ## 6. Security review applicability
 
@@ -355,6 +358,7 @@ For this planning-only documentation package, security review examines whether t
 - filesystem races cannot be eliminated by path canonicalization;
 - cross-platform rename/directory-entry/power-loss durability semantics differ;
 - OS file-lock interactions vary by platform/filesystem and must be qualified per claimed environment;
+- S2 has no authenticated local-store trust anchor; a writer-level attacker can forge an internally coherent store and recompute unkeyed digests, so structural validation must not be presented as writer authenticity/tamper evidence;
 - user can deliberately override Git trust outside WePLD;
 - hostile/network filesystems may provide weaker metadata/durability behavior;
 - perfect move/copy identity inference is impossible without explicit durable identity stored with the project, which S2 intentionally avoids by default;

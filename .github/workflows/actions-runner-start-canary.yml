@@ -1,9 +1,7 @@
 name: actions-runner-start-canary
 
 on:
-  push:
-    branches:
-      - diag/actions-runner-start-2026-08-29
+  workflow_dispatch:
 
 permissions: {}
 

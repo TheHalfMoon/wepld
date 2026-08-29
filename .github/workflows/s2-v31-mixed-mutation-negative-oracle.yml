@@ -1,0 +1,62 @@
+name: s2-v31-mixed-mutation-negative-oracle
+
+on:
+  push:
+    branches:
+      - diag/s2-v31-mixed-mutation-negative-oracle-2026-08-29
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      POLICY_BASE: f00104d51bb521e03c7032cf97dfbd2ae4a2d0f8
+      NEGATIVE_HEAD: b1084200e8bd42afea074fe524b76c080878ce6e
+    steps:
+      - name: Checkout exact diagnostic policy revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          lfs: false
+          submodules: false
+
+      - name: Prove exact diagnostic wrapper scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$POLICY_BASE"
+          mapfile -t changed < <(git diff --name-only "$POLICY_BASE" HEAD)
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = ".github/workflows/s2-v31-mixed-mutation-negative-oracle.yml"
+
+      - name: Prove mixed dependency-product candidate fails at v25 staged boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_WT="${RUNNER_TEMP}/policy-base"
+          NEG_WT="${RUNNER_TEMP}/negative"
+          git worktree add --detach "$BASE_WT" "$POLICY_BASE"
+          git worktree add --detach "$NEG_WT" "$NEGATIVE_HEAD"
+          mapfile -t changed < <(git diff --name-only "$POLICY_BASE" "$NEGATIVE_HEAD")
+          printf 'negative_changed=%s\n' "${changed[@]}"
+          test "${#changed[@]}" -eq 4
+          printf '%s\n' "${changed[@]}" | grep -Fx 'Cargo.lock'
+          printf '%s\n' "${changed[@]}" | grep -Fx 'crates/core/Cargo.toml'
+          printf '%s\n' "${changed[@]}" | grep -Fx 'crates/core/src/identity.rs'
+          printf '%s\n' "${changed[@]}" | grep -Fx 'docs/governance/DEPENDENCY_REGISTER.md'
+          set +e
+          output=$(python .github/scripts/wepld_s2_identity_store_governance_v31_integrity.py verify-candidate-local \
+            --root "$NEG_WT" \
+            --policy-base-root "$BASE_WT" \
+            --policy-base-sha "$POLICY_BASE" 2>&1)
+          rc=$?
+          set -e
+          printf '%s\n' "$output"
+          test "$rc" -ne 0
+          printf '%s\n' "$output" | grep -F 'v25 dependency admission must not mix with any other mutation'
+          echo 'mixed_dependency_product_fail_closed=PASS'

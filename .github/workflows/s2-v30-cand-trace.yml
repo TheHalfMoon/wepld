@@ -1,0 +1,60 @@
+name: s2-v30-cand-trace
+
+on:
+  push:
+    branches:
+      - diag/s2-v30-policy-qualification-2026-08-29
+
+permissions:
+  contents: read
+
+jobs:
+  trace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      V30_HEAD: e83d5021f7593d02d23e46a3eccb9f0b6bb21be2
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Checkout diagnostic branch with history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          lfs: false
+          submodules: false
+
+      - name: Trace candidate-local verifier identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          wt="${RUNNER_TEMP}/wepld-v30-trace"
+          git worktree add --detach "$wt" "$V30_HEAD"
+          trap 'git worktree remove --force "$wt" >/dev/null 2>&1 || true' EXIT
+          cd "$wt"
+          python - <<'PY'
+          import inspect
+          import sys
+          from pathlib import Path
+
+          scripts = Path('.github/scripts').resolve()
+          sys.path.insert(0, str(scripts))
+          import wepld_s2_identity_store_governance_v30_integrity as v30
+
+          fn = v30.CAND
+          print(f'CAND_MODULE={getattr(fn, "__module__", None)}')
+          print(f'CAND_NAME={getattr(fn, "__name__", None)}')
+          print(f'CAND_QUALNAME={getattr(fn, "__qualname__", None)}')
+          print(f'CAND_FILE={inspect.getsourcefile(fn)}')
+          try:
+              print('CAND_SOURCE_BEGIN')
+              print(inspect.getsource(fn))
+              print('CAND_SOURCE_END')
+          except (OSError, TypeError) as exc:
+              print(f'CAND_SOURCE_ERROR={exc}')
+
+          module = sys.modules.get(getattr(fn, '__module__', ''))
+          if module is not None:
+              print(f'CAND_MODULE_FILE={getattr(module, "__file__", None)}')
+          print('DIAGNOSTIC_AUTHORITY=NONE')
+          PY

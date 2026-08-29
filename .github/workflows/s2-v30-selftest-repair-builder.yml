@@ -58,7 +58,7 @@ jobs:
 
           def git_blob(data: bytes) -> str:
               return hashlib.sha1(
-                  f"blob {len(data)}\\0".encode("ascii") + data,
+                  f"blob {len(data)}\0".encode("ascii") + data,
                   usedforsecurity=False,
               ).hexdigest()
 

@@ -30,7 +30,7 @@ import wepld_s2_identity_store_governance_v29_integrity as p
 
 P = ".github/scripts/wepld_s2_identity_store_governance_v30_integrity.py"
 T = ".github/scripts/wepld_s2_identity_store_governance_v30_selftest.py"
-T_BLOB = "f59cadc8d5273e1e8cb1d0a1ff038a27aae5d26f"
+T_BLOB = "4494a01d8f2da7325b664daabe380bae6c66c844"
 V29_P_BLOB = "a3c55e8ecd7420794b1536239d1ebeac21f43e4f"
 V29_T_BLOB = "38721c4c5bccc3716105e44a4aad2b0cec63cd69"
 

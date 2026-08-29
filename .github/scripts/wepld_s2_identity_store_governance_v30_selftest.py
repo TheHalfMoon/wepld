@@ -48,12 +48,20 @@ def run() -> None:
     p.p.selftest()
 
     view = admitted_view()
-    base.expect_failure_matching(
-        "v30 reproduces trusted run 660 predecessor policy-file defect",
-        "exact policy content drifted: crates/core/Cargo.toml",
-        p.P_FILES,
-        view,
+    if view.read_bytes(
+        p.p.s.r.q.p.CORE_MANIFEST, base.MAX_POLICY_FILE_BYTES
+    ) != p.p.s.r.q.p.ADMITTED_CORE_MANIFEST:
+        base.fail("v30 admitted self-test view Core manifest drifted")
+    admitted_lock = view.read_bytes(
+        p.p.s.r.q.p.ROOT_CARGO_LOCK, p.p.s.r.q.p.MAX_LOCK_BYTES
     )
+    if admitted_lock.count(p.p.s.r.q.p.ADMITTED_CORE_LOCK_STANZA) != 1:
+        base.fail("v30 admitted self-test view Core lock stanza drifted")
+    admitted_register = view.read_bytes(
+        p.p.s.r.q.DEPENDENCY_REGISTER, base.MAX_POLICY_FILE_BYTES
+    )
+    if not admitted_register.endswith(p.p.CORRECTED_S2_DEPENDENCY_REGISTER_APPEND):
+        base.fail("v30 admitted self-test view dependency register drifted")
 
     p.install()
     p.files(view)

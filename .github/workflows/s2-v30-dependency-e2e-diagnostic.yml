@@ -14,7 +14,7 @@ jobs:
     timeout-minutes: 10
     env:
       PYTHONDONTWRITEBYTECODE: "1"
-      V30_POLICY_BASE_SHA: e83d5021f7593d02d23e46a3eccb9f0b6bb21be2
+      V30_POLICY_BASE_SHA: 9a343016df41b2cdfdd423b60ef5725c7f9594a0
       DEPENDENCY_SOURCE_REF: feat/s2-identity-store-dependency-admission-2026-08-29
     steps:
       - name: Checkout diagnostic branch with canonical history

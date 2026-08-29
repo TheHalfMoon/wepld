@@ -65,9 +65,8 @@ def run() -> None:
 
     p.install()
     p.files(view)
-    stage = base.verify_view(view)
-    if stage != "S1_DEPENDENCY_RESOLUTION_LOCKED":
-        base.fail(f"v30 admitted full-view stage drifted: {stage}")
+    paths = base.validate_entries(view.entries())
+    p.shell_component_base(view, paths)
 
     projected = p.project_admitted_dependency_state(view)
     if (

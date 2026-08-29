@@ -82,6 +82,11 @@ def run() -> None:
     p.run_predecessor_selftests(admitted)
 
     p.install()
+
+    # Regression for the real steady-state candidate-local path: inherited
+    # base-control checks must see exact v30 workflow bytes while the admitted
+    # dependency bytes remain real and governed by v30/v25.
+    p.basectrl(admitted, p.root)
     p.files(admitted)
 
     wrong_lock = OverlayView(

@@ -14,9 +14,9 @@ baseline or the exact governed admitted dependency state. It then projects the
 three admitted dependency files, when present, plus the two v31 workflow
 entrypoints back to their exact canonical v30 predecessor bytes solely for the
 duration of predecessor self-tests and predecessor installation. In steady-state
-policy-file verification, only the two successor workflow entrypoints are
-projected to v30 while v30 retains responsibility for the exact dependency
-projection.
+policy-file and base-control verification, only the two successor workflow
+entrypoints are projected to v30 while v30 retains responsibility for the exact
+dependency projection and candidate delta.
 
 Candidate delta verification, trusted admission, product verification, runtime
 effects, source admission, dependency versions, and all S3+ authority remain
@@ -35,7 +35,7 @@ import wepld_s2_identity_store_governance_v30_integrity as p
 
 P = ".github/scripts/wepld_s2_identity_store_governance_v31_integrity.py"
 T = ".github/scripts/wepld_s2_identity_store_governance_v31_selftest.py"
-T_BLOB = "156824532e9f33ba3fd7eb588520c953a3c44136"
+T_BLOB = "8c8ce95e428f332a29a4060b52cd2edf015d5b96"
 V30_P_BLOB = "bfd92adbf8cf347f0f2ddf2b7678cafbccb50a46"
 V30_T_BLOB = "93a10f49c86d2ce9be2228467169348b8aac057c"
 
@@ -305,7 +305,10 @@ def delta(candidate: Any, policy_base: Any) -> None:
 
 def basectrl(candidate: Any, policy_base: Any) -> None:
     if not bootbase(policy_base):
-        P_BASE(candidate, policy_base)
+        P_BASE(
+            _workflow_predecessor_projection(candidate),
+            _workflow_predecessor_projection(policy_base),
+        )
         return
     for path in sorted(base.BASE_CONTROLLED_PATHS):
         candidate_bytes = candidate.read_bytes(path, base.MAX_POLICY_FILE_BYTES)

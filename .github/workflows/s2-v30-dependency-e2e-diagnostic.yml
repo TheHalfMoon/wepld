@@ -25,7 +25,7 @@ jobs:
           lfs: false
           submodules: false
 
-      - name: Verify exact v30 policy against exact three-file dependency candidate
+      - name: Trace exact Core manifest reads on three-file dependency candidate
         shell: bash
         run: |
           set -euo pipefail
@@ -49,11 +49,7 @@ jobs:
 
           changed="$(git -C "$candidate" diff --name-only)"
           expected=$'Cargo.lock\ncrates/core/Cargo.toml\ndocs/governance/DEPENDENCY_REGISTER.md'
-          if [ "$changed" != "$expected" ]; then
-            printf 'unexpected synthetic dependency delta:\n%s\n' "$changed" >&2
-            exit 1
-          fi
-
+          test "$changed" = "$expected"
           test "$(git hash-object "${candidate}/crates/core/Cargo.toml")" = "9ff919ab5f05d6aa5b6c179f194eb4611e7b1bd8"
           test "$(git hash-object "${candidate}/Cargo.lock")" = "d137e3f0c62637e402374880deb5355a878d4a91"
           test "$(git hash-object "${candidate}/docs/governance/DEPENDENCY_REGISTER.md")" = "8b5efceac77b3f44f1c17eaab2b70862c90b7a06"
@@ -61,15 +57,33 @@ jobs:
           git -C "$candidate" add Cargo.lock crates/core/Cargo.toml docs/governance/DEPENDENCY_REGISTER.md
           git -C "$candidate" -c user.name='WePLD Diagnostic' -c user.email='diagnostic@invalid.local' \
             commit -m 'diagnostic(s2): exact dependency fixture' >/dev/null
-          if [ -n "$(git -C "$candidate" status --porcelain)" ]; then
-            echo 'synthetic candidate worktree is not clean after local commit' >&2
-            exit 1
-          fi
+          test -z "$(git -C "$candidate" status --porcelain)"
 
-          python "$policy_base/.github/scripts/wepld_s2_identity_store_governance_v30_integrity.py" verify-candidate-local \
-            --root "$candidate" \
-            --policy-base-root "$policy_base" \
-            --policy-base-sha "$V30_POLICY_BASE_SHA"
+          python - "$policy_base" "$candidate" "$V30_POLICY_BASE_SHA" <<'PY'
+          from __future__ import annotations
 
-          echo 'DIAGNOSTIC_AUTHORITY=NONE'
-          echo 'V30_DEPENDENCY_E2E_FIXTURE=PASS'
+          import sys
+          import traceback
+          from pathlib import Path
+
+          policy_base, candidate, policy_sha = sys.argv[1:]
+          sys.path.insert(0, str(Path(policy_base) / ".github/scripts"))
+          import wepld_s2_identity_store_governance_v30_integrity as v30
+
+          v30.install()
+          original = v30.base.read_text_exact
+          counter = 0
+
+          def traced(view, relative, expected):
+              global counter
+              if relative == "crates/core/Cargo.toml":
+                  counter += 1
+                  print(f"CORE_MANIFEST_READ_STACK_BEGIN={counter}", file=sys.stderr)
+                  traceback.print_stack(file=sys.stderr)
+                  print(f"CORE_MANIFEST_READ_STACK_END={counter}", file=sys.stderr)
+              return original(view, relative, expected)
+
+          v30.base.read_text_exact = traced
+          print("DIAGNOSTIC_AUTHORITY=NONE", file=sys.stderr)
+          raise SystemExit(v30.p.s.r.q.p.CAND(candidate, policy_base, policy_sha))
+          PY

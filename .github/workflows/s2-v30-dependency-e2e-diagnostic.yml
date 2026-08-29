@@ -58,6 +58,14 @@ jobs:
           test "$(git hash-object "${candidate}/Cargo.lock")" = "d137e3f0c62637e402374880deb5355a878d4a91"
           test "$(git hash-object "${candidate}/docs/governance/DEPENDENCY_REGISTER.md")" = "8b5efceac77b3f44f1c17eaab2b70862c90b7a06"
 
+          git -C "$candidate" add Cargo.lock crates/core/Cargo.toml docs/governance/DEPENDENCY_REGISTER.md
+          git -C "$candidate" -c user.name='WePLD Diagnostic' -c user.email='diagnostic@invalid.local' \
+            commit -m 'diagnostic(s2): exact dependency fixture' >/dev/null
+          if [ -n "$(git -C "$candidate" status --porcelain)" ]; then
+            echo 'synthetic candidate worktree is not clean after local commit' >&2
+            exit 1
+          fi
+
           python "$policy_base/.github/scripts/wepld_s2_identity_store_governance_v30_integrity.py" verify-candidate-local \
             --root "$candidate" \
             --policy-base-root "$policy_base" \

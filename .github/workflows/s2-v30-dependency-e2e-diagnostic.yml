@@ -25,7 +25,7 @@ jobs:
           lfs: false
           submodules: false
 
-      - name: Trace dependency projection selection on exact candidate
+      - name: Trace expected and projected Core manifest identities
         shell: bash
         run: |
           set -euo pipefail
@@ -76,6 +76,19 @@ jobs:
           deps_calls = 0
           manifest_calls = 0
 
+          print(
+              "STAGE_B_CORE_EXPECTED_BLOB="
+              + v30.p.s.r.q.p.blob(
+                  v30.base.STAGE_B_TEXT["crates/core/Cargo.toml"].encode("utf-8")
+              ),
+              file=sys.stderr,
+          )
+          print(
+              "BASE_CORE_MANIFEST_BLOB="
+              + v30.p.s.r.q.p.blob(v30.p.s.r.q.p.BASE_CORE_MANIFEST),
+              file=sys.stderr,
+          )
+
           def traced_deps_ready(view):
               global deps_calls
               deps_calls += 1
@@ -91,8 +104,9 @@ jobs:
               if relative == "crates/core/Cargo.toml":
                   manifest_calls += 1
                   data = view.read_bytes(relative, v30.base.MAX_POLICY_FILE_BYTES)
+                  expected_bytes = expected.encode("utf-8")
                   print(
-                      f"CORE_MANIFEST_READ={manifest_calls} TYPE={type(view).__module__}.{type(view).__name__} BLOB={v30.p.s.r.q.p.blob(data)}",
+                      f"CORE_MANIFEST_READ={manifest_calls} TYPE={type(view).__module__}.{type(view).__name__} ACTUAL_BLOB={v30.p.s.r.q.p.blob(data)} EXPECTED_BLOB={v30.p.s.r.q.p.blob(expected_bytes)} ACTUAL_BYTES={len(data)} EXPECTED_BYTES={len(expected_bytes)}",
                       file=sys.stderr,
                   )
                   traceback.print_stack(file=sys.stderr)

@@ -24,7 +24,7 @@ jobs:
           lfs: false
           submodules: false
 
-      - name: Trace effective shell verify-view identity
+      - name: Trace effective post-install shell verify-view identity
         shell: bash
         run: |
           set -euo pipefail
@@ -46,36 +46,24 @@ jobs:
           cand_module = sys.modules[cand.__module__]
           v3 = cand_module.v3
           shell = v3._topology()[0]
-          verifier = shell.verify_view
+          before = shell.verify_view
+          v30.install()
+          after = shell.verify_view
 
           print(f'CAND_MODULE={cand.__module__}')
-          print(f'V3_MODULE={v3.__name__}')
           print(f'SHELL_MODULE={shell.__name__}')
-          print(f'SHELL_FILE={getattr(shell, "__file__", None)}')
-          print(f'VERIFY_VIEW_MODULE={getattr(verifier, "__module__", None)}')
-          print(f'VERIFY_VIEW_NAME={getattr(verifier, "__name__", None)}')
-          print(f'VERIFY_VIEW_FILE={inspect.getsourcefile(verifier)}')
-          print('VERIFY_VIEW_SOURCE_BEGIN')
-          print(inspect.getsource(verifier))
-          print('VERIFY_VIEW_SOURCE_END')
-
-          print(f'BASE_MODULE_ID={id(v30.base)}')
-          print(f'SHELL_BASE_ID={id(getattr(shell, "base", None))}')
-          print(f'BASE_STAGE_FN_BEFORE={v30.base.verify_stage_b_templates.__module__}.{v30.base.verify_stage_b_templates.__name__}')
-          if 'verify_stage_b_templates' in verifier.__globals__:
-              fn = verifier.__globals__['verify_stage_b_templates']
-              print(f'VERIFY_VIEW_STAGE_GLOBAL={fn.__module__}.{fn.__name__}')
-              print(f'VERIFY_VIEW_STAGE_GLOBAL_ID={id(fn)}')
-          else:
-              print('VERIFY_VIEW_STAGE_GLOBAL=ABSENT')
-
-          v30.install()
-          verifier_after = shell.verify_view
-          print(f'VERIFY_VIEW_ID_STABLE={verifier_after is verifier}')
-          print(f'BASE_STAGE_AFTER={v30.base.verify_stage_b_templates.__module__}.{v30.base.verify_stage_b_templates.__name__}')
-          if 'verify_stage_b_templates' in verifier_after.__globals__:
-              fn = verifier_after.__globals__['verify_stage_b_templates']
-              print(f'VERIFY_VIEW_STAGE_GLOBAL_AFTER={fn.__module__}.{fn.__name__}')
-              print(f'VERIFY_VIEW_STAGE_GLOBAL_AFTER_IS_V30={fn is v30.verify_stage_b_templates}')
+          print(f'BEFORE_MODULE={before.__module__}')
+          print(f'AFTER_MODULE={after.__module__}')
+          print(f'AFTER_NAME={after.__name__}')
+          print(f'AFTER_FILE={inspect.getsourcefile(after)}')
+          print('AFTER_SOURCE_BEGIN')
+          print(inspect.getsource(after))
+          print('AFTER_SOURCE_END')
+          print(f'AFTER_GLOBAL_BASE_ID={id(after.__globals__.get("base"))}')
+          print(f'V30_BASE_ID={id(v30.base)}')
+          for key in sorted(after.__globals__):
+              if 'verify' in key.lower() and callable(after.__globals__[key]):
+                  fn = after.__globals__[key]
+                  print(f'GLOBAL_FN={key}:{getattr(fn, "__module__", None)}.{getattr(fn, "__name__", None)}')
           print('DIAGNOSTIC_AUTHORITY=NONE')
           PY

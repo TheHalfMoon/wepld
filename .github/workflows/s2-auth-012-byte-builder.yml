@@ -1,0 +1,137 @@
+name: s2-auth-012-byte-builder
+
+on:
+  push:
+    branches:
+      - diag/s2-auth-012-byte-builder-2026-08-29
+
+permissions:
+  contents: write
+
+jobs:
+  build-exact-git-blobs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      CANONICAL_BASE_SHA: 3d0d9ca88be440e0e16b004ff5a7bafe8d9c3ee2
+    steps:
+      - name: Checkout diagnostic head with canonical history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          lfs: false
+          submodules: false
+
+      - name: Construct exact S2-AUTH-012 blobs without mutating refs
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import base64
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          import sys
+          import urllib.request
+
+          base_sha = os.environ["CANONICAL_BASE_SHA"]
+          changed = subprocess.check_output(
+              ["git", "diff", "--name-only", f"{base_sha}..HEAD"], text=True
+          ).splitlines()
+          expected_diag = [".github/workflows/s2-auth-012-byte-builder.yml"]
+          if changed != expected_diag:
+              raise SystemExit(f"diagnostic branch drifted: {changed!r}")
+
+          sys.path.insert(0, ".github/scripts")
+          import wepld_s2_identity_store_bootstrap_v25_integrity as v25
+          import wepld_s2_identity_store_governance_v29_integrity as v29
+
+          manifest_path = Path("crates/core/Cargo.toml")
+          lock_path = Path("Cargo.lock")
+          register_path = Path("docs/governance/DEPENDENCY_REGISTER.md")
+
+          manifest = manifest_path.read_bytes()
+          lock_bytes = lock_path.read_bytes()
+          register = register_path.read_bytes()
+
+          for path, data in (
+              (manifest_path.as_posix(), manifest),
+              (lock_path.as_posix(), lock_bytes),
+              (register_path.as_posix(), register),
+          ):
+              canonical = subprocess.check_output(["git", "show", f"{base_sha}:{path}"])
+              if data != canonical:
+                  raise SystemExit(f"diagnostic input differs from canonical base: {path}")
+
+          admitted_manifest = v25.ADMITTED_CORE_MANIFEST
+          admitted_lock = v25.expected_admitted_lock(lock_bytes)
+          append = v29.CORRECTED_S2_DEPENDENCY_REGISTER_APPEND
+          if append in register:
+              raise SystemExit("canonical register already contains S2-AUTH-012 append")
+          admitted_register = register + append
+
+          old_stanza = v25.BASE_CORE_LOCK_STANZA
+          new_stanza = v25.ADMITTED_CORE_LOCK_STANZA
+          if lock_bytes.count(old_stanza) != 1 or new_stanza in lock_bytes:
+              raise SystemExit("canonical Core lock stanza did not match exact baseline")
+          if admitted_lock != lock_bytes.replace(old_stanza, new_stanza, 1):
+              raise SystemExit("policy-generated lock differs from exact one-stanza replacement")
+          if admitted_register != register + append:
+              raise SystemExit("register append construction drifted")
+          if b"5e7cd5733536844a9856dc7259bd4696bbe5e3ae" not in append:
+              raise SystemExit("corrected getrandom provenance missing")
+          if b"eeb6a3d4ade21087c0f7bd560192e4bfb8357670" in append:
+              raise SystemExit("superseded getrandom provenance remained in append")
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          token = os.environ["GITHUB_TOKEN"]
+
+          def create_blob(label: str, data: bytes) -> str:
+              payload = json.dumps(
+                  {
+                      "content": base64.b64encode(data).decode("ascii"),
+                      "encoding": "base64",
+                  }
+              ).encode("utf-8")
+              req = urllib.request.Request(
+                  f"https://api.github.com/repos/{repo}/git/blobs",
+                  data=payload,
+                  method="POST",
+                  headers={
+                      "Authorization": f"Bearer {token}",
+                      "Accept": "application/vnd.github+json",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                      "Content-Type": "application/json",
+                      "User-Agent": "wepld-s2-auth-012-byte-builder",
+                  },
+              )
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  result = json.load(response)
+              sha = result["sha"]
+              git_blob = hashlib.sha1(
+                  f"blob {len(data)}\0".encode("ascii") + data,
+                  usedforsecurity=False,
+              ).hexdigest()
+              if sha != git_blob:
+                  raise SystemExit(
+                      f"GitHub/local Git blob mismatch for {label}: {sha} != {git_blob}"
+                  )
+              print(f"{label}_BLOB_SHA={sha}")
+              print(f"{label}_SHA256={hashlib.sha256(data).hexdigest()}")
+              print(f"{label}_BYTES={len(data)}")
+              return sha
+
+          create_blob("CORE_MANIFEST", admitted_manifest)
+          create_blob("CARGO_LOCK", admitted_lock)
+          create_blob("DEPENDENCY_REGISTER", admitted_register)
+          print("DIAGNOSTIC_REF_MUTATION=NONE_BY_BUILDER")
+          print("CANDIDATE_CHANGED_PATHS=crates/core/Cargo.toml,Cargo.lock,docs/governance/DEPENDENCY_REGISTER.md")
+          PY

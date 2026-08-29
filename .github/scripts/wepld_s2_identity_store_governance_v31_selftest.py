@@ -55,13 +55,18 @@ def admitted_view() -> Any:
 
 
 def run() -> None:
-    # v31 bootstrap itself runs with canonical baseline dependency bytes but v31
-    # workflow bytes. The predecessor must still self-test against exact v30.
-    p.run_predecessor_selftests(p.root)
+    # Prove the canonical-baseline projection itself is well-formed without
+    # executing the predecessor chain twice in one process. A second successful
+    # predecessor invocation would retain predecessor hooks and contaminate later
+    # negative self-tests.
+    baseline = p.predecessor_selftest_view(p.root)
+    for path, expected in p.P_WF.items():
+        if p.V25.sha(baseline.read_bytes(path, base.MAX_POLICY_FILE_BYTES)) != expected:
+            base.fail(f"v31 baseline predecessor workflow projection drifted: {path}")
 
-    # Regression for Foundation #834: the same predecessor chain must also pass
-    # when the repository contains the exact governed S2-AUTH-012 dependency
-    # state, by projecting only those admitted bytes back to canonical baseline.
+    # Regression for Foundation #834: execute the frozen predecessor chain once
+    # against the exact governed S2-AUTH-012 dependency state, projecting only
+    # the admitted dependency/workflow bytes back to canonical v30.
     admitted = admitted_view()
     p.run_predecessor_selftests(admitted)
 

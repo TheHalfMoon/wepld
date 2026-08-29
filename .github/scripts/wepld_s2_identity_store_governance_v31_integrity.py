@@ -257,7 +257,7 @@ def basectrl(candidate: Any, policy_base: Any) -> None:
             ):
                 base.fail(f"v31 bootstrap workflow drifted: {path}")
         elif candidate_bytes != base_bytes:
-            base.fail(f"base-controlled path changed: {path}")
+            base.fail(f"base-controlled policy/governance path changed: {path}")
 
 
 def ext(candidate: Any, policy_base: Any, safe: Any) -> None:

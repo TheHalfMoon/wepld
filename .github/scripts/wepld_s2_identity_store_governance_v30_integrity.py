@@ -30,7 +30,7 @@ import wepld_s2_identity_store_governance_v29_integrity as p
 
 P = ".github/scripts/wepld_s2_identity_store_governance_v30_integrity.py"
 T = ".github/scripts/wepld_s2_identity_store_governance_v30_selftest.py"
-T_BLOB = "4494a01d8f2da7325b664daabe380bae6c66c844"
+T_BLOB = "284714143444c6c6d8919132afb71c80c77a28e0"
 V29_P_BLOB = "a3c55e8ecd7420794b1536239d1ebeac21f43e4f"
 V29_T_BLOB = "38721c4c5bccc3716105e44a4aad2b0cec63cd69"
 
@@ -77,6 +77,7 @@ _attr = p._attr
 _bind = p._bind
 _INST = False
 _PRINT: Any = None
+_BASE_STAGE_B_TEMPLATES = base.verify_stage_b_templates
 
 
 def bootbase(view: Any) -> bool:
@@ -177,6 +178,13 @@ def project_admitted_dependency_state(view: Any) -> Any:
             register_path: baseline_register,
         },
     )
+
+
+def verify_stage_b_templates(view: Any, stage: str) -> None:
+    if p.s.r.q.deps_ready(view):
+        _BASE_STAGE_B_TEMPLATES(project_admitted_dependency_state(view), stage)
+        return
+    _BASE_STAGE_B_TEMPLATES(view, stage)
 
 
 def delta(candidate: Any, policy_base: Any) -> None:
@@ -294,6 +302,7 @@ def overlay() -> None:
     pairs = (
         (_attr(routing, "IMPL_REQUIRE_EXACT_DELTA", "routing hook"), delta),
         (base.compare_base_controlled, basectrl),
+        (base.verify_stage_b_templates, verify_stage_b_templates),
         (_attr(desktop, "verify_extension_controlled_paths", "desktop hook"), dext),
         (_attr(execution, "verify_extension_controlled_paths", "execution hook"), eext),
         (_attr(shell, "validate_allowed_paths", "allowed hook"), allowed),
@@ -323,6 +332,7 @@ def install() -> None:
     pairs = (
         (_attr(routing, "IMPL_REQUIRE_EXACT_DELTA", "v29 routing hook"), P_DELTA),
         (base.compare_base_controlled, P_BASE),
+        (base.verify_stage_b_templates, _BASE_STAGE_B_TEMPLATES),
         (_attr(desktop, "verify_extension_controlled_paths", "v29 desktop hook"), P_DEXT),
         (_attr(execution, "verify_extension_controlled_paths", "v29 execution hook"), P_EEXT),
         (_attr(shell, "validate_allowed_paths", "v29 allowed hook"), P_ALLOWED),
@@ -353,6 +363,7 @@ def install() -> None:
     )
     _bind(routing, "IMPL_REQUIRE_EXACT_DELTA", delta, "v30 routing hook")
     base.compare_base_controlled = basectrl
+    base.verify_stage_b_templates = verify_stage_b_templates
     _bind(desktop, "verify_extension_controlled_paths", dext, "v30 desktop hook")
     _bind(execution, "verify_extension_controlled_paths", eext, "v30 execution hook")
     _bind(shell, "validate_allowed_paths", allowed, "v30 allowed hook")

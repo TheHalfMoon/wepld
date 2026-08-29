@@ -1,0 +1,38 @@
+name: s2-v31-trace-diagnostic
+
+on:
+  push:
+    branches:
+      - diag/s2-v31-trace-2026-08-29
+
+permissions:
+  contents: read
+
+jobs:
+  trace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact diagnostic revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          lfs: false
+          submodules: false
+
+      - name: Run v31 self-test without top-level PolicyError catch
+        shell: bash
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+          PYTHONPATH: .github/scripts
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import wepld_integrity as base
+          import wepld_s2_identity_store_governance_v31_integrity as v31
+
+          print(f"DIAGNOSTIC_HEAD={__import__('subprocess').check_output(['git','rev-parse','HEAD'], text=True).strip()}")
+          print(f"LOCAL_VIEW_CLASS_BEFORE={base.LocalRepositoryView!r}")
+          v31.selftest()
+          PY

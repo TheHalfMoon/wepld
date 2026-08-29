@@ -30,7 +30,7 @@ import wepld_s2_identity_store_governance_v29_integrity as p
 
 P = ".github/scripts/wepld_s2_identity_store_governance_v30_integrity.py"
 T = ".github/scripts/wepld_s2_identity_store_governance_v30_selftest.py"
-T_BLOB = "8b9ef3cfc36e07164e35be17356630d2b19f4d47"
+T_BLOB = "d1d20af2ddf0fccf0bb13c3673ee695b6a049f22"
 V29_P_BLOB = "a3c55e8ecd7420794b1536239d1ebeac21f43e4f"
 V29_T_BLOB = "38721c4c5bccc3716105e44a4aad2b0cec63cd69"
 
@@ -78,6 +78,7 @@ _bind = p._bind
 _INST = False
 _PRINT: Any = None
 _SHELL_COMPONENT_BASE: Any = None
+_S1_005_EVIDENCE_FREEZE: Any = None
 
 
 def bootbase(view: Any) -> bool:
@@ -198,6 +199,20 @@ def shell_component_base(view: Any, paths: Any) -> None:
     _call("v29 shell component-base verifier", _SHELL_COMPONENT_BASE, target, paths)
 
 
+def freeze_s1_005_evidence(candidate: Any, policy_base: Any) -> None:
+    if _S1_005_EVIDENCE_FREEZE is None:
+        base.fail("v30 predecessor S1-005 evidence freeze is not installed")
+    target = candidate
+    if p.s.r.q.deps_ready(candidate):
+        target = project_admitted_dependency_state(candidate)
+    _call(
+        "v29 S1-005 evidence freeze",
+        _S1_005_EVIDENCE_FREEZE,
+        target,
+        policy_base,
+    )
+
+
 def delta(candidate: Any, policy_base: Any) -> None:
     paths = p.s.r.q.p.changed(p.s.r.q.p.v24.v23, candidate, policy_base)
 
@@ -314,6 +329,7 @@ def overlay() -> None:
         (_attr(routing, "IMPL_REQUIRE_EXACT_DELTA", "routing hook"), delta),
         (base.compare_base_controlled, basectrl),
         (_attr(shell, "_verify_shell_component_base", "shell component-base hook"), shell_component_base),
+        (_attr(execution, "freeze_s1_005_evidence", "S1-005 evidence-freeze hook"), freeze_s1_005_evidence),
         (_attr(desktop, "verify_extension_controlled_paths", "desktop hook"), dext),
         (_attr(execution, "verify_extension_controlled_paths", "execution hook"), eext),
         (_attr(shell, "validate_allowed_paths", "allowed hook"), allowed),
@@ -332,7 +348,7 @@ def overlay() -> None:
 
 
 def install() -> None:
-    global _INST, _PRINT, _SHELL_COMPONENT_BASE
+    global _INST, _PRINT, _SHELL_COMPONENT_BASE, _S1_005_EVIDENCE_FREEZE
     if _INST:
         overlay()
         return
@@ -354,6 +370,9 @@ def install() -> None:
 
     _SHELL_COMPONENT_BASE = _attr(
         shell, "_verify_shell_component_base", "v29 shell component-base verifier"
+    )
+    _S1_005_EVIDENCE_FREEZE = _attr(
+        execution, "freeze_s1_005_evidence", "v29 S1-005 evidence freeze"
     )
     _PRINT = P_PRINTER
     desktop_extensions = frozenset(
@@ -381,6 +400,12 @@ def install() -> None:
         "_verify_shell_component_base",
         shell_component_base,
         "v30 shell component-base hook",
+    )
+    _bind(
+        execution,
+        "freeze_s1_005_evidence",
+        freeze_s1_005_evidence,
+        "v30 S1-005 evidence-freeze hook",
     )
     _bind(desktop, "verify_extension_controlled_paths", dext, "v30 desktop hook")
     _bind(execution, "verify_extension_controlled_paths", eext, "v30 execution hook")

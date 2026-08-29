@@ -67,6 +67,7 @@ def run() -> None:
     p.files(view)
     paths = base.validate_entries(view.entries())
     p.shell_component_base(view, paths)
+    p.freeze_s1_005_evidence(view, p.root)
 
     projected = p.project_admitted_dependency_state(view)
     if (

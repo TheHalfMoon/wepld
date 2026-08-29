@@ -178,7 +178,20 @@ def delta(candidate: Any, policy_base: Any) -> None:
 
 
 def basectrl(candidate: Any, policy_base: Any) -> None:
-    S_BASE(candidate, policy_base)
+    if not bootbase(policy_base):
+        S_BASE(candidate, policy_base)
+        return
+    for path in sorted(base.BASE_CONTROLLED_PATHS):
+        candidate_bytes = candidate.read_bytes(path, base.MAX_POLICY_FILE_BYTES)
+        base_bytes = policy_base.read_bytes(path, base.MAX_POLICY_FILE_BYTES)
+        if path in (s.r.q.p.FW, s.r.q.p.AW):
+            if (
+                s.r.q.p.sha(candidate_bytes) != WF[path]
+                or s.r.q.p.sha(base_bytes) != S_WF[path]
+            ):
+                base.fail(f"v29 bootstrap workflow drifted: {path}")
+        elif candidate_bytes != base_bytes:
+            base.fail(f"base-controlled path changed: {path}")
 
 
 def ext(candidate: Any, policy_base: Any, safe: Any) -> None:

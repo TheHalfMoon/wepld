@@ -1,0 +1,62 @@
+name: s2-v30-pr225-ready-transition-diagnostic
+
+on:
+  push:
+    branches:
+      - diag/s2-v30-dependency-e2e-2026-08-29
+    paths:
+      - .github/workflows/s2-v30-pr225-ready-transition.yml
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  ready:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Mark exact reviewed PR head ready without changing repository content
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: TheHalfMoon/wepld
+          PR_NUMBER: "225"
+          EXPECTED_BASE_SHA: 3d0d9ca88be440e0e16b004ff5a7bafe8d9c3ee2
+          EXPECTED_HEAD_SHA: b49d1474751e3896fffe374a1a082d7df71c82af
+        run: |
+          set -euo pipefail
+
+          pr_json="$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}")"
+          state="$(jq -r '.state' <<<"$pr_json")"
+          draft="$(jq -r '.draft' <<<"$pr_json")"
+          base_sha="$(jq -r '.base.sha' <<<"$pr_json")"
+          head_sha="$(jq -r '.head.sha' <<<"$pr_json")"
+          node_id="$(jq -r '.node_id' <<<"$pr_json")"
+          main_sha="$(gh api "repos/${REPOSITORY}/commits/main" --jq '.sha')"
+
+          test "$state" = "open"
+          test "$draft" = "true"
+          test "$base_sha" = "$EXPECTED_BASE_SHA"
+          test "$head_sha" = "$EXPECTED_HEAD_SHA"
+          test "$main_sha" = "$EXPECTED_BASE_SHA"
+          test -n "$node_id"
+          test "$node_id" != "null"
+
+          mutation='mutation($id:ID!){markPullRequestReadyForReview(input:{pullRequestId:$id}){pullRequest{number isDraft headRefOid baseRefOid}}}'
+          result="$(gh api graphql -f query="$mutation" -F id="$node_id")"
+
+          test "$(jq -r '.data.markPullRequestReadyForReview.pullRequest.number' <<<"$result")" = "$PR_NUMBER"
+          test "$(jq -r '.data.markPullRequestReadyForReview.pullRequest.isDraft' <<<"$result")" = "false"
+          test "$(jq -r '.data.markPullRequestReadyForReview.pullRequest.headRefOid' <<<"$result")" = "$EXPECTED_HEAD_SHA"
+          test "$(jq -r '.data.markPullRequestReadyForReview.pullRequest.baseRefOid' <<<"$result")" = "$EXPECTED_BASE_SHA"
+
+          after="$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}")"
+          test "$(jq -r '.draft' <<<"$after")" = "false"
+          test "$(jq -r '.head.sha' <<<"$after")" = "$EXPECTED_HEAD_SHA"
+          test "$(jq -r '.base.sha' <<<"$after")" = "$EXPECTED_BASE_SHA"
+
+          echo "DIAGNOSTIC_AUTHORITY=GITHUB_PR_READY_TRANSITION_ONLY"
+          echo "PR_READY_TRANSITION=SUCCESS"
+          echo "PR_HEAD=${EXPECTED_HEAD_SHA}"
+          echo "PR_BASE=${EXPECTED_BASE_SHA}"

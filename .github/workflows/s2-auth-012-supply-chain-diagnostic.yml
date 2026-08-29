@@ -1,0 +1,148 @@
+name: s2-auth-012-supply-chain-diagnostic
+
+on:
+  push:
+    branches:
+      - diag/s2-auth-012-supply-chain-2026-08-29
+    paths:
+      - .github/workflows/s2-auth-012-supply-chain-diagnostic.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BASE_SHA: 8631408a7e6802761a093bd37ef20f126510130a
+      CANDIDATE_SHA: fe6d6ad95d18d3256c2d821b553c816b8a738054
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Checkout exact candidate with canonical history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          persist-credentials: false
+          fetch-depth: 0
+          lfs: false
+          submodules: false
+
+      - name: Verify exact three-path candidate and supply-chain delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse HEAD^)" = "$BASE_SHA"
+
+          actual_paths="$(git diff --name-only "$BASE_SHA" "$CANDIDATE_SHA")"
+          expected_paths=$'Cargo.lock\ncrates/core/Cargo.toml\ndocs/governance/DEPENDENCY_REGISTER.md'
+          test "$actual_paths" = "$expected_paths"
+
+          python - <<'PY'
+          from __future__ import annotations
+
+          from collections import Counter
+          import subprocess
+          import tomllib
+
+          BASE = "8631408a7e6802761a093bd37ef20f126510130a"
+          HEAD = "fe6d6ad95d18d3256c2d821b553c816b8a738054"
+
+          def show_text(ref: str, path: str) -> str:
+              return subprocess.check_output(
+                  ["git", "show", f"{ref}:{path}"],
+                  text=True,
+                  encoding="utf-8",
+              )
+
+          def parse_lock(ref: str) -> dict:
+              return tomllib.loads(show_text(ref, "Cargo.lock"))
+
+          base_lock = parse_lock(BASE)
+          head_lock = parse_lock(HEAD)
+          base_packages = base_lock["package"]
+          head_packages = head_lock["package"]
+
+          def identity(pkg: dict) -> tuple[str, str, str, str]:
+              return (
+                  pkg["name"],
+                  pkg["version"],
+                  pkg.get("source", ""),
+                  pkg.get("checksum", ""),
+              )
+
+          base_ids = Counter(identity(pkg) for pkg in base_packages)
+          head_ids = Counter(identity(pkg) for pkg in head_packages)
+          assert base_ids == head_ids, "package identity set drifted"
+          assert len(base_packages) == len(head_packages) == 417, "lock package count drifted"
+
+          def one(packages: list[dict], name: str, version: str) -> dict:
+              matches = [p for p in packages if p["name"] == name and p["version"] == version]
+              assert len(matches) == 1, (name, version, len(matches))
+              return matches[0]
+
+          base_core = one(base_packages, "wepld-core", "0.0.0")
+          head_core = one(head_packages, "wepld-core", "0.0.0")
+          assert base_core.get("dependencies") == ["wepld-contracts"]
+          assert head_core.get("dependencies") == [
+              "getrandom 0.4.3",
+              "sha2",
+              "wepld-contracts",
+          ]
+
+          getrandom = one(head_packages, "getrandom", "0.4.3")
+          sha2 = one(head_packages, "sha2", "0.10.9")
+          assert getrandom.get("checksum") == "300e883d756b2e4ec94e02791f39b04b522276138852cfc41d9fb7e904106099"
+          assert sha2.get("checksum") == "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283"
+          assert identity(getrandom) in base_ids
+          assert identity(sha2) in base_ids
+
+          manifest = tomllib.loads(show_text(HEAD, "crates/core/Cargo.toml"))
+          deps = manifest["dependencies"]
+          assert deps["getrandom"] == "=0.4.3"
+          assert deps["sha2"] == "=0.10.9"
+          assert "uuid" not in deps
+          assert deps["wepld-contracts"] == {"path": "../contracts"}
+
+          base_register = show_text(BASE, "docs/governance/DEPENDENCY_REGISTER.md")
+          head_register = show_text(HEAD, "docs/governance/DEPENDENCY_REGISTER.md")
+          assert head_register.startswith(base_register), "dependency register is not append-only"
+          appendix = head_register[len(base_register):]
+          required = [
+              "TASK = S2-AUTH-012",
+              "DIRECT_CORE_DEPENDENCIES = getrandom 0.4.3, sha2 0.10.9",
+              "DIRECT_UUID_CORE_EDGE = REJECTED",
+              "CRATES_IO_CHECKSUM = 300e883d756b2e4ec94e02791f39b04b522276138852cfc41d9fb7e904106099",
+              "SOURCE_REVISION = 5e7cd5733536844a9856dc7259bd4696bbe5e3ae",
+              "LICENSE = MIT OR Apache-2.0",
+              "CRATES_IO_CHECKSUM = a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283",
+              "SOURCE_REVISION = 82c36a428f8d6f05f3bfccdedb243e9d1f85359d",
+              "AUTHENTICITY_CLAIM = NONE",
+              "PACKAGE_IDENTITY_DELTA = 0",
+              "NEW_LICENSE_IDENTIFIER_DELTA = 0",
+              "NEW_CRATE_SOURCE_DELTA = 0",
+              "SBOM_COMPONENT_SET_DELTA = 0",
+              "SBOM_DEPENDENCY_EDGE_DELTA = wepld-core -> getrandom 0.4.3, sha2 0.10.9",
+              "SOURCE_ADMISSION = NONE",
+              "NETWORK_AUTHORITY = NONE",
+              "GIT_EXECUTION_AUTHORITY = NONE",
+              "MODEL_PROVIDER_EXECUTION = NONE",
+              "S3_PLUS_AUTHORITY = NONE",
+          ]
+          for marker in required:
+              assert marker in appendix, marker
+
+          print("CANDIDATE_EXACT_THREE_PATHS=PASS")
+          print("LOCK_PACKAGE_COUNT=417_UNCHANGED")
+          print("PACKAGE_IDENTITY_DELTA=0")
+          print("SBOM_COMPONENT_SET_DELTA=0")
+          print("SBOM_DEPENDENCY_EDGE_DELTA=wepld-core -> getrandom 0.4.3, sha2 0.10.9")
+          print("DIRECT_UUID_CORE_EDGE=REJECTED")
+          print("GETRANDOM_CHECKSUM_AND_PROVENANCE_BINDING=PASS")
+          print("SHA2_CHECKSUM_AND_PROVENANCE_BINDING=PASS")
+          print("LICENSE_ACCOUNTING=MIT_OR_APACHE_2_0_FOR_BOTH_DIRECT_EDGES")
+          print("DEPENDENCY_REGISTER_APPEND_ONLY=PASS")
+          print("SOURCE_ADMISSION=NONE")
+          print("DIAGNOSTIC_AUTHORITY=NONE")
+          PY

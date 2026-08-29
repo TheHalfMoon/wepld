@@ -14,7 +14,7 @@ jobs:
     timeout-minutes: 10
     env:
       PYTHONDONTWRITEBYTECODE: "1"
-      V30_POLICY_BASE_SHA: 9a343016df41b2cdfdd423b60ef5725c7f9594a0
+      V30_POLICY_BASE_SHA: db49aed5c8d843edc0206cfa3948abee5479cde9
       DEPENDENCY_SOURCE_REF: feat/s2-identity-store-dependency-admission-2026-08-29
     steps:
       - name: Checkout diagnostic branch with canonical history
@@ -25,7 +25,7 @@ jobs:
           lfs: false
           submodules: false
 
-      - name: Trace expected and projected Core manifest identities
+      - name: Verify exact v30 policy against exact three-file dependency candidate
         shell: bash
         run: |
           set -euo pipefail
@@ -49,7 +49,11 @@ jobs:
 
           changed="$(git -C "$candidate" diff --name-only)"
           expected=$'Cargo.lock\ncrates/core/Cargo.toml\ndocs/governance/DEPENDENCY_REGISTER.md'
-          test "$changed" = "$expected"
+          if [ "$changed" != "$expected" ]; then
+            printf 'unexpected synthetic dependency delta:\n%s\n' "$changed" >&2
+            exit 1
+          fi
+
           test "$(git hash-object "${candidate}/crates/core/Cargo.toml")" = "9ff919ab5f05d6aa5b6c179f194eb4611e7b1bd8"
           test "$(git hash-object "${candidate}/Cargo.lock")" = "d137e3f0c62637e402374880deb5355a878d4a91"
           test "$(git hash-object "${candidate}/docs/governance/DEPENDENCY_REGISTER.md")" = "8b5efceac77b3f44f1c17eaab2b70862c90b7a06"
@@ -59,61 +63,10 @@ jobs:
             commit -m 'diagnostic(s2): exact dependency fixture' >/dev/null
           test -z "$(git -C "$candidate" status --porcelain)"
 
-          python - "$policy_base" "$candidate" "$V30_POLICY_BASE_SHA" <<'PY'
-          from __future__ import annotations
+          python "$policy_base/.github/scripts/wepld_s2_identity_store_governance_v30_integrity.py" verify-candidate-local \
+            --root "$candidate" \
+            --policy-base-root "$policy_base" \
+            --policy-base-sha "$V30_POLICY_BASE_SHA"
 
-          import sys
-          import traceback
-          from pathlib import Path
-
-          policy_base, candidate, policy_sha = sys.argv[1:]
-          sys.path.insert(0, str(Path(policy_base) / ".github/scripts"))
-          import wepld_s2_identity_store_governance_v30_integrity as v30
-
-          v30.install()
-          original_read_text = v30.base.read_text_exact
-          original_deps_ready = v30.p.s.r.q.deps_ready
-          deps_calls = 0
-          manifest_calls = 0
-
-          print(
-              "STAGE_B_CORE_EXPECTED_BLOB="
-              + v30.p.s.r.q.p.blob(
-                  v30.base.STAGE_B_TEXT["crates/core/Cargo.toml"].encode("utf-8")
-              ),
-              file=sys.stderr,
-          )
-          print(
-              "BASE_CORE_MANIFEST_BLOB="
-              + v30.p.s.r.q.p.blob(v30.p.s.r.q.p.BASE_CORE_MANIFEST),
-              file=sys.stderr,
-          )
-
-          def traced_deps_ready(view):
-              global deps_calls
-              deps_calls += 1
-              result = original_deps_ready(view)
-              print(
-                  f"DEPS_READY_CALL={deps_calls} TYPE={type(view).__module__}.{type(view).__name__} RESULT={result}",
-                  file=sys.stderr,
-              )
-              return result
-
-          def traced_read_text(view, relative, expected):
-              global manifest_calls
-              if relative == "crates/core/Cargo.toml":
-                  manifest_calls += 1
-                  data = view.read_bytes(relative, v30.base.MAX_POLICY_FILE_BYTES)
-                  expected_bytes = expected.encode("utf-8")
-                  print(
-                      f"CORE_MANIFEST_READ={manifest_calls} TYPE={type(view).__module__}.{type(view).__name__} ACTUAL_BLOB={v30.p.s.r.q.p.blob(data)} EXPECTED_BLOB={v30.p.s.r.q.p.blob(expected_bytes)} ACTUAL_BYTES={len(data)} EXPECTED_BYTES={len(expected_bytes)}",
-                      file=sys.stderr,
-                  )
-                  traceback.print_stack(file=sys.stderr)
-              return original_read_text(view, relative, expected)
-
-          v30.p.s.r.q.deps_ready = traced_deps_ready
-          v30.base.read_text_exact = traced_read_text
-          print("DIAGNOSTIC_AUTHORITY=NONE", file=sys.stderr)
-          raise SystemExit(v30.p.s.r.q.p.CAND(candidate, policy_base, policy_sha))
-          PY
+          echo 'DIAGNOSTIC_AUTHORITY=NONE'
+          echo 'V30_DEPENDENCY_E2E_FIXTURE=PASS'

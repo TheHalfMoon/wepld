@@ -38,20 +38,30 @@ def admitted_view() -> Any:
     lock_path = p.V25.ROOT_CARGO_LOCK
     register_path = p.V26.DEPENDENCY_REGISTER
 
-    baseline_lock = p.root.read_bytes(lock_path, p.V25.MAX_LOCK_BYTES)
-    baseline_register = p.root.read_bytes(
-        register_path, base.MAX_POLICY_FILE_BYTES
-    )
-    return OverlayView(
-        p.root,
-        {
-            manifest_path: p.V25.ADMITTED_CORE_MANIFEST,
-            lock_path: p.V25.expected_admitted_lock(baseline_lock),
-            register_path: (
-                baseline_register + p.V29.CORRECTED_S2_DEPENDENCY_REGISTER_APPEND
-            ),
-        },
-    )
+    if p._baseline_dependency_state_exact(p.root):
+        baseline_lock = p.root.read_bytes(lock_path, p.V25.MAX_LOCK_BYTES)
+        baseline_register = p.root.read_bytes(
+            register_path, base.MAX_POLICY_FILE_BYTES
+        )
+        return OverlayView(
+            p.root,
+            {
+                manifest_path: p.V25.ADMITTED_CORE_MANIFEST,
+                lock_path: p.V25.expected_admitted_lock(baseline_lock),
+                register_path: (
+                    baseline_register + p.V29.CORRECTED_S2_DEPENDENCY_REGISTER_APPEND
+                ),
+            },
+        )
+
+    try:
+        p._project_exact_admitted_dependency_state(p.root)
+    except base.PolicyError:
+        base.fail(
+            "v31 self-test root dependency state is neither exact canonical baseline "
+            "nor exact governed admitted form"
+        )
+    return p.root
 
 
 def run() -> None:
@@ -65,8 +75,9 @@ def run() -> None:
             base.fail(f"v31 baseline predecessor workflow projection drifted: {path}")
 
     # Regression for Foundation #834: execute the frozen predecessor chain once
-    # against the exact governed S2-AUTH-012 dependency state, projecting only
-    # the admitted dependency/workflow bytes back to canonical v30.
+    # against the exact governed S2-AUTH-012 dependency state. On a canonical
+    # baseline checkout this is an exact overlay; on an already-admitted checkout
+    # the real root is used only after exact reverse-to-baseline validation.
     admitted = admitted_view()
     p.run_predecessor_selftests(admitted)
 

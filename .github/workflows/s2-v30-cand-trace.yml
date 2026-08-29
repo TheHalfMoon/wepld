@@ -24,7 +24,7 @@ jobs:
           lfs: false
           submodules: false
 
-      - name: Trace candidate-local verifier identity
+      - name: Trace effective shell verify-view identity
         shell: bash
         run: |
           set -euo pipefail
@@ -41,31 +41,41 @@ jobs:
           sys.path.insert(0, str(scripts))
           import wepld_s2_identity_store_governance_v30_integrity as v30
 
-          chain = [
-              ('v29', v30.p),
-              ('v28', v30.p.s),
-              ('v27', v30.p.s.r),
-              ('v26', v30.p.s.r.q),
-              ('v25', v30.p.s.r.q.p),
-          ]
-          for label, module in chain:
-              print(f'{label}_MODULE={module.__name__}')
-              print(f'{label}_FILE={getattr(module, "__file__", None)}')
+          v25 = v30.p.s.r.q.p
+          cand = v25.CAND
+          cand_module = sys.modules[cand.__module__]
+          v3 = cand_module.v3
+          shell = v3._topology()[0]
+          verifier = shell.verify_view
 
-          fn = v30.p.s.r.q.p.CAND
-          print(f'CAND_MODULE={getattr(fn, "__module__", None)}')
-          print(f'CAND_NAME={getattr(fn, "__name__", None)}')
-          print(f'CAND_QUALNAME={getattr(fn, "__qualname__", None)}')
-          print(f'CAND_FILE={inspect.getsourcefile(fn)}')
-          try:
-              print('CAND_SOURCE_BEGIN')
-              print(inspect.getsource(fn))
-              print('CAND_SOURCE_END')
-          except (OSError, TypeError) as exc:
-              print(f'CAND_SOURCE_ERROR={exc}')
+          print(f'CAND_MODULE={cand.__module__}')
+          print(f'V3_MODULE={v3.__name__}')
+          print(f'SHELL_MODULE={shell.__name__}')
+          print(f'SHELL_FILE={getattr(shell, "__file__", None)}')
+          print(f'VERIFY_VIEW_MODULE={getattr(verifier, "__module__", None)}')
+          print(f'VERIFY_VIEW_NAME={getattr(verifier, "__name__", None)}')
+          print(f'VERIFY_VIEW_FILE={inspect.getsourcefile(verifier)}')
+          print('VERIFY_VIEW_SOURCE_BEGIN')
+          print(inspect.getsource(verifier))
+          print('VERIFY_VIEW_SOURCE_END')
 
-          module = sys.modules.get(getattr(fn, '__module__', ''))
-          if module is not None:
-              print(f'CAND_MODULE_FILE={getattr(module, "__file__", None)}')
+          print(f'BASE_MODULE_ID={id(v30.base)}')
+          print(f'SHELL_BASE_ID={id(getattr(shell, "base", None))}')
+          print(f'BASE_STAGE_FN_BEFORE={v30.base.verify_stage_b_templates.__module__}.{v30.base.verify_stage_b_templates.__name__}')
+          if 'verify_stage_b_templates' in verifier.__globals__:
+              fn = verifier.__globals__['verify_stage_b_templates']
+              print(f'VERIFY_VIEW_STAGE_GLOBAL={fn.__module__}.{fn.__name__}')
+              print(f'VERIFY_VIEW_STAGE_GLOBAL_ID={id(fn)}')
+          else:
+              print('VERIFY_VIEW_STAGE_GLOBAL=ABSENT')
+
+          v30.install()
+          verifier_after = shell.verify_view
+          print(f'VERIFY_VIEW_ID_STABLE={verifier_after is verifier}')
+          print(f'BASE_STAGE_AFTER={v30.base.verify_stage_b_templates.__module__}.{v30.base.verify_stage_b_templates.__name__}')
+          if 'verify_stage_b_templates' in verifier_after.__globals__:
+              fn = verifier_after.__globals__['verify_stage_b_templates']
+              print(f'VERIFY_VIEW_STAGE_GLOBAL_AFTER={fn.__module__}.{fn.__name__}')
+              print(f'VERIFY_VIEW_STAGE_GLOBAL_AFTER_IS_V30={fn is v30.verify_stage_b_templates}')
           print('DIAGNOSTIC_AUTHORITY=NONE')
           PY

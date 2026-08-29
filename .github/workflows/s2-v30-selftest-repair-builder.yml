@@ -1,4 +1,4 @@
-name: s2-v30-read-text-projection-repair-builder
+name: s2-v30-s1-005-evidence-freeze-repair-builder
 
 on:
   push:
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      V30_HEAD: 9a343016df41b2cdfdd423b60ef5725c7f9594a0
+      V30_HEAD: db49aed5c8d843edc0206cfa3948abee5479cde9
     steps:
       - name: Checkout diagnostic branch with history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -23,7 +23,7 @@ jobs:
           lfs: false
           submodules: false
 
-      - name: Build exact v30 read-text projection repair blobs without mutating refs
+      - name: Build exact v30 S1-005 evidence-freeze repair blobs without mutating refs
         shell: bash
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -49,21 +49,50 @@ jobs:
           policy = show(policy_path)
           test = show(test_path)
 
-          old_projection = b'''    def read_bytes(self, path: str, max_bytes: int) -> bytes:\n        if path in self._replacements:\n            data = self._replacements[path]\n            if len(data) > max_bytes:\n                base.fail(f"v30 projected dependency file exceeds read bound: {path}")\n            return data\n        return self._view.read_bytes(path, max_bytes)\n\n    def __getattr__(self, name: str) -> Any:\n        return getattr(self._view, name)\n'''
-          new_projection = b'''    def read_bytes(self, path: str, max_bytes: int) -> bytes:\n        if path in self._replacements:\n            data = self._replacements[path]\n            if len(data) > max_bytes:\n                base.fail(f"v30 projected dependency file exceeds read bound: {path}")\n            return data\n        return self._view.read_bytes(path, max_bytes)\n\n    def read_text(\n        self, path: str, limit: int = base.MAX_POLICY_FILE_BYTES\n    ) -> str:\n        data = self.read_bytes(path, limit)\n        try:\n            return data.decode("utf-8", errors="strict")\n        except UnicodeError as exc:\n            base.fail(f"tracked file is not UTF-8: {path}: {exc}")\n\n    def __getattr__(self, name: str) -> Any:\n        return getattr(self._view, name)\n'''
-          if policy.count(old_projection) != 1:
-              raise SystemExit(
-                  f"v30 projection read-text insertion target drifted: count={policy.count(old_projection)}"
-              )
-          policy = policy.replace(old_projection, new_projection, 1)
+          replacements = [
+              (
+                  b"_SHELL_COMPONENT_BASE: Any = None\n",
+                  b"_SHELL_COMPONENT_BASE: Any = None\n_S1_005_EVIDENCE_FREEZE: Any = None\n",
+                  "freeze capture global",
+              ),
+              (
+                  b'''def shell_component_base(view: Any, paths: Any) -> None:\n    if _SHELL_COMPONENT_BASE is None:\n        base.fail("v30 predecessor shell component-base verifier is not installed")\n    target = view\n    if p.s.r.q.deps_ready(view):\n        target = project_admitted_dependency_state(view)\n    _call("v29 shell component-base verifier", _SHELL_COMPONENT_BASE, target, paths)\n\n\ndef delta(candidate: Any, policy_base: Any) -> None:\n''',
+                  b'''def shell_component_base(view: Any, paths: Any) -> None:\n    if _SHELL_COMPONENT_BASE is None:\n        base.fail("v30 predecessor shell component-base verifier is not installed")\n    target = view\n    if p.s.r.q.deps_ready(view):\n        target = project_admitted_dependency_state(view)\n    _call("v29 shell component-base verifier", _SHELL_COMPONENT_BASE, target, paths)\n\n\ndef freeze_s1_005_evidence(candidate: Any, policy_base: Any) -> None:\n    if _S1_005_EVIDENCE_FREEZE is None:\n        base.fail("v30 predecessor S1-005 evidence freeze is not installed")\n    target = candidate\n    if p.s.r.q.deps_ready(candidate):\n        target = project_admitted_dependency_state(candidate)\n    _call(\n        "v29 S1-005 evidence freeze",\n        _S1_005_EVIDENCE_FREEZE,\n        target,\n        policy_base,\n    )\n\n\ndef delta(candidate: Any, policy_base: Any) -> None:\n''',
+                  "freeze wrapper",
+              ),
+              (
+                  b'''        (_attr(shell, "_verify_shell_component_base", "shell component-base hook"), shell_component_base),\n        (_attr(desktop, "verify_extension_controlled_paths", "desktop hook"), dext),\n''',
+                  b'''        (_attr(shell, "_verify_shell_component_base", "shell component-base hook"), shell_component_base),\n        (_attr(execution, "freeze_s1_005_evidence", "S1-005 evidence-freeze hook"), freeze_s1_005_evidence),\n        (_attr(desktop, "verify_extension_controlled_paths", "desktop hook"), dext),\n''',
+                  "overlay freeze hook",
+              ),
+              (
+                  b"def install() -> None:\n    global _INST, _PRINT, _SHELL_COMPONENT_BASE\n",
+                  b"def install() -> None:\n    global _INST, _PRINT, _SHELL_COMPONENT_BASE, _S1_005_EVIDENCE_FREEZE\n",
+                  "install freeze global",
+              ),
+              (
+                  b'''    _SHELL_COMPONENT_BASE = _attr(\n        shell, "_verify_shell_component_base", "v29 shell component-base verifier"\n    )\n    _PRINT = P_PRINTER\n''',
+                  b'''    _SHELL_COMPONENT_BASE = _attr(\n        shell, "_verify_shell_component_base", "v29 shell component-base verifier"\n    )\n    _S1_005_EVIDENCE_FREEZE = _attr(\n        execution, "freeze_s1_005_evidence", "v29 S1-005 evidence freeze"\n    )\n    _PRINT = P_PRINTER\n''',
+                  "freeze capture",
+              ),
+              (
+                  b'''    _bind(\n        shell,\n        "_verify_shell_component_base",\n        shell_component_base,\n        "v30 shell component-base hook",\n    )\n    _bind(desktop, "verify_extension_controlled_paths", dext, "v30 desktop hook")\n''',
+                  b'''    _bind(\n        shell,\n        "_verify_shell_component_base",\n        shell_component_base,\n        "v30 shell component-base hook",\n    )\n    _bind(\n        execution,\n        "freeze_s1_005_evidence",\n        freeze_s1_005_evidence,\n        "v30 S1-005 evidence-freeze hook",\n    )\n    _bind(desktop, "verify_extension_controlled_paths", dext, "v30 desktop hook")\n''',
+                  "freeze bind",
+              ),
+          ]
+          for old, new, label in replacements:
+              if policy.count(old) != 1:
+                  raise SystemExit(f"v30 policy {label} target drifted: count={policy.count(old)}")
+              policy = policy.replace(old, new, 1)
 
-          marker = b'''    ):\n        base.fail("v30 projected Core manifest baseline identity drifted")\n    if (\n        p.p.s.r.q.p.blob(\n            projected.read_bytes(\n                p.p.s.r.q.p.ROOT_CARGO_LOCK, p.p.s.r.q.p.MAX_LOCK_BYTES\n            )\n        )\n'''
-          replacement = b'''    ):\n        base.fail("v30 projected Core manifest baseline identity drifted")\n    expected_manifest_text = p.p.s.r.q.p.BASE_CORE_MANIFEST.decode(\n        "utf-8", errors="strict"\n    )\n    if (\n        projected.read_text(\n            p.p.s.r.q.p.CORE_MANIFEST, base.MAX_POLICY_FILE_BYTES\n        )\n        != expected_manifest_text\n    ):\n        base.fail("v30 projected Core manifest text read bypassed baseline projection")\n    if (\n        p.p.s.r.q.p.blob(\n            projected.read_bytes(\n                p.p.s.r.q.p.ROOT_CARGO_LOCK, p.p.s.r.q.p.MAX_LOCK_BYTES\n            )\n        )\n'''
-          if test.count(marker) != 1:
+          test_marker = b'''    p.files(view)\n    paths = base.validate_entries(view.entries())\n    p.shell_component_base(view, paths)\n\n    projected = p.project_admitted_dependency_state(view)\n'''
+          test_replacement = b'''    p.files(view)\n    paths = base.validate_entries(view.entries())\n    p.shell_component_base(view, paths)\n    p.freeze_s1_005_evidence(view, p.root)\n\n    projected = p.project_admitted_dependency_state(view)\n'''
+          if test.count(test_marker) != 1:
               raise SystemExit(
-                  f"v30 self-test read-text regression insertion target drifted: count={test.count(marker)}"
+                  f"v30 self-test S1-005 freeze insertion target drifted: count={test.count(test_marker)}"
               )
-          repaired_test = test.replace(marker, replacement, 1)
+          repaired_test = test.replace(test_marker, test_replacement, 1)
 
           def git_blob(data: bytes) -> str:
               return hashlib.sha1(
@@ -72,7 +101,7 @@ jobs:
               ).hexdigest()
 
           repaired_test_blob = git_blob(repaired_test)
-          old_pin = b'T_BLOB = "8f3d423957b4af3a3b5970c51f24ec35cbbab037"'
+          old_pin = b'T_BLOB = "8b9ef3cfc36e07164e35be17356630d2b19f4d47"'
           new_pin = f'T_BLOB = "{repaired_test_blob}"'.encode("ascii")
           if policy.count(old_pin) != 1:
               raise SystemExit("v30 policy current self-test pin drifted")
@@ -80,16 +109,20 @@ jobs:
 
           assertions = (
               (
+                  repaired_policy.count(b"def freeze_s1_005_evidence(candidate: Any, policy_base: Any) -> None:") == 1,
+                  "S1-005 evidence-freeze wrapper",
+              ),
+              (
+                  repaired_policy.count(b'"freeze_s1_005_evidence",\n        freeze_s1_005_evidence,') == 1,
+                  "S1-005 evidence-freeze binding",
+              ),
+              (
+                  repaired_test.count(b"p.freeze_s1_005_evidence(view, p.root)") == 1,
+                  "S1-005 evidence-freeze regression",
+              ),
+              (
                   repaired_policy.count(b"def read_text(\n        self, path: str, limit: int = base.MAX_POLICY_FILE_BYTES") == 1,
-                  "projection read_text implementation",
-              ),
-              (
-                  repaired_test.count(b"v30 projected Core manifest text read bypassed baseline projection") == 1,
-                  "projection read_text regression",
-              ),
-              (
-                  repaired_policy.count(b"def shell_component_base(view: Any, paths: Any) -> None:") == 1,
-                  "existing shell component seam preserved",
+                  "read-text projection retained",
               ),
           )
           for ok, label in assertions:
@@ -115,7 +148,7 @@ jobs:
                       "Accept": "application/vnd.github+json",
                       "X-GitHub-Api-Version": "2022-11-28",
                       "Content-Type": "application/json",
-                      "User-Agent": "wepld-s2-v30-read-text-repair-builder",
+                      "User-Agent": "wepld-s2-v30-s1-005-freeze-repair-builder",
                   },
               )
               with urllib.request.urlopen(request, timeout=30) as response:
@@ -131,9 +164,9 @@ jobs:
               print(f"{label}_BYTES={len(data)}")
               return remote
 
-          create_blob("V30_SELFTEST_READ_TEXT_REPAIRED", repaired_test)
-          create_blob("V30_POLICY_READ_TEXT_REPAIRED", repaired_policy)
+          create_blob("V30_SELFTEST_S1_005_FREEZE_REPAIRED", repaired_test)
+          create_blob("V30_POLICY_S1_005_FREEZE_REPAIRED", repaired_policy)
           print("REF_MUTATION=NONE_BY_BUILDER")
           print("REAL_CANDIDATE_DELTA_PROJECTION=NONE")
-          print("READ_TEXT_PROJECTION=EXACT_THREE_DEPENDENCY_FILES_ONLY")
+          print("S1_005_EVIDENCE_FREEZE_PROJECTION=DEPENDENCY_REGISTER_BASELINE_ONLY")
           PY

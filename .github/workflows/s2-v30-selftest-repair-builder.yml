@@ -1,4 +1,4 @@
-name: s2-v30-s1-005-evidence-freeze-repair-builder
+name: s2-v30-policy-content-binding-repair-builder
 
 on:
   push:
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      V30_HEAD: db49aed5c8d843edc0206cfa3948abee5479cde9
+      V30_HEAD: 9d5a9315b13bf554fb7ed12acd26aa508d91e3e8
     steps:
       - name: Checkout diagnostic branch with history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -23,7 +23,7 @@ jobs:
           lfs: false
           submodules: false
 
-      - name: Build exact v30 S1-005 evidence-freeze repair blobs without mutating refs
+      - name: Build and locally validate exact v30 policy-content binding repair blobs
         shell: bash
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -36,7 +36,9 @@ jobs:
           import hashlib
           import json
           import os
+          import pathlib
           import subprocess
+          import tempfile
           import urllib.request
 
           head = os.environ["V30_HEAD"]
@@ -49,49 +51,16 @@ jobs:
           policy = show(policy_path)
           test = show(test_path)
 
-          replacements = [
-              (
-                  b"_SHELL_COMPONENT_BASE: Any = None\n",
-                  b"_SHELL_COMPONENT_BASE: Any = None\n_S1_005_EVIDENCE_FREEZE: Any = None\n",
-                  "freeze capture global",
-              ),
-              (
-                  b'''def shell_component_base(view: Any, paths: Any) -> None:\n    if _SHELL_COMPONENT_BASE is None:\n        base.fail("v30 predecessor shell component-base verifier is not installed")\n    target = view\n    if p.s.r.q.deps_ready(view):\n        target = project_admitted_dependency_state(view)\n    _call("v29 shell component-base verifier", _SHELL_COMPONENT_BASE, target, paths)\n\n\ndef delta(candidate: Any, policy_base: Any) -> None:\n''',
-                  b'''def shell_component_base(view: Any, paths: Any) -> None:\n    if _SHELL_COMPONENT_BASE is None:\n        base.fail("v30 predecessor shell component-base verifier is not installed")\n    target = view\n    if p.s.r.q.deps_ready(view):\n        target = project_admitted_dependency_state(view)\n    _call("v29 shell component-base verifier", _SHELL_COMPONENT_BASE, target, paths)\n\n\ndef freeze_s1_005_evidence(candidate: Any, policy_base: Any) -> None:\n    if _S1_005_EVIDENCE_FREEZE is None:\n        base.fail("v30 predecessor S1-005 evidence freeze is not installed")\n    target = candidate\n    if p.s.r.q.deps_ready(candidate):\n        target = project_admitted_dependency_state(candidate)\n    _call(\n        "v29 S1-005 evidence freeze",\n        _S1_005_EVIDENCE_FREEZE,\n        target,\n        policy_base,\n    )\n\n\ndef delta(candidate: Any, policy_base: Any) -> None:\n''',
-                  "freeze wrapper",
-              ),
-              (
-                  b'''        (_attr(shell, "_verify_shell_component_base", "shell component-base hook"), shell_component_base),\n        (_attr(desktop, "verify_extension_controlled_paths", "desktop hook"), dext),\n''',
-                  b'''        (_attr(shell, "_verify_shell_component_base", "shell component-base hook"), shell_component_base),\n        (_attr(execution, "freeze_s1_005_evidence", "S1-005 evidence-freeze hook"), freeze_s1_005_evidence),\n        (_attr(desktop, "verify_extension_controlled_paths", "desktop hook"), dext),\n''',
-                  "overlay freeze hook",
-              ),
-              (
-                  b"def install() -> None:\n    global _INST, _PRINT, _SHELL_COMPONENT_BASE\n",
-                  b"def install() -> None:\n    global _INST, _PRINT, _SHELL_COMPONENT_BASE, _S1_005_EVIDENCE_FREEZE\n",
-                  "install freeze global",
-              ),
-              (
-                  b'''    _SHELL_COMPONENT_BASE = _attr(\n        shell, "_verify_shell_component_base", "v29 shell component-base verifier"\n    )\n    _PRINT = P_PRINTER\n''',
-                  b'''    _SHELL_COMPONENT_BASE = _attr(\n        shell, "_verify_shell_component_base", "v29 shell component-base verifier"\n    )\n    _S1_005_EVIDENCE_FREEZE = _attr(\n        execution, "freeze_s1_005_evidence", "v29 S1-005 evidence freeze"\n    )\n    _PRINT = P_PRINTER\n''',
-                  "freeze capture",
-              ),
-              (
-                  b'''    _bind(\n        shell,\n        "_verify_shell_component_base",\n        shell_component_base,\n        "v30 shell component-base hook",\n    )\n    _bind(desktop, "verify_extension_controlled_paths", dext, "v30 desktop hook")\n''',
-                  b'''    _bind(\n        shell,\n        "_verify_shell_component_base",\n        shell_component_base,\n        "v30 shell component-base hook",\n    )\n    _bind(\n        execution,\n        "freeze_s1_005_evidence",\n        freeze_s1_005_evidence,\n        "v30 S1-005 evidence-freeze hook",\n    )\n    _bind(desktop, "verify_extension_controlled_paths", dext, "v30 desktop hook")\n''',
-                  "freeze bind",
-              ),
-          ]
-          for old, new, label in replacements:
-              if policy.count(old) != 1:
-                  raise SystemExit(f"v30 policy {label} target drifted: count={policy.count(old)}")
-              policy = policy.replace(old, new, 1)
+          files_old = b'''    for path in sorted(POLICY_FILES):\n        if p.s.r.q.p.mode(view, path) != "100644":\n            base.fail(f"v30 policy file mode invalid: {path}")\n'''
+          files_new = b'''    approved = {\n        P: root.read_bytes(P, base.MAX_POLICY_FILE_BYTES),\n        T: root.read_bytes(T, base.MAX_POLICY_FILE_BYTES),\n    }\n    for path in sorted(POLICY_FILES):\n        if p.s.r.q.p.mode(view, path) != "100644":\n            base.fail(f"v30 policy file mode invalid: {path}")\n        if view.read_bytes(path, base.MAX_POLICY_FILE_BYTES) != approved[path]:\n            base.fail(f"v30 policy file content drifted: {path}")\n'''
+          if policy.count(files_old) != 1:
+              raise SystemExit(f"v30 files() content-binding target drifted: count={policy.count(files_old)}")
+          policy = policy.replace(files_old, files_new, 1)
 
-          test_marker = b'''    p.files(view)\n    paths = base.validate_entries(view.entries())\n    p.shell_component_base(view, paths)\n\n    projected = p.project_admitted_dependency_state(view)\n'''
-          test_replacement = b'''    p.files(view)\n    paths = base.validate_entries(view.entries())\n    p.shell_component_base(view, paths)\n    p.freeze_s1_005_evidence(view, p.root)\n\n    projected = p.project_admitted_dependency_state(view)\n'''
+          test_marker = b'''    p.install()\n    p.files(view)\n    paths = base.validate_entries(view.entries())\n'''
+          test_replacement = b'''    p.install()\n    p.files(view)\n\n    wrong_policy_file = OverlayView(\n        view,\n        {\n            p.P: view.read_bytes(p.P, base.MAX_POLICY_FILE_BYTES) + b"\\n",\n        },\n    )\n    base.expect_failure_matching(\n        "v30 rejects substituted policy bytes",\n        "v30 policy file content drifted",\n        p.files,\n        wrong_policy_file,\n    )\n\n    wrong_selftest_file = OverlayView(\n        view,\n        {\n            p.T: view.read_bytes(p.T, base.MAX_POLICY_FILE_BYTES) + b"\\n",\n        },\n    )\n    base.expect_failure_matching(\n        "v30 rejects substituted self-test bytes",\n        "v30 policy file content drifted",\n        p.files,\n        wrong_selftest_file,\n    )\n\n    paths = base.validate_entries(view.entries())\n'''
           if test.count(test_marker) != 1:
-              raise SystemExit(
-                  f"v30 self-test S1-005 freeze insertion target drifted: count={test.count(test_marker)}"
-              )
+              raise SystemExit(f"v30 self-test policy-binding insertion target drifted: count={test.count(test_marker)}")
           repaired_test = test.replace(test_marker, test_replacement, 1)
 
           def git_blob(data: bytes) -> str:
@@ -101,44 +70,40 @@ jobs:
               ).hexdigest()
 
           repaired_test_blob = git_blob(repaired_test)
-          old_pin = b'T_BLOB = "8b9ef3cfc36e07164e35be17356630d2b19f4d47"'
+          old_pin = b'T_BLOB = "d1d20af2ddf0fccf0bb13c3673ee695b6a049f22"'
           new_pin = f'T_BLOB = "{repaired_test_blob}"'.encode("ascii")
           if policy.count(old_pin) != 1:
               raise SystemExit("v30 policy current self-test pin drifted")
           repaired_policy = policy.replace(old_pin, new_pin, 1)
 
-          assertions = (
-              (
-                  repaired_policy.count(b"def freeze_s1_005_evidence(candidate: Any, policy_base: Any) -> None:") == 1,
-                  "S1-005 evidence-freeze wrapper",
-              ),
-              (
-                  repaired_policy.count(b'"freeze_s1_005_evidence",\n        freeze_s1_005_evidence,') == 1,
-                  "S1-005 evidence-freeze binding",
-              ),
-              (
-                  repaired_test.count(b"p.freeze_s1_005_evidence(view, p.root)") == 1,
-                  "S1-005 evidence-freeze regression",
-              ),
-              (
-                  repaired_policy.count(b"def read_text(\n        self, path: str, limit: int = base.MAX_POLICY_FILE_BYTES") == 1,
-                  "read-text projection retained",
-              ),
-          )
-          for ok, label in assertions:
-              if not ok:
-                  raise SystemExit(f"v30 repaired {label} assertion failed")
+          if repaired_policy.count(b"v30 policy file content drifted") != 1:
+              raise SystemExit("v30 policy content-binding assertion drifted")
+          if repaired_test.count(b"v30 rejects substituted policy bytes") != 1:
+              raise SystemExit("v30 policy substitution regression missing")
+          if repaired_test.count(b"v30 rejects substituted self-test bytes") != 1:
+              raise SystemExit("v30 self-test substitution regression missing")
+
+          with tempfile.TemporaryDirectory(prefix="wepld-v30-bind-") as td:
+              work = pathlib.Path(td) / "repo"
+              subprocess.check_call(["git", "worktree", "add", "--detach", str(work), head], stdout=subprocess.DEVNULL)
+              try:
+                  (work / policy_path).write_bytes(repaired_policy)
+                  (work / test_path).write_bytes(repaired_test)
+                  env = dict(os.environ)
+                  env["PYTHONDONTWRITEBYTECODE"] = "1"
+                  subprocess.check_call(
+                      ["python", str(work / policy_path), "selftest"],
+                      cwd=work,
+                      env=env,
+                  )
+              finally:
+                  subprocess.call(["git", "worktree", "remove", "--force", str(work)], stdout=subprocess.DEVNULL)
 
           repo = os.environ["GITHUB_REPOSITORY"]
           token = os.environ["GITHUB_TOKEN"]
 
           def create_blob(label: str, data: bytes) -> str:
-              payload = json.dumps(
-                  {
-                      "content": base64.b64encode(data).decode("ascii"),
-                      "encoding": "base64",
-                  }
-              ).encode("utf-8")
+              payload = json.dumps({"content": base64.b64encode(data).decode("ascii"), "encoding": "base64"}).encode("utf-8")
               request = urllib.request.Request(
                   f"https://api.github.com/repos/{repo}/git/blobs",
                   data=payload,
@@ -148,7 +113,7 @@ jobs:
                       "Accept": "application/vnd.github+json",
                       "X-GitHub-Api-Version": "2022-11-28",
                       "Content-Type": "application/json",
-                      "User-Agent": "wepld-s2-v30-s1-005-freeze-repair-builder",
+                      "User-Agent": "wepld-s2-v30-policy-content-binding-repair-builder",
                   },
               )
               with urllib.request.urlopen(request, timeout=30) as response:
@@ -156,17 +121,15 @@ jobs:
               remote = result["sha"]
               local = git_blob(data)
               if remote != local:
-                  raise SystemExit(
-                      f"GitHub/local blob mismatch for {label}: {remote} != {local}"
-                  )
+                  raise SystemExit(f"GitHub/local blob mismatch for {label}: {remote} != {local}")
               print(f"{label}_BLOB_SHA={remote}")
               print(f"{label}_SHA256={hashlib.sha256(data).hexdigest()}")
               print(f"{label}_BYTES={len(data)}")
               return remote
 
-          create_blob("V30_SELFTEST_S1_005_FREEZE_REPAIRED", repaired_test)
-          create_blob("V30_POLICY_S1_005_FREEZE_REPAIRED", repaired_policy)
+          create_blob("V30_SELFTEST_POLICY_BINDING_REPAIRED", repaired_test)
+          create_blob("V30_POLICY_CONTENT_BINDING_REPAIRED", repaired_policy)
           print("REF_MUTATION=NONE_BY_BUILDER")
           print("REAL_CANDIDATE_DELTA_PROJECTION=NONE")
-          print("S1_005_EVIDENCE_FREEZE_PROJECTION=DEPENDENCY_REGISTER_BASELINE_ONLY")
+          print("POLICY_CONTENT_BINDING=P_AND_T_TO_EXECUTING_APPROVED_SOURCE_BYTES")
           PY

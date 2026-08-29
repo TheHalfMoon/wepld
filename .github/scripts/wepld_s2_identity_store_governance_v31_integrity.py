@@ -13,7 +13,10 @@ predecessor self-tests, it requires either the exact canonical dependency
 baseline or the exact governed admitted dependency state. It then projects the
 three admitted dependency files, when present, plus the two v31 workflow
 entrypoints back to their exact canonical v30 predecessor bytes solely for the
-duration of predecessor self-tests and predecessor installation.
+duration of predecessor self-tests and predecessor installation. In steady-state
+policy-file verification, only the two successor workflow entrypoints are
+projected to v30 while v30 retains responsibility for the exact dependency
+projection.
 
 Candidate delta verification, trusted admission, product verification, runtime
 effects, source admission, dependency versions, and all S3+ authority remain
@@ -349,7 +352,7 @@ def allowed(paths: Any, stage: str) -> None:
 
 
 def files(view: Any) -> None:
-    P_FILES(view)
+    P_FILES(_workflow_predecessor_projection(view))
     missing = POLICY_FILES - V25.ps(view)
     if missing:
         base.fail(f"v31 policy files missing: {sorted(missing)}")

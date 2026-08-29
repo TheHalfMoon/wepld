@@ -13,7 +13,7 @@ predecessor self-tests, it requires either the exact canonical dependency
 baseline or the exact governed admitted dependency state. It then projects the
 three admitted dependency files, when present, plus the two v31 workflow
 entrypoints back to their exact canonical v30 predecessor bytes solely for the
-duration of predecessor self-tests.
+duration of predecessor self-tests and predecessor installation.
 
 Candidate delta verification, trusted admission, product verification, runtime
 effects, source admission, dependency versions, and all S3+ authority remain
@@ -25,7 +25,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import sys
-from typing import Any
+from typing import Any, Callable
 
 import wepld_integrity as base
 import wepld_s2_identity_store_governance_v30_integrity as p
@@ -89,7 +89,7 @@ _PRINT: Any = None
 _V31_ENTRYPOINT = b"wepld_s2_identity_store_governance_v31_integrity.py"
 _V30_ENTRYPOINT = b"wepld_s2_identity_store_governance_v30_integrity.py"
 _WORKFLOW_ENTRYPOINT_COUNTS = {FW: 3, AW: 2}
-_SELFTEST_PROJECT_PATHS = frozenset(
+_PREDECESSOR_PROJECT_PATHS = frozenset(
     {V25.CORE_MANIFEST, V25.ROOT_CARGO_LOCK, V26.DEPENDENCY_REGISTER, FW, AW}
 )
 
@@ -217,11 +217,17 @@ def predecessor_selftest_view(view: Any) -> Any:
     return _workflow_predecessor_projection(target)
 
 
-def run_predecessor_selftests(view: Any) -> None:
+def _run_under_predecessor_projection(
+    view: Any, label: str, fn: Callable[[], Any]
+) -> Any:
     target = predecessor_selftest_view(view)
     replacements: dict[str, bytes] = {}
-    for path in _SELFTEST_PROJECT_PATHS:
-        limit = V25.MAX_LOCK_BYTES if path == V25.ROOT_CARGO_LOCK else base.MAX_POLICY_FILE_BYTES
+    for path in _PREDECESSOR_PROJECT_PATHS:
+        limit = (
+            V25.MAX_LOCK_BYTES
+            if path == V25.ROOT_CARGO_LOCK
+            else base.MAX_POLICY_FILE_BYTES
+        )
         replacements[path] = target.read_bytes(path, limit)
 
     patched_roots: list[tuple[Any, Any]] = []
@@ -237,17 +243,21 @@ def run_predecessor_selftests(view: Any) -> None:
         if path in replacements:
             data = replacements[path]
             if len(data) > limit:
-                base.fail(f"v31 predecessor self-test projection exceeds read bound: {path}")
+                base.fail(f"v31 predecessor projection exceeds read bound: {path}")
             return data
         return original_local_read(local_view, path, limit)
 
     base.LocalRepositoryView.read_bytes = projected_local_read
     try:
-        p.selftest()
+        return _call(label, fn)
     finally:
         base.LocalRepositoryView.read_bytes = original_local_read
         for module, original in reversed(patched_roots):
             setattr(module, "root", original)
+
+
+def run_predecessor_selftests(view: Any) -> None:
+    _run_under_predecessor_projection(view, "v30 predecessor self-tests", p.selftest)
 
 
 def prepare_p() -> None:
@@ -408,7 +418,7 @@ def install() -> None:
         overlay()
         return
 
-    p.install()
+    _run_under_predecessor_projection(root, "v30 predecessor install", p.install)
     shell, routing, _, desktop, execution = V25.topo()
     pairs = (
         (_attr(routing, "IMPL_REQUIRE_EXACT_DELTA", "v30 routing hook"), P_DELTA),

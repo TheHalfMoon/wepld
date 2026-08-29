@@ -41,7 +41,18 @@ jobs:
           sys.path.insert(0, str(scripts))
           import wepld_s2_identity_store_governance_v30_integrity as v30
 
-          fn = v30.CAND
+          chain = [
+              ('v29', v30.p),
+              ('v28', v30.p.s),
+              ('v27', v30.p.s.r),
+              ('v26', v30.p.s.r.q),
+              ('v25', v30.p.s.r.q.p),
+          ]
+          for label, module in chain:
+              print(f'{label}_MODULE={module.__name__}')
+              print(f'{label}_FILE={getattr(module, "__file__", None)}')
+
+          fn = v30.p.s.r.q.p.CAND
           print(f'CAND_MODULE={getattr(fn, "__module__", None)}')
           print(f'CAND_NAME={getattr(fn, "__name__", None)}')
           print(f'CAND_QUALNAME={getattr(fn, "__qualname__", None)}')

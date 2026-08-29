@@ -292,3 +292,104 @@ MERGE_REQUIRED_BEFORE_RUNTIME_ADMISSION = YES
 PRODUCT_IMPLEMENTATION = BLOCKED
 S1_006 = BLOCKED
 ```
+
+## S2-AUTH-012 exact direct Core dependency decision
+
+This append-only section governs the S2 identity/evidence-store dependency edge. All
+preceding S1 evidence remains historical and byte-preserved. This section does not
+admit product code, source imports, Git/process/network/model authority, or S3+ scope.
+
+```text
+TASK = S2-AUTH-012
+DECISION_CLASS = FOCUSED_DIRECT_RUNTIME_DEPENDENCY_ADMISSION
+CANONICALIZATION_RULE = EXACT_HEAD_REVIEW_ACCEPTANCE_AND_MERGE_REQUIRED
+DIRECT_CORE_DEPENDENCIES = getrandom 0.4.3, sha2 0.10.9
+DIRECT_UUID_CORE_EDGE = REJECTED
+SOURCE_ADMISSION = NONE
+PACKAGE_IDENTITY_DELTA = 0
+LOCK_PACKAGE_COUNT = 417_UNCHANGED
+TRANSITIVE_PACKAGE_SET_DELTA = 0
+PRODUCT_IMPLEMENTATION_AUTHORITY = NONE_FROM_DEPENDENCY_ADMISSION_ALONE
+```
+
+The exact lock transition changes only the `wepld-core 0.0.0` dependency stanza.
+The `getrandom 0.4.3` and `sha2 0.10.9` package identities and checksums already exist
+in the canonical lock graph; transitive presence did not previously grant direct API
+authority. The exact candidate therefore adds direct Core edges without adding a new
+package identity.
+
+### getrandom 0.4.3
+
+```text
+ROLE = OS_RANDOMNESS_FOR_WEPLD_OWNED_OPAQUE_PROJECT_IDS
+VERSION = 0.4.3
+CRATES_IO_CHECKSUM = 300e883d756b2e4ec94e02791f39b04b522276138852cfc41d9fb7e904106099
+SOURCE_REPOSITORY = rust-random/getrandom
+SOURCE_REVISION = 5e7cd5733536844a9856dc7259bd4696bbe5e3ae
+LICENSE = MIT OR Apache-2.0
+DIRECT_FEATURES = NONE
+CAPABILITY_BOUNDARY = RESULT_BEARING_OS_RANDOMNESS_ONLY
+FALLBACK_RANDOMNESS = NONE
+TIMESTAMP_PID_PATH_ID_FALLBACK = PROHIBITED
+UPDATE_PLAN = PINNED_VERSION_CHANGE_REQUIRES_FRESH_S2_DEPENDENCY_GATES
+EXIT_STRATEGY = REPLACE_BEHIND_WEPLD_OWNED_OPAQUE_ID_ALLOCATOR
+```
+
+`getrandom` is not identity authority. WePLD owns `ProjectId` semantics, allocation
+error handling, catalog reservation, collision/conflict behavior, persistence, and
+reassociation. OS-random acquisition failure must remain a typed failure.
+
+### sha2 0.10.9
+
+```text
+ROLE = SHA_256_FOR_GENERATION_RECORD_AND_MANIFEST_COHERENCE_DIGESTS
+VERSION = 0.10.9
+CRATES_IO_CHECKSUM = a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283
+SOURCE_REPOSITORY = RustCrypto/hashes
+SOURCE_REVISION = 82c36a428f8d6f05f3bfccdedb243e9d1f85359d
+LICENSE = MIT OR Apache-2.0
+DIRECT_FEATURES = default(std)
+OPTIONAL_ASM_FEATURE = NOT_ENABLED
+AUTHENTICITY_CLAIM = NONE
+UPDATE_PLAN = PINNED_VERSION_CHANGE_REQUIRES_FRESH_S2_DEPENDENCY_GATES
+EXIT_STRATEGY = REPLACE_BEHIND_WEPLD_OWNED_DIGEST_AND_MANIFEST_CONTRACTS
+```
+
+The SHA-256 digest is an unkeyed corruption/coherence mechanism only. It does not
+authenticate a store against an actor with writer access.
+
+### Acquisition, security, SBOM, and maintenance accounting
+
+```text
+SOURCE_ACQUISITION_LEDGER = ISSUE_212
+S1_EXISTING_PACKAGE_SECURITY_LICENSE_EVIDENCE = REUSED_FOR_IDENTICAL_PACKAGE_IDENTITIES
+PACKAGE_IDENTITY_DELTA = 0
+NEW_LICENSE_IDENTIFIER_DELTA = 0
+NEW_CRATE_SOURCE_DELTA = 0
+SBOM_COMPONENT_SET_DELTA = 0
+SBOM_DEPENDENCY_EDGE_DELTA = wepld-core -> getrandom 0.4.3, sha2 0.10.9
+RUSTSEC_SHA2_2021_0100 = NOT_APPLICABLE_TO_0_10_9_PATCHED_RANGE_STARTS_0_9_8
+GETRANDOM_SECURITY_BOUNDARY = FAIL_ON_OS_RANDOMNESS_FAILURE
+MAINTENANCE_RECHECK = REQUIRED_ON_EVERY_PIN_CHANGE_OR_NEW_ADVISORY
+```
+
+Because the exact package set is unchanged, prior target-scoped license and package
+security evidence remains applicable to these identical crate identities. The direct
+edge change itself is bound by the exact manifest and whole-lock delta and must still
+pass the repository's cross-platform Core build/test gates before admission. Any
+package/version/feature/package-set drift requires a new dependency decision rather
+than inheriting this record.
+
+## S2 dependency authority invariant
+
+```text
+DEPENDENCY_REVIEW_OUTCOME != COMPLETION_DECISION
+DEPENDENCY_CANDIDATE != CANONICAL_ADMISSION
+MERGE_REQUIRED_BEFORE_DIRECT_RUNTIME_ADMISSION = YES
+DIRECT_DEPENDENCY_ADMISSION != PRODUCT_IMPLEMENTATION_AUTHORITY
+SOURCE_ADMISSION = NONE
+NETWORK_AUTHORITY = NONE
+GIT_EXECUTION_AUTHORITY = NONE
+MODEL_PROVIDER_EXECUTION = NONE
+S3_PLUS_AUTHORITY = NONE
+```

@@ -1,0 +1,57 @@
+name: s2-v30-policy-diagnostic
+
+on:
+  push:
+    branches:
+      - diag/s2-v30-policy-qualification-2026-08-29
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: macos-latest
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      CANONICAL_BASE_SHA: 3d0d9ca88be440e0e16b004ff5a7bafe8d9c3ee2
+    steps:
+      - name: Checkout diagnostic head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          lfs: false
+          submodules: false
+
+      - name: Require diagnostic-only delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed="$(git diff --name-only "$CANONICAL_BASE_SHA..HEAD")"
+          expected=$'.github/scripts/wepld_s2_identity_store_governance_v30_integrity.py\n.github/scripts/wepld_s2_identity_store_governance_v30_selftest.py\n.github/workflows/foundation-integrity.yml\n.github/workflows/s1-admission-integrity.yml\n.github/workflows/s2-v30-policy-diagnostic.yml'
+          if [ "$changed" != "$expected" ]; then
+            printf 'unexpected diagnostic delta:\n%s\n' "$changed" >&2
+            exit 1
+          fi
+
+      - name: Run v30 self-tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python .github/scripts/wepld_s2_identity_store_governance_v30_integrity.py selftest
+
+      - name: Verify v30 bootstrap candidate against canonical v29 base
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_root="${RUNNER_TEMP}/wepld-v29-base"
+          git worktree add --detach "$base_root" "$CANONICAL_BASE_SHA"
+          cleanup() {
+            git worktree remove --force "$base_root" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          python .github/scripts/wepld_s2_identity_store_governance_v30_integrity.py verify-candidate-local \
+            --root . \
+            --policy-base-root "$base_root" \
+            --policy-base-sha "$CANONICAL_BASE_SHA"

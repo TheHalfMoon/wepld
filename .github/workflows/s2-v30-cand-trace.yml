@@ -24,7 +24,7 @@ jobs:
           lfs: false
           submodules: false
 
-      - name: Trace effective post-install shell verify-view identity
+      - name: Trace captured predecessor verifier chain
         shell: bash
         run: |
           set -euo pipefail
@@ -41,29 +41,57 @@ jobs:
           sys.path.insert(0, str(scripts))
           import wepld_s2_identity_store_governance_v30_integrity as v30
 
+          v30.install()
           v25 = v30.p.s.r.q.p
-          cand = v25.CAND
-          cand_module = sys.modules[cand.__module__]
+          cand_module = sys.modules[v25.CAND.__module__]
           v3 = cand_module.v3
           shell = v3._topology()[0]
-          before = shell.verify_view
-          v30.install()
-          after = shell.verify_view
+          current = shell.verify_view
+          seen = set()
 
-          print(f'CAND_MODULE={cand.__module__}')
-          print(f'SHELL_MODULE={shell.__name__}')
-          print(f'BEFORE_MODULE={before.__module__}')
-          print(f'AFTER_MODULE={after.__module__}')
-          print(f'AFTER_NAME={after.__name__}')
-          print(f'AFTER_FILE={inspect.getsourcefile(after)}')
-          print('AFTER_SOURCE_BEGIN')
-          print(inspect.getsource(after))
-          print('AFTER_SOURCE_END')
-          print(f'AFTER_GLOBAL_BASE_ID={id(after.__globals__.get("base"))}')
-          print(f'V30_BASE_ID={id(v30.base)}')
-          for key in sorted(after.__globals__):
-              if 'verify' in key.lower() and callable(after.__globals__[key]):
-                  fn = after.__globals__[key]
-                  print(f'GLOBAL_FN={key}:{getattr(fn, "__module__", None)}.{getattr(fn, "__name__", None)}')
+          for depth in range(30):
+              if not callable(current) or id(current) in seen:
+                  print(f'TRACE_STOP_DEPTH={depth}')
+                  break
+              seen.add(id(current))
+              module = sys.modules.get(getattr(current, '__module__', ''))
+              print(f'DEPTH={depth}')
+              print(f'FN={getattr(current, "__module__", None)}.{getattr(current, "__name__", None)}')
+              print(f'FILE={inspect.getsourcefile(current)}')
+              source = inspect.getsource(current)
+              print('SOURCE_BEGIN')
+              print(source)
+              print('SOURCE_END')
+
+              next_fn = None
+              if module is not None:
+                  for key in ('_PRIOR_VERIFY_VIEW', 'PRIOR_VERIFY_VIEW', 'v19', 'v18', 'v17', 'v16', 'v15', 'v14', 'v13', 'v12', 'v11', 'v10', 'v9', 'v8', 'v7', 'v6', 'v5', 'v4', 'v3', 'v2', 'prior'):
+                      obj = getattr(module, key, None)
+                      if callable(obj) and key in ('_PRIOR_VERIFY_VIEW', 'PRIOR_VERIFY_VIEW'):
+                          next_fn = obj
+                          print(f'NEXT_VIA={key}')
+                          break
+                      if obj is not None and hasattr(obj, 'verify_view') and callable(obj.verify_view):
+                          if f'{key}.verify_view' in source or f'{key}.verify_view' in source.replace(' ', ''):
+                              next_fn = obj.verify_view
+                              print(f'NEXT_VIA={key}.verify_view')
+                              break
+                  if next_fn is None and getattr(current, '__module__', '') == 'wepld_s1_shell_integrity_v20':
+                      obj = getattr(module, 'v19', None)
+                      if obj is not None:
+                          next_fn = obj.verify_view
+                          print('NEXT_VIA=v19.verify_view')
+                  if next_fn is None and getattr(current, '__module__', '') == 'wepld_s1_shell_integrity_v19':
+                      next_fn = getattr(module, '_PRIOR_VERIFY_VIEW', None)
+                      print('NEXT_VIA=_PRIOR_VERIFY_VIEW')
+              if next_fn is None:
+                  print(f'NO_NEXT_AT_DEPTH={depth}')
+                  if module is not None:
+                      for key, obj in sorted(module.__dict__.items()):
+                          if 'verify' in key.lower() and callable(obj):
+                              print(f'AVAILABLE_VERIFY={key}:{getattr(obj, "__module__", None)}.{getattr(obj, "__name__", None)}')
+                  break
+              current = next_fn
+
           print('DIAGNOSTIC_AUTHORITY=NONE')
           PY

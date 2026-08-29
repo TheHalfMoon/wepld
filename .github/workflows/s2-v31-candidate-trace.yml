@@ -1,0 +1,51 @@
+name: s2-v31-candidate-trace
+
+on:
+  push:
+    branches:
+      - diag/s2-v31-candidate-trace-2026-08-29
+
+permissions:
+  contents: read
+
+jobs:
+  trace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      POSITIVE_HEAD: 05a02ea0ed755624a09712536c924ae08db0f304
+      V31_BASE: ea6b0c97ba09d65065d0ec76cdf250ddcd5d3556
+    steps:
+      - name: Checkout exact diagnostic revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          lfs: false
+          submodules: false
+
+      - name: Trace candidate-local verifier without top-level catch
+        shell: bash
+        run: |
+          set -euo pipefail
+          CANDIDATE_WT="${RUNNER_TEMP}/candidate"
+          BASE_WT="${RUNNER_TEMP}/base"
+          git worktree add --detach "$CANDIDATE_WT" "$POSITIVE_HEAD"
+          git worktree add --detach "$BASE_WT" "$V31_BASE"
+          PYTHONPATH=.github/scripts python - "$CANDIDATE_WT" "$BASE_WT" <<'PY'
+          import inspect
+          import sys
+          import wepld_s2_identity_store_governance_v31_integrity as v31
+
+          candidate_root, base_root = sys.argv[1:3]
+          print(f"CAND_SOURCE={inspect.getsourcefile(v31.V25.CAND)}")
+          try:
+              lines, start = inspect.getsourcelines(v31.V25.CAND)
+              print(f"CAND_START_LINE={start}")
+              print("".join(lines))
+          except (OSError, TypeError) as exc:
+              print(f"CAND_SOURCE_UNAVAILABLE={exc}")
+          v31.install()
+          v31.V25.CAND(candidate_root, base_root, v31.V25.v24.v23.v22.v21.v20.CANONICAL_POLICY_BASE_SHA if False else "ea6b0c97ba09d65065d0ec76cdf250ddcd5d3556")
+          PY

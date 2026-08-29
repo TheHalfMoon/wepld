@@ -136,6 +136,52 @@ def req_v30(view: Any) -> None:
             )
 
 
+def _baseline_dependency_state_exact(view: Any) -> bool:
+    try:
+        manifest = view.read_bytes(V25.CORE_MANIFEST, base.MAX_POLICY_FILE_BYTES)
+        lock_bytes = view.read_bytes(V25.ROOT_CARGO_LOCK, V25.MAX_LOCK_BYTES)
+        register = view.read_bytes(V26.DEPENDENCY_REGISTER, base.MAX_POLICY_FILE_BYTES)
+    except base.PolicyError:
+        return False
+    return (
+        V25.blob(manifest) == p.CORE_MANIFEST_BASE_BLOB
+        and V25.blob(lock_bytes) == p.ROOT_LOCK_BASE_BLOB
+        and V25.blob(register) == p.DEPENDENCY_REGISTER_BASE_BLOB
+    )
+
+
+def _project_exact_admitted_dependency_state(view: Any) -> Any:
+    manifest = view.read_bytes(V25.CORE_MANIFEST, base.MAX_POLICY_FILE_BYTES)
+    if manifest != V25.ADMITTED_CORE_MANIFEST:
+        base.fail("v31 admitted Core manifest drifted before self-test projection")
+
+    lock_bytes = view.read_bytes(V25.ROOT_CARGO_LOCK, V25.MAX_LOCK_BYTES)
+    admitted_stanza = V25.ADMITTED_CORE_LOCK_STANZA
+    baseline_stanza = V25.BASE_CORE_LOCK_STANZA
+    if lock_bytes.count(admitted_stanza) != 1 or baseline_stanza in lock_bytes:
+        base.fail("v31 admitted Core lock stanza drifted before self-test projection")
+    baseline_lock = lock_bytes.replace(admitted_stanza, baseline_stanza, 1)
+    if V25.blob(baseline_lock) != p.ROOT_LOCK_BASE_BLOB:
+        base.fail("v31 admitted Cargo.lock does not reverse to exact canonical baseline")
+
+    register = view.read_bytes(V26.DEPENDENCY_REGISTER, base.MAX_POLICY_FILE_BYTES)
+    append = V29.CORRECTED_S2_DEPENDENCY_REGISTER_APPEND
+    if register.count(append) != 1 or not register.endswith(append):
+        base.fail("v31 admitted dependency register append drifted before self-test projection")
+    baseline_register = register[: -len(append)]
+    if V25.blob(baseline_register) != p.DEPENDENCY_REGISTER_BASE_BLOB:
+        base.fail("v31 admitted dependency register does not reverse to exact canonical baseline")
+
+    return _ProjectionView(
+        view,
+        {
+            V25.CORE_MANIFEST: V25.BASE_CORE_MANIFEST,
+            V25.ROOT_CARGO_LOCK: baseline_lock,
+            V26.DEPENDENCY_REGISTER: baseline_register,
+        },
+    )
+
+
 def _workflow_predecessor_projection(view: Any) -> Any:
     replacements: dict[str, bytes] = {}
     for path in (FW, AW):
@@ -158,15 +204,16 @@ def _workflow_predecessor_projection(view: Any) -> Any:
 
 
 def predecessor_selftest_view(view: Any) -> Any:
-    if V26.deps_ready(view):
-        target = p.project_admitted_dependency_state(view)
-    elif V26._baseline_dependency_state(view):
+    if _baseline_dependency_state_exact(view):
         target = view
     else:
-        base.fail(
-            "v31 self-test source dependency state is neither exact canonical baseline "
-            "nor exact governed admitted form"
-        )
+        try:
+            target = _project_exact_admitted_dependency_state(view)
+        except base.PolicyError:
+            base.fail(
+                "v31 self-test source dependency state is neither exact canonical baseline "
+                "nor exact governed admitted form"
+            )
     return _workflow_predecessor_projection(target)
 
 
@@ -218,9 +265,9 @@ def delta(candidate: Any, policy_base: Any) -> None:
         if paths == BOOT:
             req_v30(candidate)
             req_v30(policy_base)
-            if not V26._baseline_dependency_state(
-                candidate
-            ) or not V26._baseline_dependency_state(policy_base):
+            if not _baseline_dependency_state_exact(candidate) or not _baseline_dependency_state_exact(
+                policy_base
+            ):
                 base.fail(
                     "v31 bootstrap requires unchanged canonical baseline "
                     "manifest/lock/register state"

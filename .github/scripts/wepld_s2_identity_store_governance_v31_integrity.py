@@ -88,7 +88,7 @@ _PRINT: Any = None
 
 _V31_ENTRYPOINT = b"wepld_s2_identity_store_governance_v31_integrity.py"
 _V30_ENTRYPOINT = b"wepld_s2_identity_store_governance_v30_integrity.py"
-_WORKFLOW_ENTRYPOINT_COUNTS = {FW: 3, AW: 1}
+_WORKFLOW_ENTRYPOINT_COUNTS = {FW: 3, AW: 2}
 
 
 class _ProjectionView:

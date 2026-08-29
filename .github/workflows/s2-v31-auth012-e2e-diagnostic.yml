@@ -1,0 +1,92 @@
+name: s2-v31-auth012-e2e-diagnostic
+
+on:
+  push:
+    branches:
+      - diag/s2-v31-auth012-e2e-2026-08-29
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      V31_BASE: fe1a9c1b2b1916d2028b2661c882db6120faaeca
+      POSITIVE_HEAD: 740c11e73bf95d5ec70bc847f652f506c551c035
+      NEGATIVE_HEAD: d019ae8a404957129e402d6d48db5de036419184
+    steps:
+      - name: Checkout exact diagnostic revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          lfs: false
+          submodules: false
+
+      - name: Prove diagnostic wrapper scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor "$V31_BASE" HEAD
+          mapfile -t changed < <(git diff --name-only "$V31_BASE" HEAD)
+          printf 'diagnostic_changed=%s\n' "${changed[@]}"
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = ".github/workflows/s2-v31-auth012-e2e-diagnostic.yml"
+
+      - name: Run final v31 self-tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python .github/scripts/wepld_s2_identity_store_governance_v31_integrity.py selftest
+
+      - name: Prove exact positive three-path candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git diff --name-only "$V31_BASE" "$POSITIVE_HEAD")
+          printf 'positive_changed=%s\n' "${changed[@]}"
+          test "${#changed[@]}" -eq 3
+          test "${changed[0]}" = "Cargo.lock"
+          test "${changed[1]}" = "crates/core/Cargo.toml"
+          test "${changed[2]}" = "docs/governance/DEPENDENCY_REGISTER.md"
+          test "$(git rev-parse "$POSITIVE_HEAD:Cargo.lock")" = "d137e3f0c62637e402374880deb5355a878d4a91"
+          test "$(git rev-parse "$POSITIVE_HEAD:crates/core/Cargo.toml")" = "9ff919ab5f05d6aa5b6c179f194eb4611e7b1bd8"
+          test "$(git rev-parse "$POSITIVE_HEAD:docs/governance/DEPENDENCY_REGISTER.md")" = "8b5efceac77b3f44f1c17eaab2b70862c90b7a06"
+
+      - name: Verify exact positive candidate with v31 trusted remote verifier
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python .github/scripts/wepld_s2_identity_store_governance_v31_integrity.py verify-remote \
+            --repository TheHalfMoon/wepld \
+            --sha "$POSITIVE_HEAD" \
+            --policy-root . \
+            --pr-base-sha "$V31_BASE"
+
+      - name: Prove unauthorized fourth-path candidate fails closed
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git diff --name-only "$V31_BASE" "$NEGATIVE_HEAD")
+          printf 'negative_changed=%s\n' "${changed[@]}"
+          test "${#changed[@]}" -eq 4
+          printf '%s\n' "${changed[@]}" | grep -Fx 'docs/governance/S2_V31_NEGATIVE_SENTINEL.txt'
+          set +e
+          output=$(python .github/scripts/wepld_s2_identity_store_governance_v31_integrity.py verify-remote \
+            --repository TheHalfMoon/wepld \
+            --sha "$NEGATIVE_HEAD" \
+            --policy-root . \
+            --pr-base-sha "$V31_BASE" 2>&1)
+          rc=$?
+          set -e
+          printf '%s\n' "$output"
+          test "$rc" -ne 0
+          printf '%s\n' "$output" | grep -F 'v25 dependency admission must not mix with any other mutation'
+          echo 'negative_fourth_path_fail_closed=PASS'

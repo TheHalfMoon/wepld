@@ -1,4 +1,4 @@
-name: s2-v30-selftest-repair-builder
+name: s2-v30-stage-template-repair-builder
 
 on:
   push:
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      V30_HEAD: 13e04dc3da4c1114645587487ae32937add66e13
+      V30_HEAD: 58979ef66f9d8af10c2201f01d3b354bb95d4ba3
     steps:
       - name: Checkout diagnostic branch with history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -23,7 +23,7 @@ jobs:
           lfs: false
           submodules: false
 
-      - name: Build exact repaired v30 blobs without mutating refs
+      - name: Build exact v30 stage-template repair blobs without mutating refs
         shell: bash
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -49,12 +49,44 @@ jobs:
           policy = show(policy_path)
           test = show(test_path)
 
-          old_block = b'''    view = admitted_view()\n    base.expect_failure_matching(\n        "v30 reproduces trusted run 660 predecessor policy-file defect",\n        "exact policy content drifted: crates/core/Cargo.toml",\n        p.P_FILES,\n        view,\n    )\n\n    p.install()\n'''
-          new_block = b'''    view = admitted_view()\n    if view.read_bytes(\n        p.p.s.r.q.p.CORE_MANIFEST, base.MAX_POLICY_FILE_BYTES\n    ) != p.p.s.r.q.p.ADMITTED_CORE_MANIFEST:\n        base.fail("v30 admitted self-test view Core manifest drifted")\n    admitted_lock = view.read_bytes(\n        p.p.s.r.q.p.ROOT_CARGO_LOCK, p.p.s.r.q.p.MAX_LOCK_BYTES\n    )\n    if admitted_lock.count(p.p.s.r.q.p.ADMITTED_CORE_LOCK_STANZA) != 1:\n        base.fail("v30 admitted self-test view Core lock stanza drifted")\n    admitted_register = view.read_bytes(\n        p.p.s.r.q.DEPENDENCY_REGISTER, base.MAX_POLICY_FILE_BYTES\n    )\n    if not admitted_register.endswith(p.p.CORRECTED_S2_DEPENDENCY_REGISTER_APPEND):\n        base.fail("v30 admitted self-test view dependency register drifted")\n\n    p.install()\n'''
+          marker = b"_INST = False\n_PRINT: Any = None\n"
+          replacement = (
+              marker
+              + b"_BASE_STAGE_B_TEMPLATES = base.verify_stage_b_templates\n"
+          )
+          if policy.count(marker) != 1:
+              raise SystemExit("v30 stage-template capture insertion point drifted")
+          policy = policy.replace(marker, replacement, 1)
 
-          if test.count(old_block) != 1:
-              raise SystemExit("v30 self-test repair target block drifted")
-          repaired_test = test.replace(old_block, new_block, 1)
+          delta_marker = b"\n\ndef delta(candidate: Any, policy_base: Any) -> None:\n"
+          stage_hook = b'''\n\ndef verify_stage_b_templates(view: Any, stage: str) -> None:\n    if p.s.r.q.deps_ready(view):\n        _BASE_STAGE_B_TEMPLATES(project_admitted_dependency_state(view), stage)\n        return\n    _BASE_STAGE_B_TEMPLATES(view, stage)\n\n\ndef delta(candidate: Any, policy_base: Any) -> None:\n'''
+          if policy.count(delta_marker) != 1:
+              raise SystemExit("v30 delta insertion point drifted")
+          policy = policy.replace(delta_marker, stage_hook, 1)
+
+          overlay_marker = b'''        (base.compare_base_controlled, basectrl),\n        (_attr(desktop, "verify_extension_controlled_paths", "desktop hook"), dext),\n'''
+          overlay_replacement = b'''        (base.compare_base_controlled, basectrl),\n        (base.verify_stage_b_templates, verify_stage_b_templates),\n        (_attr(desktop, "verify_extension_controlled_paths", "desktop hook"), dext),\n'''
+          if policy.count(overlay_marker) != 1:
+              raise SystemExit("v30 overlay stage-template insertion point drifted")
+          policy = policy.replace(overlay_marker, overlay_replacement, 1)
+
+          predecessor_marker = b'''        (base.compare_base_controlled, P_BASE),\n        (_attr(desktop, "verify_extension_controlled_paths", "v29 desktop hook"), P_DEXT),\n'''
+          predecessor_replacement = b'''        (base.compare_base_controlled, P_BASE),\n        (base.verify_stage_b_templates, _BASE_STAGE_B_TEMPLATES),\n        (_attr(desktop, "verify_extension_controlled_paths", "v29 desktop hook"), P_DEXT),\n'''
+          if policy.count(predecessor_marker) != 1:
+              raise SystemExit("v30 predecessor stage-template insertion point drifted")
+          policy = policy.replace(predecessor_marker, predecessor_replacement, 1)
+
+          bind_marker = b'''    _bind(routing, "IMPL_REQUIRE_EXACT_DELTA", delta, "v30 routing hook")\n    base.compare_base_controlled = basectrl\n    _bind(desktop, "verify_extension_controlled_paths", dext, "v30 desktop hook")\n'''
+          bind_replacement = b'''    _bind(routing, "IMPL_REQUIRE_EXACT_DELTA", delta, "v30 routing hook")\n    base.compare_base_controlled = basectrl\n    base.verify_stage_b_templates = verify_stage_b_templates\n    _bind(desktop, "verify_extension_controlled_paths", dext, "v30 desktop hook")\n'''
+          if policy.count(bind_marker) != 1:
+              raise SystemExit("v30 stage-template bind insertion point drifted")
+          policy = policy.replace(bind_marker, bind_replacement, 1)
+
+          test_marker = b'''    p.install()\n    p.files(view)\n\n    projected = p.project_admitted_dependency_state(view)\n'''
+          test_replacement = b'''    p.install()\n    p.files(view)\n    stage = base.verify_view(view)\n    if stage != "S1_DEPENDENCY_RESOLUTION_LOCKED":\n        base.fail(f"v30 admitted full-view stage drifted: {stage}")\n\n    projected = p.project_admitted_dependency_state(view)\n'''
+          if test.count(test_marker) != 1:
+              raise SystemExit("v30 full-view regression insertion point drifted")
+          repaired_test = test.replace(test_marker, test_replacement, 1)
 
           def git_blob(data: bytes) -> str:
               return hashlib.sha1(
@@ -63,13 +95,18 @@ jobs:
               ).hexdigest()
 
           repaired_test_blob = git_blob(repaired_test)
-          old_pin = (
-              b'T_BLOB = "f59cadc8d5273e1e8cb1d0a1ff038a27aae5d26f"'
-          )
+          old_pin = b'T_BLOB = "4494a01d8f2da7325b664daabe380bae6c66c844"'
           new_pin = f'T_BLOB = "{repaired_test_blob}"'.encode("ascii")
           if policy.count(old_pin) != 1:
-              raise SystemExit("v30 policy self-test pin drifted")
+              raise SystemExit("v30 policy current self-test pin drifted")
           repaired_policy = policy.replace(old_pin, new_pin, 1)
+
+          if repaired_policy.count(b"base.verify_stage_b_templates = verify_stage_b_templates") != 1:
+              raise SystemExit("v30 repaired policy stage-template binding count drifted")
+          if repaired_policy.count(b"_BASE_STAGE_B_TEMPLATES(project_admitted_dependency_state(view), stage)") != 1:
+              raise SystemExit("v30 repaired policy projected stage-template call count drifted")
+          if repaired_test.count(b"stage = base.verify_view(view)") != 1:
+              raise SystemExit("v30 repaired self-test full-view regression count drifted")
 
           repo = os.environ["GITHUB_REPOSITORY"]
           token = os.environ["GITHUB_TOKEN"]
@@ -90,7 +127,7 @@ jobs:
                       "Accept": "application/vnd.github+json",
                       "X-GitHub-Api-Version": "2022-11-28",
                       "Content-Type": "application/json",
-                      "User-Agent": "wepld-s2-v30-selftest-repair-builder",
+                      "User-Agent": "wepld-s2-v30-stage-template-repair-builder",
                   },
               )
               with urllib.request.urlopen(request, timeout=30) as response:
@@ -106,8 +143,8 @@ jobs:
               print(f"{label}_BYTES={len(data)}")
               return remote
 
-          create_blob("V30_SELFTEST_REPAIRED", repaired_test)
-          create_blob("V30_POLICY_REPINNED", repaired_policy)
+          create_blob("V30_SELFTEST_STAGE_REPAIRED", repaired_test)
+          create_blob("V30_POLICY_STAGE_REPAIRED", repaired_policy)
           print("REF_MUTATION=NONE_BY_BUILDER")
           print("PR_PATH_DELTA_AFTER_REPAIR=V30_POLICY_AND_SELFTEST_ONLY")
           PY

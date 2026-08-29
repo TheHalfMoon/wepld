@@ -78,6 +78,16 @@ def run() -> None:
         != p.CORE_MANIFEST_BASE_BLOB
     ):
         base.fail("v30 projected Core manifest baseline identity drifted")
+    expected_manifest_text = p.p.s.r.q.p.BASE_CORE_MANIFEST.decode(
+        "utf-8", errors="strict"
+    )
+    if (
+        projected.read_text(
+            p.p.s.r.q.p.CORE_MANIFEST, base.MAX_POLICY_FILE_BYTES
+        )
+        != expected_manifest_text
+    ):
+        base.fail("v30 projected Core manifest text read bypassed baseline projection")
     if (
         p.p.s.r.q.p.blob(
             projected.read_bytes(

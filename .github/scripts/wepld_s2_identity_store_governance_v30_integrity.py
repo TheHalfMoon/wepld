@@ -30,7 +30,7 @@ import wepld_s2_identity_store_governance_v29_integrity as p
 
 P = ".github/scripts/wepld_s2_identity_store_governance_v30_integrity.py"
 T = ".github/scripts/wepld_s2_identity_store_governance_v30_selftest.py"
-T_BLOB = "8f3d423957b4af3a3b5970c51f24ec35cbbab037"
+T_BLOB = "8b9ef3cfc36e07164e35be17356630d2b19f4d47"
 V29_P_BLOB = "a3c55e8ecd7420794b1536239d1ebeac21f43e4f"
 V29_T_BLOB = "38721c4c5bccc3716105e44a4aad2b0cec63cd69"
 
@@ -119,6 +119,15 @@ class _DependencyBaselineProjection:
                 base.fail(f"v30 projected dependency file exceeds read bound: {path}")
             return data
         return self._view.read_bytes(path, max_bytes)
+
+    def read_text(
+        self, path: str, limit: int = base.MAX_POLICY_FILE_BYTES
+    ) -> str:
+        data = self.read_bytes(path, limit)
+        try:
+            return data.decode("utf-8", errors="strict")
+        except UnicodeError as exc:
+            base.fail(f"tracked file is not UTF-8: {path}: {exc}")
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._view, name)

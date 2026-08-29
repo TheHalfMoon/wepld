@@ -1,0 +1,67 @@
+name: s2-v30-dependency-e2e-diagnostic
+
+on:
+  push:
+    branches:
+      - diag/s2-v30-dependency-e2e-2026-08-29
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      V30_POLICY_BASE_SHA: 58979ef66f9d8af10c2201f01d3b354bb95d4ba3
+      DEPENDENCY_SOURCE_REF: feat/s2-identity-store-dependency-admission-2026-08-29
+    steps:
+      - name: Checkout diagnostic branch with canonical history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          lfs: false
+          submodules: false
+
+      - name: Verify exact v30 policy against exact three-file dependency candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          policy_base="${RUNNER_TEMP}/wepld-v30-policy-base"
+          candidate="${RUNNER_TEMP}/wepld-v30-dependency-candidate"
+          git worktree add --detach "$policy_base" "$V30_POLICY_BASE_SHA"
+          git worktree add --detach "$candidate" "$V30_POLICY_BASE_SHA"
+          cleanup() {
+            git worktree remove --force "$candidate" >/dev/null 2>&1 || true
+            git worktree remove --force "$policy_base" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          for path in \
+            Cargo.lock \
+            crates/core/Cargo.toml \
+            docs/governance/DEPENDENCY_REGISTER.md
+          do
+            git show "origin/${DEPENDENCY_SOURCE_REF}:${path}" > "${candidate}/${path}"
+          done
+
+          changed="$(git -C "$candidate" diff --name-only)"
+          expected=$'Cargo.lock\ncrates/core/Cargo.toml\ndocs/governance/DEPENDENCY_REGISTER.md'
+          if [ "$changed" != "$expected" ]; then
+            printf 'unexpected synthetic dependency delta:\n%s\n' "$changed" >&2
+            exit 1
+          fi
+
+          test "$(git hash-object "${candidate}/crates/core/Cargo.toml")" = "9ff919ab5f05d6aa5b6c179f194eb4611e7b1bd8"
+          test "$(git hash-object "${candidate}/Cargo.lock")" = "d137e3f0c62637e402374880deb5355a878d4a91"
+          test "$(git hash-object "${candidate}/docs/governance/DEPENDENCY_REGISTER.md")" = "8b5efceac77b3f44f1c17eaab2b70862c90b7a06"
+
+          python "$policy_base/.github/scripts/wepld_s2_identity_store_governance_v30_integrity.py" verify-candidate-local \
+            --root "$candidate" \
+            --policy-base-root "$policy_base" \
+            --policy-base-sha "$V30_POLICY_BASE_SHA"
+
+          echo 'DIAGNOSTIC_AUTHORITY=NONE'
+          echo 'V30_DEPENDENCY_E2E_FIXTURE=PASS'

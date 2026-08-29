@@ -89,6 +89,9 @@ _PRINT: Any = None
 _V31_ENTRYPOINT = b"wepld_s2_identity_store_governance_v31_integrity.py"
 _V30_ENTRYPOINT = b"wepld_s2_identity_store_governance_v30_integrity.py"
 _WORKFLOW_ENTRYPOINT_COUNTS = {FW: 3, AW: 2}
+_SELFTEST_PROJECT_PATHS = frozenset(
+    {V25.CORE_MANIFEST, V25.ROOT_CARGO_LOCK, V26.DEPENDENCY_REGISTER, FW, AW}
+)
 
 
 class _ProjectionView:
@@ -169,16 +172,34 @@ def predecessor_selftest_view(view: Any) -> Any:
 
 def run_predecessor_selftests(view: Any) -> None:
     target = predecessor_selftest_view(view)
-    patched: list[tuple[Any, Any]] = []
+    replacements: dict[str, bytes] = {}
+    for path in _SELFTEST_PROJECT_PATHS:
+        limit = V25.MAX_LOCK_BYTES if path == V25.ROOT_CARGO_LOCK else base.MAX_POLICY_FILE_BYTES
+        replacements[path] = target.read_bytes(path, limit)
+
+    patched_roots: list[tuple[Any, Any]] = []
     for name, module in list(sys.modules.items()):
         if not name.startswith("wepld_") or module is None or not hasattr(module, "root"):
             continue
-        patched.append((module, getattr(module, "root")))
+        patched_roots.append((module, getattr(module, "root")))
         setattr(module, "root", target)
+
+    original_local_read = base.LocalRepositoryView.read_bytes
+
+    def projected_local_read(local_view: Any, path: str, limit: int) -> bytes:
+        if path in replacements:
+            data = replacements[path]
+            if len(data) > limit:
+                base.fail(f"v31 predecessor self-test projection exceeds read bound: {path}")
+            return data
+        return original_local_read(local_view, path, limit)
+
+    base.LocalRepositoryView.read_bytes = projected_local_read
     try:
         p.selftest()
     finally:
-        for module, original in reversed(patched):
+        base.LocalRepositoryView.read_bytes = original_local_read
+        for module, original in reversed(patched_roots):
             setattr(module, "root", original)
 
 

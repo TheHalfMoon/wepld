@@ -30,7 +30,7 @@ import wepld_s2_identity_store_governance_v29_integrity as p
 
 P = ".github/scripts/wepld_s2_identity_store_governance_v30_integrity.py"
 T = ".github/scripts/wepld_s2_identity_store_governance_v30_selftest.py"
-T_BLOB = "d1d20af2ddf0fccf0bb13c3673ee695b6a049f22"
+T_BLOB = "93a10f49c86d2ce9be2228467169348b8aac057c"
 V29_P_BLOB = "a3c55e8ecd7420794b1536239d1ebeac21f43e4f"
 V29_T_BLOB = "38721c4c5bccc3716105e44a4aad2b0cec63cd69"
 
@@ -305,9 +305,15 @@ def files(view: Any) -> None:
     missing = POLICY_FILES - p.s.r.q.p.ps(view)
     if missing:
         base.fail(f"v30 policy files missing: {sorted(missing)}")
+    approved = {
+        P: root.read_bytes(P, base.MAX_POLICY_FILE_BYTES),
+        T: root.read_bytes(T, base.MAX_POLICY_FILE_BYTES),
+    }
     for path in sorted(POLICY_FILES):
         if p.s.r.q.p.mode(view, path) != "100644":
             base.fail(f"v30 policy file mode invalid: {path}")
+        if view.read_bytes(path, base.MAX_POLICY_FILE_BYTES) != approved[path]:
+            base.fail(f"v30 policy file content drifted: {path}")
 
 
 def printer(stage: str, mode_: str) -> None:

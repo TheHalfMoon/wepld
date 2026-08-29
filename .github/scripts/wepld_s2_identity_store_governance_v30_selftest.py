@@ -65,6 +65,33 @@ def run() -> None:
 
     p.install()
     p.files(view)
+
+    wrong_policy_file = OverlayView(
+        view,
+        {
+            p.P: view.read_bytes(p.P, base.MAX_POLICY_FILE_BYTES) + b"\n",
+        },
+    )
+    base.expect_failure_matching(
+        "v30 rejects substituted policy bytes",
+        "v30 policy file content drifted",
+        p.files,
+        wrong_policy_file,
+    )
+
+    wrong_selftest_file = OverlayView(
+        view,
+        {
+            p.T: view.read_bytes(p.T, base.MAX_POLICY_FILE_BYTES) + b"\n",
+        },
+    )
+    base.expect_failure_matching(
+        "v30 rejects substituted self-test bytes",
+        "v30 policy file content drifted",
+        p.files,
+        wrong_selftest_file,
+    )
+
     paths = base.validate_entries(view.entries())
     p.shell_component_base(view, paths)
     p.freeze_s1_005_evidence(view, p.root)

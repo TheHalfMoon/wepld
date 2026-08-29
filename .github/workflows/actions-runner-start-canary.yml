@@ -1,0 +1,19 @@
+name: actions-runner-start-canary
+
+on:
+  push:
+    branches:
+      - diag/actions-runner-start-2026-08-29
+
+permissions: {}
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Prove hosted runner started
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'actions_runner_start_canary=PASS'

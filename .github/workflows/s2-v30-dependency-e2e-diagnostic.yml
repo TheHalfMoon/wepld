@@ -14,7 +14,7 @@ jobs:
     timeout-minutes: 10
     env:
       PYTHONDONTWRITEBYTECODE: "1"
-      V30_POLICY_BASE_SHA: db49aed5c8d843edc0206cfa3948abee5479cde9
+      V30_POLICY_BASE_SHA: 9d5a9315b13bf554fb7ed12acd26aa508d91e3e8
       DEPENDENCY_SOURCE_REF: feat/s2-identity-store-dependency-admission-2026-08-29
     steps:
       - name: Checkout diagnostic branch with canonical history
@@ -68,5 +68,20 @@ jobs:
             --policy-base-root "$policy_base" \
             --policy-base-sha "$V30_POLICY_BASE_SHA"
 
+          printf 'unauthorized\n' > "${candidate}/docs/s2-v30-extra-path-negative.txt"
+          git -C "$candidate" add docs/s2-v30-extra-path-negative.txt
+          git -C "$candidate" -c user.name='WePLD Diagnostic' -c user.email='diagnostic@invalid.local' \
+            commit -m 'diagnostic(s2): add unauthorized fourth path' >/dev/null
+
+          if python "$policy_base/.github/scripts/wepld_s2_identity_store_governance_v30_integrity.py" verify-candidate-local \
+            --root "$candidate" \
+            --policy-base-root "$policy_base" \
+            --policy-base-sha "$V30_POLICY_BASE_SHA"
+          then
+            echo 'negative extra-path fixture unexpectedly passed' >&2
+            exit 1
+          fi
+
           echo 'DIAGNOSTIC_AUTHORITY=NONE'
           echo 'V30_DEPENDENCY_E2E_FIXTURE=PASS'
+          echo 'V30_EXTRA_PATH_NEGATIVE=FAIL_CLOSED_AS_EXPECTED'

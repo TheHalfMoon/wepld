@@ -1,4 +1,4 @@
-name: s2-v30-shell-component-repair-builder
+name: s2-v30-read-text-projection-repair-builder
 
 on:
   push:
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      V30_HEAD: e83d5021f7593d02d23e46a3eccb9f0b6bb21be2
+      V30_HEAD: 9a343016df41b2cdfdd423b60ef5725c7f9594a0
     steps:
       - name: Checkout diagnostic branch with history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -23,7 +23,7 @@ jobs:
           lfs: false
           submodules: false
 
-      - name: Build exact v30 shell-component repair blobs without mutating refs
+      - name: Build exact v30 read-text projection repair blobs without mutating refs
         shell: bash
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -49,54 +49,21 @@ jobs:
           policy = show(policy_path)
           test = show(test_path)
 
-          replacements = [
-              (
-                  b"_BASE_STAGE_B_TEMPLATES = base.verify_stage_b_templates\n",
-                  b"_SHELL_COMPONENT_BASE: Any = None\n",
-                  "capture",
-              ),
-              (
-                  b'''def verify_stage_b_templates(view: Any, stage: str) -> None:\n    if p.s.r.q.deps_ready(view):\n        _BASE_STAGE_B_TEMPLATES(project_admitted_dependency_state(view), stage)\n        return\n    _BASE_STAGE_B_TEMPLATES(view, stage)\n\n\n''',
-                  b'''def shell_component_base(view: Any, paths: Any) -> None:\n    if _SHELL_COMPONENT_BASE is None:\n        base.fail("v30 predecessor shell component-base verifier is not installed")\n    target = view\n    if p.s.r.q.deps_ready(view):\n        target = project_admitted_dependency_state(view)\n    _call("v29 shell component-base verifier", _SHELL_COMPONENT_BASE, target, paths)\n\n\n''',
-                  "component wrapper",
-              ),
-              (
-                  b'''        (base.compare_base_controlled, basectrl),\n        (base.verify_stage_b_templates, verify_stage_b_templates),\n        (_attr(desktop, "verify_extension_controlled_paths", "desktop hook"), dext),\n''',
-                  b'''        (base.compare_base_controlled, basectrl),\n        (_attr(shell, "_verify_shell_component_base", "shell component-base hook"), shell_component_base),\n        (_attr(desktop, "verify_extension_controlled_paths", "desktop hook"), dext),\n''',
-                  "overlay",
-              ),
-              (
-                  b"def install() -> None:\n    global _INST, _PRINT\n",
-                  b"def install() -> None:\n    global _INST, _PRINT, _SHELL_COMPONENT_BASE\n",
-                  "install global",
-              ),
-              (
-                  b'''        (_attr(routing, "IMPL_REQUIRE_EXACT_DELTA", "v29 routing hook"), P_DELTA),\n        (base.compare_base_controlled, P_BASE),\n        (base.verify_stage_b_templates, _BASE_STAGE_B_TEMPLATES),\n        (_attr(desktop, "verify_extension_controlled_paths", "v29 desktop hook"), P_DEXT),\n''',
-                  b'''        (_attr(routing, "IMPL_REQUIRE_EXACT_DELTA", "v29 routing hook"), P_DELTA),\n        (base.compare_base_controlled, P_BASE),\n        (_attr(desktop, "verify_extension_controlled_paths", "v29 desktop hook"), P_DEXT),\n''',
-                  "predecessor stage removal",
-              ),
-              (
-                  b'''    if any(actual is not expected for actual, expected in pairs):\n        base.fail("v30 predecessor hook drifted")\n\n    _PRINT = P_PRINTER\n''',
-                  b'''    if any(actual is not expected for actual, expected in pairs):\n        base.fail("v30 predecessor hook drifted")\n\n    _SHELL_COMPONENT_BASE = _attr(\n        shell, "_verify_shell_component_base", "v29 shell component-base verifier"\n    )\n    _PRINT = P_PRINTER\n''',
-                  "component capture",
-              ),
-              (
-                  b'''    _bind(routing, "IMPL_REQUIRE_EXACT_DELTA", delta, "v30 routing hook")\n    base.compare_base_controlled = basectrl\n    base.verify_stage_b_templates = verify_stage_b_templates\n    _bind(desktop, "verify_extension_controlled_paths", dext, "v30 desktop hook")\n''',
-                  b'''    _bind(routing, "IMPL_REQUIRE_EXACT_DELTA", delta, "v30 routing hook")\n    base.compare_base_controlled = basectrl\n    _bind(\n        shell,\n        "_verify_shell_component_base",\n        shell_component_base,\n        "v30 shell component-base hook",\n    )\n    _bind(desktop, "verify_extension_controlled_paths", dext, "v30 desktop hook")\n''',
-                  "component bind",
-              ),
-          ]
+          old_projection = b'''    def read_bytes(self, path: str, max_bytes: int) -> bytes:\n        if path in self._replacements:\n            data = self._replacements[path]\n            if len(data) > max_bytes:\n                base.fail(f"v30 projected dependency file exceeds read bound: {path}")\n            return data\n        return self._view.read_bytes(path, max_bytes)\n\n    def __getattr__(self, name: str) -> Any:\n        return getattr(self._view, name)\n'''
+          new_projection = b'''    def read_bytes(self, path: str, max_bytes: int) -> bytes:\n        if path in self._replacements:\n            data = self._replacements[path]\n            if len(data) > max_bytes:\n                base.fail(f"v30 projected dependency file exceeds read bound: {path}")\n            return data\n        return self._view.read_bytes(path, max_bytes)\n\n    def read_text(\n        self, path: str, limit: int = base.MAX_POLICY_FILE_BYTES\n    ) -> str:\n        data = self.read_bytes(path, limit)\n        try:\n            return data.decode("utf-8", errors="strict")\n        except UnicodeError as exc:\n            base.fail(f"tracked file is not UTF-8: {path}: {exc}")\n\n    def __getattr__(self, name: str) -> Any:\n        return getattr(self._view, name)\n'''
+          if policy.count(old_projection) != 1:
+              raise SystemExit(
+                  f"v30 projection read-text insertion target drifted: count={policy.count(old_projection)}"
+              )
+          policy = policy.replace(old_projection, new_projection, 1)
 
-          for old, new, label in replacements:
-              if policy.count(old) != 1:
-                  raise SystemExit(f"v30 policy {label} target drifted: count={policy.count(old)}")
-              policy = policy.replace(old, new, 1)
-
-          old_test = b'''    p.install()\n    p.files(view)\n    stage = base.verify_view(view)\n    if stage != "S1_DEPENDENCY_RESOLUTION_LOCKED":\n        base.fail(f"v30 admitted full-view stage drifted: {stage}")\n\n    projected = p.project_admitted_dependency_state(view)\n'''
-          new_test = b'''    p.install()\n    p.files(view)\n    paths = base.validate_entries(view.entries())\n    p.shell_component_base(view, paths)\n\n    projected = p.project_admitted_dependency_state(view)\n'''
-          if test.count(old_test) != 1:
-              raise SystemExit(f"v30 self-test regression target drifted: count={test.count(old_test)}")
-          repaired_test = test.replace(old_test, new_test, 1)
+          marker = b'''    ):\n        base.fail("v30 projected Core manifest baseline identity drifted")\n    if (\n        p.p.s.r.q.p.blob(\n            projected.read_bytes(\n                p.p.s.r.q.p.ROOT_CARGO_LOCK, p.p.s.r.q.p.MAX_LOCK_BYTES\n            )\n        )\n'''
+          replacement = b'''    ):\n        base.fail("v30 projected Core manifest baseline identity drifted")\n    expected_manifest_text = p.p.s.r.q.p.BASE_CORE_MANIFEST.decode(\n        "utf-8", errors="strict"\n    )\n    if (\n        projected.read_text(\n            p.p.s.r.q.p.CORE_MANIFEST, base.MAX_POLICY_FILE_BYTES\n        )\n        != expected_manifest_text\n    ):\n        base.fail("v30 projected Core manifest text read bypassed baseline projection")\n    if (\n        p.p.s.r.q.p.blob(\n            projected.read_bytes(\n                p.p.s.r.q.p.ROOT_CARGO_LOCK, p.p.s.r.q.p.MAX_LOCK_BYTES\n            )\n        )\n'''
+          if test.count(marker) != 1:
+              raise SystemExit(
+                  f"v30 self-test read-text regression insertion target drifted: count={test.count(marker)}"
+              )
+          repaired_test = test.replace(marker, replacement, 1)
 
           def git_blob(data: bytes) -> str:
               return hashlib.sha1(
@@ -105,18 +72,25 @@ jobs:
               ).hexdigest()
 
           repaired_test_blob = git_blob(repaired_test)
-          old_pin = b'T_BLOB = "284714143444c6c6d8919132afb71c80c77a28e0"'
+          old_pin = b'T_BLOB = "8f3d423957b4af3a3b5970c51f24ec35cbbab037"'
           new_pin = f'T_BLOB = "{repaired_test_blob}"'.encode("ascii")
           if policy.count(old_pin) != 1:
               raise SystemExit("v30 policy current self-test pin drifted")
           repaired_policy = policy.replace(old_pin, new_pin, 1)
 
           assertions = (
-              (repaired_policy.count(b"def shell_component_base(view: Any, paths: Any) -> None:") == 1, "component wrapper"),
-              (repaired_policy.count(b'"_verify_shell_component_base",\n        shell_component_base,') == 1, "component binding"),
-              (b"base.verify_stage_b_templates = verify_stage_b_templates" not in repaired_policy, "obsolete Stage-B binding removed"),
-              (repaired_test.count(b"p.shell_component_base(view, paths)") == 1, "component regression"),
-              (b"stage = base.verify_view(view)" not in repaired_test, "invalid direct base.verify_view regression removed"),
+              (
+                  repaired_policy.count(b"def read_text(\n        self, path: str, limit: int = base.MAX_POLICY_FILE_BYTES") == 1,
+                  "projection read_text implementation",
+              ),
+              (
+                  repaired_test.count(b"v30 projected Core manifest text read bypassed baseline projection") == 1,
+                  "projection read_text regression",
+              ),
+              (
+                  repaired_policy.count(b"def shell_component_base(view: Any, paths: Any) -> None:") == 1,
+                  "existing shell component seam preserved",
+              ),
           )
           for ok, label in assertions:
               if not ok:
@@ -141,7 +115,7 @@ jobs:
                       "Accept": "application/vnd.github+json",
                       "X-GitHub-Api-Version": "2022-11-28",
                       "Content-Type": "application/json",
-                      "User-Agent": "wepld-s2-v30-shell-component-repair-builder",
+                      "User-Agent": "wepld-s2-v30-read-text-repair-builder",
                   },
               )
               with urllib.request.urlopen(request, timeout=30) as response:
@@ -157,9 +131,9 @@ jobs:
               print(f"{label}_BYTES={len(data)}")
               return remote
 
-          create_blob("V30_SELFTEST_SHELL_COMPONENT_REPAIRED", repaired_test)
-          create_blob("V30_POLICY_SHELL_COMPONENT_REPAIRED", repaired_policy)
+          create_blob("V30_SELFTEST_READ_TEXT_REPAIRED", repaired_test)
+          create_blob("V30_POLICY_READ_TEXT_REPAIRED", repaired_policy)
           print("REF_MUTATION=NONE_BY_BUILDER")
           print("REAL_CANDIDATE_DELTA_PROJECTION=NONE")
-          print("SHELL_COMPONENT_READ_PROJECTION=EXACT_THREE_DEPENDENCY_FILES_ONLY")
+          print("READ_TEXT_PROJECTION=EXACT_THREE_DEPENDENCY_FILES_ONLY")
           PY

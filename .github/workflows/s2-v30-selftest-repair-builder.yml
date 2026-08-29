@@ -1,0 +1,113 @@
+name: s2-v30-selftest-repair-builder
+
+on:
+  push:
+    branches:
+      - diag/s2-v30-policy-qualification-2026-08-29
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      V30_HEAD: 13e04dc3da4c1114645587487ae32937add66e13
+    steps:
+      - name: Checkout diagnostic branch with history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          lfs: false
+          submodules: false
+
+      - name: Build exact repaired v30 blobs without mutating refs
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import base64
+          import hashlib
+          import json
+          import os
+          import subprocess
+          import urllib.request
+
+          head = os.environ["V30_HEAD"]
+          policy_path = ".github/scripts/wepld_s2_identity_store_governance_v30_integrity.py"
+          test_path = ".github/scripts/wepld_s2_identity_store_governance_v30_selftest.py"
+
+          def show(path: str) -> bytes:
+              return subprocess.check_output(["git", "show", f"{head}:{path}"])
+
+          policy = show(policy_path)
+          test = show(test_path)
+
+          old_block = b'''    view = admitted_view()\n    base.expect_failure_matching(\n        "v30 reproduces trusted run 660 predecessor policy-file defect",\n        "exact policy content drifted: crates/core/Cargo.toml",\n        p.P_FILES,\n        view,\n    )\n\n    p.install()\n'''
+          new_block = b'''    view = admitted_view()\n    if view.read_bytes(\n        p.p.s.r.q.p.CORE_MANIFEST, base.MAX_POLICY_FILE_BYTES\n    ) != p.p.s.r.q.p.ADMITTED_CORE_MANIFEST:\n        base.fail("v30 admitted self-test view Core manifest drifted")\n    admitted_lock = view.read_bytes(\n        p.p.s.r.q.p.ROOT_CARGO_LOCK, p.p.s.r.q.p.MAX_LOCK_BYTES\n    )\n    if admitted_lock.count(p.p.s.r.q.p.ADMITTED_CORE_LOCK_STANZA) != 1:\n        base.fail("v30 admitted self-test view Core lock stanza drifted")\n    admitted_register = view.read_bytes(\n        p.p.s.r.q.DEPENDENCY_REGISTER, base.MAX_POLICY_FILE_BYTES\n    )\n    if not admitted_register.endswith(p.p.CORRECTED_S2_DEPENDENCY_REGISTER_APPEND):\n        base.fail("v30 admitted self-test view dependency register drifted")\n\n    p.install()\n'''
+
+          if test.count(old_block) != 1:
+              raise SystemExit("v30 self-test repair target block drifted")
+          repaired_test = test.replace(old_block, new_block, 1)
+
+          def git_blob(data: bytes) -> str:
+              return hashlib.sha1(
+                  f"blob {len(data)}\\0".encode("ascii") + data,
+                  usedforsecurity=False,
+              ).hexdigest()
+
+          repaired_test_blob = git_blob(repaired_test)
+          old_pin = (
+              b'T_BLOB = "f59cadc8d5273e1e8cb1d0a1ff038a27aae5d26f"'
+          )
+          new_pin = f'T_BLOB = "{repaired_test_blob}"'.encode("ascii")
+          if policy.count(old_pin) != 1:
+              raise SystemExit("v30 policy self-test pin drifted")
+          repaired_policy = policy.replace(old_pin, new_pin, 1)
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          token = os.environ["GITHUB_TOKEN"]
+
+          def create_blob(label: str, data: bytes) -> str:
+              payload = json.dumps(
+                  {
+                      "content": base64.b64encode(data).decode("ascii"),
+                      "encoding": "base64",
+                  }
+              ).encode("utf-8")
+              request = urllib.request.Request(
+                  f"https://api.github.com/repos/{repo}/git/blobs",
+                  data=payload,
+                  method="POST",
+                  headers={
+                      "Authorization": f"Bearer {token}",
+                      "Accept": "application/vnd.github+json",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                      "Content-Type": "application/json",
+                      "User-Agent": "wepld-s2-v30-selftest-repair-builder",
+                  },
+              )
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  result = json.load(response)
+              remote = result["sha"]
+              local = git_blob(data)
+              if remote != local:
+                  raise SystemExit(
+                      f"GitHub/local blob mismatch for {label}: {remote} != {local}"
+                  )
+              print(f"{label}_BLOB_SHA={remote}")
+              print(f"{label}_SHA256={hashlib.sha256(data).hexdigest()}")
+              print(f"{label}_BYTES={len(data)}")
+              return remote
+
+          create_blob("V30_SELFTEST_REPAIRED", repaired_test)
+          create_blob("V30_POLICY_REPINNED", repaired_policy)
+          print("REF_MUTATION=NONE_BY_BUILDER")
+          print("PR_PATH_DELTA_AFTER_REPAIR=V30_POLICY_AND_SELFTEST_ONLY")
+          PY

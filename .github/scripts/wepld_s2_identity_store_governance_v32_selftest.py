@@ -40,12 +40,8 @@ def _expect_failure(label: str, action: Any) -> None:
 
 
 def _tranche_export() -> bytes:
-    """The authorized tranche shape: exactly one registration of each module."""
-    return p.BASE_CORE_EXPORT.replace(
-        b"pub mod project;\npub mod state;\n",
-        b"pub mod evidence_store;\npub mod identity;\npub mod project;\npub mod state;\n",
-        1,
-    )
+    """The single authorized post-tranche Core export."""
+    return p.ADMITTED_CORE_EXPORT
 
 
 def _check_baseline_projection_is_identity() -> None:
@@ -73,6 +69,8 @@ def _check_tranche_projection_reverses() -> None:
         base.fail("v32 tranche export must reverse to the exact canonical baseline")
     if p.V25.blob(projected) != p.CORE_EXPORT_BASE_BLOB:
         base.fail("v32 projected export does not match the frozen baseline blob")
+    if p.V25.blob(tranche) != p.CORE_EXPORT_ADMITTED_BLOB:
+        base.fail("v32 authorized export does not match the frozen admitted blob")
 
     reader = p._project_core_export(view)
     if reader.read_bytes(p.CORE_EXPORT, base.MAX_POLICY_FILE_BYTES) != p.BASE_CORE_EXPORT:
@@ -85,6 +83,33 @@ def _check_duplicate_registration_fails_closed() -> None:
     view = OverlayView(p.root, {p.CORE_EXPORT: doubled})
     _expect_failure(
         "duplicate identity registration",
+        lambda: p._core_export_baseline(view),
+    )
+
+
+def _check_registered_but_edited_export_fails_closed() -> None:
+    """Registration counts alone are not a sufficient acceptance condition.
+
+    An export that registers each module exactly once but also carries an
+    unrelated edit satisfies a count-based predicate. Acceptance is bound to the
+    exact authorized bytes so this is rejected rather than projected away.
+    """
+    registrations = p.STORE_REGISTRATION + b"\n" + p.IDENTITY_REGISTRATION + b"\n"
+    counted_but_edited = (
+        p.BASE_CORE_EXPORT.replace(
+            b"pub mod project;", registrations + b"pub mod project;", 1
+        )
+        + b"\npub mod unrelated_addition;\n"
+    )
+    if counted_but_edited.count(p.IDENTITY_REGISTRATION) != 1:
+        base.fail("v32 self-test fixture identity registration is not exact")
+    if counted_but_edited.count(p.STORE_REGISTRATION) != 1:
+        base.fail("v32 self-test fixture store registration is not exact")
+    if counted_but_edited == p.ADMITTED_CORE_EXPORT:
+        base.fail("v32 self-test fixture must differ from the authorized export")
+    view = OverlayView(p.root, {p.CORE_EXPORT: counted_but_edited})
+    _expect_failure(
+        "exactly-registered export carrying an unrelated edit",
         lambda: p._core_export_baseline(view),
     )
 
@@ -178,6 +203,7 @@ def run() -> None:
     _check_baseline_projection_is_identity()
     _check_tranche_projection_reverses()
     _check_duplicate_registration_fails_closed()
+    _check_registered_but_edited_export_fails_closed()
     _check_missing_registration_fails_closed()
     _check_unrelated_export_edit_fails_closed()
     _check_workflow_projection_reverses()

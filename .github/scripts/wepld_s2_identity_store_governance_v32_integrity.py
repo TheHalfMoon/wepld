@@ -49,7 +49,7 @@ V25 = p.V25
 
 P = ".github/scripts/wepld_s2_identity_store_governance_v32_integrity.py"
 T = ".github/scripts/wepld_s2_identity_store_governance_v32_selftest.py"
-T_BLOB = "443673e9d92d25375397b7dd09b63b397ec9255f"
+T_BLOB = "f34f832c892a32c186c78cdcfb3807892784ebf7"
 V31_P_BLOB = "b522d929f6f1d6ce7166b79afecb1045a89bfd28"
 V31_T_BLOB = "8c8ce95e428f332a29a4060b52cd2edf015d5b96"
 
@@ -113,6 +113,45 @@ pub use state::{
 
 CORE_EXPORT_BASE_BLOB = "ca9909da8f8d04a8c618b4ee96fc9e89fbe9e8b0"
 
+# Exact bytes of the single authorized post-tranche Core export. Acceptance is
+# bound to these bytes rather than to registration occurrence counts, so an
+# export that registers both modules but also carries an unrelated edit is
+# rejected instead of being projected away.
+ADMITTED_CORE_EXPORT = b"""#![forbid(unsafe_code)]
+
+pub mod evidence_store;
+pub mod identity;
+pub mod project;
+pub mod state;
+
+pub use evidence_store::{
+    EvidenceStore, Freshness, LOCK_ACQUIRE_DEADLINE_MS, LOCK_POLL_INTERVAL_MS, MAX_CURRENT_BYTES,
+    MAX_MANIFEST_BYTES, MAX_RECORD_BYTES, PRODUCER_CONTRACT_VERSION, PublishedGeneration,
+    StoreDefect, StoreError, StoreLock, build_manifest, busy_error_code, content_digest,
+    now_unix_millis, redacted_summary, safe_path_segment,
+};
+pub use identity::{
+    IdentityCandidate, IdentityError, OPAQUE_ID_RANDOM_BYTES, ProjectMatchFacts,
+    RESERVATION_KEY_VERSION, ReservationRecovery, allocate_generation_id, allocate_project_id,
+    allocate_record_id, allocate_worktree_id, build_identity_record, build_reservation, busy,
+    compare_match_strength, complete_reservation, match_strength_rank, recover_reservation,
+    resolve_identity,
+};
+pub use project::{
+    DataRootInputs, DataRootObservation, DataRootSource, MAX_PATH_COMPONENT_OBSERVATIONS,
+    NonGitProjectRoot, PathEntryKind, PathMetadataObservation, PathMetadataTrail,
+    ProjectObservationError, ProjectRootBasis, classify_path_io_error, lexical_absolute_path,
+    machine_path_from_path, observe_non_git_project_root, observe_path_metadata,
+    observe_project_locator, platform_data_root,
+};
+pub use state::{
+    CoreProfile, HandshakeState, MAX_HEALTH_WATCHES, MAX_IN_FLIGHT_REQUESTS, MAX_TERMINAL_RESULTS,
+    PendingRequest, StateError,
+};
+"""
+
+CORE_EXPORT_ADMITTED_BLOB = "3180ae22cb29dbcc807418580c0062bab18c0a2e"
+
 IDENTITY_REGISTRATION = b"pub mod identity;"
 STORE_REGISTRATION = b"pub mod evidence_store;"
 
@@ -127,6 +166,9 @@ for _path, _expected in ((p.P, V31_P_BLOB), (p.T, V31_T_BLOB), (T, T_BLOB)):
 
 if V25.blob(BASE_CORE_EXPORT) != CORE_EXPORT_BASE_BLOB:
     base.fail("v32 frozen canonical Core export baseline drifted")
+
+if V25.blob(ADMITTED_CORE_EXPORT) != CORE_EXPORT_ADMITTED_BLOB:
+    base.fail("v32 frozen authorized Core export drifted")
 
 _call = p._call
 _attr = p._attr
@@ -179,22 +221,22 @@ def _core_export_baseline(view: Any) -> bytes | None:
     """Reverse the authorized Core export registration to its canonical bytes.
 
     Returns `None` when the view already carries the canonical baseline, so the
-    pre-tranche base is never rewritten. Fails closed when the export is neither
-    the canonical baseline nor an exact single registration of both authorized
-    modules, so this projection can never hide a real export defect.
+    pre-tranche base is never rewritten. Otherwise the export must equal the
+    exact authorized tranche bytes. Registration occurrence counts are not a
+    sufficient acceptance condition: an export that registers both modules and
+    also carries an unrelated edit would satisfy a count-based predicate and be
+    projected away, hiding a real export change during predecessor self-tests.
+    Binding to exact bytes keeps this projection fail-closed.
     """
     if CORE_EXPORT not in V25.ps(view):
         return None
     data = view.read_bytes(CORE_EXPORT, base.MAX_POLICY_FILE_BYTES)
     if data == BASE_CORE_EXPORT:
         return None
-    identity_count = data.count(IDENTITY_REGISTRATION)
-    store_count = data.count(STORE_REGISTRATION)
-    if identity_count != 1 or store_count != 1:
+    if data != ADMITTED_CORE_EXPORT:
         base.fail(
-            "v32 Core export is neither the canonical baseline nor an exact "
-            f"single registration of both modules: identity={identity_count} "
-            f"evidence_store={store_count}"
+            "v32 Core export is neither the exact canonical baseline nor the "
+            "exact authorized tranche export"
         )
     return BASE_CORE_EXPORT
 

@@ -30,6 +30,7 @@
 //! and are never promoted. It executes no process, performs no network effect,
 //! and calls no version-control tooling.
 
+use std::error::Error;
 use std::fmt;
 use std::fs::{self, File, OpenOptions, TryLockError};
 use std::io::{self, Read as _, Write as _};
@@ -173,6 +174,16 @@ impl fmt::Display for StoreError {
             Self::Contract(error) => write!(formatter, "contract value error: {error}"),
             Self::Codec(error) => write!(formatter, "contract codec error: {error}"),
             Self::Io(error) => write!(formatter, "input/output error: {error}"),
+        }
+    }
+}
+
+impl Error for StoreError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Io(error) => Some(error),
+            Self::Identity(error) => Some(error),
+            _ => None,
         }
     }
 }

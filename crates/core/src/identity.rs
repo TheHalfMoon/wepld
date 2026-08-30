@@ -14,6 +14,7 @@
 //! be exercised deterministically without a store.
 
 use std::cmp::Ordering;
+use std::error::Error;
 use std::fmt;
 
 use sha2::{Digest as _, Sha256};
@@ -81,6 +82,8 @@ impl fmt::Display for IdentityError {
         }
     }
 }
+
+impl Error for IdentityError {}
 
 impl From<ContractValueError> for IdentityError {
     fn from(error: ContractValueError) -> Self {

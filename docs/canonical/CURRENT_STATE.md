@@ -283,6 +283,15 @@ S2-S001..S2-S015                  not claimed
 S2-Q001..S2-Q009                  not claimed
 S2-D001..S2-D015                  not claimed
 S2-CLI001..S2-CLI010              not claimed
+BUILD_LEARNING_CAPTURE            BLOCKED_ON_AUTHORIZED_PATH. AGENTS.md and
+                                  S2-A009 require it, and the ledger is
+                                  byte-frozen by the S1-016 evidence freeze in
+                                  the active policy chain, which refused an
+                                  append at both gates. Advancing that freeze
+                                  needs its own governed path, in the shape the
+                                  chain already carries for S1-005 evidence.
+                                  Recorded as blocked rather than as done or as
+                                  quietly dropped.
 ```
 
 ### Canonical properties established by this tranche

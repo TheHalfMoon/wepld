@@ -20,8 +20,9 @@ LAST_MERGED_TRANCHE_HEAD = bdebfbaa8f146115321e6d204da9e49d367047e2
 LAST_MERGED_TRANCHE_MERGE = a6edc3af9e0435ed6283b2bf42ab0aff240b10db
 LAST_MERGED_TRANCHE_TREE = c1b7f68992211f28aac8b4ad4dff54db1b18939f
 LAST_MERGED_TRANCHE_REVIEW_ROUNDS = 17_BY_PROJECT_DEFINITION_NOT_A_GITHUB_CONCEPT
-LAST_MERGED_TRANCHE_UNRESOLVED_FINDINGS_AT_MERGE = 0
-LAST_MERGED_TRANCHE_ACCEPTANCE_RECORD = PR 240 comment 5483115585
+LAST_MERGED_TRANCHE_UNRESOLVED_FINDINGS_AT_MERGE = 0_ASSERTED_BY_THE_MERGING_SESSION
+LAST_MERGED_TRANCHE_UNRESOLVED_THREADS_NOW = 0_INDEPENDENTLY_CHECKABLE
+LAST_MERGED_TRANCHE_ACCEPTANCE_RECORD = PR 240 comment 5483115585, EDITED AFTER THE MERGE
 ```
 
 ## Planning gates
@@ -57,7 +58,13 @@ LAST_MERGED_TRANCHE_ACCEPTANCE_RECORD = PR 240 comment 5483115585
 - [ ] **S2-P020** Guarded merge with current founder/canonical authorization evidence plus expected-head protection.
 - [ ] **S2-P021** Prove post-merge canonical planning activation/Foundation on exact `main`.
 
-Two of the markers above name things GitHub does not expose, and they are qualified rather than left to look like platform facts. A review round is a project concept: GitHub reports reviews, comments and timeline events and has no notion of a round, so the count is narrative and cannot be reproduced from the API. The zero-unresolved-findings state is verifiable now, but a historical snapshot at the exact merge instant is not retrievable either; the evidence is the acceptance record posted to PR 240 before the merge, whose comment identifier is given above and whose timestamp precedes the merge.
+Two of the markers above name things GitHub does not expose, and they are qualified rather than left to look like platform facts.
+
+A review round is a project concept. GitHub reports reviews, comments and timeline events and has no notion of a round, so that count is narrative and cannot be reproduced from the API.
+
+The merge-instant finding count is weaker than it first appears, and the weakness is disclosed rather than papered over. The acceptance record was created at `19:03:35Z` and the merge completed at `19:03:58Z`, so it was written first; but the comment was then edited at `19:04:03Z`, after the merge, to repair code blocks a shell-quoting error had emptied. GitHub serves no earlier revision of a comment body, so its current text cannot establish what it said at the merge instant. GitHub also exposes no resolution timestamp for a review thread and no historical snapshot of thread state, so the platform cannot answer the question either way.
+
+What is therefore true: the count is an assertion by the session that performed the merge, and it is labelled as one. What is independently checkable is the present state, that PR 240 has four review threads and none unresolved.
 
 Historical checks/reviews on a superseded head are evidence of the review process, not acceptance evidence for the current repaired head. Tracked checkboxes are coordination only; live GitHub exact-head/post-merge evidence is authority for qualification claims.
 

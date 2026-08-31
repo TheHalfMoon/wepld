@@ -21,7 +21,7 @@ A user can bring a GitHub issue, another tracker item, a dropped file/directory,
 
 ### FR-001 — Universal Case model
 
-WePLD MUST represent external issue/ticket/incident objects as a provider-neutral `Case` with stable WePLD identity, source bindings, state, evidence, relationships, decisions, attempts, findings, and completion records.
+WePLD MUST represent external issue/ticket/incident objects as a provider-neutral `Case` with stable WePLD identity, source bindings, state, evidence, relationships, decisions, attempts, findings, provider conflicts, and completion records.
 
 ### FR-002 — GitHub-first IssueOps
 
@@ -29,17 +29,25 @@ GitHub Issues and pull requests MUST be first-class provider bindings. Provider-
 
 ### FR-003 — Multi-provider adapters
 
-The architecture MUST permit later adapters for GitLab, Linear, Jira, Azure DevOps, Sentry-class error systems, chat reports, email, and customer-support sources without changing the `Case` contract.
+The architecture MUST permit later adapters for GitLab, Linear, Jira, Azure DevOps, Sentry-class error systems, chat reports, email, and customer-support sources without changing the core authority/completion model.
 
-### FR-004 — Agentic lifecycle
+Provider-specific fields SHOULD remain versioned adapter observations/extensions until a provider-independent engineering semantic justifies promotion into the Case model.
+
+### FR-004 — Provider observation conflicts
+
+Provider observations MUST be append-only evidence. Contradictory provider states, relationships, freshness, or identity-binding evidence MUST remain inspectable and MUST NOT be silently resolved through generic latest-write-wins behavior.
+
+When a dependent effect or completion decision requires a single current semantic, unresolved acceptance-critical conflict MUST cause fail-closed, abstention, re-observation, or an explicit DecisionBoundary under the owning contract.
+
+### FR-005 — Agentic lifecycle
 
 A `Case` MUST support a governed lifecycle that can include ingest, normalize, deduplicate, classify, reproduce, diagnose, plan, task decomposition, worker routing, implementation, deterministic verification, independent review, repair, landing, provider closeout, and Trusted Completion evidence.
 
-### FR-005 — Decision-boundary escalation
+### FR-006 — Decision-boundary escalation
 
 Automation SHOULD resolve discoverable facts itself and escalate only genuine product, architecture, authority, policy, ambiguity, or residual-risk decisions that cannot be safely inferred.
 
-### FR-006 — Autonomy profiles
+### FR-007 — Autonomy profiles
 
 WePLD MUST support repository/workspace autonomy profiles with at least:
 
@@ -53,41 +61,53 @@ land
 
 The selected profile constrains possible workflow behavior but MUST NOT replace effect-time Nawat authorization.
 
-### FR-007 — Issue sweep
+### FR-008 — Issue sweep
 
-WePLD SHOULD support backlog sweeps that cluster duplicates and probable common root causes, identify already-fixed issues, classify blocked/decision-needed cases, surface quick wins, and produce an execution-ready frontier.
+WePLD SHOULD support backlog sweeps that produce evidence-backed candidate relations/classifications, including exact/probable duplicates, common-root-cause groups, already-fixed-on-main candidates, reproduction-missing, blocked/decision-needed, security-sensitive, small/high-confidence, and high-risk cases.
 
-### FR-008 — Case rooms
+Every sweep output class MUST define explicit evidence requirements, abstention behavior, a labeled benchmark corpus, predeclared promotion criteria, and negative oracles. Probable duplicate or semantic/topic similarity MUST NOT silently auto-close, merge Case identity, or establish causal/root-cause equivalence.
 
-Each active `Case` SHOULD expose a durable room showing assigned roles/workers, current attempts, dependencies, decisions, evidence, findings, blockers, and completion state.
+### FR-009 — Case rooms
 
-### FR-009 — Arbitrary RAG collections
+Each active `Case` SHOULD expose a durable room showing assigned roles/workers, current attempts, dependencies, decisions, evidence, provider conflicts/staleness, findings, blockers, and completion state.
+
+### FR-010 — Arbitrary RAG collections
 
 Users MUST be able to create named knowledge collections and add qualified supported sources including files, directories, pasted text, URLs, documentation, repositories, structured data, logs, and later additional source types.
 
-### FR-010 — RAG scopes
+### FR-011 — RAG scopes
 
 Knowledge collections MUST support explicit scope semantics such as session, project, workspace, and global, with visibility and authority remaining separate concerns.
 
-### FR-011 — Provenance-first retrieval
+### FR-012 — Provenance-first retrieval
 
-Every material retrieval result MUST retain source identity, location/citation where available, ingest identity, freshness, parser/index provenance, and sufficient evidence to explain why it was retrieved. Retrieval scores MUST NOT become truth or authority.
+Every material retrieval result MUST retain source identity, location/citation where available, ingest identity, freshness, parser/index provenance, trust classification, and sufficient evidence to explain why it was retrieved. Retrieval scores MUST NOT become truth or authority.
 
-### FR-012 — Hybrid retrieval
+### FR-013 — Hybrid retrieval
 
-The architecture MUST support exact/lexical retrieval first and optional semantic/vector, symbol, syntax, reference/call-graph, metadata, freshness, and reranking signals as their owning slices qualify them.
+The architecture MUST support replaceable exact, lexical, metadata, Fehrest.Maemar syntax/symbol/reference/call-graph, semantic/vector, freshness, and reranking signals.
 
-### FR-013 — Drag/drop and paste intake
+Signal selection MUST be minimum-sufficient and query/source aware rather than a rigid serial ladder. Semantic/vector retrieval MAY be selected early for conceptual/paraphrastic query classes but MUST NOT become a prerequisite without predeclared benchmark evidence of incremental value and qualified privacy/cost/latency/exit behavior.
+
+### FR-014 — Drag/drop and paste intake
 
 Desktop and CLI surfaces MUST normalize dropped, pasted, or selected artifacts into an inert `InputArtifact` representation. Native desktop drop events and terminal path-paste behavior MUST converge on the same contract.
 
-### FR-014 — No implicit execution from intake
+### FR-015 — No implicit execution from intake
 
 Dropping, pasting, attaching, or adding a URL MUST NOT execute code, install dependencies, expand untrusted archives, access the network, mutate a repository, or send content externally without separate qualified actions.
 
-### FR-015 — WePLD-native command surface
+### FR-016 — Untrusted content remains data
 
-The planned command surface SHOULD include:
+Issue bodies, PR descriptions, comments, repositories, logs, documents, provider attachments, retrieved passages, worker output, and model output MUST default to data/evidence rather than instruction authority.
+
+Untrusted content MUST NOT by itself create `WorkflowIntent`, change autonomy ceilings, expand file/secret/collection/network/provider access, select a paid/remote route, disable containment/review, mint Nawat authority, or mark Trusted Completion.
+
+Effect-capable workflows MUST preserve source/trust labels in context packages and MUST validate effects independently at exact effect-time boundaries. Sanitization, prompt filtering, model-side refusal, or injection classifiers MAY provide defense-in-depth but MUST NOT substitute for structural authority enforcement.
+
+### FR-017 — WePLD-native command surface
+
+The planned command catalog SHOULD include:
 
 ```text
 /askme
@@ -115,57 +135,77 @@ The planned command surface SHOULD include:
 /workers
 ```
 
-Commands are intent surfaces over WePLD capabilities, not independent authority paths.
+Commands are intent surfaces over WePLD capabilities, not independent authority paths. The full catalog does not imply equal day-one prominence; initial UX SHOULD use routing and progressive disclosure.
 
-### FR-016 — Skill primitives
+### FR-018 — Skill primitives
 
 Reusable behaviors such as TDD, domain modeling, deep-module design, code-review axes, diagnostic feedback loops, context packaging, grilling, writing-for-agents, merge-intent recovery, and architecture-boundary analysis SHOULD be internal capabilities rather than mandatory top-level commands.
 
-### FR-017 — Provider-neutral delegation
+Domain modeling and deep-module/boundary analysis SHOULD be explicit reusable modes in the architecture workflow rather than donor-study notes only.
+
+### FR-019 — Provider-neutral delegation
 
 `/delegate` MUST assign work through WePLD-owned worker/capability contracts. Provider-specific commands MUST NOT define the core product architecture.
 
-### FR-018 — Explicit worker selection
+### FR-020 — Explicit worker selection
 
 A user MAY request a specific worker through a form such as `/delegate --to <worker> ...`, but explicit selection MUST still pass capability qualification, containment requirements, cost policy, and Nawat authorization.
 
-### FR-019 — Worker catalog
+### FR-021 — Worker catalog
 
 WePLD MUST support a worker catalog describing stable WePLD worker identity, provider/adapter identity, capabilities, containment characteristics, supported effect classes, cost/metering properties, availability, and qualification evidence.
 
-### FR-020 — No silent fallback
+### FR-022 — Qualification / authorization / runtime separation
+
+Edara topology/staffing, Mirefa route qualification, Nawat effect-time authority, Mission Runtime execution hosting, and UWC adapter behavior MUST remain semantically distinct even if an early implementation co-locates them in one process.
+
+Mirefa qualification MUST NOT mint effect authority. Mission Runtime MUST NOT widen or reuse expired grants, hide Nawat denial, or silently substitute worker/provider/model routes.
+
+### FR-023 — No silent fallback
 
 If a requested or selected worker/provider/model is unavailable or unqualified, WePLD MUST fail closed or request/obtain an explicitly authorized alternative. Silent substitution is prohibited.
 
-### FR-021 — Cost-aware execution
+### FR-024 — Cost-aware execution
 
 Paid, quota-consuming, or materially metered worker execution MUST be explicit in worker metadata and MUST NOT be silently initiated when the controlling policy disallows it.
 
-### FR-022 — Bounded context packages
+### FR-025 — Bounded context packages
 
-Delegated work SHOULD receive the minimum sufficient context package: relevant files/symbols, spec/task fragments, decisions, tests, known failures, RAG evidence with provenance, and an authority/effect envelope.
+Delegated work SHOULD receive the minimum sufficient context package: relevant files/symbols, spec/task fragments, decisions, tests, known failures, RAG evidence with provenance/trust labels, and an authority/effect envelope.
 
-### FR-023 — Dynamic teams
+### FR-026 — Dynamic teams
 
 Edara SHOULD assemble minimum-sufficient worker topologies per case rather than use a fixed agent team. Roles MAY include triager, reproducer, diagnostician, implementer, test worker, security worker, and independent reviewer.
 
-### FR-024 — Independent assurance
+### FR-027 — Independent assurance
 
 Material autonomous execution MUST preserve deterministic gates and independently qualified review. The implementer MUST NOT become acceptance authority for its own acceptance-critical work.
 
-### FR-025 — Repair loops
+S7 Assurance MAY participate in a tight repair loop with S8 but MUST remain semantically independent from the repair/completion boundary that consumes findings.
+
+### FR-028 — Repair loops
 
 Valid findings, failed checks, stale evidence, and changed external state MUST be able to trigger bounded repair/reassignment loops without erasing prior attempts or findings.
 
-### FR-026 — Issue/PR landing
+### FR-029 — Issue/PR landing
 
 Issue provider mutation, branch/PR creation or update, merge, and issue closeout MUST be modeled as explicit effects with exact-target preconditions and replay/idempotency protections appropriate to the provider.
 
-### FR-027 — Completion evidence
+### FR-030 — Completion evidence
 
-Closing or merging an external object MUST NOT itself establish completion. WePLD MUST record the evidence used for the governed completion decision.
+Closing or merging an external object MUST NOT itself establish completion. WePLD MUST record a `CompletionEvidence` packet bound to the exact accepted target/generation.
 
-### FR-028 — Learning
+The packet MUST represent, as applicable: reproduction/root-cause basis, change identity, deterministic gates, exact-target independent review, security review or policy-qualified not-applicable basis, all material finding reconciliations, material effect/authority records, provider landing/closeout evidence, residual limitations, and completion decision producer identity.
+
+Stale/mismatched acceptance evidence, unresolved material findings, missing required authority evidence, or unresolved acceptance-critical conflict MUST fail Trusted Completion closed.
+
+### FR-031 — First IssueOps tracer bullet
+
+The first end-to-end IssueOps proof MUST be offline/read-only: a synthetic/local issue artifact plus a local repository fixture becomes a Case, retrieves cited local project evidence, produces triage/reproduction-readiness/relations/decision frontier, and renders an evidence-backed Case summary.
+
+TB0 MUST require no network, provider write, model/provider execution, Git write, merge, or issue close. Agent Host/control-plane runtime is not a prerequisite for this first product-value proof.
+
+### FR-032 — Learning
 
 Completed cases SHOULD contribute evidence-backed reusable mechanics, failure patterns, negative oracles, retrieval hints, and routing signals through the existing Build Learning/Project Brain model. Learned behavior remains candidate evidence, not authority.
 

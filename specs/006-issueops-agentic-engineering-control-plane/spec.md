@@ -9,13 +9,13 @@ CURRENT_ACTIVE_SLICE = S2
 
 ## Problem
 
-Engineering issues are fragmented across issue trackers, pull requests, CI systems, error trackers, chat, email, local logs, documentation, and model/agent sessions. Existing tools mostly expose queues; they do not provide a durable, governed control plane that can understand an issue, retrieve the right context, assemble qualified workers, reproduce the problem, plan and implement a fix, reconcile review findings, land an authorized change, and prove completion.
+Engineering issues are fragmented across issue trackers, pull requests, CI systems, error trackers, chat, email, local logs, documentation, browsers, websites, and model/agent sessions. Existing tools mostly expose queues or isolated automation surfaces; they do not provide a durable, governed control plane that can understand an issue, retrieve the right context, reproduce browser/web behavior, assemble qualified workers, plan and implement a fix, reconcile review findings, land an authorized change, and prove completion.
 
 WePLD should become the best place to operate engineering issues with humans and agents while preserving its authority/evidence architecture.
 
 ## Product outcome
 
-A user can bring a GitHub issue, another tracker item, a dropped file/directory, a URL, repository context, or an observed failure into WePLD and obtain one normalized `Case`. WePLD can then triage, retrieve evidence, reproduce, plan, delegate, implement, review, repair, land, close, and learn within explicit authority.
+A user can bring a GitHub issue, another tracker item, a dropped file/directory, a URL, repository context, browser/web context, or an observed failure into WePLD and obtain one normalized `Case`. WePLD can then triage, retrieve evidence, reproduce, inspect browser/application behavior, plan, delegate, implement, review, repair, verify, land, close, and learn within explicit authority.
 
 ## Functional requirements
 
@@ -99,9 +99,9 @@ Dropping, pasting, attaching, or adding a URL MUST NOT execute code, install dep
 
 ### FR-016 — Untrusted content remains data
 
-Issue bodies, PR descriptions, comments, repositories, logs, documents, provider attachments, retrieved passages, worker output, and model output MUST default to data/evidence rather than instruction authority.
+Issue bodies, PR descriptions, comments, repositories, logs, documents, browser/page content, WebMCP metadata/output, provider attachments, retrieved passages, worker output, and model output MUST default to data/evidence rather than instruction authority.
 
-Untrusted content MUST NOT by itself create `WorkflowIntent`, change autonomy ceilings, expand file/secret/collection/network/provider access, select a paid/remote route, disable containment/review, mint Nawat authority, or mark Trusted Completion.
+Untrusted content MUST NOT by itself create `WorkflowIntent`, change autonomy ceilings, expand file/secret/collection/network/provider/browser access, select a paid/remote route, disable containment/review, mint Nawat authority, or mark Trusted Completion.
 
 Effect-capable workflows MUST preserve source/trust labels in context packages and MUST validate effects independently at exact effect-time boundaries. Sanitization, prompt filtering, model-side refusal, or injection classifiers MAY provide defense-in-depth but MUST NOT substitute for structural authority enforcement.
 
@@ -133,6 +133,7 @@ The planned command catalog SHOULD include:
 /workflow
 /delegate
 /workers
+/web
 ```
 
 Commands are intent surfaces over WePLD capabilities, not independent authority paths. The full catalog does not imply equal day-one prominence; initial UX SHOULD use routing and progressive disclosure.
@@ -163,19 +164,19 @@ Mirefa qualification MUST NOT mint effect authority. Mission Runtime MUST NOT wi
 
 ### FR-023 — No silent fallback
 
-If a requested or selected worker/provider/model is unavailable or unqualified, WePLD MUST fail closed or request/obtain an explicitly authorized alternative. Silent substitution is prohibited.
+If a requested or selected worker/provider/model/browser route is unavailable or unqualified, WePLD MUST fail closed or request/obtain an explicitly authorized alternative. Silent substitution is prohibited.
 
 ### FR-024 — Cost-aware execution
 
-Paid, quota-consuming, or materially metered worker execution MUST be explicit in worker metadata and MUST NOT be silently initiated when the controlling policy disallows it.
+Paid, quota-consuming, or materially metered worker/browser execution MUST be explicit in metadata and MUST NOT be silently initiated when the controlling policy disallows it.
 
 ### FR-025 — Bounded context packages
 
-Delegated work SHOULD receive the minimum sufficient context package: relevant files/symbols, spec/task fragments, decisions, tests, known failures, RAG evidence with provenance/trust labels, and an authority/effect envelope.
+Delegated work SHOULD receive the minimum sufficient context package: relevant files/symbols, spec/task fragments, decisions, tests, known failures, RAG/browser evidence with provenance/trust labels, and an authority/effect envelope.
 
 ### FR-026 — Dynamic teams
 
-Edara SHOULD assemble minimum-sufficient worker topologies per case rather than use a fixed agent team. Roles MAY include triager, reproducer, diagnostician, implementer, test worker, security worker, and independent reviewer.
+Edara SHOULD assemble minimum-sufficient worker topologies per case rather than use a fixed agent team. Roles MAY include triager, reproducer, diagnostician, implementer, test worker, security worker, browser verifier, and independent reviewer.
 
 ### FR-027 — Independent assurance
 
@@ -185,7 +186,7 @@ S7 Assurance MAY participate in a tight repair loop with S8 but MUST remain sema
 
 ### FR-028 — Repair loops
 
-Valid findings, failed checks, stale evidence, and changed external state MUST be able to trigger bounded repair/reassignment loops without erasing prior attempts or findings.
+Valid findings, failed checks, stale evidence, changed external state, and stale browser/page/tool generations MUST be able to trigger bounded repair/reassignment/reverification loops without erasing prior attempts or findings.
 
 ### FR-029 — Issue/PR landing
 
@@ -193,30 +194,48 @@ Issue provider mutation, branch/PR creation or update, merge, and issue closeout
 
 ### FR-030 — Completion evidence
 
-Closing or merging an external object MUST NOT itself establish completion. WePLD MUST record a `CompletionEvidence` packet bound to the exact accepted target/generation.
+Closing or merging an external object, passing a browser check, or receiving WebMCP success MUST NOT itself establish completion. WePLD MUST record the exact evidence used for the governed completion decision.
 
-The packet MUST represent, as applicable: reproduction/root-cause basis, change identity, deterministic gates, exact-target independent review, security review or policy-qualified not-applicable basis, all material finding reconciliations, material effect/authority records, provider landing/closeout evidence, residual limitations, and completion decision producer identity.
+### FR-031 — Learning
 
-Stale/mismatched acceptance evidence, unresolved material findings, missing required authority evidence, or unresolved acceptance-critical conflict MUST fail Trusted Completion closed.
+Completed cases SHOULD contribute evidence-backed reusable mechanics, failure patterns, negative oracles, retrieval hints, browser/web verification evidence, and routing signals through the existing Build Learning/Project Brain model. Learned behavior remains candidate evidence, not authority.
 
-### FR-031 — First IssueOps tracer bullet
+### FR-032 — Governed WebMCP interoperability
 
-The first end-to-end IssueOps proof MUST be offline/read-only: a synthetic/local issue artifact plus a local repository fixture becomes a Case, retrieves cited local project evidence, produces triage/reproduction-readiness/relations/decision frontier, and renders an evidence-backed Case summary.
+WePLD SHOULD support WebMCP-class website tools as a replaceable browser/application interoperability protocol after the owning Source Acquisition and browser/runtime qualification gates.
 
-TB0 MUST require no network, provider write, model/provider execution, Git write, merge, or issue close. Agent Host/control-plane runtime is not a prerequisite for this first product-value proof.
+A discovered website tool MUST be represented as an untrusted capability observation. Tool availability, descriptions, schemas, annotations, `read-only` hints, outputs, browser login state, cookies, or ambient session authority MUST NOT substitute for WePLD effect classification, Mirefa qualification, Nawat authorization, containment, or user intent.
 
-### FR-032 — Learning
+### FR-033 — Browser diagnostics/control
 
-Completed cases SHOULD contribute evidence-backed reusable mechanics, failure patterns, negative oracles, retrieval hints, and routing signals through the existing Build Learning/Project Brain model. Learned behavior remains candidate evidence, not authority.
+WePLD SHOULD support a separately qualified DevTools-class browser adapter for DOM/accessibility/console/network/performance/screenshot inspection and bounded browser control, including Chromium/Edge/WebView2-class targets when independently qualified.
+
+Browser diagnostics MUST remain distinct from WebMCP application-tool invocation even when one runtime can access both.
+
+### FR-034 — Exact browser/web context
+
+Acceptance-critical browser/WebMCP effects MUST bind explicit browser session/profile, page context, origin, tool definition/generation, input identity, effect class, qualification evidence, Nawat decision, containment state, and expected postcondition.
+
+Material navigation, origin, authentication, profile, target, tool-set, definition, containment, or freshness changes MUST force revalidation.
+
+### FR-035 — No silent browser fallback
+
+WePLD MUST NOT silently fall back among WebMCP structured tools, raw DOM click/type automation, DevTools actions, headless/local/remote browsers, Chrome, Edge, WebView2, or another browser profile/session. An alternative route requires explicit qualification and governing authorization.
+
+### FR-036 — Web agent publisher mode
+
+A future WePLD web/Desktop surface MAY expose selected capabilities through WebMCP. Such tools SHOULD expose safe intent/proposal/read surfaces by default. A WebMCP call into WePLD MUST NOT become a direct authority grant; any effectful operation still traverses the native WePLD qualification/authorization/execution/evidence pipeline.
 
 ## Non-goals for this planning candidate
 
 - no implementation in S2;
 - no source/dependency admission;
-- no external issue-provider access;
+- no external issue-provider or browser access;
+- no live WebMCP invocation;
+- no DevTools/browser control execution;
 - no model/worker execution;
 - no vector database selection;
-- no provider SDK selection;
-- no new process/network/Git authority;
+- no provider SDK or browser automation framework selection;
+- no new process/network/Git/browser/issue-write authority;
 - no canonical roadmap renumbering;
-- no automatic merging or issue closing before the owning future authority exists.
+- no automatic merging, browser submission, or issue closing before the owning future authority exists.

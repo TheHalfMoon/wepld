@@ -113,7 +113,9 @@ pub enum StoreDefect {
     RecordDigestMismatch,
     /// The manifest omits a digest for a record it references.
     RecordDigestMissing,
-    /// The manifest describes a different project than the store path.
+    /// A persisted record describes a different project than the path it was
+    /// read from. This covers a generation manifest and a catalog reservation
+    /// alike: both name their project twice, and the two names must agree.
     ProjectMismatch,
     /// A schema version outside the supported contract range was persisted.
     UnsupportedSchemaVersion,
@@ -968,6 +970,13 @@ impl EvidenceStore {
         if reservation.schema_version != ProjectContractVersion::V1 {
             return Err(StoreError::Defect(StoreDefect::UnsupportedSchemaVersion));
         }
+        // The path names a project and so do the bytes. A record whose two names
+        // disagree is well formed but misbound, and returning it would hand the
+        // caller a reservation this project never made; recovery would then
+        // resume an identifier the store never reserved under this name.
+        if reservation.project_id != *project {
+            return Err(StoreError::Defect(StoreDefect::ProjectMismatch));
+        }
         Ok(Some(reservation))
     }
 
@@ -976,6 +985,12 @@ impl EvidenceStore {
     /// Entries that fail to decode are reported as defects rather than skipped,
     /// so corruption cannot silently reduce the candidate set and cause a second
     /// identity to be allocated for an already-reserved project.
+    ///
+    /// Each entry is also bound to the project its filename names, so a well
+    /// formed reservation filed under another project's name is reported as
+    /// [`StoreDefect::ProjectMismatch`] rather than enumerated as valid. A
+    /// filename that is not a project identifier at all is the same defect: it
+    /// cannot agree with any record it holds.
     pub fn list_reservations(
         &self,
     ) -> Result<Vec<Result<IdentityCatalogReservation, StoreDefect>>, StoreError> {
@@ -999,9 +1014,17 @@ impl EvidenceStore {
             let Some(bytes) = Self::read_bounded(&path, MAX_RECORD_BYTES)? else {
                 continue;
             };
+            let named = path
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+                .and_then(|stem| ProjectId::try_from(stem).ok());
             match decode_project_json::<IdentityCatalogReservation>(&bytes) {
                 Ok(reservation) if reservation.schema_version == ProjectContractVersion::V1 => {
-                    found.push(Ok(reservation));
+                    if named.as_ref() == Some(&reservation.project_id) {
+                        found.push(Ok(reservation));
+                    } else {
+                        found.push(Err(StoreDefect::ProjectMismatch));
+                    }
                 }
                 Ok(_) => found.push(Err(StoreDefect::UnsupportedSchemaVersion)),
                 Err(_) => found.push(Err(StoreDefect::RecordCorrupt)),
@@ -1042,12 +1065,19 @@ impl EvidenceStore {
     /// A closed generation is immutable. This is checked by the presence of the
     /// manifest rather than by the `CURRENT` pointer, because a generation is
     /// sealed the moment its manifest exists, whether or not it was published.
+    ///
+    /// The check must distinguish absence from an unreadable answer.
+    /// `Path::exists` collapses every metadata error into `false`, so a manifest
+    /// that exists but cannot be stat'd would report the generation as open and
+    /// a writer could then replace a closed, possibly published, generation. The
+    /// error is therefore propagated as [`StoreError::Io`] and only an explicit
+    /// `false` is treated as unclosed.
     fn generation_is_closed(
         &self,
         project: &ProjectId,
         generation: &GenerationId,
     ) -> Result<bool, StoreError> {
-        Ok(self.manifest_path(project, generation)?.exists())
+        Ok(self.manifest_path(project, generation)?.try_exists()?)
     }
 
     /// Write one immutable evidence record into a generation under construction.

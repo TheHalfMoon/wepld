@@ -1708,6 +1708,52 @@ fn both_reservation_apis_classify_one_corruption_the_same_way() -> TestResult {
 }
 
 #[test]
+fn a_reservation_bound_to_another_project_is_a_typed_defect() -> TestResult {
+    // A reservation names a project twice: once in the path it is stored under
+    // and once in the bytes it carries. Nothing forced those to agree, so a
+    // syntactically valid reservation for one project could sit at another
+    // project's path and be returned as that project's reservation. Recovery
+    // would then resume an identity this store never reserved under that name.
+    let root = temp_root("misboundreservation")?;
+    let store = EvidenceStore::new(&root);
+    store.initialize()?;
+    let facts = facts_at("/projects/misbound")?;
+    let owner = allocate_project_id()?;
+    let intruder = allocate_project_id()?;
+    assert_ne!(owner, intruder, "the fixture needs two distinct projects");
+
+    // Both halves are individually well formed. Only their binding is wrong,
+    // which is why a decode-only check cannot catch this.
+    let foreign = build_reservation(intruder, &facts, UnixMillis::new(1))?;
+    let path = root
+        .join("catalog")
+        .join("reservations")
+        .join(format!("{}.json", owner.as_str()));
+    fs::create_dir_all(path.parent().ok_or("reservation path needs a parent")?)?;
+    fs::write(&path, canonical_project_json(&foreign)?)?;
+
+    assert!(
+        matches!(
+            store.read_reservation(&owner),
+            Err(StoreError::Defect(StoreDefect::ProjectMismatch))
+        ),
+        "a reservation naming another project must not be returned as this one's"
+    );
+
+    let listed = store.list_reservations()?;
+    assert_eq!(listed.len(), 1, "the misbound file must still be observed");
+    let entry = listed
+        .into_iter()
+        .next()
+        .ok_or("one entry must be listed")?;
+    assert!(
+        matches!(entry, Err(StoreDefect::ProjectMismatch)),
+        "enumeration must classify the same record the same way"
+    );
+    Ok(())
+}
+
+#[test]
 fn corrupt_reservation_is_reported_rather_than_skipped() -> TestResult {
     // Silently skipping a corrupt reservation would let a second identity be
     // allocated for an already-reserved project.

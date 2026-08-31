@@ -37,7 +37,7 @@ A user can ingest qualified local sources into a named collection, ask natural-l
 
 ### Q8 — Can retrieved or provider content instruct agents?
 
-Not merely by containing imperative text. External/retrieved/repository/worker/model content is data by default. It cannot mint WorkflowIntent, authority, paid/remote routes, broader context access, review approval, or Trusted Completion. Prompt filtering is defense-in-depth; effect-time structural enforcement remains required.
+Not merely by containing imperative text. External/retrieved/repository/browser/worker/model content is data by default. It cannot mint WorkflowIntent, authority, paid/remote routes, broader context access, review approval, or Trusted Completion. Prompt filtering is defense-in-depth; effect-time structural enforcement remains required.
 
 ### Q9 — Must Edara, Mirefa, Nawat, Mission Runtime, and UWC be separate services from the beginning?
 
@@ -67,6 +67,38 @@ It must bind exact accepted target/generation, deterministic gates, genuine inde
 
 No. The catalog describes native intent surfaces. Initial UX should expose a smaller primary set through `/askme` and progressive disclosure. Specialist worker controls such as `/workers` and `/handoff` may remain advanced until their owning capabilities exist.
 
+### Q16 — Is WebMCP the same thing as ordinary MCP?
+
+No. WePLD treats WebMCP as a browser/web-application interoperability protocol in which the current page exposes structured tools to agents. Ordinary MCP remains a broader tool/resource protocol edge. Neither protocol owns WePLD authority.
+
+### Q17 — Is WebMCP already a stable W3C Standard?
+
+No. The version observed during 2026-08-31 planning research is a Web Machine Learning Community Group Draft Report and explicitly states that it is not a W3C Standard and not on the W3C Standards Track. Its exact status and API surface must be reverified at Source Acquisition time.
+
+### Q18 — Should WePLD support WebMCP?
+
+Yes, as a replaceable qualified web-agent feature. WePLD should support both consuming website-exposed WebMCP tools and, later, exposing selected safe WePLD intent/read/proposal capabilities through WebMCP. Neither direction grants direct authority.
+
+### Q19 — Are WebMCP and Chrome/Edge DevTools MCP one feature?
+
+They belong to one web-agent product area but are separate capability paths. WebMCP exposes application-defined structured tools. DevTools-class MCP/browser adapters expose browser inspection/debugging/control. The same browser may support both, but WePLD must classify and authorize them separately.
+
+### Q20 — Does a website declaring a WebMCP tool authorize WePLD to call it?
+
+No. Tool discovery produces an untrusted `WebToolObservation`. Tool metadata, schemas, annotations, `read-only` hints, and outputs are evidence/claims only. Invocation requires independent effect classification, Mirefa qualification, Nawat exact-context authorization, containment, and explicit governing intent.
+
+### Q21 — Does an already logged-in browser authorize actions?
+
+No. Cookies, login state, SSO, autofill, password managers, and ambient browser sessions can embody powerful authority, but their presence is only an observation. `AUTHENTICATED_BROWSER != AUTHORIZED_ACTION` and `COOKIE_PRESENCE != USER_INTENT` are controlling invariants.
+
+### Q22 — Can WePLD silently fall back if WebMCP fails?
+
+No. It must not silently replace WebMCP with raw DOM click/type automation, DevTools actions, another browser/profile, headless/remote browser infrastructure, or a different provider. Any alternative route requires explicit qualification and governing authorization.
+
+### Q23 — What is the first WebMCP/browser proof?
+
+WEB-TB0 is offline/local and effect-free: local WebMCP fixture -> tool discovery observation -> untrusted metadata classification -> invocation preview -> evidence. WEB-TB1 then proves controlled local-browser discovery and tool-generation freshness without effectful invocation. Browser actuation is deferred until later qualified tranches.
+
 ## Deferred owning-slice decisions
 
 The following remain intentionally deferred because this planning candidate does not have implementation/source/dependency authority:
@@ -80,4 +112,10 @@ The following remain intentionally deferred because this planning candidate does
 - exact policy-engine/sandbox implementation;
 - exact persistent event-store representation and retention thresholds;
 - organization-scale scheduling/resource policy;
-- numeric autonomy-promotion and sweep-action thresholds, which must be declared before their owning benchmark run.
+- numeric autonomy-promotion and sweep-action thresholds, which must be declared before their owning benchmark run;
+- exact WebMCP revision/browser versions and client API shape;
+- first browser diagnostics/control adapter;
+- Chrome vs Edge vs WebView2 qualification details;
+- local vs remote browser execution model;
+- browser-profile isolation and credential integration details;
+- whether WePLD publisher mode is enabled beyond safe read/intent/proposal tools.

@@ -313,19 +313,46 @@ fn release_project_lock(root: &Path) {
 /// Lexically normalise a store root so equivalent spellings share one identity.
 ///
 /// `.` components are dropped and `..` components pop the previous normal
-/// component. Prefix and root components are preserved so absolute paths stay
-/// absolute on every platform.
+/// component.
+///
+/// A `..` that would climb above an absolute root is discarded rather than
+/// retained, because both POSIX and Windows resolve `/..` to `/`. Retaining it
+/// would leave `/a/../../b` and `/b` as different keys for the same location,
+/// which is exactly the alias bypass this normalisation exists to close, and
+/// would also produce a path that names nothing.
+///
+/// For a relative path a leading `..` is meaningful and is preserved, since
+/// there is no known root to climb above.
+///
+/// Normalisation is purely lexical and therefore deterministic and independent
+/// of whether the directory exists. It does not resolve symbolic links, so two
+/// roots that alias through a link remain distinct store identities for
+/// in-process ordering; the operating-system lock still provides mutual
+/// exclusion in that case and acquisition remains bounded.
 fn normalize_root(root: PathBuf) -> PathBuf {
     let mut normalized = PathBuf::new();
+    let mut rooted = false;
+    let mut depth: usize = 0;
     for component in root.components() {
         match component {
             Component::CurDir => {}
             Component::ParentDir => {
-                if !normalized.pop() {
+                if depth > 0 {
+                    normalized.pop();
+                    depth -= 1;
+                } else if !rooted {
                     normalized.push(Component::ParentDir.as_os_str());
                 }
+                // A rooted path at depth zero discards the component: `/..` is `/`.
             }
-            other => normalized.push(other.as_os_str()),
+            Component::RootDir | Component::Prefix(_) => {
+                rooted = true;
+                normalized.push(component.as_os_str());
+            }
+            Component::Normal(part) => {
+                normalized.push(part);
+                depth += 1;
+            }
         }
     }
     if normalized.as_os_str().is_empty() {

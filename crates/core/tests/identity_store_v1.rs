@@ -673,6 +673,185 @@ fn reservation_recovers_across_a_different_input_spelling() -> TestResult {
 }
 
 // ---------------------------------------------------------------------------
+// store-root normalisation
+// ---------------------------------------------------------------------------
+
+#[test]
+fn root_normalisation_collapses_aliases_without_escaping() -> TestResult {
+    // Aliases of one location must share an enforcement identity. A `.` form is
+    // not sufficient evidence because Rust path comparison already collapses it,
+    // so the `..` forms carry the weight here.
+    let base = PathBuf::from("/state/wepld");
+    let aliases = [
+        PathBuf::from("/state/wepld"),
+        PathBuf::from("/state/./wepld"),
+        PathBuf::from("/state/other/../wepld"),
+        PathBuf::from("/state/a/b/../../wepld"),
+    ];
+    for alias in aliases {
+        assert_eq!(
+            EvidenceStore::new(alias.clone()).root(),
+            EvidenceStore::new(base.clone()).root(),
+            "alias {alias:?} must normalise to the base root"
+        );
+    }
+
+    // A parent component that would climb above an absolute root is discarded,
+    // matching how both POSIX and Windows resolve it. Retaining it would leave
+    // two spellings of one location as different keys and would name nothing.
+    assert_eq!(
+        EvidenceStore::new(PathBuf::from("/a/../../b")).root(),
+        EvidenceStore::new(PathBuf::from("/b")).root()
+    );
+    assert_eq!(
+        EvidenceStore::new(PathBuf::from("/..")).root(),
+        EvidenceStore::new(PathBuf::from("/")).root()
+    );
+
+    // Normalisation must not invent a root for a relative path, and a leading
+    // parent component stays meaningful because there is no known root above.
+    assert_eq!(
+        EvidenceStore::new(PathBuf::from("../x")).root(),
+        PathBuf::from("../x")
+    );
+
+    // Distinct locations must stay distinct.
+    assert_ne!(
+        EvidenceStore::new(PathBuf::from("/state/wepld")).root(),
+        EvidenceStore::new(PathBuf::from("/state/wepld-other")).root()
+    );
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// concurrency around ordering and publication
+// ---------------------------------------------------------------------------
+
+#[test]
+fn ordering_state_drains_under_concurrent_churn() -> TestResult {
+    // What this proves: under heavy concurrent acquire/release churn the
+    // ordering registry does not leak, underflow, or strand state, and the
+    // catalog is reachable again once every guard is released.
+    //
+    // What this does NOT prove: that registration precedes operating-system
+    // lock acquisition. That window cannot be driven deterministically through
+    // the public API, so the ordering of those two steps is established by
+    // construction and review rather than by this test. It is recorded that way
+    // rather than implied.
+    let root = temp_root("orderchurn")?;
+    let store = Arc::new(EvidenceStore::new(&root));
+    store.initialize()?;
+    let project = Arc::new(allocate_project_id()?);
+
+    let mut handles = Vec::new();
+    for _ in 0..4 {
+        let store = Arc::clone(&store);
+        let project = Arc::clone(&project);
+        handles.push(thread::spawn(move || -> Result<(), String> {
+            for _ in 0..40 {
+                if let Ok(guard) = store.lock_project(&project, &|| false) {
+                    drop(guard);
+                }
+            }
+            Ok(())
+        }));
+    }
+    for _ in 0..4 {
+        let store = Arc::clone(&store);
+        let project = Arc::clone(&project);
+        handles.push(thread::spawn(move || -> Result<(), String> {
+            for _ in 0..40 {
+                // Either the catalog is taken first and the ordered path yields
+                // the project guard, or ordering refuses because a project guard
+                // is live. Both are correct; an inverted pair is not reachable.
+                match store.lock_catalog(&|| false) {
+                    Ok(catalog) => {
+                        if let Ok(project_guard) = catalog.lock_project(&store, &project, &|| false)
+                        {
+                            drop(project_guard);
+                        }
+                        drop(catalog);
+                    }
+                    Err(StoreError::LockOrderViolation) | Err(StoreError::Busy { .. }) => {}
+                    Err(error) => return Err(format!("unexpected catalog error: {error}")),
+                }
+            }
+            Ok(())
+        }));
+    }
+    for handle in handles {
+        handle.join().map_err(|_| "thread panicked")??;
+    }
+
+    // Every guard is gone, so no phantom ownership may remain.
+    let catalog = store.lock_catalog(&never_cancelled())?;
+    drop(catalog);
+    Ok(())
+}
+
+#[test]
+fn a_refused_project_acquisition_leaves_no_phantom_ownership() -> TestResult {
+    // What this proves: a refused or cancelled acquisition does not leave the
+    // registry holding ownership that never existed, so the catalog is not
+    // blocked forever.
+    let root = temp_root("phantom")?;
+    let store = EvidenceStore::new(&root);
+    store.initialize()?;
+    let project = allocate_project_id()?;
+
+    let held = store.lock_project(&project, &never_cancelled())?;
+    let polls = AtomicUsize::new(0);
+    let cancel = || polls.fetch_add(1, AtomicOrdering::SeqCst) >= 2;
+    assert!(store.lock_project(&project, &cancel).is_err());
+    drop(held);
+
+    let catalog = store.lock_catalog(&never_cancelled())?;
+    drop(catalog);
+    Ok(())
+}
+
+#[test]
+fn readers_never_observe_bytes_rewritten_in_a_selected_generation() -> TestResult {
+    // A reader that selected generation N must not have N change underneath it.
+    // Closure makes that structural rather than a race the reader has to survive.
+    let root = temp_root("closerace")?;
+    let store = Arc::new(EvidenceStore::new(&root));
+    store.initialize()?;
+    let project = Arc::new(allocate_project_id()?);
+    write_generation(&store, &project)?;
+
+    let selected = store.read_published_generation(&project)?;
+    let selected_generation = selected.manifest.generation_id.clone();
+    let identity_ref = selected.manifest.identity_record_ref.clone();
+
+    let writer = {
+        let store = Arc::clone(&store);
+        let project = Arc::clone(&project);
+        thread::spawn(move || -> Result<(), String> {
+            for _ in 0..10 {
+                write_generation(&store, &project)
+                    .map_err(|error| format!("write generation: {error}"))?;
+            }
+            Ok(())
+        })
+    };
+
+    for _ in 0..40 {
+        // Reading through the generation selected earlier must keep returning
+        // exactly the bytes that generation was closed with.
+        let bytes = store.read_generation_record(&selected.manifest, &identity_ref)?;
+        assert_eq!(bytes, IDENTITY_PAYLOAD);
+    }
+    writer.join().map_err(|_| "writer thread panicked")??;
+
+    // The selected generation is still intact after concurrent publication.
+    let bytes = store.read_generation_record(&selected.manifest, &identity_ref)?;
+    assert_eq!(bytes, IDENTITY_PAYLOAD);
+    assert_eq!(selected.manifest.generation_id, selected_generation);
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
 // generation immutability
 // ---------------------------------------------------------------------------
 

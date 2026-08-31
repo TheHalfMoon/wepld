@@ -50,11 +50,6 @@ FW = p.FW
 AW = p.AW
 CW = p.CW
 P_WF = dict(p.WF)
-WF = {
-    FW: "c279747cca671ed95cf55c0a06230e5307b58363c024b2aa73af6cb1c4cfc67b",
-    AW: "90d53072b9ed089261f4181101f81cb8bb4ffc51e62e75b8bb35c0b09ac03d92",
-    CW: p.WF[CW],
-}
 
 POLICY_FILES = frozenset({P, T})
 CONTROLLED_FILES = frozenset({P, T, DECISION})
@@ -95,6 +90,31 @@ for _path, _expected in (
         )
 
 DECISION_BYTES = root.read_bytes(DECISION, base.MAX_POLICY_FILE_BYTES)
+
+
+def _derive_candidate_workflow_hash(path: str) -> str:
+    data = root.read_bytes(path, base.MAX_POLICY_FILE_BYTES)
+    count = data.count(_V34_ENTRYPOINT)
+    if count != _WORKFLOW_ENTRYPOINT_COUNTS[path]:
+        base.fail(
+            "v34 workflow entrypoint count drifted at package load: "
+            f"{path} expected={_WORKFLOW_ENTRYPOINT_COUNTS[path]} actual={count}"
+        )
+    predecessor = data.replace(_V34_ENTRYPOINT, _V33_ENTRYPOINT)
+    actual = V25.sha(predecessor)
+    if actual != P_WF[path]:
+        base.fail(
+            "v34 workflow carries changes beyond the exact entrypoint migration: "
+            f"{path} expected_predecessor={P_WF[path]} actual={actual}"
+        )
+    return V25.sha(data)
+
+
+WF = {
+    FW: _derive_candidate_workflow_hash(FW),
+    AW: _derive_candidate_workflow_hash(AW),
+    CW: p.WF[CW],
+}
 
 _attr = p._attr
 _bind = p._bind

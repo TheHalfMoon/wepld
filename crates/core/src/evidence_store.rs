@@ -30,11 +30,13 @@
 //! and are never promoted. It executes no process, performs no network effect,
 //! and calls no version-control tooling.
 
+use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
 use std::fs::{self, File, OpenOptions, TryLockError};
 use std::io::{self, Read as _, Write as _};
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -150,6 +152,12 @@ pub enum StoreError {
     WrongProjectLock,
     /// A lock guard was presented that protects a different store root.
     ForeignLock,
+    /// The canonical catalog-before-project lock order was violated.
+    ///
+    /// Canonical authority fixes the order when an operation needs both locks.
+    /// Acquiring the catalog lock while this process already holds a project
+    /// lock on the same store root is refused rather than allowed to invert it.
+    LockOrderViolation,
     Identity(IdentityError),
     Contract(ContractValueError),
     Codec(ProjectContractCodecError),
@@ -181,6 +189,10 @@ impl fmt::Display for StoreError {
             Self::ForeignLock => write!(
                 formatter,
                 "lock guard protects a different store root than the one being mutated"
+            ),
+            Self::LockOrderViolation => write!(
+                formatter,
+                "canonical lock order requires the identity catalog lock before a project lock"
             ),
             Self::Identity(error) => write!(formatter, "identity error: {error}"),
             Self::Contract(error) => write!(formatter, "contract value error: {error}"),
@@ -238,6 +250,46 @@ impl From<ContractValueError> for StoreError {
 impl From<ProjectContractCodecError> for StoreError {
     fn from(error: ProjectContractCodecError) -> Self {
         Self::Codec(error)
+    }
+}
+
+/// Live project-lock counts for this process, keyed by store root.
+///
+/// Canonical authority fixes catalog-before-project ordering whenever an
+/// operation needs both locks, while explicitly permitting a project-only lock
+/// for ordinary updates to an already-resolved project. Keying on the root
+/// rather than on one `EvidenceStore` value means two independently constructed
+/// handles to the same store still share the ordering constraint.
+fn project_lock_registry() -> &'static Mutex<HashMap<PathBuf, usize>> {
+    static REGISTRY: OnceLock<Mutex<HashMap<PathBuf, usize>>> = OnceLock::new();
+    REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// Take the registry guard, recovering rather than propagating poisoning.
+///
+/// A panicking holder must not permanently disable ordering enforcement.
+fn registry_guard() -> std::sync::MutexGuard<'static, HashMap<PathBuf, usize>> {
+    match project_lock_registry().lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    }
+}
+
+fn project_locks_held(root: &Path) -> usize {
+    registry_guard().get(root).copied().unwrap_or(0)
+}
+
+fn register_project_lock(root: &Path) {
+    *registry_guard().entry(root.to_path_buf()).or_insert(0) += 1;
+}
+
+fn release_project_lock(root: &Path) {
+    let mut guard = registry_guard();
+    if let Some(count) = guard.get_mut(root) {
+        *count = count.saturating_sub(1);
+        if *count == 0 {
+            guard.remove(root);
+        }
     }
 }
 
@@ -403,6 +455,12 @@ impl ProjectLock {
     }
 }
 
+impl Drop for ProjectLock {
+    fn drop(&mut self) {
+        release_project_lock(&self.root);
+    }
+}
+
 /// Result of reading the published generation. S2-E009.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PublishedGeneration {
@@ -524,7 +582,21 @@ impl EvidenceStore {
     }
 
     /// Acquire the store-wide identity catalog lock. S2-E005, S2-I011.
+    ///
+    /// Canonical clarification Q26 fixes catalog-before-project ordering when an
+    /// operation needs both locks. This call therefore refuses with
+    /// [`StoreError::LockOrderViolation`] while this process holds a project
+    /// lock on the same store root, so the order cannot be inverted through the
+    /// supported API even though project-only locking stays available.
+    ///
+    /// The constraint is keyed on the store root, so two independently
+    /// constructed handles to the same store share it. Enforcement is
+    /// process-local. A second process inverting the order cannot deadlock,
+    /// because acquisition is bounded and fails with a stable busy error.
     pub fn lock_catalog(&self, cancelled: &dyn Fn() -> bool) -> Result<CatalogLock, StoreError> {
+        if project_locks_held(&self.root) > 0 {
+            return Err(StoreError::LockOrderViolation);
+        }
         Ok(CatalogLock {
             inner: self.acquire_lock(StoreLockScope::IdentityCatalog, None, cancelled)?,
             root: self.root.clone(),
@@ -544,8 +616,10 @@ impl EvidenceStore {
         project: &ProjectId,
         cancelled: &dyn Fn() -> bool,
     ) -> Result<ProjectLock, StoreError> {
+        let inner = self.acquire_lock(StoreLockScope::ProjectStore, Some(project), cancelled)?;
+        register_project_lock(&self.root);
         Ok(ProjectLock {
-            inner: self.acquire_lock(StoreLockScope::ProjectStore, Some(project), cancelled)?,
+            inner,
             project: project.clone(),
             root: self.root.clone(),
         })

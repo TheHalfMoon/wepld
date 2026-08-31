@@ -678,6 +678,43 @@ fn a_guard_from_another_store_is_rejected() -> TestResult {
 }
 
 #[test]
+fn reverse_lock_acquisition_is_refused() -> TestResult {
+    // Canonical Q26 fixes catalog-before-project whenever an operation needs
+    // both locks, while permitting a project-only lock for ordinary updates.
+    // Holding a project guard must therefore make catalog acquisition refuse
+    // rather than invert the order.
+    let root = temp_root("reverseorder")?;
+    let store = EvidenceStore::new(&root);
+    store.initialize()?;
+    let project = allocate_project_id()?;
+
+    let project_lock = store.lock_project(&project, &never_cancelled())?;
+    let reversed = store.lock_catalog(&never_cancelled());
+    assert!(
+        matches!(reversed, Err(StoreError::LockOrderViolation)),
+        "catalog acquisition must be refused while a project lock is held"
+    );
+
+    // A second independently constructed handle to the same root shares the
+    // constraint, so the guard cannot be laundered through another handle.
+    let other_handle = EvidenceStore::new(&root);
+    let laundered = other_handle.lock_catalog(&never_cancelled());
+    assert!(matches!(laundered, Err(StoreError::LockOrderViolation)));
+
+    // Releasing the project guard restores catalog availability.
+    drop(project_lock);
+    let recovered = store.lock_catalog(&never_cancelled())?;
+    drop(recovered);
+
+    // The canonical order still works.
+    let (catalog, ordered_project) =
+        store.lock_catalog_then_project(&project, &never_cancelled())?;
+    drop(ordered_project);
+    drop(catalog);
+    Ok(())
+}
+
+#[test]
 fn ordered_acquisition_yields_both_guards_in_canonical_order() -> TestResult {
     let root = temp_root("ordered")?;
     let store = EvidenceStore::new(&root);

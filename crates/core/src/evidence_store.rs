@@ -37,8 +37,7 @@
 //! and are never promoted. It executes no process, performs no network effect,
 //! and calls no version-control tooling.
 
-use std::cell::RefCell;
-use std::collections::HashMap;
+use std::cell::Cell;
 use std::error::Error;
 use std::ffi::OsString;
 use std::fmt;
@@ -170,8 +169,10 @@ pub enum StoreError {
     /// The canonical catalog-before-project lock order was violated.
     ///
     /// Canonical authority fixes the order when an operation needs both locks.
-    /// Acquiring the catalog lock while this process already holds a project
-    /// lock on the same store root is refused rather than allowed to invert it.
+    /// Acquiring the catalog lock while the **calling thread** already holds any
+    /// project lock is refused rather than allowed to invert the order. The
+    /// refusal does not depend on which store root either guard names, because
+    /// two roots can address one store.
     LockOrderViolation,
     Identity(IdentityError),
     Contract(ContractValueError),
@@ -282,8 +283,11 @@ impl From<ProjectContractCodecError> for StoreError {
 ///
 /// Normalisation is purely lexical and therefore deterministic and independent
 /// of whether the directory exists. It does not resolve symbolic links, so two
-/// roots that alias through a link remain distinct store identities; the
-/// operating-system lock still provides mutual exclusion in that case.
+/// roots that alias through a link remain distinct store identities. The
+/// operating-system lock still provides mutual exclusion in that case, but
+/// mutual exclusion is not ordering, so the lock-order rule deliberately does
+/// not depend on this identity at all: it counts project guards held by the
+/// calling thread without regard to root.
 fn normalize_root(root: PathBuf) -> PathBuf {
     let mut parts: Vec<Component<'_>> = Vec::new();
     let mut rooted = false;
@@ -343,7 +347,7 @@ fn normalize_root(root: PathBuf) -> PathBuf {
     PathBuf::from(assembled)
 }
 
-// Project guards held by the current thread, keyed by store root.
+// Number of project guards held by the current thread.
 //
 // Canonical clarification Q26 fixes catalog-before-project ordering whenever a
 // single operation needs both locks, while explicitly permitting a project-only
@@ -361,31 +365,30 @@ fn normalize_root(root: PathBuf) -> PathBuf {
 //
 // It is also no longer over-strict: an unrelated thread's project work no
 // longer blocks catalog acquisition, which the process-wide count refused.
+//
+// The count is deliberately not keyed by store root. Keying it that way left
+// the rule evadable, because store identity here is lexical: the same thread
+// could hold a project guard taken through one root spelling and then pass the
+// catalog check by naming a second root. Two roots that differ lexically can
+// address one physical store through a symbolic link, in which case the two
+// guards are the same pair of lock files acquired in the inverted order while
+// the check saw nothing. Q26 constrains the caller that ends up holding both
+// lock kinds, so the only question the check may ask is whether this thread
+// holds a project guard at all.
 thread_local! {
-    static HELD_PROJECT_LOCKS: RefCell<HashMap<PathBuf, usize>> =
-        RefCell::new(HashMap::new());
+    static HELD_PROJECT_LOCKS: Cell<usize> = const { Cell::new(0) };
 }
 
-fn project_locks_held_by_this_thread(root: &Path) -> usize {
-    HELD_PROJECT_LOCKS.with(|held| held.borrow().get(root).copied().unwrap_or(0))
+fn this_thread_holds_a_project_lock() -> bool {
+    HELD_PROJECT_LOCKS.with(|held| held.get() > 0)
 }
 
-fn register_project_lock(root: &Path) {
-    HELD_PROJECT_LOCKS.with(|held| {
-        *held.borrow_mut().entry(root.to_path_buf()).or_insert(0) += 1;
-    });
+fn register_project_lock() {
+    HELD_PROJECT_LOCKS.with(|held| held.set(held.get().saturating_add(1)));
 }
 
-fn release_project_lock(root: &Path) {
-    HELD_PROJECT_LOCKS.with(|held| {
-        let mut map = held.borrow_mut();
-        if let Some(count) = map.get_mut(root) {
-            *count = count.saturating_sub(1);
-            if *count == 0 {
-                map.remove(root);
-            }
-        }
-    });
+fn release_project_lock() {
+    HELD_PROJECT_LOCKS.with(|held| held.set(held.get().saturating_sub(1)));
 }
 
 /// A registry entry held while a project lock acquisition is in flight.
@@ -395,17 +398,13 @@ fn release_project_lock(root: &Path) {
 /// Holding it as a guard means the release runs on every exit path, including a
 /// panic unwinding out of a caller-supplied cancellation callback.
 struct PendingProjectLock {
-    root: PathBuf,
     armed: bool,
 }
 
 impl PendingProjectLock {
-    fn register(root: &Path) -> Self {
-        register_project_lock(root);
-        Self {
-            root: root.to_path_buf(),
-            armed: true,
-        }
+    fn register() -> Self {
+        register_project_lock();
+        Self { armed: true }
     }
 
     /// Hand ownership of the registry entry to a constructed `ProjectLock`.
@@ -417,7 +416,7 @@ impl PendingProjectLock {
 impl Drop for PendingProjectLock {
     fn drop(&mut self) {
         if self.armed {
-            release_project_lock(&self.root);
+            release_project_lock();
         }
     }
 }
@@ -593,7 +592,7 @@ impl ProjectLock {
 
 impl Drop for ProjectLock {
     fn drop(&mut self) {
-        release_project_lock(&self.root);
+        release_project_lock();
     }
 }
 
@@ -625,9 +624,14 @@ impl EvidenceStore {
     /// Normalisation is purely lexical and therefore deterministic and
     /// independent of whether the directory exists yet. It resolves `.` and
     /// `..` components. It does not resolve symbolic links, so two roots that
-    /// alias through a link remain distinct store identities for in-process
-    /// ordering; the operating-system lock still provides mutual exclusion in
-    /// that case, and acquisition remains bounded.
+    /// alias through a link remain distinct store identities; the
+    /// operating-system lock still provides mutual exclusion in that case, and
+    /// acquisition remains bounded.
+    ///
+    /// Lock ordering does not rely on that identity. Counting held project
+    /// guards per root would have made the ordering rule evadable by naming a
+    /// second root, a symbolic-link alias of the same physical store included,
+    /// so the ordering check is root-independent. See [`Self::lock_catalog`].
     pub fn new(root: impl Into<PathBuf>) -> Self {
         Self {
             root: normalize_root(root.into()),
@@ -738,7 +742,18 @@ impl EvidenceStore {
     /// Canonical clarification Q26 fixes catalog-before-project ordering when a
     /// single operation needs both locks. That is a property of one caller, so
     /// this refuses with [`StoreError::LockOrderViolation`] when the **calling
-    /// thread** already holds a project guard on the same store root.
+    /// thread** already holds any project guard.
+    ///
+    /// The refusal is deliberately independent of which root either guard
+    /// names. Store identity here is lexical, so a per-root check could be
+    /// evaded by naming a second root while the first guard is still held, and
+    /// two lexically distinct roots can address one physical store through a
+    /// symbolic link. In that case the same pair of lock files would be taken in
+    /// the inverted order with the check seeing nothing. The cost of the wider
+    /// rule is that one thread cannot hold a project guard on one store while
+    /// taking the catalog lock on another; that combination is precisely the
+    /// both-locks case Q26 orders, so refusing it is the rule rather than an
+    /// over-restriction.
     ///
     /// A different thread holding only a project lock does not block this call.
     /// Those are two single-resource operations, not an inverted acquisition,
@@ -750,7 +765,7 @@ impl EvidenceStore {
     /// operating-system call, leaving a window in which another thread
     /// registered.
     pub fn lock_catalog(&self, cancelled: &dyn Fn() -> bool) -> Result<CatalogLock, StoreError> {
-        if project_locks_held_by_this_thread(&self.root) > 0 {
+        if this_thread_holds_a_project_lock() {
             return Err(StoreError::LockOrderViolation);
         }
         Ok(CatalogLock {
@@ -765,8 +780,11 @@ impl EvidenceStore {
     /// also needs the catalog lock must use [`Self::lock_catalog_then_project`]
     /// or [`CatalogLock::lock_project`]. Acquiring the catalog lock while
     /// already holding a project lock inverts the canonical order and is
-    /// prohibited; it is not prevented by the type system, and it degrades to a
-    /// bounded stable busy error rather than a deadlock.
+    /// prohibited: [`Self::lock_catalog`] returns
+    /// [`StoreError::LockOrderViolation`] immediately for that caller, without
+    /// waiting and without a busy result. A stable busy result is what ordinary
+    /// contention produces, including a second process that ignores the order;
+    /// the two outcomes are not interchangeable.
     pub fn lock_project(
         &self,
         project: &ProjectId,
@@ -781,7 +799,7 @@ impl EvidenceStore {
         // The registration is an RAII guard rather than a bare call, so it is
         // released on every exit path: a refused acquisition, an error, and a
         // panic unwinding out of the caller-supplied cancellation callback.
-        let pending = PendingProjectLock::register(&self.root);
+        let pending = PendingProjectLock::register();
         let inner = self.acquire_lock(StoreLockScope::ProjectStore, Some(project), cancelled)?;
         let guard = ProjectLock {
             inner,
@@ -806,9 +824,14 @@ impl EvidenceStore {
     /// operations legitimately need it, so a caller could still take a project
     /// guard first and then call [`Self::lock_catalog`].
     ///
-    /// That residual case is stated rather than papered over. It does not
-    /// deadlock, because acquisition is bounded: the reversed caller fails with
-    /// a stable busy error after the deadline instead of waiting forever.
+    /// That residual case is stated rather than papered over. Within one
+    /// process it is caught: the reversing thread is refused with
+    /// [`StoreError::LockOrderViolation`] rather than being allowed to invert
+    /// the order. Across processes there is no shared registry, so a second
+    /// process can genuinely take the locks in the reverse order; that case
+    /// cannot deadlock, because every acquisition is bounded and fails with a
+    /// stable busy result after the deadline instead of waiting forever.
+    ///
     /// Expressing the prohibition in the type system would require a session or
     /// type-state design that makes concurrent project work in one process
     /// impossible, which costs more than the residual risk.

@@ -362,6 +362,15 @@ fn classify_candidate(
 /// S2-I008, S2-I009, S2-I010. The result is one of: a single existing binding, an
 /// ambiguous set, or a conflict. Nothing here mutates state; the caller commits
 /// the decision under the catalog lock.
+///
+/// The contract carries no separate "nothing matched" variant, so the absence of
+/// any binding is reported as [`IdentityResolution::Ambiguous`] with an **empty**
+/// candidate list. That distinction is load-bearing and is stated here because a
+/// caller that treats every `Ambiguous` alike would demand explicit
+/// reconciliation for a project being opened for the first time. An ambiguity
+/// that genuinely needs reconciliation always names its candidates; an empty list
+/// means there is nothing to reconcile and the caller proceeds to first-open
+/// allocation under the catalog lock.
 pub fn resolve_identity(
     facts: &ProjectMatchFacts,
     candidates: &[IdentityCandidate],

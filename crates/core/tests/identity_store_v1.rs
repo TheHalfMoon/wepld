@@ -2,10 +2,19 @@
 
 //! S2 identity and evidence-store qualification suite.
 //!
-//! Covered tasks: S2-I013, S2-I014, S2-E013, S2-E014, S2-E015, S2-E016, plus
-//! direct coverage of the identity ordering, reservation, bounded-read,
-//! generation, publication, freshness, redaction, and authenticity behaviours
-//! implemented for S2-I008..S2-I012 and S2-E003..S2-E012, S2-E017.
+//! Covered tasks: S2-I013, S2-I014, S2-E013, S2-E014, S2-E016, plus direct
+//! coverage of the identity ordering, reservation, bounded-read, generation,
+//! publication, freshness, redaction, and authenticity behaviours implemented
+//! for S2-I008..S2-I012 and S2-E003..S2-E012, S2-E017.
+//!
+//! S2-E015 is covered only in part, and the part is named rather than implied.
+//! The half stating that lock-file existence never blocks ownership recovery is
+//! demonstrated: the lock file is asserted to persist and the lock is
+//! immediately reacquired. The half requiring process-crash release is not
+//! demonstrated. Dropping the owning handle exercises the same operating-system
+//! path a crashed process takes when its handles close, but that is reasoning
+//! about the mechanism, not an observation of a crash. Spawning a process is
+//! outside this tranche.
 //!
 //! Every test returns a result and propagates failures. The suite holds no
 //! deletion authority, so temporary stores are left in the Cargo target
@@ -1201,6 +1210,45 @@ fn a_caller_holding_a_project_guard_cannot_acquire_the_catalog() -> TestResult {
 }
 
 #[test]
+fn a_different_store_root_cannot_launder_a_held_project_guard() -> TestResult {
+    // Q26 constrains a caller that ends up holding both lock kinds. Keying the
+    // ordering check on one normalised root made that rule evadable: any second
+    // root the same thread can name passes the check while its project guard is
+    // still held, and the two roots may address one physical store through a
+    // symbolic link. This suite holds no authority to create a link, so two
+    // distinct roots reproduce the identical evasion without needing one. The
+    // rule is therefore about the calling thread holding a project guard at
+    // all, not about which root that guard names.
+    let first = temp_root("launderfirst")?;
+    let second = temp_root("laundersecond")?;
+    let store_a = EvidenceStore::new(&first);
+    let store_b = EvidenceStore::new(&second);
+    store_a.initialize()?;
+    store_b.initialize()?;
+    assert_ne!(
+        store_a.root(),
+        store_b.root(),
+        "the fixture must use two genuinely different roots"
+    );
+    let project = allocate_project_id()?;
+
+    let held = store_a.lock_project(&project, &never_cancelled())?;
+    assert!(
+        matches!(
+            store_b.lock_catalog(&never_cancelled()),
+            Err(StoreError::LockOrderViolation)
+        ),
+        "a held project guard must refuse the catalog for every root, or an          aliased root evades the ordering rule entirely"
+    );
+    drop(held);
+
+    // The refusal is scoped to the guard's lifetime, not permanent.
+    let catalog = store_b.lock_catalog(&never_cancelled())?;
+    drop(catalog);
+    Ok(())
+}
+
+#[test]
 fn another_thread_holding_a_project_guard_does_not_block_the_catalog() -> TestResult {
     // The rule is per caller, not per process. Refusing an unrelated thread's
     // catalog acquisition would be stricter than canonical authority requires,
@@ -1916,13 +1964,46 @@ fn readers_observe_a_coherent_generation_while_a_writer_publishes() -> TestResul
         let store = Arc::clone(&store);
         let project = Arc::clone(&project);
         thread::spawn(move || -> Result<(), String> {
+            let mut coherent_reads = 0_usize;
             for _ in 0..25 {
-                // Every successful read must be internally coherent.
-                if let Ok(published) = store.read_published_generation(&project)
-                    && published.manifest.generation_id != published.current.generation_id
-                {
-                    return Err("mixed generation observed".to_owned());
+                match store.read_published_generation(&project) {
+                    Ok(published) => {
+                        // Asserting that the pointer and the manifest name the
+                        // same generation would prove nothing here, because
+                        // `read_published_generation` already refuses that case
+                        // internally and can only return `Ok` when they agree.
+                        // What the reader must establish is that the generation
+                        // it just selected stays completely readable and
+                        // digest-exact while a writer publishes over it.
+                        let bytes = store
+                            .read_generation_record(
+                                &published.manifest,
+                                &published.manifest.identity_record_ref,
+                            )
+                            .map_err(|error| {
+                                format!("selected generation was not readable: {error}")
+                            })?;
+                        if bytes != IDENTITY_PAYLOAD {
+                            return Err("selected generation returned foreign bytes".to_owned());
+                        }
+                        coherent_reads += 1;
+                    }
+                    // A structural defect during an ordinary concurrent publish
+                    // is a real failure. Swallowing it would leave this test
+                    // unable to fail for the property it is named after.
+                    Err(StoreError::Defect(defect)) => {
+                        return Err(format!("reader observed a store defect: {defect}"));
+                    }
+                    // A transient sharing or permission error while the pointer
+                    // is being replaced is an operating-system condition rather
+                    // than an incoherent store, so it is tolerated and not
+                    // counted as a successful read.
+                    Err(StoreError::Io(_)) => {}
+                    Err(error) => return Err(format!("unexpected read error: {error}")),
                 }
+            }
+            if coherent_reads == 0 {
+                return Err("the reader completed no read at all".to_owned());
             }
             Ok(())
         })

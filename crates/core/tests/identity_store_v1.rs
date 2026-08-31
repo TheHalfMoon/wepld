@@ -1124,25 +1124,30 @@ fn a_guard_from_another_store_is_rejected() -> TestResult {
     Ok(())
 }
 
-/// Compile-time proof that `ProjectLock` cannot cross threads.
+/// Asserts only that `CatalogLock` is `Send`. Nothing here guards `ProjectLock`.
 ///
-/// Ordering accounting is thread-local, so a guard that moved to another thread
-/// would let the releasing thread decrement a count it never incremented while
-/// the acquiring thread kept one forever.
+/// `ProjectLock` must remain non-`Send`, because ordering accounting is
+/// thread-local: a guard moved to another thread would let the releasing thread
+/// decrement a count it never incremented while the acquiring thread kept one
+/// forever. That invariant currently rests on the `PhantomData<*const ()>` field
+/// on `ProjectLock`.
 ///
-/// This is a type-system proof, not a runtime assertion: the function only
-/// compiles while `ProjectLock` is `Send`, so its absence is what is asserted.
-/// A negative auto-trait cannot be asserted directly in stable Rust without a
-/// dependency, which this tranche has no authority to add, so the proof is
-/// stated here for explicit review rather than implied.
+/// This function does **not** enforce it. A negative auto-trait bound cannot be
+/// written in stable Rust, and asserting it by compile failure needs a
+/// compile-test harness that would require a dependency this tranche has no
+/// authority to admit. Removing the marker field would therefore make
+/// `ProjectLock` `Send` again and every test here would still pass.
 ///
-/// `CatalogLock` carries no thread-local accounting and is deliberately not
-/// constrained the same way.
+/// The invariant is consequently classified `PROVEN_BY_CONSTRUCTION_AND_REVIEW`,
+/// not proven by test. An earlier version of this comment claimed a
+/// compile-failure probe asserted it; that probe was run interactively and never
+/// committed, so the claim was false and has been removed.
+///
+/// `CatalogLock` carries no thread-local accounting, so its `Send` is asserted
+/// positively and that assertion is real.
 #[allow(dead_code)]
-fn project_lock_send_proof() {
+fn catalog_lock_is_send() {
     fn assert_send<T: Send>() {}
-    // Uncommenting the next line must fail to compile:
-    //   assert_send::<wepld_core::evidence_store::ProjectLock>();
     assert_send::<wepld_core::evidence_store::CatalogLock>();
 }
 

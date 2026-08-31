@@ -200,9 +200,16 @@ fn digest_parts(parts: &[&[u8]]) -> Result<ContentDigest, IdentityError> {
 
 /// Facts that identity matching is allowed to depend on.
 ///
-/// Only revalidated observations belong here. Filesystem canonicalization is a
-/// point-in-time fact, so the locator is digested as a whole rather than any
-/// single path being treated as identity.
+/// The whole locator is carried here, but only its resolved path participates in
+/// [`Self::facts_digest`]. The other components are deliberately excluded:
+/// `input_path` and `lexical_absolute_path` are caller spelling, and
+/// `observation_time` changes on every open, so digesting any of them would
+/// split one project into several identities.
+///
+/// This distinction matters to anyone editing the digest. An earlier version of
+/// this comment said the locator was digested as a whole, which contradicted the
+/// implementation and could have invited a maintainer to restore inputs that
+/// were removed precisely because they were unstable.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProjectMatchFacts {
     pub locator: ProjectLocator,

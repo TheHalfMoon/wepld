@@ -16,7 +16,8 @@ The separation is intentional:
 
     route decision -> canonical activation -> separate process qualification
 
-A selected route is not execution authority.
+A selected route is not execution authority. The human-readable coordination
+record is issue #243; canonical authority is the exact v34 policy byte surface.
 """
 
 from __future__ import annotations
@@ -32,12 +33,10 @@ V25 = p.V25
 
 P = ".github/scripts/wepld_s2_git_route_governance_v34_integrity.py"
 T = ".github/scripts/wepld_s2_git_route_governance_v34_selftest.py"
-DECISION = "specs/005-s2-open-project-doctor-local-identity-storage/decisions/S2_AUTH_013_GIT_ROUTE.md"
 
 V33_P_BLOB = "f2a7626fcead2984749457b203dcd2523f6982a2"
 V33_T_BLOB = "e2eb9fa5a6393305a6465be71aea53bb2193a586"
-T_BLOB = "312401509eaec8a82ef8a19a5c3dc37a1144daab"
-DECISION_BLOB = "439fad7df33a442a976fe5cf47bebddb2144ea53"
+T_BLOB = "62ce9d3aabd57c40cdb5e777fb0dc24868d00c39"
 
 REQUIRED_PREDECESSOR_BLOBS = {
     "crates/core/src/identity.rs": "16c835f894620b97e136e40a2f2512c257d1879b",
@@ -52,9 +51,9 @@ CW = p.CW
 P_WF = dict(p.WF)
 
 POLICY_FILES = frozenset({P, T})
-CONTROLLED_FILES = frozenset({P, T, DECISION})
+CONTROLLED_FILES = POLICY_FILES
 ALL_POLICY_FILES = frozenset(set(p.ALL_POLICY_FILES) | set(POLICY_FILES))
-BOOT = frozenset({P, T, DECISION, FW, AW})
+BOOT = frozenset({P, T, FW, AW})
 
 AUTH = "S2_GIT_TOPOLOGY_ROUTE_DECISION_ONLY"
 S2_IMPLEMENTATION_AUTHORITY = p.S2_IMPLEMENTATION_AUTHORITY
@@ -70,6 +69,26 @@ DOCTOR_CLI_AUTHORITY = "NONE"
 S3_PLUS_AUTHORITY = "NONE"
 NEXT_AUTHORITY_GATE = "S2-AUTH-014"
 
+GIT_ROUTE_QUALIFICATION_CONTRACT = (
+    "RESOLVED_ABSOLUTE_EXECUTABLE_ONLY",
+    "REJECT_PROJECT_LOCAL_GIT_SPOOF",
+    "CLOSED_ENUM_TO_EXACT_ARGV",
+    "NO_SHELL_PAGER_PROMPT_OPTIONAL_LOCKS",
+    "BOUNDED_STDOUT_STDERR_HARD_TIMEOUT",
+    "SCRUB_GIT_CONFIG_AND_REPOSITORY_REDIRECTION_ENV",
+    "PRESERVE_NATIVE_SAFE_DIRECTORY_REFUSAL",
+    "NO_HOOKS",
+    "NO_NETWORK",
+    "PROVE_TREE_INDEX_NON_MUTATION",
+    "NO_SILENT_BINARY_FALLBACK",
+    "WINDOWS_LINUX_MACOS_OR_EXPLICIT_LIMITATION",
+)
+
+GIT_TOPOLOGY_COMMAND_FAMILY = (
+    "rev-parse:closed_allowlisted_topology_query",
+    "worktree:list:porcelain-z",
+)
+
 _V34_ENTRYPOINT = b"wepld_s2_git_route_governance_v34_integrity.py"
 _V33_ENTRYPOINT = b"wepld_s2_identity_store_governance_v33_integrity.py"
 _WORKFLOW_ENTRYPOINT_COUNTS = {FW: 3, AW: 2}
@@ -80,7 +99,6 @@ for _path, _expected in (
     (p.P, V33_P_BLOB),
     (p.T, V33_T_BLOB),
     (T, T_BLOB),
-    (DECISION, DECISION_BLOB),
 ):
     _actual = V25.blob(root.read_bytes(_path, base.MAX_POLICY_FILE_BYTES))
     if _actual != _expected:
@@ -88,8 +106,6 @@ for _path, _expected in (
             f"frozen v34 package input drifted: {_path}: "
             f"expected={_expected} actual={_actual}"
         )
-
-DECISION_BYTES = root.read_bytes(DECISION, base.MAX_POLICY_FILE_BYTES)
 
 
 def _derive_candidate_workflow_hash(path: str) -> str:
@@ -149,20 +165,6 @@ def req_canonical_identity_store(view: Any) -> None:
                 f"v34 canonical #240 predecessor drifted: {path}: "
                 f"expected={expected} actual={actual}"
             )
-
-
-def verify_decision(view: Any) -> None:
-    if DECISION not in V25.ps(view):
-        base.fail("v34 Git-route decision artifact is missing")
-    if V25.mode(view, DECISION) != "100644":
-        base.fail("v34 Git-route decision mode must be 100644")
-    data = view.read_bytes(DECISION, base.MAX_POLICY_FILE_BYTES)
-    actual = V25.blob(data)
-    if actual != DECISION_BLOB:
-        base.fail(
-            "v34 Git-route decision bytes drifted: "
-            f"expected={DECISION_BLOB} actual={actual}"
-        )
 
 
 def _workflow_replacements(view: Any) -> dict[str, bytes]:
@@ -240,21 +242,18 @@ def delta(candidate: Any, policy_base: Any) -> None:
         if paths != BOOT:
             if paths & BOOT:
                 base.fail(
-                    "v34 bootstrap delta must be exactly decision + two v34 policy "
-                    "files + two integrity workflows"
+                    "v34 bootstrap delta must be exactly two v34 policy files plus "
+                    "two integrity workflows"
                 )
             base.fail("v34 bootstrap base authorizes only exact S2-AUTH-013 policy activation")
         req_v33(candidate)
         req_v33(policy_base)
         req_canonical_identity_store(candidate)
         req_canonical_identity_store(policy_base)
-        if DECISION in V25.ps(policy_base):
-            base.fail("v34 Git-route decision unexpectedly exists in bootstrap base")
-        verify_decision(candidate)
         return
 
     if paths & CONTROLLED_FILES:
-        base.fail("canonical v34 Git-route policy/decision files are frozen after activation")
+        base.fail("canonical v34 Git-route policy files are frozen after activation")
 
     p.delta(candidate, policy_base)
 
@@ -310,11 +309,9 @@ def allowed(paths: Any, stage: str) -> None:
 
 def files(view: Any) -> None:
     p.files(_workflow_predecessor_projection(view))
-    verify_decision(view)
     approved = {
         P: root.read_bytes(P, base.MAX_POLICY_FILE_BYTES),
         T: root.read_bytes(T, base.MAX_POLICY_FILE_BYTES),
-        DECISION: DECISION_BYTES,
     }
     for path in sorted(CONTROLLED_FILES):
         if path not in V25.ps(view):

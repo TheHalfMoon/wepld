@@ -39,10 +39,11 @@
 
 use std::collections::HashMap;
 use std::error::Error;
+use std::ffi::OsString;
 use std::fmt;
 use std::fs::{self, File, OpenOptions, TryLockError};
 use std::io::{self, Read as _, Write as _};
-use std::path::{Component, Path, PathBuf};
+use std::path::{Component, MAIN_SEPARATOR_STR, Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -330,7 +331,7 @@ fn release_project_lock(root: &Path) {
 /// in-process ordering; the operating-system lock still provides mutual
 /// exclusion in that case and acquisition remains bounded.
 fn normalize_root(root: PathBuf) -> PathBuf {
-    let mut normalized = PathBuf::new();
+    let mut parts: Vec<Component<'_>> = Vec::new();
     let mut rooted = false;
     let mut depth: usize = 0;
     for component in root.components() {
@@ -338,27 +339,57 @@ fn normalize_root(root: PathBuf) -> PathBuf {
             Component::CurDir => {}
             Component::ParentDir => {
                 if depth > 0 {
-                    normalized.pop();
+                    parts.pop();
                     depth -= 1;
                 } else if !rooted {
-                    normalized.push(Component::ParentDir.as_os_str());
+                    parts.push(component);
                 }
-                // A rooted path at depth zero discards the component: `/..` is `/`.
+                // A rooted path at depth zero discards it: `/..` is `/`.
             }
-            Component::RootDir | Component::Prefix(_) => {
+            Component::RootDir => {
                 rooted = true;
-                normalized.push(component.as_os_str());
+                parts.push(component);
             }
-            Component::Normal(part) => {
-                normalized.push(part);
+            // A Windows prefix alone does not make a path rooted: `C:a` is
+            // drive-relative, so a following parent component is meaningful.
+            Component::Prefix(_) => parts.push(component),
+            Component::Normal(_) => {
+                parts.push(component);
                 depth += 1;
             }
         }
     }
-    if normalized.as_os_str().is_empty() {
+    // Reassemble explicitly rather than through `PathBuf::push` or `collect`.
+    // Pushing a component whose text parses as a Windows prefix replaces the
+    // whole accumulated path, so a directory literally named `C:` would silently
+    // re-root the store and a verbatim prefix would be corrupted into a
+    // drive-relative path. Concatenating with an explicit separator keeps every
+    // component a component.
+    let mut assembled = OsString::new();
+    let mut need_separator = false;
+    for component in parts {
+        match component {
+            Component::Prefix(prefix) => {
+                assembled.push(prefix.as_os_str());
+                need_separator = false;
+            }
+            Component::RootDir => {
+                assembled.push(MAIN_SEPARATOR_STR);
+                need_separator = false;
+            }
+            other => {
+                if need_separator {
+                    assembled.push(MAIN_SEPARATOR_STR);
+                }
+                assembled.push(other.as_os_str());
+                need_separator = true;
+            }
+        }
+    }
+    if assembled.is_empty() {
         return PathBuf::from(".");
     }
-    normalized
+    PathBuf::from(assembled)
 }
 
 const HEX_DIGITS: &[u8; 16] = b"0123456789abcdef";

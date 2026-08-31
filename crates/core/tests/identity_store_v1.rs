@@ -723,6 +723,53 @@ fn root_normalisation_collapses_aliases_without_escaping() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn root_normalisation_preserves_components_and_prefixes() -> TestResult {
+    // A path component may legitimately look like a Windows drive prefix. It
+    // must stay a component: reassembling through PathBuf::push would let such a
+    // component replace the accumulated path and silently re-root the store.
+    let lookalike = PathBuf::from("/outer/C:/inner");
+    let normalised = EvidenceStore::new(lookalike.clone());
+    let rendered = normalised.root().to_string_lossy().into_owned();
+    assert!(
+        rendered.contains("outer") && rendered.contains("inner"),
+        "a prefix-looking component must not re-root the store: {rendered}"
+    );
+    assert_eq!(
+        normalised.root().components().count(),
+        lookalike.components().count(),
+        "component count must be preserved when nothing is redundant"
+    );
+
+    // Normalisation must be idempotent: normalising an already-normal root
+    // cannot drift.
+    let once = EvidenceStore::new(lookalike);
+    let twice = EvidenceStore::new(once.root().to_path_buf());
+    assert_eq!(once.root(), twice.root());
+    Ok(())
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_root_forms_normalise_without_loss() -> TestResult {
+    // Verbatim and UNC prefixes must survive normalisation intact, and a parent
+    // component must clamp at the drive root rather than escaping it.
+    let verbatim = EvidenceStore::new(PathBuf::from(r"\?\C:\a\..\b"));
+    assert_eq!(verbatim.root(), &PathBuf::from(r"\?\C:\b"));
+
+    let unc = EvidenceStore::new(PathBuf::from(r"\server\share\a\..\b"));
+    assert_eq!(unc.root(), &PathBuf::from(r"\server\share\b"));
+
+    let clamped = EvidenceStore::new(PathBuf::from(r"C:\.."));
+    assert_eq!(clamped.root(), &PathBuf::from(r"C:\"));
+
+    // A drive-relative path is not rooted, so its parent component is
+    // meaningful and must be preserved rather than discarded.
+    let drive_relative = EvidenceStore::new(PathBuf::from(r"C:.."));
+    assert_eq!(drive_relative.root(), &PathBuf::from(r"C:.."));
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // concurrency around ordering and publication
 // ---------------------------------------------------------------------------

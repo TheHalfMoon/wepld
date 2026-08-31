@@ -837,6 +837,32 @@ fn ordering_state_drains_under_concurrent_churn() -> TestResult {
 }
 
 #[test]
+fn a_panicking_cancellation_callback_leaves_no_phantom_ownership() -> TestResult {
+    // Registration happens before operating-system lock acquisition, so a panic
+    // unwinding out of the caller-supplied cancellation callback must still
+    // release the registry entry. Otherwise no ProjectLock exists to drop, no
+    // operating-system lock is held, and every later catalog acquisition for
+    // this root fails for the lifetime of the process.
+    let root = temp_root("panicunwind")?;
+    let store = EvidenceStore::new(&root);
+    store.initialize()?;
+    let project = allocate_project_id()?;
+
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|_| {}));
+    let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _ = store.lock_project(&project, &|| panic!("cancellation callback"));
+    }));
+    std::panic::set_hook(previous);
+    assert!(outcome.is_err(), "the fixture must actually panic");
+
+    // No guard survived, so the catalog must still be acquirable.
+    let catalog = store.lock_catalog(&never_cancelled())?;
+    drop(catalog);
+    Ok(())
+}
+
+#[test]
 fn a_refused_project_acquisition_leaves_no_phantom_ownership() -> TestResult {
     // What this proves: a refused or cancelled acquisition does not leave the
     // registry holding ownership that never existed, so the catalog is not
@@ -1738,12 +1764,46 @@ fn redacted_summary_never_reveals_the_value() -> TestResult {
     assert!(summary.starts_with("redacted:"));
     assert!(!summary.contains("tokenvalue"));
     assert!(!summary.contains("example.invalid"));
-    // The exact byte length is deliberately withheld; only a coarse class is
-    // emitted, so the summary does not narrow an offline search by length.
+    // The exact byte length is withheld; only a coarse class is emitted.
+    //
+    // This assertion proves exactly that and no more. A coarse class still
+    // narrows a candidate search to one length range, so it reduces rather than
+    // removes length disclosure. The module documentation states that boundary,
+    // and this comment must not claim more than the body checks.
     assert!(!summary.contains(&secret.len().to_string()));
     // Identical values correlate; different values do not collide in practice.
     assert_eq!(summary, redacted_summary(secret)?);
     assert_ne!(summary, redacted_summary(b"different")?);
+    Ok(())
+}
+
+#[test]
+fn redaction_size_classes_are_coarse_and_stable() -> TestResult {
+    // The bucket boundaries are part of the privacy contract: they decide how
+    // much a summary narrows a candidate search. Pin them so a later change is
+    // a deliberate contract change rather than a silent widening of disclosure.
+    let class_of = |length: usize| -> Result<String, TestError> {
+        let summary = redacted_summary(&vec![b'x'; length])?;
+        let class = summary
+            .split(':')
+            .nth(1)
+            .ok_or("summary must carry a size class")?
+            .to_owned();
+        Ok(class)
+    };
+
+    assert_eq!(class_of(0)?, "empty");
+    assert_eq!(class_of(1)?, "xs");
+    assert_eq!(class_of(32)?, "xs");
+    assert_eq!(class_of(33)?, "s");
+    assert_eq!(class_of(128)?, "s");
+    assert_eq!(class_of(129)?, "m");
+    assert_eq!(class_of(1024)?, "m");
+    assert_eq!(class_of(1025)?, "l");
+
+    // Different lengths inside one bucket are indistinguishable by class, which
+    // is the whole point of bucketing.
+    assert_eq!(class_of(40)?, class_of(120)?);
     Ok(())
 }
 

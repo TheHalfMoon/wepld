@@ -301,6 +301,42 @@ fn register_project_lock(root: &Path) {
     *registry_guard().entry(root.to_path_buf()).or_insert(0) += 1;
 }
 
+/// A registry entry held while a project lock acquisition is in flight.
+///
+/// Registration must happen before the operating-system lock is taken, or another
+/// thread can pass the catalog-order check inside that window. Doing it with a
+/// plain call leaves the release on the error path only, so a panic unwinding out
+/// of acquisition, including a panic raised by a caller-supplied cancellation
+/// callback, strands the entry forever and blocks the catalog for the process
+/// lifetime. Holding it as a guard means the release runs on every exit path.
+struct PendingProjectLock {
+    root: PathBuf,
+    armed: bool,
+}
+
+impl PendingProjectLock {
+    fn register(root: &Path) -> Self {
+        register_project_lock(root);
+        Self {
+            root: root.to_path_buf(),
+            armed: true,
+        }
+    }
+
+    /// Hand ownership of the registry entry to a constructed `ProjectLock`.
+    fn into_owned(mut self) {
+        self.armed = false;
+    }
+}
+
+impl Drop for PendingProjectLock {
+    fn drop(&mut self) {
+        if self.armed {
+            release_project_lock(&self.root);
+        }
+    }
+}
+
 fn release_project_lock(root: &Path) {
     let mut guard = registry_guard();
     if let Some(count) = guard.get_mut(root) {
@@ -735,22 +771,20 @@ impl EvidenceStore {
         // lock. Registering afterwards leaves a window in which another thread
         // passes the catalog-order check while this project lock is already
         // held, which inverts the canonical order without the registry ever
-        // seeing it. The registration is released if acquisition fails, so a
-        // failed attempt cannot block the catalog permanently.
-        register_project_lock(&self.root);
-        let inner = match self.acquire_lock(StoreLockScope::ProjectStore, Some(project), cancelled)
-        {
-            Ok(inner) => inner,
-            Err(error) => {
-                release_project_lock(&self.root);
-                return Err(error);
-            }
-        };
-        Ok(ProjectLock {
+        // seeing it.
+        //
+        // The registration is an RAII guard rather than a bare call, so it is
+        // released on every exit path: a refused acquisition, an error, and a
+        // panic unwinding out of the caller-supplied cancellation callback.
+        let pending = PendingProjectLock::register(&self.root);
+        let inner = self.acquire_lock(StoreLockScope::ProjectStore, Some(project), cancelled)?;
+        let guard = ProjectLock {
             inner,
             project: project.clone(),
             root: self.root.clone(),
-        })
+        };
+        pending.into_owned();
+        Ok(guard)
     }
 
     /// Acquire both locks in the canonical order: catalog first, then project.

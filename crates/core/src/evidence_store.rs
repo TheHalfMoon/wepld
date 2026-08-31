@@ -77,6 +77,12 @@ pub const MAX_CURRENT_BYTES: usize = 65_536;
 /// Producer contract version recorded in manifests written by this module.
 pub const PRODUCER_CONTRACT_VERSION: u16 = 1;
 
+/// Buffer size used while reading a persisted artifact. S2-E004.
+///
+/// The loop never requests more than the remaining allowance plus one overflow
+/// probe byte, so this is a throughput choice and not part of any bound.
+const READ_CHUNK_BYTES: usize = 8192;
+
 const CATALOG_DIR: &str = "catalog";
 const CATALOG_LOCK_FILE: &str = "catalog.lock";
 const RESERVATIONS_DIR: &str = "reservations";
@@ -940,6 +946,22 @@ impl EvidenceStore {
     ///
     /// The limit is enforced while reading, so an oversized or endlessly growing
     /// file cannot exhaust memory before parsing.
+    ///
+    /// # Exactly how much is read
+    ///
+    /// Retained bytes never exceed `limit`, because the buffer only grows when
+    /// the result would still fit. Bytes *requested from the file* used to be a
+    /// different quantity: a fixed-size chunk was read before the check, so an
+    /// oversized or growing artifact could pull up to a whole chunk beyond the
+    /// limit before being refused. That made every aggregate read-cost statement
+    /// about this store exact for accepted artifacts and approximate for
+    /// malformed ones.
+    ///
+    /// The window is now the remaining allowance plus one probe byte, so the
+    /// file is read at most `limit + 1` bytes. The extra byte is what
+    /// distinguishes an artifact of exactly `limit` bytes, which is valid, from
+    /// a larger one, which is not. [`READ_CHUNK_BYTES`] caps the window for
+    /// throughput and is not part of the bound.
     fn read_bounded(path: &Path, limit: usize) -> Result<Option<Vec<u8>>, StoreError> {
         let mut file = match File::open(path) {
             Ok(file) => file,
@@ -947,9 +969,12 @@ impl EvidenceStore {
             Err(error) => return Err(StoreError::Io(error)),
         };
         let mut buffer = Vec::new();
-        let mut chunk = [0_u8; 8192];
+        let mut chunk = [0_u8; READ_CHUNK_BYTES];
         loop {
-            let read = file.read(&mut chunk)?;
+            // `buffer.len() <= limit` holds on every iteration, so the window is
+            // the untaken allowance plus the single probe byte.
+            let window = (limit - buffer.len()).saturating_add(1).min(chunk.len());
+            let read = file.read(&mut chunk[..window])?;
             if read == 0 {
                 break;
             }
@@ -1394,6 +1419,20 @@ impl EvidenceStore {
     /// dedicated aggregate constant. Repeated references inside one manifest do
     /// not defeat it: they can repeat a read, but the list length is still
     /// capped.
+    ///
+    /// The ceiling covers this call only. A later
+    /// [`Self::read_generation_record`] is a separate bounded read of at most
+    /// [`MAX_RECORD_BYTES`] and is not inside it, so a caller that walks a
+    /// generation record by record pays that per call. Saying so is the point:
+    /// the ceiling is a property of one validation pass, not a budget for
+    /// everything a caller does with the generation afterwards.
+    ///
+    /// The figures are bytes requested from the filesystem, not only bytes
+    /// retained, and they hold for malformed persistence as well as valid
+    /// persistence. An artifact that exceeds its own limit is refused after one
+    /// probe byte past that limit, never after a further buffer's worth: see
+    /// [`Self::read_bounded`]. The call returns on the first such artifact, so at
+    /// most one probe byte is spent in total.
     ///
     /// An earlier version of this comment claimed there was no aggregate ceiling
     /// at all. That was false, and it understated the guarantee rather than

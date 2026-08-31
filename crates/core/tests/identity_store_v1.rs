@@ -1267,6 +1267,47 @@ fn catalog_lock_is_send() {
 }
 
 #[test]
+fn a_leaked_project_guard_blocks_the_catalog_on_that_thread_for_good() -> TestResult {
+    // The guard-leak limitation is usually described as leaking a handle. The
+    // larger consequence is this one, and it was reasoned rather than shown:
+    // ordering accounting is thread-local and released by Drop, so a forgotten
+    // guard leaves the count raised for the life of the thread and that thread
+    // can never acquire the catalog lock again.
+    //
+    // The leak is deliberate and confined. It runs on its own thread so it
+    // cannot affect the rest of the suite, and on its own store root so the
+    // leaked operating-system lock reaches nothing else.
+    let root = temp_root("leakedguard")?;
+    let outcome = thread::spawn(move || -> Result<(), String> {
+        let store = EvidenceStore::new(&root).map_err(|error| format!("new: {error}"))?;
+        store
+            .initialize()
+            .map_err(|error| format!("initialize: {error}"))?;
+        let project = allocate_project_id().map_err(|error| format!("allocate: {error}"))?;
+
+        let guard = store
+            .lock_project(&project, &|| false)
+            .map_err(|error| format!("project lock: {error}"))?;
+        std::mem::forget(guard);
+
+        match store.lock_catalog(&|| false) {
+            Err(StoreError::LockOrderViolation) => {}
+            other => return Err(format!("expected a permanent refusal, observed {other:?}")),
+        }
+        // Still refused on a second attempt: the state is not consumed by being
+        // observed, which is what "for good" has to mean.
+        match store.lock_catalog(&|| false) {
+            Err(StoreError::LockOrderViolation) => Ok(()),
+            other => Err(format!("expected a permanent refusal, observed {other:?}")),
+        }
+    })
+    .join()
+    .map_err(|_| "leak thread panicked")?;
+    outcome?;
+    Ok(())
+}
+
+#[test]
 fn a_caller_holding_a_project_guard_cannot_acquire_the_catalog() -> TestResult {
     // Canonical Q26 fixes catalog-before-project when one operation needs both.
     // That is a per-caller rule, so the calling thread holding a project guard
@@ -1916,6 +1957,63 @@ fn manifest_digest_mismatch_is_detected() -> TestResult {
 }
 
 #[test]
+fn a_persisted_artifact_of_exactly_the_limit_is_accepted_and_one_byte_more_is_not() -> TestResult {
+    // The read window is the untaken allowance plus a single probe byte, so the
+    // boundary is where that arithmetic is load-bearing: at exactly the limit the
+    // window is one byte, and whether that byte arrives decides the outcome.
+    //
+    // This does not fail against the previous implementation, and that is stated
+    // rather than left to be assumed: the previous loop accepted and refused the
+    // same two files. What changed is how much it read from the file before
+    // deciding, which no portable assertion can observe. The byte figure is
+    // established by the loop and documented there; this test pins the boundary
+    // the arithmetic has to get right.
+    let root = temp_root("readboundary")?;
+    let store = EvidenceStore::new(&root)?;
+    store.initialize()?;
+    let project = allocate_project_id()?;
+    let generation = allocate_generation_id()?;
+    let exact_record = allocate_record_id()?;
+    let lock = store.lock_project(&project, &never_cancelled())?;
+
+    // Exactly at the limit is valid, on the write side and on the read side.
+    let exact = vec![b'x'; MAX_RECORD_BYTES];
+    let digest =
+        store.write_generation_record(&lock, &project, &generation, &exact_record, &exact)?;
+    let record_path = root
+        .join("projects")
+        .join(project.as_str())
+        .join("generations")
+        .join(generation.as_str())
+        .join("records")
+        .join(format!("{}.json", exact_record.as_str()));
+    assert_eq!(fs::read(&record_path)?.len(), MAX_RECORD_BYTES);
+
+    let manifest = build_manifest(
+        project.clone(),
+        generation.clone(),
+        exact_record.clone(),
+        exact_record.clone(),
+        EvidenceRecordRefs::try_from(Vec::new())?,
+        vec![digest],
+        UnixMillis::new(1),
+    )?;
+    store.write_generation_manifest(&lock, &manifest)?;
+    store.publish_generation(&lock, &project, &generation)?;
+    let published = store.read_published_generation(&project)?;
+    let bytes = store.read_generation_record(&published.manifest, &exact_record)?;
+    assert_eq!(bytes.len(), MAX_RECORD_BYTES);
+
+    // One byte more is refused, and as a store defect rather than a read error.
+    fs::write(&record_path, vec![b'x'; MAX_RECORD_BYTES + 1])?;
+    assert!(matches!(
+        store.read_generation_record(&published.manifest, &exact_record),
+        Err(StoreError::Defect(StoreDefect::RecordCorrupt))
+    ));
+    Ok(())
+}
+
+#[test]
 fn an_oversized_persisted_manifest_is_classified_as_corrupt() -> TestResult {
     // The StoreDefect documentation says an over-limit manifest is corrupt. The
     // read paths returned the bounded-read refusal instead, so one corruption
@@ -2206,6 +2304,39 @@ fn the_evidence_reference_cap_holds_on_both_the_constructor_and_the_disk_path() 
             Err(StoreError::Defect(StoreDefect::ManifestCorrupt))
         ),
         "an over-length reference list must not decode from disk"
+    );
+
+    // Control. The same fixture at exactly the cap must decode, and then fail
+    // later for the ordinary reason that its referenced records do not exist.
+    // Without this the assertion above would prove only that something went
+    // wrong, not that the reference cap is what stopped it.
+    let at_cap = too_many[..MAX_EVIDENCE_REFS]
+        .iter()
+        .map(|record| format!("\"{}\"", record.as_str()))
+        .collect::<Vec<_>>()
+        .join(",");
+    let capped = text.replace(
+        "\"evidence_record_refs\":[]",
+        &format!("\"evidence_record_refs\":[{at_cap}]"),
+    );
+    fs::write(&manifest_path, capped.as_bytes())?;
+    let capped_bytes = fs::read(&manifest_path)?;
+    let capped_current = ProjectCurrentRef {
+        schema_version: ProjectContractVersion::V1,
+        project_id: project.clone(),
+        generation_id: current.generation_id.clone(),
+        manifest_digest: content_digest(&capped_bytes)?,
+    };
+    fs::write(
+        root.join("projects").join(project.as_str()).join("CURRENT"),
+        canonical_project_json(&capped_current)?,
+    )?;
+    assert!(
+        matches!(
+            store.read_published_generation(&project),
+            Err(StoreError::Defect(StoreDefect::RecordMissing))
+        ),
+        "exactly at the cap the manifest must decode and fail on its missing records"
     );
     Ok(())
 }

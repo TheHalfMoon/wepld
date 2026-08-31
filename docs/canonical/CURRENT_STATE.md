@@ -243,7 +243,17 @@ UNRESOLVED_MATERIAL_FINDINGS_AT_ACCEPTANCE = 0
 UNRESOLVED_REVIEW_THREADS_AT_ACCEPTANCE = 0
 ```
 
-A review round is a project concept. GitHub exposes reviews, comments and timeline events and has no notion of a round, so that count cannot be reproduced from the API and is narrative rather than platform-verifiable. Every other value in the block above can be checked against GitHub directly.
+Which of those values GitHub can settle, and which it cannot:
+
+```text
+PLATFORM_VERIFIABLE   PR number, base, accepted head, accepted tree, merge
+                      commit, changed-file count, and the resolved state of the
+                      review threads
+PROJECT_DETERMINATION INDEPENDENT_REVIEW, INDEPENDENT_REVIEW_ROUNDS, and
+                      UNRESOLVED_MATERIAL_FINDINGS_AT_ACCEPTANCE
+```
+
+GitHub has no concept of a review round, no notion of review qualification, and no material-finding classification. It can show that PR 240 carries review comments and that all four of its threads are resolved; it cannot establish that a completed review was clean or that no unresolved finding was material. Those three values are project determinations supported by the linked review record, and they are separated here so a reader does not take them for API facts because they sit beside SHAs that are.
 
 The merge canonicalizes product code only. It performs no dependency admission, source admission, Doctor/CLI expansion, process or Git execution, network access, model or provider execution, and no S3+ authority.
 

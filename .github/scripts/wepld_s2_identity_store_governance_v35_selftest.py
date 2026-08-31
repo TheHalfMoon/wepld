@@ -5,8 +5,9 @@ v35 exists only because the author self-audit of PR #248 found two material
 checkpoint defects after v34 had already frozen the original FINAL checkpoint
 blob. These tests prove that v35 changes exactly that target, preserves the
 ledger target and every inherited authority boundary, rejects the superseded
-v34 checkpoint target, reverses its workflows exactly to v34, and remains valid
-on either side of the corrected one-shot transition.
+v34 checkpoint target, binds the correction idempotently across module re-entry,
+reverses its workflows exactly to v34, and remains valid on either side of the
+corrected one-shot transition.
 
 As with v34, the positive transition itself is proven by the real two-document
 candidate at both exact-head gates rather than by copying the large canonical
@@ -84,6 +85,29 @@ def _check_target_correction_is_exact() -> None:
         base.fail("v35 did not bind the inherited v34 target to the correction")
 
 
+def _check_checkpoint_binding_is_exact_and_idempotent() -> None:
+    """Re-entry is a no-op; any target outside the exact pair fails closed."""
+    p._bind_corrected_checkpoint_target()
+    if p.q.FINAL_CHECKPOINT_BLOB != p.FINAL_CHECKPOINT_BLOB:
+        base.fail("v35 first idempotent checkpoint bind drifted")
+    p._bind_corrected_checkpoint_target()
+    if p.q.FINAL_CHECKPOINT_BLOB != p.FINAL_CHECKPOINT_BLOB:
+        base.fail("v35 second idempotent checkpoint bind drifted")
+
+    original = p.q.FINAL_CHECKPOINT_BLOB
+    p.q.FINAL_CHECKPOINT_BLOB = "0" * 40
+    try:
+        _expect_failure(
+            "checkpoint target outside old/corrected exact set",
+            p._bind_corrected_checkpoint_target,
+        )
+    finally:
+        p.q.FINAL_CHECKPOINT_BLOB = original
+    p._bind_corrected_checkpoint_target()
+    if p.q.FINAL_CHECKPOINT_BLOB != p.FINAL_CHECKPOINT_BLOB:
+        base.fail("v35 checkpoint bind did not recover after negative oracle")
+
+
 def _check_transition_scope() -> None:
     if p.DOCS != frozenset({p.CHECKPOINT, p.LEDGER}):
         base.fail("v35 documentation transition scope drifted")
@@ -120,10 +144,6 @@ def _check_superseded_v34_target_is_rejected() -> None:
     old = p.root.read_bytes(p.CHECKPOINT, base.MAX_POLICY_FILE_BYTES)
     if p.V25.blob(old) == p.V34_FINAL_CHECKPOINT_BLOB:
         base.fail("v35 self-test unexpectedly runs on the superseded v34 FINAL")
-    # The old blob identity is the important oracle. A candidate carrying bytes
-    # with that identity must not satisfy the corrected FINAL pin. We cannot
-    # reconstruct those large bytes here without duplicating the frozen document,
-    # so the exact unequal identities are the deterministic policy oracle.
     if p.V34_FINAL_CHECKPOINT_BLOB == p.FINAL_CHECKPOINT_BLOB:
         base.fail("v35 accepts the superseded v34 FINAL checkpoint identity")
 
@@ -189,6 +209,7 @@ def run() -> None:
 
     _check_authority_markers()
     _check_target_correction_is_exact()
+    _check_checkpoint_binding_is_exact_and_idempotent()
     _check_transition_scope()
     _check_local_state_is_one_of_the_corrected_pinned_states()
     _check_superseded_v34_target_is_rejected()

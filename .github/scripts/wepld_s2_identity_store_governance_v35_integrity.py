@@ -43,7 +43,7 @@ PREDECESSOR_CHAIN = (q,) + q.PREDECESSOR_CHAIN
 
 P = ".github/scripts/wepld_s2_identity_store_governance_v35_integrity.py"
 T = ".github/scripts/wepld_s2_identity_store_governance_v35_selftest.py"
-T_BLOB = "8db6abc707a621dcce136bda82ec3964924c796a"
+T_BLOB = "8284914739d1842f5100480fed969ec04d8667c7"
 V34_P_BLOB = "4f8fd136df3841f3427cc28cb543aa9da4afb03a"
 V34_T_BLOB = "dcfae36aee07fcd5eac9119a049ee0cdc1d6c13c"
 
@@ -61,20 +61,39 @@ FINAL_LEDGER_BLOB = q.FINAL_LEDGER_BLOB
 V34_FINAL_CHECKPOINT_BLOB = "2620c272d99eebe36d3756f12f3fe0ff611207a9"
 FINAL_CHECKPOINT_BLOB = "28c50353718f4b836daf67df2a52f6d9471e847b"
 
-if q.FINAL_CHECKPOINT_BLOB != V34_FINAL_CHECKPOINT_BLOB:
-    base.fail(
-        "v35 expected canonical v34 checkpoint target before correction: "
-        f"expected={V34_FINAL_CHECKPOINT_BLOB} actual={q.FINAL_CHECKPOINT_BLOB}"
-    )
 if PRE_CHECKPOINT_BLOB == FINAL_CHECKPOINT_BLOB:
     base.fail("v35 corrected checkpoint target equals the PRE checkpoint")
 if FINAL_CHECKPOINT_BLOB == V34_FINAL_CHECKPOINT_BLOB:
     base.fail("v35 corrected checkpoint target equals the superseded v34 target")
 
+
+def _bind_corrected_checkpoint_target() -> None:
+    """Bind v34 to exactly the corrected checkpoint target, idempotently.
+
+    The v35 script can be executed as ``__main__`` and then imported by its
+    self-test module under its canonical module name in the same interpreter.
+    That second import must not be mistaken for predecessor drift. Exactly two
+    values are valid at this seam: the frozen v34 target before the first bind,
+    or the corrected v35 target after an earlier bind. Any third value fails
+    closed.
+    """
+    actual = q.FINAL_CHECKPOINT_BLOB
+    if actual == V34_FINAL_CHECKPOINT_BLOB:
+        q.FINAL_CHECKPOINT_BLOB = FINAL_CHECKPOINT_BLOB
+        return
+    if actual == FINAL_CHECKPOINT_BLOB:
+        return
+    base.fail(
+        "v35 inherited v34 checkpoint target is outside the exact old/corrected set: "
+        f"old={V34_FINAL_CHECKPOINT_BLOB} corrected={FINAL_CHECKPOINT_BLOB} "
+        f"actual={actual}"
+    )
+
+
 # v34 self-tests and inherited transition logic must evaluate the corrected
 # target while v35 is active. This is an in-memory successor binding only; the
 # frozen v34 repository bytes are unchanged and are verified below.
-q.FINAL_CHECKPOINT_BLOB = FINAL_CHECKPOINT_BLOB
+_bind_corrected_checkpoint_target()
 
 POLICY_FILES = frozenset({P, T})
 ALL_POLICY_FILES = frozenset(set(q.ALL_POLICY_FILES) | set(POLICY_FILES))

@@ -24,15 +24,16 @@ use std::time::Instant;
 use wepld_contracts::{
     EvidenceRecordRefs, EvidenceStatus, FreshnessBasis, GenerationId, IdentityConflictKind,
     IdentityMatchStrength, IdentityRecordState, IdentityReservationState, IdentityResolution,
-    MachinePath, Observation, ProjectContractVersion, ProjectCurrentRef, ProjectId, ProjectLocator,
-    RecordDigest, StoreAuthenticity, StoreLockScope, UnixMillis, canonical_project_json,
+    MachinePath, Observation, ObservationErrorClass, ProjectContractVersion, ProjectCurrentRef,
+    ProjectId, ProjectLocator, RecordDigest, StoreAuthenticity, StoreLockScope, UnixMillis,
+    canonical_project_json,
 };
 use wepld_core::evidence_store::{EvidenceStore, ProjectLock, StoreDefect, StoreError};
 use wepld_core::identity::{
-    IdentityCandidate, ProjectMatchFacts, ReservationRecovery, allocate_generation_id,
-    allocate_project_id, allocate_record_id, allocate_worktree_id, build_identity_record,
-    build_reservation, compare_match_strength, complete_reservation, match_strength_rank,
-    recover_reservation, resolve_identity,
+    IdentityCandidate, IdentityError, ProjectMatchFacts, ReservationRecovery,
+    allocate_generation_id, allocate_project_id, allocate_record_id, allocate_worktree_id,
+    build_identity_record, build_reservation, compare_match_strength, complete_reservation,
+    match_strength_rank, recover_reservation, resolve_identity,
 };
 use wepld_core::{
     LOCK_ACQUIRE_DEADLINE_MS, MAX_RECORD_BYTES, build_manifest, busy_error_code, content_digest,
@@ -526,6 +527,79 @@ fn crashed_reservation_resumes_across_a_later_observation() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn unavailable_resolved_path_is_rejected_not_digested() -> TestResult {
+    // A failed resolution is transient. Digesting its error class would make the
+    // same project take one identity when resolution succeeded and another when
+    // it did not.
+    let machine = MachinePath::utf8("/projects/transient")?;
+    let unavailable = ProjectMatchFacts::new(ProjectLocator {
+        schema_version: ProjectContractVersion::V1,
+        input_path: machine.clone(),
+        lexical_absolute_path: machine,
+        resolved_path: Observation::Unavailable {
+            error: ObservationErrorClass::Io,
+        },
+        observation_time: UnixMillis::new(1_000),
+    });
+    assert!(matches!(
+        unavailable.facts_digest(),
+        Err(IdentityError::ResolvedPathUnavailable)
+    ));
+    Ok(())
+}
+
+#[test]
+fn distinct_unavailable_error_classes_do_not_produce_identities() -> TestResult {
+    // Two different failure classes must not become two different identities.
+    for class in [
+        ObservationErrorClass::Io,
+        ObservationErrorClass::PermissionDenied,
+        ObservationErrorClass::NotFound,
+    ] {
+        let machine = MachinePath::utf8("/projects/transient")?;
+        let facts = ProjectMatchFacts::new(ProjectLocator {
+            schema_version: ProjectContractVersion::V1,
+            input_path: machine.clone(),
+            lexical_absolute_path: machine,
+            resolved_path: Observation::Unavailable { error: class },
+            observation_time: UnixMillis::new(1_000),
+        });
+        assert!(facts.facts_digest().is_err());
+    }
+    Ok(())
+}
+
+#[test]
+fn equivalent_path_representations_agree() -> TestResult {
+    // The same bytes expressed as Utf8 or UnixBytes are the same path and must
+    // not produce two identities.
+    let text = "/projects/equivalent";
+    let utf8 = MachinePath::utf8(text)?;
+    let bytes = MachinePath::unix_bytes(text.as_bytes().to_vec())?;
+
+    let as_utf8 = ProjectMatchFacts::new(ProjectLocator {
+        schema_version: ProjectContractVersion::V1,
+        input_path: utf8.clone(),
+        lexical_absolute_path: utf8.clone(),
+        resolved_path: Observation::Available { value: utf8 },
+        observation_time: UnixMillis::new(1_000),
+    });
+    let as_bytes = ProjectMatchFacts::new(ProjectLocator {
+        schema_version: ProjectContractVersion::V1,
+        input_path: bytes.clone(),
+        lexical_absolute_path: bytes.clone(),
+        resolved_path: Observation::Available { value: bytes },
+        observation_time: UnixMillis::new(2_000),
+    });
+    assert_eq!(as_utf8.facts_digest()?, as_bytes.facts_digest()?);
+
+    // A genuinely different path must still differ.
+    let other = ProjectMatchFacts::new(locator_at("/projects/different", 1_000)?);
+    assert_ne!(as_utf8.facts_digest()?, other.facts_digest()?);
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // lock protocol enforced by the API
 // ---------------------------------------------------------------------------
@@ -550,6 +624,60 @@ fn mutations_reject_a_lock_for_a_different_project() -> TestResult {
 }
 
 #[test]
+fn a_guard_from_another_store_is_rejected() -> TestResult {
+    // A guard proves protection only for the store it was taken from. A guard
+    // from one root must never authorise a mutation applied to another root,
+    // where no lock is actually held.
+    let root_a = temp_root("foreign-a")?;
+    let root_b = temp_root("foreign-b")?;
+    let store_a = EvidenceStore::new(&root_a);
+    let store_b = EvidenceStore::new(&root_b);
+    store_a.initialize()?;
+    store_b.initialize()?;
+
+    let project = allocate_project_id()?;
+    let generation = allocate_generation_id()?;
+    let record = allocate_record_id()?;
+    let facts = facts_at("/projects/foreign")?;
+
+    let project_lock_a = store_a.lock_project(&project, &never_cancelled())?;
+    assert!(matches!(
+        store_b.write_generation_record(&project_lock_a, &project, &generation, &record, b"{}"),
+        Err(StoreError::ForeignLock)
+    ));
+    assert!(matches!(
+        store_b.publish_generation(&project_lock_a, &project, &generation),
+        Err(StoreError::ForeignLock)
+    ));
+    let manifest = build_manifest(
+        project.clone(),
+        generation.clone(),
+        allocate_record_id()?,
+        allocate_record_id()?,
+        EvidenceRecordRefs::try_from(Vec::new())?,
+        Vec::new(),
+        UnixMillis::new(1),
+    )?;
+    assert!(matches!(
+        store_b.write_generation_manifest(&project_lock_a, &manifest),
+        Err(StoreError::ForeignLock)
+    ));
+    drop(project_lock_a);
+
+    let catalog_a = store_a.lock_catalog(&never_cancelled())?;
+    let reservation = build_reservation(project.clone(), &facts, UnixMillis::new(1))?;
+    assert!(matches!(
+        store_b.write_reservation(&catalog_a, &reservation),
+        Err(StoreError::ForeignLock)
+    ));
+    assert!(matches!(
+        catalog_a.lock_project(&store_b, &project, &never_cancelled()),
+        Err(StoreError::ForeignLock)
+    ));
+    Ok(())
+}
+
+#[test]
 fn ordered_acquisition_yields_both_guards_in_canonical_order() -> TestResult {
     let root = temp_root("ordered")?;
     let store = EvidenceStore::new(&root);
@@ -560,6 +688,8 @@ fn ordered_acquisition_yields_both_guards_in_canonical_order() -> TestResult {
     assert_eq!(catalog.scope(), StoreLockScope::IdentityCatalog);
     assert_eq!(project_lock.scope(), StoreLockScope::ProjectStore);
     assert_eq!(project_lock.project(), &project);
+    assert_eq!(catalog.root(), store.root());
+    assert_eq!(project_lock.root(), store.root());
     Ok(())
 }
 

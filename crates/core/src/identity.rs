@@ -22,8 +22,8 @@ use wepld_contracts::{
     ContentDigest, ContractValueError, GenerationId, IdentityCandidateList,
     IdentityCatalogReservation, IdentityConflictKind, IdentityMatchStrength, IdentityRecordState,
     IdentityReservationState, IdentityResolution, MAX_IDENTITY_CANDIDATES, MachinePath,
-    ProjectContractCodecError, ProjectContractVersion, ProjectId, ProjectIdentityRecord,
-    ProjectLocator, RecordId, StoreLockScope, UnixMillis, WorktreeId, canonical_project_json,
+    Observation, ProjectContractCodecError, ProjectContractVersion, ProjectId,
+    ProjectIdentityRecord, ProjectLocator, RecordId, StoreLockScope, UnixMillis, WorktreeId,
 };
 
 /// Random bytes drawn per opaque identifier.
@@ -58,6 +58,13 @@ pub enum IdentityError {
     },
     /// A reservation was presented for a different project than requested.
     ReservationProjectMismatch,
+    /// Identity was requested while the resolved path observation is
+    /// unavailable.
+    ///
+    /// A failed resolution is a transient condition, not a stable identity fact.
+    /// Deriving identity from it would make the digest depend on whether a
+    /// filesystem call happened to succeed.
+    ResolvedPathUnavailable,
     Contract(ContractValueError),
     Codec(ProjectContractCodecError),
 }
@@ -76,6 +83,10 @@ impl fmt::Display for IdentityError {
             Self::ReservationProjectMismatch => write!(
                 formatter,
                 "catalog reservation does not describe the requested project"
+            ),
+            Self::ResolvedPathUnavailable => write!(
+                formatter,
+                "identity requires an available resolved path observation"
             ),
             Self::Contract(error) => write!(formatter, "contract value error: {error}"),
             Self::Codec(error) => write!(formatter, "contract codec error: {error}"),
@@ -142,6 +153,42 @@ pub fn allocate_record_id() -> Result<RecordId, IdentityError> {
     Ok(RecordId::try_from(random_token("r_")?)?)
 }
 
+/// Narrow byte-oriented path domain tag.
+const PATH_DOMAIN_NARROW: u8 = 0x01;
+
+/// Wide unit-oriented path domain tag.
+const PATH_DOMAIN_WIDE: u8 = 0x02;
+
+/// Encode a machine path so that equivalent paths compare equal.
+///
+/// `MachinePath::Utf8` and `MachinePath::UnixBytes` can carry the exact same
+/// bytes while being distinct contract variants. Digesting the contract encoding
+/// would make identity depend on which constructor a caller happened to use, so
+/// both narrow forms normalise to the same tagged byte string. The wide Windows
+/// form stays a separate domain because it is a genuinely different encoding
+/// rather than a different spelling of the same bytes.
+fn stable_path_bytes(path: &MachinePath) -> Vec<u8> {
+    match path {
+        MachinePath::Utf8(value) => {
+            let mut encoded = vec![PATH_DOMAIN_NARROW];
+            encoded.extend_from_slice(value.as_bytes());
+            encoded
+        }
+        MachinePath::UnixBytes(value) => {
+            let mut encoded = vec![PATH_DOMAIN_NARROW];
+            encoded.extend_from_slice(value);
+            encoded
+        }
+        MachinePath::WindowsWtf16(value) => {
+            let mut encoded = vec![PATH_DOMAIN_WIDE];
+            for unit in value {
+                encoded.extend_from_slice(&unit.to_le_bytes());
+            }
+            encoded
+        }
+    }
+}
+
 fn digest_parts(parts: &[&[u8]]) -> Result<ContentDigest, IdentityError> {
     let mut hasher = Sha256::new();
     for part in parts {
@@ -184,34 +231,38 @@ impl ProjectMatchFacts {
 
     /// Digest of the stable revalidated matching facts.
     ///
-    /// The locator is **not** digested whole. `ProjectLocator::observation_time`
-    /// records when an observation was taken and changes on every open, so
-    /// including it would make the digest volatile: the same unchanged project
-    /// would produce a different digest on each open, no existing binding would
-    /// ever match exactly, and a resumed first open would fail to recognise its
-    /// own reservation and allocate a second identity.
+    /// Only facts that are stable for an unchanged project participate.
     ///
-    /// Only the stable locator components participate: the input path, the
-    /// lexical absolute path, and the resolved-path observation. Each is a
-    /// contract value encoded through the canonical contract codec and digested
-    /// in a fixed order under a domain separation tag, with an explicit field
-    /// separator so component boundaries cannot be forged by concatenation.
+    /// `ProjectLocator::observation_time` is excluded: it changes on every open,
+    /// so including it would make the digest volatile, prevent exact rebinding,
+    /// and make a resumed first open fail to recognise its own reservation.
+    ///
+    /// An unavailable resolved-path observation is rejected rather than
+    /// digested. A failed resolution is a transient condition, and its error
+    /// class would otherwise become identity input: the same project would take
+    /// one identity when resolution succeeded and another when it did not.
+    ///
+    /// Paths are normalised so that equivalent representations agree. The
+    /// components are digested in a fixed order under a domain separation tag
+    /// with explicit length prefixes, so no component boundary can be forged by
+    /// concatenation.
     ///
     /// The digest is unkeyed. It detects drift and supports coherent matching;
     /// it authenticates nothing.
     pub fn facts_digest(&self) -> Result<ContentDigest, IdentityError> {
-        let input = canonical_project_json(&self.locator.input_path)?;
-        let lexical = canonical_project_json(&self.locator.lexical_absolute_path)?;
-        let resolved = canonical_project_json(&self.locator.resolved_path)?;
-        digest_parts(&[
-            MATCH_FACTS_DOMAIN,
-            &input,
-            FIELD_SEPARATOR,
-            &lexical,
-            FIELD_SEPARATOR,
-            &resolved,
-            FIELD_SEPARATOR,
-        ])
+        let Observation::Available { value: resolved } = &self.locator.resolved_path else {
+            return Err(IdentityError::ResolvedPathUnavailable);
+        };
+        let input = stable_path_bytes(&self.locator.input_path);
+        let lexical = stable_path_bytes(&self.locator.lexical_absolute_path);
+        let resolved = stable_path_bytes(resolved);
+        let mut buffer = Vec::with_capacity(input.len() + lexical.len() + resolved.len() + 24);
+        for component in [&input, &lexical, &resolved] {
+            let length = u64::try_from(component.len()).unwrap_or(u64::MAX);
+            buffer.extend_from_slice(&length.to_be_bytes());
+            buffer.extend_from_slice(component);
+        }
+        digest_parts(&[MATCH_FACTS_DOMAIN, &buffer, FIELD_SEPARATOR])
     }
 
     /// Digest of the stable reassociation anchor when one is available.
@@ -219,7 +270,7 @@ impl ProjectMatchFacts {
         match self.reassociation_anchor.as_ref() {
             None => Ok(None),
             Some(anchor) => {
-                let encoded = canonical_project_json(anchor)?;
+                let encoded = stable_path_bytes(anchor);
                 let digest = digest_parts(&[ANCHOR_DOMAIN, &encoded, FIELD_SEPARATOR])?;
                 Ok(Some(digest))
             }

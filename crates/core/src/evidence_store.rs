@@ -148,6 +148,8 @@ pub enum StoreError {
     UnsafeIdentifier,
     /// A project lock guard was presented for a different project.
     WrongProjectLock,
+    /// A lock guard was presented that protects a different store root.
+    ForeignLock,
     Identity(IdentityError),
     Contract(ContractValueError),
     Codec(ProjectContractCodecError),
@@ -175,6 +177,10 @@ impl fmt::Display for StoreError {
             Self::WrongProjectLock => write!(
                 formatter,
                 "project lock guard does not name the project being mutated"
+            ),
+            Self::ForeignLock => write!(
+                formatter,
+                "lock guard protects a different store root than the one being mutated"
             ),
             Self::Identity(error) => write!(formatter, "identity error: {error}"),
             Self::Contract(error) => write!(formatter, "contract value error: {error}"),
@@ -317,11 +323,39 @@ impl Drop for StoreLock {
 #[derive(Debug)]
 pub struct CatalogLock {
     inner: StoreLock,
+    root: PathBuf,
 }
 
 impl CatalogLock {
     pub fn scope(&self) -> StoreLockScope {
         self.inner.scope()
+    }
+
+    /// The store root this guard actually protects.
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
+    fn require_store(&self, store: &EvidenceStore) -> Result<(), StoreError> {
+        if self.root != store.root {
+            return Err(StoreError::ForeignLock);
+        }
+        Ok(())
+    }
+
+    /// Acquire the project lock in the canonical order while holding this guard.
+    ///
+    /// S2-I011 fixes catalog-before-project. Reaching a project lock through the
+    /// held catalog guard makes the ordered path the natural one and keeps the
+    /// two guards bound to the same store.
+    pub fn lock_project(
+        &self,
+        store: &EvidenceStore,
+        project: &ProjectId,
+        cancelled: &dyn Fn() -> bool,
+    ) -> Result<ProjectLock, StoreError> {
+        self.require_store(store)?;
+        store.lock_project(project, cancelled)
     }
 }
 
@@ -335,6 +369,7 @@ impl CatalogLock {
 pub struct ProjectLock {
     inner: StoreLock,
     project: ProjectId,
+    root: PathBuf,
 }
 
 impl ProjectLock {
@@ -346,7 +381,21 @@ impl ProjectLock {
         &self.project
     }
 
-    fn require(&self, project: &ProjectId) -> Result<(), StoreError> {
+    /// The store root this guard actually protects.
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
+    /// A guard proves an operation is protected only when it names both the
+    /// store it was taken from and the project being mutated.
+    ///
+    /// Checking the project alone is insufficient: a guard taken from one store
+    /// root would otherwise appear to protect a mutation applied to a different
+    /// root, where no lock is actually held.
+    fn require(&self, store: &EvidenceStore, project: &ProjectId) -> Result<(), StoreError> {
+        if self.root != store.root {
+            return Err(StoreError::ForeignLock);
+        }
         if &self.project != project {
             return Err(StoreError::WrongProjectLock);
         }
@@ -440,7 +489,7 @@ impl EvidenceStore {
     ///
     /// Callers that need both locks must acquire the identity catalog lock
     /// before the project lock. That order is fixed to prevent deadlock.
-    pub fn acquire_lock(
+    fn acquire_lock(
         &self,
         scope: StoreLockScope,
         project: Option<&ProjectId>,
@@ -478,15 +527,18 @@ impl EvidenceStore {
     pub fn lock_catalog(&self, cancelled: &dyn Fn() -> bool) -> Result<CatalogLock, StoreError> {
         Ok(CatalogLock {
             inner: self.acquire_lock(StoreLockScope::IdentityCatalog, None, cancelled)?,
+            root: self.root.clone(),
         })
     }
 
     /// Acquire the per-project store lock for one exact project. S2-E005.
     ///
-    /// A caller that also needs the catalog lock must use
-    /// [`Self::lock_catalog_then_project`]. Acquiring the catalog lock while
-    /// already holding a project lock inverts the canonical order and is not a
-    /// supported sequence.
+    /// Use this only for operations that need no catalog access. A caller that
+    /// also needs the catalog lock must use [`Self::lock_catalog_then_project`]
+    /// or [`CatalogLock::lock_project`]. Acquiring the catalog lock while
+    /// already holding a project lock inverts the canonical order and is
+    /// prohibited; it is not prevented by the type system, and it degrades to a
+    /// bounded stable busy error rather than a deadlock.
     pub fn lock_project(
         &self,
         project: &ProjectId,
@@ -495,21 +547,36 @@ impl EvidenceStore {
         Ok(ProjectLock {
             inner: self.acquire_lock(StoreLockScope::ProjectStore, Some(project), cancelled)?,
             project: project.clone(),
+            root: self.root.clone(),
         })
     }
 
     /// Acquire both locks in the canonical order: catalog first, then project.
     ///
-    /// S2-I011 fixes this order to prevent deadlock. This is the only operation
-    /// that yields both guards, so a caller cannot obtain them in the reverse
-    /// order through the supported API.
+    /// S2-I011 fixes this order to prevent deadlock.
+    ///
+    /// # Enforcement boundary
+    ///
+    /// This is the supported way to obtain both guards, and
+    /// [`CatalogLock::lock_project`] is the only route to a project guard from a
+    /// held catalog guard. The ordering is **not** fully enforced by the type
+    /// system: [`Self::lock_project`] remains public because project-only
+    /// operations legitimately need it, so a caller could still take a project
+    /// guard first and then call [`Self::lock_catalog`].
+    ///
+    /// That residual case is stated rather than papered over. It does not
+    /// deadlock, because acquisition is bounded: the reversed caller fails with
+    /// a stable busy error after the deadline instead of waiting forever.
+    /// Expressing the prohibition in the type system would require a session or
+    /// type-state design that makes concurrent project work in one process
+    /// impossible, which costs more than the residual risk.
     pub fn lock_catalog_then_project(
         &self,
         project: &ProjectId,
         cancelled: &dyn Fn() -> bool,
     ) -> Result<(CatalogLock, ProjectLock), StoreError> {
         let catalog = self.lock_catalog(cancelled)?;
-        let project_lock = self.lock_project(project, cancelled)?;
+        let project_lock = catalog.lock_project(self, project, cancelled)?;
         Ok((catalog, project_lock))
     }
 
@@ -606,9 +673,10 @@ impl EvidenceStore {
     /// The caller must hold the identity catalog lock.
     pub fn write_reservation(
         &self,
-        _catalog: &CatalogLock,
+        catalog: &CatalogLock,
         reservation: &IdentityCatalogReservation,
     ) -> Result<(), StoreError> {
+        catalog.require_store(self)?;
         let bytes = canonical_project_json(reservation)?;
         let path = self.reservation_path(&reservation.project_id)?;
         self.write_atomic(None, &path, &bytes)
@@ -709,7 +777,7 @@ impl EvidenceStore {
         record: &RecordId,
         bytes: &[u8],
     ) -> Result<RecordDigest, StoreError> {
-        lock.require(project)?;
+        lock.require(self, project)?;
         if bytes.len() > MAX_RECORD_BYTES {
             return Err(StoreError::TooLarge {
                 limit: MAX_RECORD_BYTES,
@@ -729,7 +797,7 @@ impl EvidenceStore {
         lock: &ProjectLock,
         manifest: &ProjectGenerationManifest,
     ) -> Result<ContentDigest, StoreError> {
-        lock.require(&manifest.project_id)?;
+        lock.require(self, &manifest.project_id)?;
         let bytes = canonical_project_json(manifest)?;
         if bytes.len() > MAX_MANIFEST_BYTES {
             return Err(StoreError::TooLarge {
@@ -761,7 +829,7 @@ impl EvidenceStore {
         project: &ProjectId,
         generation: &GenerationId,
     ) -> Result<ProjectCurrentRef, StoreError> {
-        lock.require(project)?;
+        lock.require(self, project)?;
         let manifest_digest = self.validate_generation(project, generation)?;
         let current = ProjectCurrentRef {
             schema_version: ProjectContractVersion::V1,

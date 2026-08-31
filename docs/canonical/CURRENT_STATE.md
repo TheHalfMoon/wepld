@@ -238,10 +238,12 @@ ACCEPTED_HEAD = bdebfbaa8f146115321e6d204da9e49d367047e2
 ACCEPTED_TREE = c1b7f68992211f28aac8b4ad4dff54db1b18939f
 SCOPE = EXACT_FOUR_GOVERNED_PRODUCT_PATHS
 INDEPENDENT_REVIEW = SATISFIED / REVIEW_COMPLETE_CLEAN
-INDEPENDENT_REVIEW_ROUNDS = 17
+INDEPENDENT_REVIEW_ROUNDS = 17_BY_PROJECT_DEFINITION_NOT_A_GITHUB_CONCEPT
 UNRESOLVED_MATERIAL_FINDINGS_AT_ACCEPTANCE = 0
 UNRESOLVED_REVIEW_THREADS_AT_ACCEPTANCE = 0
 ```
+
+A review round is a project concept. GitHub exposes reviews, comments and timeline events and has no notion of a round, so that count cannot be reproduced from the API and is narrative rather than platform-verifiable. Every other value in the block above can be checked against GitHub directly.
 
 The merge canonicalizes product code only. It performs no dependency admission, source admission, Doctor/CLI expansion, process or Git execution, network access, model or provider execution, and no S3+ authority.
 

@@ -610,6 +610,51 @@ fn equivalent_path_representations_agree() -> TestResult {
 }
 
 #[test]
+fn facts_digest_does_not_canonicalise_the_resolved_path() -> TestResult {
+    // A characterisation, not a regression: it passes against the current
+    // implementation by design and exists so the precondition stays visible.
+    //
+    // The digest reconciles contract representations of a path, not spellings of
+    // a location. Canonicalisation is the observer's job:
+    // observe_project_locator fills resolved_path from std::fs::canonicalize.
+    // This layer has no filesystem access and therefore cannot tell `/a/./b`
+    // from `/a/b`, so two hand-built locators that differ only in that way carry
+    // two identities.
+    //
+    // The neighbouring spelling test varies input_path and lexical_absolute_path
+    // while holding resolved_path fixed; it proves caller spelling is excluded.
+    // It does not speak to this, which is why this case is stated separately
+    // instead of being read into that one.
+    let canonical = MachinePath::utf8("/projects/canonical")?;
+    let dotted = MachinePath::utf8("/projects/./canonical")?;
+
+    let facts_of = |resolved: MachinePath| {
+        ProjectMatchFacts::new(ProjectLocator {
+            schema_version: ProjectContractVersion::V1,
+            input_path: resolved.clone(),
+            lexical_absolute_path: resolved.clone(),
+            resolved_path: Observation::Available { value: resolved },
+            observation_time: UnixMillis::new(1_000),
+        })
+    };
+
+    assert_ne!(
+        facts_of(canonical.clone()).facts_digest()?,
+        facts_of(dotted).facts_digest()?,
+        "an uncanonicalised resolved path is a different identity, and the \
+         documentation must not promise otherwise"
+    );
+
+    // Representation, as opposed to spelling, is reconciled.
+    let same_bytes = MachinePath::unix_bytes(b"/projects/canonical".to_vec())?;
+    assert_eq!(
+        facts_of(canonical).facts_digest()?,
+        facts_of(same_bytes).facts_digest()?
+    );
+    Ok(())
+}
+
+#[test]
 fn equivalent_input_spellings_resolve_to_one_identity() -> TestResult {
     // input_path is caller-supplied spelling. The same project named through a
     // dot component, or through a different input entirely, must not split into
@@ -2108,6 +2153,52 @@ fn an_unsupported_persisted_schema_version_is_reported_as_corruption() -> TestRe
             Err(StoreError::Defect(StoreDefect::ManifestCorrupt))
         ),
         "a future manifest version currently arrives as corruption too"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_reservation_this_store_could_never_have_written_is_a_typed_defect() -> TestResult {
+    // The contract identifier charset is wider than the path projection: it
+    // admits `.` and `:`, which safe_path_segment refuses. So an identifier can
+    // be perfectly valid as a contract value and still be one this store can
+    // never write or address.
+    //
+    // Binding a reservation to its filename alone accepted exactly that case,
+    // because the record and the name agreed with each other while agreeing on
+    // something unwritable. Enumeration then handed a caller a reservation for a
+    // project it could not open. The binding is a path comparison now, so the
+    // record is valid only where this store itself would have filed it.
+    let root = temp_root("unwritablereservation")?;
+    let store = EvidenceStore::new(&root);
+    store.initialize()?;
+    let facts = facts_at("/projects/unwritable")?;
+
+    let unwritable = ProjectId::try_from("p_a.b")?;
+    assert!(
+        safe_path_segment(unwritable.as_str()).is_err(),
+        "the fixture identifier must be one the path projection refuses"
+    );
+
+    let reservation = build_reservation(unwritable.clone(), &facts, UnixMillis::new(1))?;
+    let path = root
+        .join("catalog")
+        .join("reservations")
+        .join(format!("{}.json", unwritable.as_str()));
+    fs::create_dir_all(path.parent().ok_or("reservation parent")?)?;
+    fs::write(&path, canonical_project_json(&reservation)?)?;
+
+    let listed = store.list_reservations()?;
+    assert_eq!(listed.len(), 1, "the file must still be observed");
+    assert!(
+        matches!(
+            listed
+                .into_iter()
+                .next()
+                .ok_or("one entry must be listed")?,
+            Err(StoreDefect::ProjectMismatch)
+        ),
+        "a reservation at a path this store could not have written must not enumerate as valid"
     );
     Ok(())
 }

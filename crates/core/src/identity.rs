@@ -159,7 +159,10 @@ const PATH_DOMAIN_NARROW: u8 = 0x01;
 /// Wide unit-oriented path domain tag.
 const PATH_DOMAIN_WIDE: u8 = 0x02;
 
-/// Encode a machine path so that equivalent paths compare equal.
+/// Encode a machine path so that equivalent *representations* compare equal.
+///
+/// This reconciles how a path is spelled in the contract, not where it points.
+/// It performs no canonicalisation: see [`ProjectMatchFacts::facts_digest`].
 ///
 /// `MachinePath::Utf8` and `MachinePath::UnixBytes` can carry the exact same
 /// bytes while being distinct contract variants. Digesting the contract encoding
@@ -255,9 +258,27 @@ impl ProjectMatchFacts {
     /// A failed resolution is transient, and its error class must never become
     /// identity input.
     ///
-    /// The path is normalised so equivalent representations agree, and is framed
-    /// with an explicit length prefix under a domain separation tag so no
-    /// boundary can be forged by concatenation.
+    /// The encoded path is framed with an explicit length prefix under a domain
+    /// separation tag, so no boundary can be forged by concatenation.
+    ///
+    /// # Precondition: the resolved path is already canonical
+    ///
+    /// This module is a pure decision layer with no filesystem access, so it
+    /// cannot canonicalise anything, and it does not try. It relies on the
+    /// observer: [`crate::project::observe_project_locator`] fills
+    /// `resolved_path` from `std::fs::canonicalize`, which is what removes `.`
+    /// and `..` components and resolves links.
+    ///
+    /// Equivalent contract *representations* of that path are reconciled, since
+    /// the two narrow variants can carry identical bytes. Equivalent *spellings*
+    /// are not. A caller that hand-builds a locator whose `resolved_path` is
+    /// `/a/./b` rather than `/a/b` gets a different digest for the same
+    /// location, and nothing here can detect that, because separating the two
+    /// requires the filesystem this layer deliberately does not touch.
+    ///
+    /// An earlier version of this comment said the path was normalised here.
+    /// That was false, and it would have let a maintainer rely on a guarantee
+    /// this layer cannot give.
     ///
     /// This digest is a matching key, not the identity itself. WePLD owns
     /// `ProjectId`; a resolved path is evidence used to rebind to it.

@@ -1046,11 +1046,18 @@ impl EvidenceStore {
     /// so corruption cannot silently reduce the candidate set and cause a second
     /// identity to be allocated for an already-reserved project.
     ///
-    /// Each entry is also bound to the project its filename names, so a well
-    /// formed reservation filed under another project's name is reported as
-    /// [`StoreDefect::ProjectMismatch`] rather than enumerated as valid. A
-    /// filename that is not a project identifier at all is the same defect: it
-    /// cannot agree with any record it holds.
+    /// Each entry is also bound to the exact path this store would have written
+    /// it to. A well formed reservation filed under another project's name is
+    /// reported as [`StoreDefect::ProjectMismatch`] rather than enumerated as
+    /// valid, and so is one whose name this store could never have produced.
+    ///
+    /// The binding is a path comparison rather than a name comparison on
+    /// purpose. The contract identifier charset is wider than the path
+    /// projection: it admits `.` and `:`, which [`safe_path_segment`] refuses.
+    /// Comparing decoded identifier against filename alone would therefore
+    /// accept a hand-placed record whose identifier agrees with its name and
+    /// which this store could still never write or address, leaving a caller
+    /// holding a reservation for a project it cannot open.
     pub fn list_reservations(
         &self,
     ) -> Result<Vec<Result<IdentityCatalogReservation, StoreDefect>>, StoreError> {
@@ -1083,13 +1090,10 @@ impl EvidenceStore {
                     }
                     Err(error) => return Err(error),
                 };
-            let named = path
-                .file_stem()
-                .and_then(|stem| stem.to_str())
-                .and_then(|stem| ProjectId::try_from(stem).ok());
             match decode_project_json::<IdentityCatalogReservation>(&bytes) {
                 Ok(reservation) if reservation.schema_version == ProjectContractVersion::V1 => {
-                    if named.as_ref() == Some(&reservation.project_id) {
+                    let expected = self.reservation_path(&reservation.project_id).ok();
+                    if expected.as_deref() == Some(path.as_path()) {
                         found.push(Ok(reservation));
                     } else {
                         found.push(Err(StoreDefect::ProjectMismatch));

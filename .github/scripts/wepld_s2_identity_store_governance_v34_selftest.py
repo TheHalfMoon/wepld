@@ -135,17 +135,33 @@ def _check_transition_refuses_drift() -> None:
         )
 
 
-def _check_ledger_projection() -> None:
-    """A pinned ledger is not rewritten; any other ledger fails closed."""
-    if p._ledger_baseline(p.root) is not None:
-        base.fail("v34 must not project a ledger that is already the pinned bytes")
+def _check_ledger_pin_widening() -> None:
+    """The inherited pin accepts exactly one more value, and is restored.
 
+    The first design reconstructed the pinned ledger bytes instead. That was
+    wrong in a way worth recording: it could only work on a tree that still
+    carried the pre-transition ledger, so the policy would have failed on
+    canonical main the moment its own transition merged. Widening the pin by one
+    value needs no bytes and survives its own transition.
+    """
+    if p._V18.FINAL_LEARNING_BLOB != p.PRE_LEDGER_BLOB:
+        base.fail("v34 inherited S1-016 ledger pin is not at its pinned value")
+
+    # The pinned tree still evaluates, and the pin is untouched afterwards.
+    p._state(p.root)
+    if p._V18.FINAL_LEARNING_BLOB != p.PRE_LEDGER_BLOB:
+        base.fail("v34 left the inherited ledger pin widened after a pinned call")
+
+    # A ledger that is neither blob reaches the inherited failure unchanged, and
+    # the pin is restored even on that path.
     drifted = p.root.read_bytes(p.LEDGER, base.MAX_POLICY_FILE_BYTES) + b"\ndrift\n"
     view = OverlayView(p.root, {p.LEDGER: drifted})
     _expect_failure(
         "ledger that is neither the pinned nor the authorized blob",
-        lambda: p._ledger_baseline(view),
+        lambda: p._state(view),
     )
+    if p._V18.FINAL_LEARNING_BLOB != p.PRE_LEDGER_BLOB:
+        base.fail("v34 left the inherited ledger pin widened after a failing call")
 
 
 def _check_workflow_projection_reverses() -> None:
@@ -191,7 +207,7 @@ def run() -> None:
     _check_pins_are_distinct()
     _check_transition_refuses_the_pre_state()
     _check_transition_refuses_drift()
-    _check_ledger_projection()
+    _check_ledger_pin_widening()
     _check_workflow_projection_reverses()
     _check_workflow_projection_rejects_drift()
     _check_freeze_still_symmetric()

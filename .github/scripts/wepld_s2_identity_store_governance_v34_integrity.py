@@ -18,11 +18,16 @@ lists that file first in its mandatory read order, and the file itself is the
 project's durable continuation memory, so it cannot be corrected either.
 
 v34 authorizes exactly one two-file transition between exact pinned blobs, and
-projects the ledger back to its pinned bytes for every predecessor call so the
-inherited S1-016 state evaluation continues to see the tree it froze. Nothing
+widens the inherited S1-016 ledger pin by exactly one value so the evaluation
+accepts the authorized post-transition ledger as well as the pinned one. Nothing
 else changes: no dependency, product, source, filesystem, process, Git, network,
 model/provider, Doctor/CLI, or S3+ authority is added, and no other path becomes
 writable.
+
+The pin is widened rather than the bytes reconstructed. Reconstruction was the
+first design and it was wrong: it could only work on a tree that still carried
+the pre-transition ledger, so the policy would have failed on canonical main the
+moment its own transition merged.
 
 The transition is one-way and exact. After it merges, the only ledger and
 checkpoint bytes this policy accepts are the post-transition ones, so this
@@ -55,7 +60,7 @@ PREDECESSOR_CHAIN = (q,) + q.PREDECESSOR_CHAIN
 
 P = ".github/scripts/wepld_s2_identity_store_governance_v34_integrity.py"
 T = ".github/scripts/wepld_s2_identity_store_governance_v34_selftest.py"
-T_BLOB = "eaf537ff14766124aafb2d81cc018620047e6708"
+T_BLOB = "44fa31fdffc8657fd47cc4b8170f9dcb71959a79"
 V33_P_BLOB = "f2a7626fcead2984749457b203dcd2523f6982a2"
 V33_T_BLOB = "e2eb9fa5a6393305a6465be71aea53bb2193a586"
 
@@ -119,30 +124,48 @@ _ProjectionView = q._ProjectionView
 _INST = False
 _PRINT: Any = None
 
-# The pinned ledger bytes, read once from the canonical tree this policy was
-# frozen against. The projection needs the bytes themselves and not merely their
-# hash, because the inherited S1-016 evaluation reads the file.
-_PINNED_LEDGER: bytes | None = None
+# The inherited S1-016 evaluation that pins the ledger.
+#
+# `state()` is reached from `files()`, which runs against every view, so the pin
+# is global rather than delta-scoped. v34 has to widen it by exactly one value
+# and no more.
+_V18_NAME = "wepld_s1_admission_steady_state_routing_v18_integrity"
+_V18 = sys.modules.get(_V18_NAME)
+if _V18 is None:
+    base.fail(f"v34 could not observe the inherited S1-016 evaluation: {_V18_NAME}")
+_V18_STATE = _attr(_V18, "state", "S1-016 state evaluation")
+if _attr(_V18, "FINAL_LEARNING_BLOB", "S1-016 ledger pin") != PRE_LEDGER_BLOB:
+    base.fail(
+        "v34 expected the inherited S1-016 ledger pin to equal the pinned "
+        "pre-transition blob"
+    )
+if _attr(_V18, "LEARNING", "S1-016 ledger path") != LEDGER:
+    base.fail("v34 expected the inherited S1-016 ledger path to match")
 
 
-def _pinned_ledger() -> bytes:
-    global _PINNED_LEDGER
-    if _PINNED_LEDGER is None:
-        data = root.read_bytes(LEDGER, base.MAX_POLICY_FILE_BYTES)
-        actual = V25.blob(data)
-        if actual not in (PRE_LEDGER_BLOB, FINAL_LEDGER_BLOB):
-            base.fail(
-                "v34 local ledger is neither the exact pinned pre-transition nor "
-                f"the exact authorized post-transition blob: actual={actual}"
-            )
-        if actual == FINAL_LEDGER_BLOB:
-            base.fail(
-                "v34 cannot recover the pinned pre-transition ledger bytes from a "
-                "tree that already carries the transition; the projection needs "
-                "the pre-transition bytes"
-            )
-        _PINNED_LEDGER = data
-    return _PINNED_LEDGER
+def _state(view: Any) -> Any:
+    """Accept the authorized post-transition ledger, and nothing else new.
+
+    The inherited evaluation pins one ledger blob. Rather than reconstructing the
+    pinned bytes, which a tree carrying the transition no longer has, this widens
+    the pin to the authorized post-transition value for the duration of one call
+    and restores it immediately. Every other check inside the inherited
+    evaluation runs unchanged, and any ledger that is neither pinned blob reaches
+    the original failure.
+
+    Reconstructing bytes was the first design and it was wrong: it could only
+    work on a tree that still carried the pre-transition ledger, so the policy
+    would have failed on canonical main the moment its own transition merged.
+    """
+    actual = V25.blob(view.read_bytes(LEDGER, base.MAX_POLICY_FILE_BYTES))
+    if actual != FINAL_LEDGER_BLOB:
+        return _V18_STATE(view)
+    original = _V18.FINAL_LEARNING_BLOB
+    _V18.FINAL_LEARNING_BLOB = FINAL_LEDGER_BLOB
+    try:
+        return _V18_STATE(view)
+    finally:
+        _V18.FINAL_LEARNING_BLOB = original
 
 
 def bootbase(view: Any) -> bool:
@@ -159,26 +182,6 @@ def req_v33(view: Any) -> None:
                 f"frozen v33 predecessor drifted: {path}: "
                 f"expected={expected} actual={actual}"
             )
-
-
-def _ledger_baseline(view: Any) -> bytes | None:
-    """Reverse an authorized post-transition ledger to its pinned bytes.
-
-    Returns `None` when the view already carries the pinned bytes, so a
-    pre-transition tree is never rewritten. Any other ledger fails closed.
-    """
-    if LEDGER not in V25.ps(view):
-        return None
-    data = view.read_bytes(LEDGER, base.MAX_POLICY_FILE_BYTES)
-    actual = V25.blob(data)
-    if actual == PRE_LEDGER_BLOB:
-        return None
-    if actual != FINAL_LEDGER_BLOB:
-        base.fail(
-            "v34 Build Learning ledger is neither the exact pinned pre-transition "
-            f"nor the exact authorized post-transition blob: actual={actual}"
-        )
-    return _pinned_ledger()
 
 
 def _workflow_replacements(view: Any) -> dict[str, bytes]:
@@ -204,11 +207,7 @@ def _workflow_replacements(view: Any) -> dict[str, bytes]:
 
 
 def _predecessor_replacements(view: Any) -> dict[str, bytes]:
-    replacements = _workflow_replacements(view)
-    baseline = _ledger_baseline(view)
-    if baseline is not None:
-        replacements[LEDGER] = baseline
-    return replacements
+    return _workflow_replacements(view)
 
 
 def _predecessor_projection(view: Any) -> Any:
@@ -218,7 +217,7 @@ def _predecessor_projection(view: Any) -> Any:
 def _run_under_predecessor_projection(
     view: Any, label: str, fn: Callable[[], Any]
 ) -> Any:
-    """Run a predecessor entry point against the pinned documentation view."""
+    """Run a predecessor entry point against the projected workflow view."""
     replacements = _predecessor_replacements(view)
     target = _ProjectionView(view, replacements)
 
@@ -378,7 +377,7 @@ def printer(stage: str, mode_: str) -> None:
     print(f"dependency_admission_v34={DEPENDENCY_ADMISSION}")
     print(f"source_admission_v34={SOURCE_ADMISSION}")
     print("v34_documentation_transition=EXACT_TWO_PATH_PINNED_ONE_WAY")
-    print("v34_ledger_projection=PINNED_PRE_TRANSITION_BYTES_FOR_PREDECESSORS")
+    print("v34_ledger_pin=WIDENED_BY_EXACTLY_ONE_AUTHORIZED_BLOB")
 
 
 def overlay() -> None:
@@ -400,6 +399,10 @@ def overlay() -> None:
         base.fail("v34 installed overlay drifted")
     if any(dict(module.WF) != dict(WF) for module in PREDECESSOR_CHAIN):
         base.fail("v34 workflow identity projection drifted")
+    if _attr(_V18, "state", "S1-016 state hook") is not _state:
+        base.fail("v34 S1-016 ledger-pin widening drifted")
+    if _V18.FINAL_LEARNING_BLOB != PRE_LEDGER_BLOB:
+        base.fail("v34 left the inherited S1-016 ledger pin widened after a call")
 
 
 def prepare_q() -> None:
@@ -457,6 +460,7 @@ def install() -> None:
     _bind(shell, "validate_allowed_paths", allowed, "v34 allowed hook")
     _bind(shell, "verify_policy_files", files, "v34 files hook")
     _bind(shell, "print_success", printer, "v34 printer hook")
+    _bind(_V18, "state", _state, "v34 S1-016 ledger-pin widening")
     _INST = True
     overlay()
 

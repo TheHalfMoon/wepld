@@ -164,26 +164,35 @@ def _check_view_is_self_consistent() -> None:
         )
 
 
-def _check_partial_tranche_fails_closed() -> None:
-    """The authorized export may not appear beside an incomplete product set.
+def _check_incomplete_tranche_fails_closed() -> None:
+    """The authorized export may only coexist with the complete product set.
 
-    Constructed by omitting product paths so the case holds on both a
-    pre-tranche and a post-tranche tree.
+    Both a strict nonempty subset and the empty set are incoherent states and
+    must fail closed. The empty set matters because a genuine pre-tranche tree is
+    already excluded earlier by its baseline export, so an admitted export with
+    no tranche product files is never legitimate.
     """
-    kept = frozenset({p.V25.IDENTITY_MODULE})
-    view = OverlayView(
-        p.root,
-        {p.CORE_EXPORT: p.ADMITTED_CORE_EXPORT},
-        kept,
-        p.TRANCHE_PRODUCT_PATHS - kept,
-    )
-    present = p.TRANCHE_PRODUCT_PATHS & p.V25.ps(view)
-    if present != kept:
-        base.fail(f"v33 self-test could not construct a partial tranche: {sorted(present)}")
-    _expect_failure(
-        "authorized export with an incomplete tranche product set",
-        lambda: p.pretranche_omissions(view),
-    )
+    for kept in (
+        frozenset({p.V25.IDENTITY_MODULE}),
+        frozenset({p.V25.IDENTITY_MODULE, p.V25.STORE_MODULE}),
+        frozenset(),
+    ):
+        view = OverlayView(
+            p.root,
+            {p.CORE_EXPORT: p.ADMITTED_CORE_EXPORT},
+            kept,
+            p.TRANCHE_PRODUCT_PATHS - kept,
+        )
+        present = p.TRANCHE_PRODUCT_PATHS & p.V25.ps(view)
+        if present != kept:
+            base.fail(
+                f"v33 self-test could not construct tranche subset {sorted(kept)}: "
+                f"{sorted(present)}"
+            )
+        _expect_failure(
+            f"authorized export with tranche product set {sorted(kept)}",
+            lambda view=view: p.pretranche_omissions(view),
+        )
 
 
 def _check_entry_projection_is_wrapper_only() -> None:
@@ -251,7 +260,7 @@ def run() -> None:
     _check_no_omission_without_projection()
     _check_omission_covers_the_exact_tranche()
     _check_view_is_self_consistent()
-    _check_partial_tranche_fails_closed()
+    _check_incomplete_tranche_fails_closed()
     _check_entry_projection_is_wrapper_only()
     _check_workflow_projection_reverses()
     _check_workflow_projection_rejects_drift()

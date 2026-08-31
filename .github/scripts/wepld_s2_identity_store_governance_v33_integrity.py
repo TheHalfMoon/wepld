@@ -67,7 +67,7 @@ PREDECESSOR_CHAIN = (p, V31, V30, V29, V28, V27, V26, V25)
 
 P = ".github/scripts/wepld_s2_identity_store_governance_v33_integrity.py"
 T = ".github/scripts/wepld_s2_identity_store_governance_v33_selftest.py"
-T_BLOB = "8b969d85b61164f8874b9d05c8743b057f8e16c1"
+T_BLOB = "e2eb9fa5a6393305a6465be71aea53bb2193a586"
 V32_P_BLOB = "dc8ef1f96a9134d3355958ff663a8c42c68ee19c"
 V32_T_BLOB = "f34f832c892a32c186c78cdcfb3807892784ebf7"
 
@@ -243,19 +243,21 @@ def pretranche_omissions(view: Any) -> frozenset[str]:
     """Exact tranche paths to omit so the projected view stays self-consistent.
 
     Nothing is omitted unless the export is exactly the authorized post-tranche
-    form. When it is, every tranche product path present in the view is omitted
-    together with the export projection, so the frozen fixture derivation and the
-    frozen product verifier observe the same canonical pre-tranche tree.
+    form. When it is, the complete tranche product set is omitted together with
+    the export projection, so the frozen fixture derivation and the frozen
+    product verifier observe the same canonical pre-tranche tree.
 
-    A partially present tranche is rejected rather than partially hidden: the
-    authorized export exists only alongside the complete product set.
+    Any product set other than the complete one is rejected rather than
+    partially hidden. That includes the empty set: an authorized export with no
+    tranche product files is an incoherent state, not a pre-tranche tree, and a
+    pre-tranche tree is already excluded because its export is the baseline.
     """
     if _core_export_baseline(view) is None:
         return frozenset()
     present = frozenset(TRANCHE_PRODUCT_PATHS & V25.ps(view))
-    if present and present != TRANCHE_PRODUCT_PATHS:
+    if present != TRANCHE_PRODUCT_PATHS:
         base.fail(
-            "v33 authorized Core export is present with an incomplete tranche "
+            "v33 authorized Core export is present without the complete tranche "
             f"product set: {sorted(present)}"
         )
     return present

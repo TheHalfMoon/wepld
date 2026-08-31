@@ -8,15 +8,9 @@ import wepld_s2_git_route_governance_v34_integrity as p
 
 
 class OverlayView:
-    def __init__(
-        self,
-        view: Any,
-        replacements: dict[str, bytes],
-        omit_paths: frozenset[str] = frozenset(),
-    ) -> None:
+    def __init__(self, view: Any, replacements: dict[str, bytes]) -> None:
         self._view = view
         self._replacements = replacements
-        self._omit_paths = omit_paths
 
     def read_bytes(self, path: str, max_bytes: int) -> bytes:
         if path in self._replacements:
@@ -30,7 +24,7 @@ class OverlayView:
         return self.read_bytes(path, limit).decode("utf-8", errors="strict")
 
     def entries(self) -> Any:
-        return [entry for entry in self._view.entries() if entry.path not in self._omit_paths]
+        return self._view.entries()
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._view, name)
@@ -69,23 +63,41 @@ def _check_authority_markers() -> None:
         base.fail("v34 next authority gate drift")
 
 
-def _check_decision_is_exact() -> None:
-    p.verify_decision(p.root)
-    observed = p.root.read_bytes(p.DECISION, base.MAX_POLICY_FILE_BYTES)
-    if observed != p.DECISION_BYTES:
-        base.fail("v34 decision bytes drifted")
-
-
-def _check_decision_drift_fails_closed() -> None:
-    changed = p.DECISION_BYTES.replace(
-        b"GIT_EXECUTION_AUTHORITY = NONE",
-        b"GIT_EXECUTION_AUTHORITY = BOUNDED",
-        1,
+def _check_qualification_contract_is_closed() -> None:
+    required = frozenset(
+        {
+            "RESOLVED_ABSOLUTE_EXECUTABLE_ONLY",
+            "REJECT_PROJECT_LOCAL_GIT_SPOOF",
+            "CLOSED_ENUM_TO_EXACT_ARGV",
+            "NO_SHELL_PAGER_PROMPT_OPTIONAL_LOCKS",
+            "BOUNDED_STDOUT_STDERR_HARD_TIMEOUT",
+            "SCRUB_GIT_CONFIG_AND_REPOSITORY_REDIRECTION_ENV",
+            "PRESERVE_NATIVE_SAFE_DIRECTORY_REFUSAL",
+            "NO_HOOKS",
+            "NO_NETWORK",
+            "PROVE_TREE_INDEX_NON_MUTATION",
+            "NO_SILENT_BINARY_FALLBACK",
+            "WINDOWS_LINUX_MACOS_OR_EXPLICIT_LIMITATION",
+        }
     )
-    if changed == p.DECISION_BYTES:
-        base.fail("v34 decision drift fixture did not change the decision")
-    view = OverlayView(p.root, {p.DECISION: changed})
-    _expect_failure("decision authority widening", lambda: p.verify_decision(view))
+    observed = frozenset(p.GIT_ROUTE_QUALIFICATION_CONTRACT)
+    if observed != required:
+        base.fail(
+            "v34 Git-route qualification contract drifted: "
+            f"expected={sorted(required)} actual={sorted(observed)}"
+        )
+    if len(p.GIT_ROUTE_QUALIFICATION_CONTRACT) != len(observed):
+        base.fail("v34 Git-route qualification contract contains duplicates")
+
+
+def _check_command_family_is_specification_only() -> None:
+    if p.GIT_TOPOLOGY_COMMAND_FAMILY != (
+        "rev-parse:closed_allowlisted_topology_query",
+        "worktree:list:porcelain-z",
+    ):
+        base.fail("v34 candidate Git command family drift")
+    if p.GIT_PROCESS_ADMISSION != "NONE" or p.GIT_EXECUTION_AUTHORITY != "NONE":
+        base.fail("v34 command-family specification must not execute itself")
 
 
 def _check_workflow_projection_reverses() -> None:
@@ -112,18 +124,11 @@ def _check_workflow_projection_rejects_drift() -> None:
 
 
 def _check_bootstrap_scope_is_closed() -> None:
-    expected = frozenset({p.P, p.T, p.DECISION, p.FW, p.AW})
+    expected = frozenset({p.P, p.T, p.FW, p.AW})
     if p.BOOT != expected:
         base.fail(f"v34 bootstrap path set drifted: {sorted(p.BOOT)}")
-    if p.DECISION not in p.CONTROLLED_FILES:
-        base.fail("v34 decision must be policy-controlled")
-    if p.FW in p.CONTROLLED_FILES or p.AW in p.CONTROLLED_FILES:
-        base.fail("v34 workflows remain base-controlled, not ordinary extension files")
-
-
-def _check_missing_decision_fails_closed() -> None:
-    view = OverlayView(p.root, {}, frozenset({p.DECISION}))
-    _expect_failure("missing route decision", lambda: p.verify_decision(view))
+    if p.CONTROLLED_FILES != frozenset({p.P, p.T}):
+        base.fail("v34 controlled file set must be exactly the two policy files")
 
 
 def run() -> None:
@@ -131,11 +136,10 @@ def run() -> None:
     p.install()
 
     _check_authority_markers()
-    _check_decision_is_exact()
-    _check_decision_drift_fails_closed()
+    _check_qualification_contract_is_closed()
+    _check_command_family_is_specification_only()
     _check_workflow_projection_reverses()
     _check_workflow_projection_rejects_drift()
     _check_bootstrap_scope_is_closed()
-    _check_missing_decision_fails_closed()
 
     print("wepld v34 S2 Git-route decision self-tests: PASS")

@@ -182,13 +182,36 @@ impl ProjectMatchFacts {
         }
     }
 
-    /// Digest of the exact revalidated matching facts.
+    /// Digest of the stable revalidated matching facts.
+    ///
+    /// The locator is **not** digested whole. `ProjectLocator::observation_time`
+    /// records when an observation was taken and changes on every open, so
+    /// including it would make the digest volatile: the same unchanged project
+    /// would produce a different digest on each open, no existing binding would
+    /// ever match exactly, and a resumed first open would fail to recognise its
+    /// own reservation and allocate a second identity.
+    ///
+    /// Only the stable locator components participate: the input path, the
+    /// lexical absolute path, and the resolved-path observation. Each is a
+    /// contract value encoded through the canonical contract codec and digested
+    /// in a fixed order under a domain separation tag, with an explicit field
+    /// separator so component boundaries cannot be forged by concatenation.
     ///
     /// The digest is unkeyed. It detects drift and supports coherent matching;
     /// it authenticates nothing.
     pub fn facts_digest(&self) -> Result<ContentDigest, IdentityError> {
-        let encoded = canonical_project_json(&self.locator)?;
-        digest_parts(&[MATCH_FACTS_DOMAIN, &encoded, FIELD_SEPARATOR])
+        let input = canonical_project_json(&self.locator.input_path)?;
+        let lexical = canonical_project_json(&self.locator.lexical_absolute_path)?;
+        let resolved = canonical_project_json(&self.locator.resolved_path)?;
+        digest_parts(&[
+            MATCH_FACTS_DOMAIN,
+            &input,
+            FIELD_SEPARATOR,
+            &lexical,
+            FIELD_SEPARATOR,
+            &resolved,
+            FIELD_SEPARATOR,
+        ])
     }
 
     /// Digest of the stable reassociation anchor when one is available.

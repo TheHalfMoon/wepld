@@ -27,7 +27,7 @@ use wepld_contracts::{
     MachinePath, Observation, ProjectContractVersion, ProjectCurrentRef, ProjectId, ProjectLocator,
     RecordDigest, StoreAuthenticity, StoreLockScope, UnixMillis, canonical_project_json,
 };
-use wepld_core::evidence_store::{EvidenceStore, StoreDefect, StoreError};
+use wepld_core::evidence_store::{EvidenceStore, ProjectLock, StoreDefect, StoreError};
 use wepld_core::identity::{
     IdentityCandidate, ProjectMatchFacts, ReservationRecovery, allocate_generation_id,
     allocate_project_id, allocate_record_id, allocate_worktree_id, build_identity_record,
@@ -128,14 +128,29 @@ const INDEX_PAYLOAD: &[u8] = b"{\"kind\":\"index\"}";
 
 /// Write one complete generation and publish it. Returns the generation id.
 fn write_generation(store: &EvidenceStore, project: &ProjectId) -> Result<GenerationId, TestError> {
+    let lock = store.lock_project(project, &never_cancelled())?;
+    write_generation_locked(store, &lock, project)
+}
+
+/// Write and publish one generation while already holding the project lock.
+fn write_generation_locked(
+    store: &EvidenceStore,
+    lock: &ProjectLock,
+    project: &ProjectId,
+) -> Result<GenerationId, TestError> {
     let generation = allocate_generation_id()?;
     let identity_record = allocate_record_id()?;
     let index_record = allocate_record_id()?;
 
-    let identity_digest =
-        store.write_generation_record(project, &generation, &identity_record, IDENTITY_PAYLOAD)?;
+    let identity_digest = store.write_generation_record(
+        lock,
+        project,
+        &generation,
+        &identity_record,
+        IDENTITY_PAYLOAD,
+    )?;
     let index_digest =
-        store.write_generation_record(project, &generation, &index_record, INDEX_PAYLOAD)?;
+        store.write_generation_record(lock, project, &generation, &index_record, INDEX_PAYLOAD)?;
 
     let manifest = build_manifest(
         project.clone(),
@@ -146,8 +161,8 @@ fn write_generation(store: &EvidenceStore, project: &ProjectId) -> Result<Genera
         vec![identity_digest, index_digest],
         UnixMillis::new(10_000),
     )?;
-    store.write_generation_manifest(&manifest)?;
-    store.publish_generation(project, &generation)?;
+    store.write_generation_manifest(lock, &manifest)?;
+    store.publish_generation(lock, project, &generation)?;
     Ok(generation)
 }
 
@@ -443,6 +458,112 @@ fn initialized_reservation_reports_already_initialized() -> TestResult {
 }
 
 // ---------------------------------------------------------------------------
+// observation-time independence (regression for the identity-facts digest)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn facts_digest_ignores_observation_time() -> TestResult {
+    // The locator records when an observation was taken. That value changes on
+    // every open, so including it in the identity digest would make the digest
+    // volatile and break both exact rebinding and reservation recovery.
+    let first = ProjectMatchFacts::new(locator_at("/projects/stable", 1_000)?);
+    let later = ProjectMatchFacts::new(locator_at("/projects/stable", 9_999_999)?);
+    assert_ne!(
+        first.locator.observation_time.get(),
+        later.locator.observation_time.get(),
+        "fixture must actually differ in observation time"
+    );
+    assert_eq!(first.facts_digest()?, later.facts_digest()?);
+
+    // A different path must still produce a different digest.
+    let elsewhere = ProjectMatchFacts::new(locator_at("/projects/other", 1_000)?);
+    assert_ne!(first.facts_digest()?, elsewhere.facts_digest()?);
+    Ok(())
+}
+
+#[test]
+fn reopening_later_rebinds_exactly() -> TestResult {
+    // A normal later open of an unchanged project must resolve to the existing
+    // identity as an exact binding, not fall through to ambiguous.
+    let first = ProjectMatchFacts::new(locator_at("/projects/reopen", 1_000)?);
+    let later = ProjectMatchFacts::new(locator_at("/projects/reopen", 5_000)?);
+    let project_id = allocate_project_id()?;
+
+    let resolved = resolve_identity(
+        &later,
+        &[candidate(&project_id, &first, IdentityRecordState::Active)?],
+    )?;
+    let IdentityResolution::Existing {
+        project_id: resolved_id,
+        strength,
+    } = &resolved
+    else {
+        return Err(unexpected("exact binding on a later reopen", &resolved));
+    };
+    assert_eq!(resolved_id, &project_id);
+    assert_eq!(*strength, IdentityMatchStrength::ExactBinding);
+    Ok(())
+}
+
+#[test]
+fn crashed_reservation_resumes_across_a_later_observation() -> TestResult {
+    // S2-I012 under realistic timing: the resuming opener observes the project
+    // at a later time than the interrupted one. It must still recognise its own
+    // reservation and reuse the same identifier rather than allocating a second.
+    let interrupted = ProjectMatchFacts::new(locator_at("/projects/resumed", 1_000)?);
+    let resuming = ProjectMatchFacts::new(locator_at("/projects/resumed", 8_500)?);
+    let project_id = allocate_project_id()?;
+    let reservation = build_reservation(project_id.clone(), &interrupted, UnixMillis::new(1))?;
+
+    let recovered = recover_reservation(&reservation, &resuming)?;
+    let ReservationRecovery::ResumeSameProject {
+        project_id: resumed,
+    } = &recovered
+    else {
+        return Err(unexpected("resume across a later observation", &recovered));
+    };
+    assert_eq!(resumed, &project_id);
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// lock protocol enforced by the API
+// ---------------------------------------------------------------------------
+
+#[test]
+fn mutations_reject_a_lock_for_a_different_project() -> TestResult {
+    let root = temp_root("wronglock")?;
+    let store = EvidenceStore::new(&root);
+    store.initialize()?;
+    let owned = allocate_project_id()?;
+    let other = allocate_project_id()?;
+    let generation = allocate_generation_id()?;
+    let record = allocate_record_id()?;
+
+    let lock = store.lock_project(&owned, &never_cancelled())?;
+    let outcome = store.write_generation_record(&lock, &other, &generation, &record, b"{}");
+    assert!(matches!(outcome, Err(StoreError::WrongProjectLock)));
+
+    let publish = store.publish_generation(&lock, &other, &generation);
+    assert!(matches!(publish, Err(StoreError::WrongProjectLock)));
+    Ok(())
+}
+
+#[test]
+fn ordered_acquisition_yields_both_guards_in_canonical_order() -> TestResult {
+    let root = temp_root("ordered")?;
+    let store = EvidenceStore::new(&root);
+    store.initialize()?;
+    let project = allocate_project_id()?;
+
+    let (catalog, project_lock) = store.lock_catalog_then_project(&project, &never_cancelled())?;
+    assert_eq!(catalog.scope(), StoreLockScope::IdentityCatalog);
+    assert_eq!(project_lock.scope(), StoreLockScope::ProjectStore);
+    assert_eq!(project_lock.project(), &project);
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
 // opaque identifiers and safe path derivation (S2-E003)
 // ---------------------------------------------------------------------------
 
@@ -548,9 +669,10 @@ fn interrupted_generation_never_becomes_current() -> TestResult {
     let generation = allocate_generation_id()?;
     let record = allocate_record_id()?;
 
-    store.write_generation_record(&project, &generation, &record, b"{}")?;
+    let lock = store.lock_project(&project, &never_cancelled())?;
+    store.write_generation_record(&lock, &project, &generation, &record, b"{}")?;
 
-    let outcome = store.publish_generation(&project, &generation);
+    let outcome = store.publish_generation(&lock, &project, &generation);
     assert!(matches!(
         outcome,
         Err(StoreError::Defect(StoreDefect::CurrentDanglingGeneration))
@@ -569,8 +691,9 @@ fn manifest_referencing_a_missing_record_is_refused_at_publish() -> TestResult {
     let identity_record = allocate_record_id()?;
     let index_record = allocate_record_id()?;
 
+    let lock = store.lock_project(&project, &never_cancelled())?;
     let identity_digest =
-        store.write_generation_record(&project, &generation, &identity_record, b"{}")?;
+        store.write_generation_record(&lock, &project, &generation, &identity_record, b"{}")?;
     // The index record is referenced but never written.
     let manifest = build_manifest(
         project.clone(),
@@ -587,9 +710,9 @@ fn manifest_referencing_a_missing_record_is_refused_at_publish() -> TestResult {
         ],
         UnixMillis::new(1),
     )?;
-    store.write_generation_manifest(&manifest)?;
+    store.write_generation_manifest(&lock, &manifest)?;
 
-    let outcome = store.publish_generation(&project, &generation);
+    let outcome = store.publish_generation(&lock, &project, &generation);
     assert!(matches!(
         outcome,
         Err(StoreError::Defect(StoreDefect::RecordMissing))
@@ -712,8 +835,9 @@ fn oversized_record_is_refused_before_it_is_written() -> TestResult {
     let generation = allocate_generation_id()?;
     let record = allocate_record_id()?;
 
+    let lock = store.lock_project(&project, &never_cancelled())?;
     let oversized = vec![b'x'; MAX_RECORD_BYTES + 1];
-    let outcome = store.write_generation_record(&project, &generation, &record, &oversized);
+    let outcome = store.write_generation_record(&lock, &project, &generation, &record, &oversized);
     assert!(matches!(outcome, Err(StoreError::TooLarge { .. })));
     Ok(())
 }
@@ -727,14 +851,15 @@ fn reservation_survives_temp_write_and_replace() -> TestResult {
     let project = allocate_project_id()?;
     let reservation = build_reservation(project.clone(), &facts, UnixMillis::new(3))?;
 
-    store.write_reservation(&reservation)?;
+    let catalog = store.lock_catalog(&never_cancelled())?;
+    store.write_reservation(&catalog, &reservation)?;
     let read_back = store
         .read_reservation(&project)?
         .ok_or("reservation must be present")?;
     assert_eq!(read_back, reservation);
 
     let completed = complete_reservation(&reservation, &project, UnixMillis::new(4))?;
-    store.write_reservation(&completed)?;
+    store.write_reservation(&catalog, &completed)?;
     let listed = store.list_reservations()?;
     assert_eq!(listed.len(), 1);
     let entry = listed
@@ -756,7 +881,9 @@ fn corrupt_reservation_is_reported_rather_than_skipped() -> TestResult {
     let facts = facts_at("/projects/corrupt")?;
     let project = allocate_project_id()?;
     let reservation = build_reservation(project.clone(), &facts, UnixMillis::new(1))?;
-    store.write_reservation(&reservation)?;
+    let catalog = store.lock_catalog(&never_cancelled())?;
+    store.write_reservation(&catalog, &reservation)?;
+    drop(catalog);
 
     let path = root
         .join("catalog")
@@ -783,10 +910,10 @@ fn contended_lock_returns_a_stable_busy_result_within_the_deadline() -> TestResu
     let store = EvidenceStore::new(&root);
     store.initialize()?;
 
-    let held = store.acquire_lock(StoreLockScope::IdentityCatalog, None, &never_cancelled())?;
+    let held = store.lock_catalog(&never_cancelled())?;
 
     let started = Instant::now();
-    let result = store.acquire_lock(StoreLockScope::IdentityCatalog, None, &never_cancelled());
+    let result = store.lock_catalog(&never_cancelled());
     let elapsed = started.elapsed();
 
     let Err(StoreError::Busy { scope }) = &result else {
@@ -808,12 +935,12 @@ fn cancellation_stops_lock_acquisition_promptly() -> TestResult {
     let root = temp_root("lockcancel")?;
     let store = EvidenceStore::new(&root);
     store.initialize()?;
-    let held = store.acquire_lock(StoreLockScope::IdentityCatalog, None, &never_cancelled())?;
+    let held = store.lock_catalog(&never_cancelled())?;
 
     let polls = AtomicUsize::new(0);
     let cancel = || polls.fetch_add(1, AtomicOrdering::SeqCst) >= 2;
     let started = Instant::now();
-    let result = store.acquire_lock(StoreLockScope::IdentityCatalog, None, &cancel);
+    let result = store.lock_catalog(&cancel);
     let elapsed = started.elapsed();
 
     assert!(matches!(result, Err(StoreError::Cancelled { .. })));
@@ -831,15 +958,14 @@ fn releasing_a_lock_allows_immediate_reacquisition() -> TestResult {
     let store = EvidenceStore::new(&root);
     store.initialize()?;
 
-    let held = store.acquire_lock(StoreLockScope::IdentityCatalog, None, &never_cancelled())?;
+    let held = store.lock_catalog(&never_cancelled())?;
     drop(held);
 
     let lock_path = root.join("catalog").join("catalog.lock");
     assert!(lock_path.exists(), "lock file intentionally persists");
 
     let started = Instant::now();
-    let reacquired =
-        store.acquire_lock(StoreLockScope::IdentityCatalog, None, &never_cancelled())?;
+    let reacquired = store.lock_catalog(&never_cancelled())?;
     assert!(started.elapsed().as_millis() < u128::from(LOCK_ACQUIRE_DEADLINE_MS));
     drop(reacquired);
     Ok(())
@@ -852,14 +978,12 @@ fn catalog_and_project_locks_are_independent_scopes() -> TestResult {
     store.initialize()?;
     let project = allocate_project_id()?;
 
-    let catalog = store.acquire_lock(StoreLockScope::IdentityCatalog, None, &never_cancelled())?;
-    // Canonical order: catalog first, then project.
-    let project_lock = store.acquire_lock(
-        StoreLockScope::ProjectStore,
-        Some(&project),
-        &never_cancelled(),
-    )?;
+    // The only supported way to hold both is the ordered acquisition, which
+    // takes the catalog lock before the project lock (S2-I011).
+    let (catalog, project_lock) = store.lock_catalog_then_project(&project, &never_cancelled())?;
+    assert_eq!(catalog.scope(), StoreLockScope::IdentityCatalog);
     assert_eq!(project_lock.scope(), StoreLockScope::ProjectStore);
+    assert_eq!(project_lock.project(), &project);
     assert_eq!(busy_error_code(StoreLockScope::ProjectStore), "store_busy");
     drop(project_lock);
     drop(catalog);
@@ -884,12 +1008,11 @@ fn concurrent_first_open_yields_one_identity_or_a_stable_busy() -> TestResult {
         let facts = Arc::clone(&facts);
         handles.push(thread::spawn(
             move || -> Result<Option<ProjectId>, String> {
-                let guard =
-                    match store.acquire_lock(StoreLockScope::IdentityCatalog, None, &|| false) {
-                        Ok(guard) => guard,
-                        Err(StoreError::Busy { .. }) => return Ok(None),
-                        Err(error) => return Err(format!("unexpected lock error: {error}")),
-                    };
+                let guard = match store.lock_catalog(&|| false) {
+                    Ok(guard) => guard,
+                    Err(StoreError::Busy { .. }) => return Ok(None),
+                    Err(error) => return Err(format!("unexpected lock error: {error}")),
+                };
 
                 // Under the catalog lock: reuse an existing reservation for
                 // these exact facts, otherwise commit exactly one new one.
@@ -913,7 +1036,7 @@ fn concurrent_first_open_yields_one_identity_or_a_stable_busy() -> TestResult {
                 let reservation = build_reservation(project_id.clone(), &facts, UnixMillis::new(1))
                     .map_err(|error| format!("reservation: {error}"))?;
                 store
-                    .write_reservation(&reservation)
+                    .write_reservation(&guard, &reservation)
                     .map_err(|error| format!("write reservation: {error}"))?;
                 drop(guard);
                 Ok(Some(project_id))
@@ -958,9 +1081,9 @@ fn concurrent_ordinary_writers_never_publish_a_mixed_generation() -> TestResult 
         let project = Arc::clone(&project);
         handles.push(thread::spawn(move || -> Result<(), String> {
             for _ in 0..3 {
-                match store.acquire_lock(StoreLockScope::ProjectStore, Some(&project), &|| false) {
+                match store.lock_project(&project, &|| false) {
                     Ok(guard) => {
-                        write_generation(&store, &project)
+                        write_generation_locked(&store, &guard, &project)
                             .map_err(|error| format!("write generation: {error}"))?;
                         drop(guard);
                     }
@@ -1057,6 +1180,9 @@ fn redacted_summary_never_reveals_the_value() -> TestResult {
     assert!(summary.starts_with("redacted:"));
     assert!(!summary.contains("tokenvalue"));
     assert!(!summary.contains("example.invalid"));
+    // The exact byte length is deliberately withheld; only a coarse class is
+    // emitted, so the summary does not narrow an offline search by length.
+    assert!(!summary.contains(&secret.len().to_string()));
     // Identical values correlate; different values do not collide in practice.
     assert_eq!(summary, redacted_summary(secret)?);
     assert_ne!(summary, redacted_summary(b"different")?);

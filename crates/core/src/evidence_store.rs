@@ -146,6 +146,8 @@ pub enum StoreError {
     },
     /// An opaque identifier could not be projected to a safe path. S2-E003.
     UnsafeIdentifier,
+    /// A project lock guard was presented for a different project.
+    WrongProjectLock,
     Identity(IdentityError),
     Contract(ContractValueError),
     Codec(ProjectContractCodecError),
@@ -170,6 +172,10 @@ impl fmt::Display for StoreError {
             Self::UnsafeIdentifier => {
                 write!(formatter, "opaque identifier is not safe as a path segment")
             }
+            Self::WrongProjectLock => write!(
+                formatter,
+                "project lock guard does not name the project being mutated"
+            ),
             Self::Identity(error) => write!(formatter, "identity error: {error}"),
             Self::Contract(error) => write!(formatter, "contract value error: {error}"),
             Self::Codec(error) => write!(formatter, "contract codec error: {error}"),
@@ -304,6 +310,50 @@ impl Drop for StoreLock {
     }
 }
 
+/// Proof that the caller holds the store-wide identity catalog lock.
+///
+/// Catalog mutation requires this guard by type, so the locking protocol is
+/// enforced by the API rather than only documented.
+#[derive(Debug)]
+pub struct CatalogLock {
+    inner: StoreLock,
+}
+
+impl CatalogLock {
+    pub fn scope(&self) -> StoreLockScope {
+        self.inner.scope()
+    }
+}
+
+/// Proof that the caller holds the per-project store lock for one exact project.
+///
+/// Project mutation and publication require this guard by type, and every such
+/// operation checks that the guard names the project being mutated. Holding the
+/// guard across validation and the `CURRENT` replacement is what closes the
+/// validate-then-publish window.
+#[derive(Debug)]
+pub struct ProjectLock {
+    inner: StoreLock,
+    project: ProjectId,
+}
+
+impl ProjectLock {
+    pub fn scope(&self) -> StoreLockScope {
+        self.inner.scope()
+    }
+
+    pub fn project(&self) -> &ProjectId {
+        &self.project
+    }
+
+    fn require(&self, project: &ProjectId) -> Result<(), StoreError> {
+        if &self.project != project {
+            return Err(StoreError::WrongProjectLock);
+        }
+        Ok(())
+    }
+}
+
 /// Result of reading the published generation. S2-E009.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PublishedGeneration {
@@ -382,6 +432,12 @@ impl EvidenceStore {
     /// returns a stable busy result. It never waits indefinitely and never
     /// interprets lock-file existence as ownership.
     ///
+    /// The deadline bounds the polling loop, not wall-clock time. Sleep
+    /// granularity, scheduling, directory creation, and the initial file open
+    /// can each add time beyond it, so the deadline is an algorithmic bound
+    /// rather than a hard real-time guarantee. Cancellation is observed once per
+    /// poll, so cancellation latency is up to one poll interval.
+    ///
     /// Callers that need both locks must acquire the identity catalog lock
     /// before the project lock. That order is fixed to prevent deadlock.
     pub fn acquire_lock(
@@ -416,6 +472,45 @@ impl EvidenceStore {
             }
             thread::sleep(Duration::from_millis(LOCK_POLL_INTERVAL_MS));
         }
+    }
+
+    /// Acquire the store-wide identity catalog lock. S2-E005, S2-I011.
+    pub fn lock_catalog(&self, cancelled: &dyn Fn() -> bool) -> Result<CatalogLock, StoreError> {
+        Ok(CatalogLock {
+            inner: self.acquire_lock(StoreLockScope::IdentityCatalog, None, cancelled)?,
+        })
+    }
+
+    /// Acquire the per-project store lock for one exact project. S2-E005.
+    ///
+    /// A caller that also needs the catalog lock must use
+    /// [`Self::lock_catalog_then_project`]. Acquiring the catalog lock while
+    /// already holding a project lock inverts the canonical order and is not a
+    /// supported sequence.
+    pub fn lock_project(
+        &self,
+        project: &ProjectId,
+        cancelled: &dyn Fn() -> bool,
+    ) -> Result<ProjectLock, StoreError> {
+        Ok(ProjectLock {
+            inner: self.acquire_lock(StoreLockScope::ProjectStore, Some(project), cancelled)?,
+            project: project.clone(),
+        })
+    }
+
+    /// Acquire both locks in the canonical order: catalog first, then project.
+    ///
+    /// S2-I011 fixes this order to prevent deadlock. This is the only operation
+    /// that yields both guards, so a caller cannot obtain them in the reverse
+    /// order through the supported API.
+    pub fn lock_catalog_then_project(
+        &self,
+        project: &ProjectId,
+        cancelled: &dyn Fn() -> bool,
+    ) -> Result<(CatalogLock, ProjectLock), StoreError> {
+        let catalog = self.lock_catalog(cancelled)?;
+        let project_lock = self.lock_project(project, cancelled)?;
+        Ok((catalog, project_lock))
     }
 
     /// Read a whole file under a bounded limit. S2-E004.
@@ -511,6 +606,7 @@ impl EvidenceStore {
     /// The caller must hold the identity catalog lock.
     pub fn write_reservation(
         &self,
+        _catalog: &CatalogLock,
         reservation: &IdentityCatalogReservation,
     ) -> Result<(), StoreError> {
         let bytes = canonical_project_json(reservation)?;
@@ -607,11 +703,13 @@ impl EvidenceStore {
     /// unreferenced orphan generation.
     pub fn write_generation_record(
         &self,
+        lock: &ProjectLock,
         project: &ProjectId,
         generation: &GenerationId,
         record: &RecordId,
         bytes: &[u8],
     ) -> Result<RecordDigest, StoreError> {
+        lock.require(project)?;
         if bytes.len() > MAX_RECORD_BYTES {
             return Err(StoreError::TooLarge {
                 limit: MAX_RECORD_BYTES,
@@ -628,8 +726,10 @@ impl EvidenceStore {
     /// Write the manifest that closes an immutable generation. S2-E007.
     pub fn write_generation_manifest(
         &self,
+        lock: &ProjectLock,
         manifest: &ProjectGenerationManifest,
     ) -> Result<ContentDigest, StoreError> {
+        lock.require(&manifest.project_id)?;
         let bytes = canonical_project_json(manifest)?;
         if bytes.len() > MAX_MANIFEST_BYTES {
             return Err(StoreError::TooLarge {
@@ -650,11 +750,18 @@ impl EvidenceStore {
     ///
     /// The manifest is re-read and fully validated before publication so that a
     /// torn or incoherent generation can never become current.
+    ///
+    /// The caller must hold the project lock, and must keep holding it across
+    /// this call. Validation and the `CURRENT` replacement are a single critical
+    /// section: without the guard another writer could rewrite the manifest or a
+    /// record between validation and publication.
     pub fn publish_generation(
         &self,
+        lock: &ProjectLock,
         project: &ProjectId,
         generation: &GenerationId,
     ) -> Result<ProjectCurrentRef, StoreError> {
+        lock.require(project)?;
         let manifest_digest = self.validate_generation(project, generation)?;
         let current = ProjectCurrentRef {
             schema_version: ProjectContractVersion::V1,
@@ -913,14 +1020,43 @@ pub fn now_unix_millis() -> UnixMillis {
     UnixMillis::new(millis)
 }
 
+/// Coarse size class of a redacted value.
+///
+/// An exact byte length is itself a disclosure: combined with an unkeyed digest
+/// it narrows an offline candidate search considerably. Only a coarse bucket is
+/// reported.
+fn size_class(length: usize) -> &'static str {
+    match length {
+        0 => "empty",
+        1..=32 => "xs",
+        33..=128 => "s",
+        129..=1024 => "m",
+        1025..=32768 => "l",
+        _ => "xl",
+    }
+}
+
 /// Redact a value that must never be persisted or displayed raw. S2-E012.
 ///
-/// The store persists only allowlisted structured contract fields. When a
-/// caller must record that a sensitive value was observed, it records this
-/// digest-and-length summary instead of the value. The digest is unkeyed and
-/// exists to correlate repeat observations, not to prove authenticity.
+/// The store persists only allowlisted structured contract fields. When a caller
+/// must record that a sensitive value was observed, it records this summary
+/// instead of the value.
+///
+/// # What this does and does not provide
+///
+/// The summary carries a coarse size class and a truncated unkeyed SHA-256
+/// prefix. It exists so that repeat observations of the same value can be
+/// correlated, and it never emits the value itself.
+///
+/// It is **not** resistant to an offline candidate search. The digest is
+/// unkeyed, so anyone holding a guess can hash it and compare prefixes. For a
+/// low-entropy value that is a realistic recovery path. Exact length is
+/// deliberately withheld to widen the candidate space, but this remains
+/// correlation evidence, not concealment against an adversary who can guess.
+/// Defending a low-entropy secret requires a keyed construction, which needs a
+/// trust anchor this slice does not have and must be planned separately.
 pub fn redacted_summary(value: &[u8]) -> Result<String, StoreError> {
     let digest = content_digest(value)?;
     let prefix: String = digest.hex.as_str().chars().take(12).collect();
-    Ok(format!("redacted:{}:{}", value.len(), prefix))
+    Ok(format!("redacted:{}:{}", size_class(value.len()), prefix))
 }

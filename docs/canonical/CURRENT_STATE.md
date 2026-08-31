@@ -247,13 +247,14 @@ Which of those values GitHub can settle, and which it cannot:
 
 ```text
 PLATFORM_VERIFIABLE   PR number, base, accepted head, accepted tree, merge
-                      commit, changed-file count, and the resolved state of the
-                      review threads
-PROJECT_DETERMINATION INDEPENDENT_REVIEW, INDEPENDENT_REVIEW_ROUNDS, and
-                      UNRESOLVED_MATERIAL_FINDINGS_AT_ACCEPTANCE
+                      commit, changed-file count, and current review-thread
+                      resolution state
+PROJECT_DETERMINATION INDEPENDENT_REVIEW, INDEPENDENT_REVIEW_ROUNDS,
+                      UNRESOLVED_MATERIAL_FINDINGS_AT_ACCEPTANCE, and
+                      UNRESOLVED_REVIEW_THREADS_AT_ACCEPTANCE
 ```
 
-GitHub has no concept of a review round, no notion of review qualification, and no material-finding classification. It can show that PR 240 carries review comments and that all four of its threads are resolved; it cannot establish that a completed review was clean or that no unresolved finding was material. Those three values are project determinations supported by the linked review record, and they are separated here so a reader does not take them for API facts because they sit beside SHAs that are.
+GitHub has no concept of a review round, no notion of review qualification, and no material-finding classification. It can show the current PR 240 review-thread state and that all four threads are resolved now; it cannot by itself establish the historical at-acceptance thread value, that a completed review was clean, or that no unresolved finding was material. Those at-acceptance values are project determinations supported by the review/merge record, and they are separated here so a reader does not take them for API facts because they sit beside SHAs that are.
 
 The merge canonicalizes product code only. It performs no dependency admission, source admission, Doctor/CLI expansion, process or Git execution, network access, model or provider execution, and no S3+ authority.
 
@@ -295,15 +296,16 @@ S2-S001..S2-S015                  not claimed
 S2-Q001..S2-Q009                  not claimed
 S2-D001..S2-D015                  not claimed
 S2-CLI001..S2-CLI010              not claimed
-BUILD_LEARNING_CAPTURE            BLOCKED_ON_AUTHORIZED_PATH. AGENTS.md and
-                                  S2-A009 require it, and the ledger is
-                                  byte-frozen by the S1-016 evidence freeze in
-                                  the active policy chain, which refused an
-                                  append at both gates. Advancing that freeze
-                                  needs its own governed path, in the shape the
-                                  chain already carries for S1-005 evidence.
-                                  Recorded as blocked rather than as done or as
-                                  quietly dropped.
+BUILD_LEARNING_CAPTURE            INCLUDED_IN_THIS_GOVERNED_TRANSITION. Canonical
+                                  v34, merged by PR #247 at
+                                  5c507e4e4d7bdd22d5a562c4239840820b138081,
+                                  created the exact two-document write route this
+                                  candidate consumes. The paired final ledger blob
+                                  f06e42dbd2a5e658cc1dc7c9ea7d768ceae458fb
+                                  carries BL-0010..BL-0015. Candidate copies remain
+                                  proposed/untrusted until guarded merge; once this
+                                  exact transition becomes canonical, the Build
+                                  Learning capture is complete.
 ```
 
 ### Canonical properties established by this tranche

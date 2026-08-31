@@ -1,89 +1,83 @@
-# Clarifications — IssueOps Agentic Engineering Control Plane
+# Clarify — IssueOps Agentic Engineering Control Plane
 
 ```text
-STATUS = RESOLVED_FOR_PLANNING
+STATUS = FUTURE_PLANNING_CLARIFICATIONS
 IMPLEMENTATION_AUTHORITY = NONE
 ```
 
-## Founder intent captured
-
-1. WePLD should become the best place to deal with GitHub issues and later other issue systems.
-2. The experience should be highly automated and agentic, while remaining governed.
-3. Users should have a universal `/rag` capability for arbitrary supported knowledge sources.
-4. CLI/Desktop intake should support drag/drop or equivalent path-paste normalization.
-5. The complete useful behavior set studied from `mattpocock/skills` should be adapted into WePLD-native workflows and internal primitives rather than copied with donor branding.
-6. `amElnagdy/delegate-skills` should inform provider/agent switching and delegation, but WePLD should expose a provider-neutral `/delegate` and worker catalog rather than one command per provider.
-
-## Resolved product decisions
+## Resolved planning clarifications
 
 ### Q1 — Is GitHub the internal issue model?
 
-No. GitHub is the first provider adapter. The canonical internal abstraction is a WePLD `Case`.
+No. GitHub is the first reference provider. WePLD owns a provider-neutral `Case` identity/lifecycle/evidence model.
 
-### Q2 — What does “automated” mean?
+### Q2 — Can provider state set Case completion?
 
-Automation means WePLD may progress a case through the maximum currently authorized lifecycle without routine human prompts. It does not mean unconditional write/merge/close authority.
+No. Provider open/closed/merged/resolved state is evidence only. Trusted Completion is a separate governed decision.
 
-### Q3 — What should reach the human?
+### Q3 — How are conflicting provider observations handled?
 
-Only genuine decision boundaries, approval requirements, unresolved ambiguity, externally blocked state, or residual risk that cannot be safely resolved by evidence and policy.
+Observations remain append-only. Generic latest-write-wins is prohibited for cross-provider semantics. Acceptance/effect paths that require one current semantic must re-observe, abstain/fail closed, resolve through an explicit rule, or open a DecisionBoundary. The losing/older evidence remains inspectable.
 
-### Q4 — Does an autonomy profile grant effects?
+### Q4 — Does adding a new provider require expanding the Case schema?
 
-No. `observe|triage|prepare|execute|land` constrains workflow behavior. Nawat still owns effect-time authorization and revalidation.
+Not by default. Provider-specific fields remain adapter observations/extensions. Core Case semantics evolve only when provider-independent engineering meaning is justified and the adapter/normalization migration is explicitly versioned.
 
-### Q5 — What is `/askme`?
+### Q5 — Is `/issues sweep` allowed to produce opaque AI clusters?
 
-The primary workflow router. It determines which qualified WePLD capability or workflow best matches the user's intent and current case/project state.
+No. Every output class must have inspectable evidence requirements and negative oracles. Probable duplicates cannot auto-close or merge Case identity. Common-root-cause requires causal evidence stronger than topic/semantic similarity. Recommendation thresholds are predeclared and measured against a labeled corpus.
 
-### Q6 — What is `/btw`?
+### Q6 — Is semantic/vector retrieval a mandatory later step after lexical retrieval?
 
-A context-aware re-explanation capability: restate the current result, blocker, plan, or project state more clearly without altering authority or execution state.
+No. Retrieval signals are query/source aware, not a rigid sequence. Semantic/vector may be selected early for conceptual/paraphrastic queries or measured lexical recall gaps, but remains optional and requires predeclared incremental-value qualification before admission.
 
-### Q7 — Is every Matt skill a slash command?
+### Q7 — What is the minimum useful RAG capability?
 
-No. High-value user intents become WePLD-native commands. Reusable engineering methods become internal primitives invoked by workflows.
+A user can ingest qualified local sources into a named collection, ask natural-language/exact/code-reference questions, receive inspectable cited evidence, see stale/conflicting/no-answer states, and do so without requiring embeddings/vector infrastructure.
 
-### Q8 — Is `/delegate` the same as `/handoff`?
+### Q8 — Can retrieved or provider content instruct agents?
 
-No. `/delegate` assigns bounded work. `/handoff` transfers durable context/session responsibility. Both use WePLD-owned identity/evidence contracts.
+Not merely by containing imperative text. External/retrieved/repository/worker/model content is data by default. It cannot mint WorkflowIntent, authority, paid/remote routes, broader context access, review approval, or Trusted Completion. Prompt filtering is defense-in-depth; effect-time structural enforcement remains required.
 
-### Q9 — Can a user force a provider?
+### Q9 — Must Edara, Mirefa, Nawat, Mission Runtime, and UWC be separate services from the beginning?
 
-A user can request a worker/provider, but the request cannot bypass qualification, containment, cost policy, or Nawat authorization.
+No. They are semantic trust/ownership boundaries, not mandatory deployment units. Early implementations may co-locate them as direct modules/contracts. Their authority distinctions must remain enforceable and evidenced.
 
-### Q10 — Does a drag/drop event perform an action?
+### Q10 — Can Mirefa qualification authorize execution?
 
-No. A drop/paste is normalized into inert `InputArtifact` input. Follow-on actions such as inspect, attach, add-to-RAG, open-project, or execute remain explicit and separately governed.
+No. Mirefa says whether a route is qualified for consideration. Nawat alone owns effect-time authority/revalidation. Mission Runtime may execute only within the exact current grant/containment constraints and cannot widen or silently substitute them.
 
-### Q11 — How should terminal drag/drop work?
+### Q11 — Should delegation move into S5 to prove value sooner?
 
-The portable CLI baseline should recognize quoted/escaped path paste and bracketed-paste behavior produced by common terminals. Native Desktop/embedded-terminal drop events should normalize to the same `InputArtifact` contract. No terminal-specific behavior becomes the core abstraction.
+Only as a dry-run planning contract. S5 may construct Assignment/WorkerRequirement/TopologyProposal against synthetic workers. Real worker/model/provider/process execution and the full Edara/Mirefa/Nawat/Mission Runtime path remain S6-owned.
 
-### Q12 — Can `/rag` ingest anything?
+### Q12 — Should S7 and S8 be merged to tighten review/repair feedback?
 
-The product intent is “whatever the user wants,” subject to supported/qualified parsers, source access, size/resource policy, content classification, and effect authority. Unsupported or unsafe input must fail closed rather than be guessed.
+No semantic merge. A tight feedback loop is desirable, but Assurance must remain independent from the repair/completion boundary consuming findings so `ReviewOutcome != CompletionDecision` remains structural.
 
-### Q13 — Is RAG authoritative?
+### Q13 — What is the first IssueOps end-to-end tracer bullet?
 
-No. Retrieval is advisory evidence. Results must be provenance-first and freshness-aware; `RETRIEVAL_SCORE != TRUTH` remains controlling.
+TB0 is offline/read-only: synthetic/local issue artifact -> Case -> local repository identity -> cited local retrieval -> triage/reproduction-readiness/relations/decision frontier -> evidence-backed Case summary. No network, provider write, model/provider execution, Git write, merge, or issue close is required.
 
-### Q14 — When should vector search be added?
+### Q14 — What must Trusted Completion prove?
 
-Only after the owning Fehrest slice performs Ponytail FULL and Source Acquisition. Exact/lexical and structured project facts should not be displaced by an unnecessary vector dependency.
+It must bind exact accepted target/generation, deterministic gates, genuine independent review, security review or qualified not-applicable basis, all material finding reconciliations, material effect/authority evidence, provider closeout where required, residual limitations, and the completion decision producer. Stale/mismatched evidence or unresolved findings fail closed.
 
-### Q15 — How should issue duplicates be represented?
+### Q15 — Are all proposed slash commands day-one primary UX?
 
-As evidence-backed relationships between Cases (exact duplicate, probable duplicate, common-root-cause candidate, blocked-by, supersedes, regression-of), with confidence/evidence separate from provider labels.
+No. The catalog describes native intent surfaces. Initial UX should expose a smaller primary set through `/askme` and progressive disclosure. Specialist worker controls such as `/workers` and `/handoff` may remain advanced until their owning capabilities exist.
 
-### Q16 — Can WePLD close an issue because a PR merged?
+## Deferred owning-slice decisions
 
-No. Merge and provider closeout are effects and state transitions, not Trusted Completion. Completion requires the governing evidence and acceptance criteria.
+The following remain intentionally deferred because this planning candidate does not have implementation/source/dependency authority:
 
-### Q17 — How should external paid/quota agents behave?
-
-Worker descriptors must expose cost/metering. If policy does not authorize paid/quota consumption, execution fails closed; no silent spend or fallback.
-
-### Q18 — Does this planning candidate change S2?
-
-No. It intentionally adds no S2 product scope and grants no implementation/source/network/model/provider/Git/issue-write authority.
+- exact GitHub app/token/authentication model;
+- webhook vs polling implementation and replay storage;
+- exact parser implementations and archive/document policies;
+- lexical index engine;
+- vector database/embedding model, if benchmark-justified;
+- first concrete worker/provider adapters;
+- exact policy-engine/sandbox implementation;
+- exact persistent event-store representation and retention thresholds;
+- organization-scale scheduling/resource policy;
+- numeric autonomy-promotion and sweep-action thresholds, which must be declared before their owning benchmark run.

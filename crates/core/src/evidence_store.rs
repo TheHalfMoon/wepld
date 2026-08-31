@@ -255,7 +255,7 @@ impl fmt::Display for StoreError {
             }
             Self::Defect(defect) => write!(formatter, "evidence store defect: {defect}"),
             Self::TooLarge { limit } => {
-                write!(formatter, "stored value exceeds bounded read limit {limit}")
+                write!(formatter, "value exceeds bounded limit {limit}")
             }
             Self::UnsafeIdentifier => {
                 write!(formatter, "opaque identifier is not safe as a path segment")
@@ -435,6 +435,14 @@ fn normalize_root(root: PathBuf) -> PathBuf {
 //
 // It is also no longer over-strict: an unrelated thread's project work no
 // longer blocks catalog acquisition, which the process-wide count refused.
+//
+// A leaked guard leaves the count raised for the life of the thread. Safe Rust
+// cannot prevent `mem::forget`, and the consequence here is larger than the leak
+// itself: that thread can never acquire the catalog lock again, because the
+// ordering check will keep seeing a project guard it no longer holds. The
+// operating-system lock is leaked with it. This is a caller-inflicted state, not
+// a reachable defect, and it is written down because the guard-leak limitation
+// is usually described only as leaking a handle.
 //
 // The count is deliberately not keyed by store root. Keying it that way left
 // the rule evadable, because store identity here is lexical: the same thread
@@ -1367,17 +1375,31 @@ impl EvidenceStore {
     /// names. Callers must not re-read `CURRENT` while consuming a generation;
     /// doing so is what would allow records from two generations to be mixed.
     ///
-    /// # Bounds are per artifact, not per generation
+    /// # Worst-case read cost
     ///
-    /// This call validates every referenced record, and each read is bounded by
-    /// [`MAX_RECORD_BYTES`] individually. There is no aggregate ceiling across a
-    /// generation, so a manifest referencing many maximal records costs their
-    /// sum. Canonical planning lists a per-record **and aggregate** evidence
-    /// bound as a target whose values must be frozen before the code that
-    /// enforces them, and no aggregate value is frozen yet. Inventing one here
-    /// would be inventing authority, so the per-artifact bound is what this
-    /// tranche implements and the missing aggregate bound is stated rather than
-    /// implied. It belongs to the separate evidence bounded-read unit.
+    /// This call validates every referenced record, so its cost is worth stating
+    /// exactly rather than leaving a caller to work out.
+    ///
+    /// ```text
+    /// records   (2 + MAX_EVIDENCE_REFS) * MAX_RECORD_BYTES = 258 MiB
+    ///           two fixed references, identity and index, plus the evidence
+    ///           list, whose length is capped by the contract on both the
+    ///           constructor and the deserialisation path
+    /// manifest  MAX_MANIFEST_BYTES
+    /// pointer   MAX_CURRENT_BYTES
+    /// ```
+    ///
+    /// The aggregate ceiling is therefore real and deterministic, derived from
+    /// frozen cardinality and per-artifact constants rather than from a
+    /// dedicated aggregate constant. Repeated references inside one manifest do
+    /// not defeat it: they can repeat a read, but the list length is still
+    /// capped.
+    ///
+    /// An earlier version of this comment claimed there was no aggregate ceiling
+    /// at all. That was false, and it understated the guarantee rather than
+    /// overstating it, which is the rarer direction but the same defect. A named
+    /// aggregate constant remains a possible future improvement; it is not what
+    /// establishes the bound today.
     pub fn read_published_generation(
         &self,
         project: &ProjectId,

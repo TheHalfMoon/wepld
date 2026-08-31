@@ -33,9 +33,9 @@ use std::time::Instant;
 use wepld_contracts::{
     EvidenceRecordRefs, EvidenceStatus, FreshnessBasis, GenerationId, IdentityConflictKind,
     IdentityMatchStrength, IdentityRecordState, IdentityReservationState, IdentityResolution,
-    MAX_RECORD_DIGESTS, MachinePath, Observation, ObservationErrorClass, ProjectContractVersion,
-    ProjectCurrentRef, ProjectId, ProjectLocator, RecordDigest, StoreAuthenticity, StoreLockScope,
-    UnixMillis, canonical_project_json,
+    MAX_EVIDENCE_REFS, MAX_RECORD_DIGESTS, MachinePath, Observation, ObservationErrorClass,
+    ProjectContractVersion, ProjectCurrentRef, ProjectId, ProjectLocator, RecordDigest,
+    StoreAuthenticity, StoreLockScope, UnixMillis, canonical_project_json,
 };
 use wepld_core::evidence_store::{EvidenceStore, ProjectLock, StoreDefect, StoreError};
 use wepld_core::identity::{
@@ -2123,6 +2123,89 @@ fn an_unsupported_producer_contract_version_is_refused_at_publish_and_read() -> 
             ))
         ),
         "a record must not be readable through a manifest from an unsupported producer"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_evidence_reference_cap_holds_on_both_the_constructor_and_the_disk_path() -> TestResult {
+    // This is what makes the aggregate read ceiling real. The per-artifact bound
+    // caps one read; the reference cap is what stops a generation from holding
+    // an unbounded number of them, and it has to hold on the persisted path as
+    // well as on the constructor, because a manifest read back from disk is
+    // never one this process built.
+    //
+    // With both caps the worst case is arithmetic:
+    //     (2 + MAX_EVIDENCE_REFS) * MAX_RECORD_BYTES
+    // for records, plus one bounded manifest and one bounded pointer.
+    //
+    // This test passes against the previous implementation as well, and that is
+    // deliberate rather than a weakness: the caps were already enforced, and
+    // what was defective was the documentation claiming no aggregate ceiling
+    // existed. The test pins the two properties that claim now rests on, so a
+    // later change to either cap fails here instead of quietly invalidating the
+    // stated worst case.
+    let mut too_many = Vec::with_capacity(MAX_EVIDENCE_REFS + 1);
+    for _ in 0..=MAX_EVIDENCE_REFS {
+        too_many.push(allocate_record_id()?);
+    }
+    assert_eq!(too_many.len(), MAX_EVIDENCE_REFS + 1);
+    assert!(
+        EvidenceRecordRefs::try_from(too_many.clone()).is_err(),
+        "the constructor must refuse more references than the contract admits"
+    );
+
+    // The persisted path. A manifest carrying an over-length reference list must
+    // not decode, so no read can be driven past the derived ceiling by bytes on
+    // disk.
+    let root = temp_root("evidencecap")?;
+    let store = EvidenceStore::new(&root)?;
+    store.initialize()?;
+    let project = allocate_project_id()?;
+    let generation = write_generation(&store, &project)?;
+
+    let manifest_path = root
+        .join("projects")
+        .join(project.as_str())
+        .join("generations")
+        .join(generation.as_str())
+        .join("manifest.json");
+    let text =
+        String::from_utf8(fs::read(&manifest_path)?).map_err(|_| "canonical JSON must be UTF-8")?;
+    let refs = too_many
+        .iter()
+        .map(|record| format!("\"{}\"", record.as_str()))
+        .collect::<Vec<_>>()
+        .join(",");
+    let inflated = text.replace(
+        "\"evidence_record_refs\":[]",
+        &format!("\"evidence_record_refs\":[{refs}]"),
+    );
+    assert_ne!(
+        inflated, text,
+        "the fixture must actually inflate the reference list"
+    );
+    fs::write(&manifest_path, inflated.as_bytes())?;
+
+    // Repoint CURRENT so the digest check cannot mask what is under test.
+    let manifest_bytes = fs::read(&manifest_path)?;
+    let current = ProjectCurrentRef {
+        schema_version: ProjectContractVersion::V1,
+        project_id: project.clone(),
+        generation_id: generation,
+        manifest_digest: content_digest(&manifest_bytes)?,
+    };
+    fs::write(
+        root.join("projects").join(project.as_str()).join("CURRENT"),
+        canonical_project_json(&current)?,
+    )?;
+
+    assert!(
+        matches!(
+            store.read_published_generation(&project),
+            Err(StoreError::Defect(StoreDefect::ManifestCorrupt))
+        ),
+        "an over-length reference list must not decode from disk"
     );
     Ok(())
 }

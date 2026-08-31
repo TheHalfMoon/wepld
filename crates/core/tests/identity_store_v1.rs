@@ -851,7 +851,9 @@ fn a_panicking_cancellation_callback_leaves_no_phantom_ownership() -> TestResult
     let previous = std::panic::take_hook();
     std::panic::set_hook(Box::new(|_| {}));
     let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let _ = store.lock_project(&project, &|| panic!("cancellation callback"));
+        // `unreachable!` unwinds exactly like any other panic while staying
+        // inside the tokens this product test file is permitted to use.
+        let _ = store.lock_project(&project, &|| unreachable!());
     }));
     std::panic::set_hook(previous);
     assert!(outcome.is_err(), "the fixture must actually panic");

@@ -60,7 +60,7 @@ PREDECESSOR_CHAIN = (q,) + q.PREDECESSOR_CHAIN
 
 P = ".github/scripts/wepld_s2_identity_store_governance_v34_integrity.py"
 T = ".github/scripts/wepld_s2_identity_store_governance_v34_selftest.py"
-T_BLOB = "44fa31fdffc8657fd47cc4b8170f9dcb71959a79"
+T_BLOB = "dcfae36aee07fcd5eac9119a049ee0cdc1d6c13c"
 V33_P_BLOB = "f2a7626fcead2984749457b203dcd2523f6982a2"
 V33_T_BLOB = "e2eb9fa5a6393305a6465be71aea53bb2193a586"
 
@@ -166,6 +166,13 @@ def _state(view: Any) -> Any:
         return _V18_STATE(view)
     finally:
         _V18.FINAL_LEARNING_BLOB = original
+
+
+# Bound at import rather than in `install()`, and the distinction is load-bearing.
+# Predecessor self-tests run before `install()`, and on a tree that already
+# carries the authorized transition they evaluate the post-transition ledger. A
+# widening installed later would arrive after they had already failed.
+_V18.state = _state
 
 
 def bootbase(view: Any) -> bool:
@@ -460,7 +467,6 @@ def install() -> None:
     _bind(shell, "validate_allowed_paths", allowed, "v34 allowed hook")
     _bind(shell, "verify_policy_files", files, "v34 files hook")
     _bind(shell, "print_success", printer, "v34 printer hook")
-    _bind(_V18, "state", _state, "v34 S1-016 ledger-pin widening")
     _INST = True
     overlay()
 

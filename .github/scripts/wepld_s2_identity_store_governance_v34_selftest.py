@@ -90,18 +90,35 @@ def _check_transition_scope() -> None:
         base.fail("v34 documentation transition must authorize exactly two paths")
 
 
-def _check_pinned_pre_state() -> None:
-    """The tree this policy was frozen against carries the pinned pre bytes."""
-    for path, expected in (
-        (p.CHECKPOINT, p.PRE_CHECKPOINT_BLOB),
-        (p.LEDGER, p.PRE_LEDGER_BLOB),
+def _check_local_state_is_one_of_the_two_pinned_states() -> None:
+    """The local tree is either side of the authorized transition, never between.
+
+    This test used to require the pinned pre state only, which was wrong for the
+    same reason the first ledger design was wrong: after the transition merges,
+    canonical main carries the post-transition bytes forever, and a policy that
+    only tolerates the pre state fails on the tree it just created.
+
+    Both documents must also be on the *same* side. A tree carrying one
+    transitioned file and one untransitioned file is a half-applied transition
+    and is not a state this policy recognises.
+    """
+    sides = []
+    for path, pre, final in (
+        (p.CHECKPOINT, p.PRE_CHECKPOINT_BLOB, p.FINAL_CHECKPOINT_BLOB),
+        (p.LEDGER, p.PRE_LEDGER_BLOB, p.FINAL_LEDGER_BLOB),
     ):
         actual = p.V25.blob(p.root.read_bytes(path, base.MAX_POLICY_FILE_BYTES))
-        if actual != expected:
+        if actual == pre:
+            sides.append("PRE")
+        elif actual == final:
+            sides.append("FINAL")
+        else:
             base.fail(
-                f"v34 pinned pre-transition state drifted: {path}: "
-                f"expected={expected} actual={actual}"
+                f"v34 local documentation state is neither pinned side: {path}: "
+                f"actual={actual}"
             )
+    if len(set(sides)) != 1:
+        base.fail(f"v34 local documentation state is half-applied: {sides}")
 
 
 def _check_pins_are_distinct() -> None:
@@ -112,10 +129,10 @@ def _check_pins_are_distinct() -> None:
         base.fail("v34 ledger pins are identical")
 
 
-def _check_transition_refuses_the_pre_state() -> None:
-    """A candidate that still carries the pre bytes is not the transition."""
+def _check_transition_refuses_a_no_op() -> None:
+    """A candidate identical to its base is not a transition, on either side."""
     _expect_failure(
-        "candidate still carrying the pinned pre-transition bytes",
+        "candidate identical to base",
         lambda: p.docs_transition(p.root, p.root),
     )
 
@@ -147,7 +164,9 @@ def _check_ledger_pin_widening() -> None:
     if p._V18.FINAL_LEARNING_BLOB != p.PRE_LEDGER_BLOB:
         base.fail("v34 inherited S1-016 ledger pin is not at its pinned value")
 
-    # The pinned tree still evaluates, and the pin is untouched afterwards.
+    # Whichever side the local tree is on, it evaluates and leaves the pin
+    # restored. Before the transition that exercises the delegating path; after
+    # it, the widened one.
     p._state(p.root)
     if p._V18.FINAL_LEARNING_BLOB != p.PRE_LEDGER_BLOB:
         base.fail("v34 left the inherited ledger pin widened after a pinned call")
@@ -203,9 +222,9 @@ def run() -> None:
 
     _check_authority_markers()
     _check_transition_scope()
-    _check_pinned_pre_state()
+    _check_local_state_is_one_of_the_two_pinned_states()
     _check_pins_are_distinct()
-    _check_transition_refuses_the_pre_state()
+    _check_transition_refuses_a_no_op()
     _check_transition_refuses_drift()
     _check_ledger_pin_widening()
     _check_workflow_projection_reverses()

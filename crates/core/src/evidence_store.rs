@@ -130,6 +130,21 @@ pub enum StoreDefect {
     /// alike: both name their project twice, and the two names must agree.
     ProjectMismatch,
     /// A schema version outside the supported contract range was persisted.
+    ///
+    /// # Currently unreachable, and why that is recorded rather than implied
+    ///
+    /// The contract codec rejects an unknown `schema_version` while decoding, so
+    /// a persisted record carrying a future version fails to decode and surfaces
+    /// as the corresponding corruption class instead of this one. The explicit
+    /// version checks in this module are fail-closed guards that no current
+    /// input can reach.
+    ///
+    /// Separating the two would mean reading the version before decoding the
+    /// whole record, which needs either a version-tolerant decoder in the
+    /// contract layer or a JSON parser of this module's own. This tranche holds
+    /// authority for neither, so the gap is stated, and the classification a
+    /// future version actually receives today is pinned by test rather than
+    /// assumed.
     UnsupportedSchemaVersion,
     /// The manifest was written by a producer contract this reader does not
     /// support.
@@ -1359,11 +1374,23 @@ impl EvidenceStore {
     /// The generation is supplied by the caller from a single
     /// [`Self::read_published_generation`] result, which is what prevents a
     /// mixed-generation read.
+    ///
+    /// The manifest argument is an ordinary public value, so this is a public
+    /// entry point in its own right rather than only a continuation of a
+    /// validated read. It therefore repeats the producer-contract refusal:
+    /// checking it in [`Self::read_published_generation`] alone would leave the
+    /// refusal bypassable by anyone who decoded or built a manifest and passed
+    /// it here, which would make the stated reader boundary untrue.
     pub fn read_generation_record(
         &self,
         manifest: &ProjectGenerationManifest,
         record: &RecordId,
     ) -> Result<Vec<u8>, StoreError> {
+        if manifest.producer_contract_version != PRODUCER_CONTRACT_VERSION {
+            return Err(StoreError::Defect(
+                StoreDefect::UnsupportedProducerContractVersion,
+            ));
+        }
         let Some(expected) = Self::digest_for(manifest, record) else {
             return Err(StoreError::Defect(StoreDefect::RecordDigestMissing));
         };

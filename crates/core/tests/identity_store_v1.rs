@@ -1873,6 +1873,20 @@ fn an_unsupported_producer_contract_version_is_refused_at_publish_and_read() -> 
         ),
         "a coherent generation from an unsupported producer must not be read as current"
     );
+
+    // read_generation_record takes an ordinary public manifest, so it is a
+    // public entry point of its own. Refusing only in read_published_generation
+    // would leave the boundary bypassable by anyone holding a manifest value.
+    let identity_ref = manifest.identity_record_ref.clone();
+    assert!(
+        matches!(
+            store.read_generation_record(&manifest, &identity_ref),
+            Err(StoreError::Defect(
+                StoreDefect::UnsupportedProducerContractVersion
+            ))
+        ),
+        "a record must not be readable through a manifest from an unsupported producer"
+    );
     Ok(())
 }
 
@@ -2001,6 +2015,99 @@ fn a_reservation_bound_to_another_project_is_a_typed_defect() -> TestResult {
     assert!(
         matches!(entry, Err(StoreDefect::ProjectMismatch)),
         "enumeration must classify the same record the same way"
+    );
+    Ok(())
+}
+
+#[test]
+fn an_unsupported_persisted_schema_version_is_reported_as_corruption() -> TestResult {
+    // This pins what actually happens, not what the defect names suggest.
+    //
+    // `StoreDefect::UnsupportedSchemaVersion` exists and this module checks for
+    // it, but the contract codec rejects an unknown `schema_version` while
+    // decoding, so no persisted record can reach those checks: a future version
+    // fails to decode and arrives as the corresponding corruption class instead.
+    // Separating the two would mean reading the version before decoding the
+    // record, which needs a version-tolerant decoder in the contract layer or a
+    // JSON parser here, and this tranche has authority for neither.
+    //
+    // The behaviour is recorded rather than assumed, so a later codec change
+    // makes this test fail instead of quietly turning dead guards live.
+    let root = temp_root("schemaversion")?;
+    let store = EvidenceStore::new(&root);
+    store.initialize()?;
+    let facts = facts_at("/projects/schemaversion")?;
+    let project = allocate_project_id()?;
+
+    let bump = |bytes: Vec<u8>| -> Result<Vec<u8>, TestError> {
+        let text = String::from_utf8(bytes).map_err(|_| "canonical JSON must be UTF-8")?;
+        let bumped = text.replace("\"schema_version\":1", "\"schema_version\":2");
+        if bumped == text {
+            return Err("the fixture must actually change the schema version".into());
+        }
+        Ok(bumped.into_bytes())
+    };
+
+    // A reservation from a future contract version.
+    let reservation = build_reservation(project.clone(), &facts, UnixMillis::new(1))?;
+    let reservation_path = root
+        .join("catalog")
+        .join("reservations")
+        .join(format!("{}.json", project.as_str()));
+    fs::create_dir_all(reservation_path.parent().ok_or("reservation parent")?)?;
+    fs::write(
+        &reservation_path,
+        bump(canonical_project_json(&reservation)?)?,
+    )?;
+
+    assert!(
+        matches!(
+            store.read_reservation(&project),
+            Err(StoreError::Defect(StoreDefect::RecordCorrupt))
+        ),
+        "a future reservation version currently arrives as corruption, not as an unsupported version"
+    );
+    let listed = store.list_reservations()?;
+    assert_eq!(listed.len(), 1);
+    assert!(matches!(
+        listed
+            .into_iter()
+            .next()
+            .ok_or("one entry must be listed")?,
+        Err(StoreDefect::RecordCorrupt)
+    ));
+
+    // A manifest from a future contract version, with `CURRENT` updated so the
+    // digest check cannot mask the classification under test.
+    let manifest_project = allocate_project_id()?;
+    let generation = write_generation(&store, &manifest_project)?;
+    let manifest_path = root
+        .join("projects")
+        .join(manifest_project.as_str())
+        .join("generations")
+        .join(generation.as_str())
+        .join("manifest.json");
+    let bumped_manifest = bump(fs::read(&manifest_path)?)?;
+    fs::write(&manifest_path, &bumped_manifest)?;
+    let current = ProjectCurrentRef {
+        schema_version: ProjectContractVersion::V1,
+        project_id: manifest_project.clone(),
+        generation_id: generation,
+        manifest_digest: content_digest(&bumped_manifest)?,
+    };
+    fs::write(
+        root.join("projects")
+            .join(manifest_project.as_str())
+            .join("CURRENT"),
+        canonical_project_json(&current)?,
+    )?;
+
+    assert!(
+        matches!(
+            store.read_published_generation(&manifest_project),
+            Err(StoreError::Defect(StoreDefect::ManifestCorrupt))
+        ),
+        "a future manifest version currently arrives as corruption too"
     );
     Ok(())
 }

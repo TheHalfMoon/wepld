@@ -1,49 +1,85 @@
-# Requirements Checklist — Spec 006 Planning Candidate
+# Requirements Checklist — IssueOps Agentic Engineering Control Plane
 
 ```text
-STATUS = READY_FOR_PLANNING_REVIEW
+STATUS = FUTURE_PLANNING_CHECKLIST
 IMPLEMENTATION_AUTHORITY = NONE
 ```
 
-## Scope integrity
+## Governance
 
-- [x] Future planning only; current S2 scope unchanged.
-- [x] P0 + S1..S10 numbering preserved.
-- [x] No source/dependency/runtime/provider/network/Git/issue-write admission is claimed.
-- [x] GitHub-first design does not make GitHub the core domain model.
+- [ ] Canonical base and P0 + S1..S10 numbering remain unchanged.
+- [ ] S2 authority is not expanded.
+- [ ] Source/dependency/network/model/provider/Git/issue-write authority remains NONE for this planning candidate.
+- [ ] Nawat remains the only effect-time authority.
+- [ ] Assurance remains independent from Trusted Completion.
 
-## User intent coverage
+## IssueOps
 
-- [x] Agentic automated issue operations are a primary product outcome.
-- [x] GitHub Issues/PRs are first-class provider targets.
-- [x] Additional issue/ticket/error providers have a stable adapter seam.
-- [x] `/rag` supports arbitrary qualified user-selected sources.
-- [x] CLI/Desktop drag/drop/path-paste intake is planned.
-- [x] Matt skills study is fully represented and adapted to WePLD-native commands/primitives.
-- [x] delegate-skills study is fully represented and adapted to provider-neutral delegation.
+- [ ] Provider-neutral Case model is defined.
+- [ ] GitHub is first adapter, not core identity.
+- [ ] Provider observations/conflicts remain append-only and do not use generic latest-write-wins semantics.
+- [ ] Case/provider schema evolution is versioned and replayable.
+- [ ] Backlog-sweep output classes have explicit evidence requirements, abstention behavior, benchmark accounting, and negative oracles.
+- [ ] Probable duplicate cannot auto-close or silently merge Case identity.
+- [ ] Common-root-cause requires causal evidence stronger than topic similarity.
+- [ ] First IssueOps tracer bullet is explicitly offline/read-only and end-to-end.
 
-## Architecture integrity
+## RAG / Project Brain
 
-- [x] Case/provider state separation is explicit.
-- [x] Retrieval/truth separation is explicit.
-- [x] Worker selection/qualification/authorization separation is explicit.
-- [x] Autonomy ceiling/authorization separation is explicit.
-- [x] Merge/closeout/Trusted Completion separation is explicit.
-- [x] Drop/paste/execution separation is explicit.
-- [x] No silent fallback or silent paid/quota execution is permitted.
+- [ ] KnowledgeCollection and RetrievalEvidence are provenance/freshness aware.
+- [ ] Exact/lexical/Fehrest signals work without mandatory vector dependency.
+- [ ] Semantic/vector retrieval is query-aware, optional, benchmark-justified, and replaceable.
+- [ ] Fehrest.Maemar exact graph/source facts remain distinct from similarity scores.
+- [ ] No-answer/abstention and stale/conflicting-source cases are qualified.
+- [ ] Collection membership does not imply provider/model egress.
 
-## Delivery integrity
+## Untrusted content
 
-- [x] Capabilities are mapped to existing owning slices.
-- [x] The plan uses incremental tracer bullets.
-- [x] Read-only and prepare paths precede autonomous landing.
-- [x] External writes require exact-target/idempotency semantics.
-- [x] Required negative oracles are listed.
-- [x] Future activation requires canonical build-method gates.
+- [ ] External/retrieved/repository/worker/model content defaults to data, not instruction authority.
+- [ ] Context packages preserve origin/trust classification.
+- [ ] Effect proposals require explicit WorkflowIntent/Assignment/policy provenance.
+- [ ] Untrusted content cannot expand secrets/files/collections/network/provider/cost/autonomy visibility.
+- [ ] Parser/active-content behavior is separately qualified.
+- [ ] Prompt sanitization/classification is defense-in-depth, never an authority boundary.
+- [ ] Adversarial prompt-injection/RAG-injection negative-oracle corpus is required before effect-capable automation.
 
-## Remaining review work
+## Intake
 
-- [ ] Exact-head deterministic repository checks.
-- [ ] Independent planning/correctness review.
-- [ ] Reconciliation of all material findings.
-- [ ] Final exact-head/race check before any authorized merge.
+- [ ] InputArtifact creation is inert.
+- [ ] Terminal path paste and native drop normalize to one contract.
+- [ ] Windows/Linux/macOS behavior is explicitly qualified.
+- [ ] Drop/paste cannot execute/fetch/install/mutate/egress implicitly.
+- [ ] S3/S4 local intake-to-cited-RAG checkpoint exists before Agent Host complexity.
+
+## Workflow / skills
+
+- [ ] Command catalog is WePLD-native.
+- [ ] Initial primary UX may be smaller than the full command catalog through progressive disclosure.
+- [ ] Domain modeling and deep-module analysis are explicit internal architecture primitives.
+- [ ] Matt/delegate donor branding does not become product architecture.
+
+## Delegation
+
+- [ ] Edara topology, Mirefa qualification, Nawat authority, Mission Runtime execution, and UWC adapter boundaries are explicit.
+- [ ] Boundaries may be co-located in early implementations without semantic collapse.
+- [ ] RouteQualification cannot mint authority.
+- [ ] Mission Runtime cannot widen/reuse grants or silently substitute worker/provider/model.
+- [ ] Nawat denial/requalification/stale target is visible as workflow state.
+- [ ] Paid/quota/remote route selection is explicit and policy governed.
+- [ ] S5 permits synthetic delegation dry-run only; real worker execution remains S6-owned.
+
+## Trusted Completion
+
+- [ ] CompletionEvidence binds exact accepted target/generation.
+- [ ] Deterministic gates, independent review, security review/N-A basis, reconciliation, authority/effect refs, provider closeout refs, residual limitations, and completion decision identity are represented.
+- [ ] Stale/mismatched evidence or unresolved material findings fail completion closed.
+- [ ] Merge/close/green CI/model review/provider status do not directly set Trusted Completion.
+
+## Review acceptance
+
+- [ ] Exact-head deterministic checks are green.
+- [ ] Fresh independent exact-head review covers the required scope or explicitly performs staged subreviews before synthesis.
+- [ ] Finding table and final severity counts are internally consistent.
+- [ ] All material findings are reconciled.
+- [ ] Unresolved review threads are zero.
+- [ ] Final base/head/tree/diff/check/review race is clean.

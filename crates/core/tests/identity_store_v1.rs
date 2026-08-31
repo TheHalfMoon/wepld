@@ -809,8 +809,9 @@ fn ordering_state_drains_under_concurrent_churn() -> TestResult {
         handles.push(thread::spawn(move || -> Result<(), String> {
             for _ in 0..40 {
                 // Either the catalog is taken first and the ordered path yields
-                // the project guard, or ordering refuses because a project guard
-                // is live. Both are correct; an inverted pair is not reachable.
+                // the project guard, or acquisition is contended and returns a
+                // stable busy result. This exercises churn; it does not by
+                // itself establish an ordering property.
                 match store.lock_catalog(&|| false) {
                     Ok(catalog) => {
                         if let Ok(project_guard) = catalog.lock_project(&store, &project, &|| false)
@@ -1068,6 +1069,90 @@ fn a_guard_from_another_store_is_rejected() -> TestResult {
         catalog_a.lock_project(&store_b, &project, &never_cancelled()),
         Err(StoreError::ForeignLock)
     ));
+    Ok(())
+}
+
+#[test]
+fn a_caller_holding_a_project_guard_cannot_acquire_the_catalog() -> TestResult {
+    // Canonical Q26 fixes catalog-before-project when one operation needs both.
+    // That is a per-caller rule, so the calling thread holding a project guard
+    // must be refused the catalog. The check reads thread-local state, so no
+    // other thread can change the answer between the check and the acquisition.
+    let root = temp_root("reverseorder")?;
+    let store = EvidenceStore::new(&root);
+    store.initialize()?;
+    let project = allocate_project_id()?;
+
+    let project_lock = store.lock_project(&project, &never_cancelled())?;
+    assert!(
+        matches!(
+            store.lock_catalog(&never_cancelled()),
+            Err(StoreError::LockOrderViolation)
+        ),
+        "the calling thread must not acquire the catalog while holding a project guard"
+    );
+
+    // A second handle to the same root is the same caller, so the guard cannot
+    // be laundered through another handle.
+    let other_handle = EvidenceStore::new(&root);
+    assert!(matches!(
+        other_handle.lock_catalog(&never_cancelled()),
+        Err(StoreError::LockOrderViolation)
+    ));
+
+    // Nor through a different lexical spelling of the same root. A current
+    // directory component would prove nothing because Rust path comparison
+    // already collapses it, so a parent component is used.
+    let aliased_spelling = root.join("sibling").join("..");
+    assert_ne!(
+        aliased_spelling, root,
+        "the alias fixture must not already compare equal"
+    );
+    let aliased = EvidenceStore::new(aliased_spelling);
+    assert_eq!(aliased.root(), store.root());
+    assert!(matches!(
+        aliased.lock_catalog(&never_cancelled()),
+        Err(StoreError::LockOrderViolation)
+    ));
+
+    drop(project_lock);
+    let recovered = store.lock_catalog(&never_cancelled())?;
+    drop(recovered);
+    Ok(())
+}
+
+#[test]
+fn another_thread_holding_a_project_guard_does_not_block_the_catalog() -> TestResult {
+    // The rule is per caller, not per process. Refusing an unrelated thread's
+    // catalog acquisition would be stricter than canonical authority requires,
+    // and it was also the shape that made the previous check racy.
+    let root = temp_root("crossthread")?;
+    let store = Arc::new(EvidenceStore::new(&root));
+    store.initialize()?;
+    let project = Arc::new(allocate_project_id()?);
+
+    let (ready_tx, ready_rx) = std::sync::mpsc::channel::<()>();
+    let (release_tx, release_rx) = std::sync::mpsc::channel::<()>();
+    let holder = {
+        let store = Arc::clone(&store);
+        let project = Arc::clone(&project);
+        thread::spawn(move || -> Result<(), String> {
+            let guard = store
+                .lock_project(&project, &|| false)
+                .map_err(|error| format!("project lock: {error}"))?;
+            ready_tx.send(()).map_err(|_| "ready send")?;
+            release_rx.recv().map_err(|_| "release recv")?;
+            drop(guard);
+            Ok(())
+        })
+    };
+
+    ready_rx.recv().map_err(|_| "holder never signalled")?;
+    // The holder thread is definitely inside its project guard here.
+    let catalog = store.lock_catalog(&never_cancelled())?;
+    drop(catalog);
+    release_tx.send(()).map_err(|_| "release send")?;
+    holder.join().map_err(|_| "holder panicked")??;
     Ok(())
 }
 

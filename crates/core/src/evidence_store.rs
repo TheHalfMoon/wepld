@@ -37,14 +37,15 @@
 //! and are never promoted. It executes no process, performs no network effect,
 //! and calls no version-control tooling.
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::error::Error;
 use std::ffi::OsString;
 use std::fmt;
 use std::fs::{self, File, OpenOptions, TryLockError};
 use std::io::{self, Read as _, Write as _};
+use std::marker::PhantomData;
 use std::path::{Component, MAIN_SEPARATOR_STR, Path, PathBuf};
-use std::sync::{Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -271,44 +272,128 @@ impl From<ProjectContractCodecError> for StoreError {
     }
 }
 
-/// Live project-lock counts for this process, keyed by store root.
+/// Lexically normalise a store root so equivalent spellings share one identity.
 ///
-/// Canonical authority fixes catalog-before-project ordering whenever an
-/// operation needs both locks, while explicitly permitting a project-only lock
-/// for ordinary updates to an already-resolved project. Keying on the root
-/// rather than on one `EvidenceStore` value means two independently constructed
-/// handles to the same store still share the ordering constraint.
-fn project_lock_registry() -> &'static Mutex<HashMap<PathBuf, usize>> {
-    static REGISTRY: OnceLock<Mutex<HashMap<PathBuf, usize>>> = OnceLock::new();
-    REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
-}
-
-/// Take the registry guard, recovering rather than propagating poisoning.
+/// `.` components are dropped and `..` components pop the previous normal
+/// component. A `..` that would climb above an absolute root is discarded,
+/// because both POSIX and Windows resolve it to the root itself; leaving it
+/// would keep two spellings of one location distinct and would name nothing.
+/// For a relative path a leading `..` is meaningful and is preserved.
 ///
-/// A panicking holder must not permanently disable ordering enforcement.
-fn registry_guard() -> std::sync::MutexGuard<'static, HashMap<PathBuf, usize>> {
-    match project_lock_registry().lock() {
-        Ok(guard) => guard,
-        Err(poisoned) => poisoned.into_inner(),
+/// Normalisation is purely lexical and therefore deterministic and independent
+/// of whether the directory exists. It does not resolve symbolic links, so two
+/// roots that alias through a link remain distinct store identities; the
+/// operating-system lock still provides mutual exclusion in that case.
+fn normalize_root(root: PathBuf) -> PathBuf {
+    let mut parts: Vec<Component<'_>> = Vec::new();
+    let mut rooted = false;
+    let mut depth: usize = 0;
+    for component in root.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if depth > 0 {
+                    parts.pop();
+                    depth -= 1;
+                } else if !rooted {
+                    parts.push(component);
+                }
+            }
+            Component::RootDir => {
+                rooted = true;
+                parts.push(component);
+            }
+            // A Windows prefix alone does not make a path rooted: `C:a` is
+            // drive-relative, so a following parent component is meaningful.
+            Component::Prefix(_) => parts.push(component),
+            Component::Normal(_) => {
+                parts.push(component);
+                depth += 1;
+            }
+        }
     }
+    // Reassemble explicitly. Pushing a component whose text parses as a Windows
+    // prefix would replace the whole accumulated path, so a directory named
+    // `C:` would re-root the store and a verbatim prefix would be corrupted into
+    // a drive-relative path.
+    let mut assembled = OsString::new();
+    let mut need_separator = false;
+    for component in parts {
+        match component {
+            Component::Prefix(prefix) => {
+                assembled.push(prefix.as_os_str());
+                need_separator = false;
+            }
+            Component::RootDir => {
+                assembled.push(MAIN_SEPARATOR_STR);
+                need_separator = false;
+            }
+            other => {
+                if need_separator {
+                    assembled.push(MAIN_SEPARATOR_STR);
+                }
+                assembled.push(other.as_os_str());
+                need_separator = true;
+            }
+        }
+    }
+    if assembled.is_empty() {
+        return PathBuf::from(".");
+    }
+    PathBuf::from(assembled)
 }
 
-fn project_locks_held(root: &Path) -> usize {
-    registry_guard().get(root).copied().unwrap_or(0)
+/// Project guards held by the current thread, keyed by store root.
+///
+/// Canonical clarification Q26 fixes catalog-before-project ordering whenever a
+/// single operation needs both locks, while explicitly permitting a project-only
+/// lock for ordinary updates. The constraint is therefore a property of one
+/// caller, not of the whole process: a thread holding only the project lock and
+/// a different thread holding only the catalog lock is two single-resource
+/// operations, not an inverted acquisition.
+///
+/// Tracking this per thread rather than per process makes the check exact and
+/// removes a race. A process-wide count had to be read and released before the
+/// operating-system acquisition, so another thread could register between the
+/// check and the acquisition; per-thread state cannot be mutated by another
+/// thread, so the check and the acquisition cannot interleave with anything that
+/// would change the answer.
+///
+/// It is also no longer over-strict: an unrelated thread's project work no
+/// longer blocks catalog acquisition, which the process-wide count refused.
+thread_local! {
+    static HELD_PROJECT_LOCKS: RefCell<HashMap<PathBuf, usize>> =
+        RefCell::new(HashMap::new());
+}
+
+fn project_locks_held_by_this_thread(root: &Path) -> usize {
+    HELD_PROJECT_LOCKS.with(|held| held.borrow().get(root).copied().unwrap_or(0))
 }
 
 fn register_project_lock(root: &Path) {
-    *registry_guard().entry(root.to_path_buf()).or_insert(0) += 1;
+    HELD_PROJECT_LOCKS.with(|held| {
+        *held.borrow_mut().entry(root.to_path_buf()).or_insert(0) += 1;
+    });
+}
+
+fn release_project_lock(root: &Path) {
+    HELD_PROJECT_LOCKS.with(|held| {
+        let mut map = held.borrow_mut();
+        if let Some(count) = map.get_mut(root) {
+            *count = count.saturating_sub(1);
+            if *count == 0 {
+                map.remove(root);
+            }
+        }
+    });
 }
 
 /// A registry entry held while a project lock acquisition is in flight.
 ///
-/// Registration must happen before the operating-system lock is taken, or another
-/// thread can pass the catalog-order check inside that window. Doing it with a
-/// plain call leaves the release on the error path only, so a panic unwinding out
-/// of acquisition, including a panic raised by a caller-supplied cancellation
-/// callback, strands the entry forever and blocks the catalog for the process
-/// lifetime. Holding it as a guard means the release runs on every exit path.
+/// Registration must happen before the operating-system lock is taken, or the
+/// calling thread could pass its own catalog-order check inside that window.
+/// Holding it as a guard means the release runs on every exit path, including a
+/// panic unwinding out of a caller-supplied cancellation callback.
 struct PendingProjectLock {
     root: PathBuf,
     armed: bool,
@@ -335,97 +420,6 @@ impl Drop for PendingProjectLock {
             release_project_lock(&self.root);
         }
     }
-}
-
-fn release_project_lock(root: &Path) {
-    let mut guard = registry_guard();
-    if let Some(count) = guard.get_mut(root) {
-        *count = count.saturating_sub(1);
-        if *count == 0 {
-            guard.remove(root);
-        }
-    }
-}
-
-/// Lexically normalise a store root so equivalent spellings share one identity.
-///
-/// `.` components are dropped and `..` components pop the previous normal
-/// component.
-///
-/// A `..` that would climb above an absolute root is discarded rather than
-/// retained, because both POSIX and Windows resolve `/..` to `/`. Retaining it
-/// would leave `/a/../../b` and `/b` as different keys for the same location,
-/// which is exactly the alias bypass this normalisation exists to close, and
-/// would also produce a path that names nothing.
-///
-/// For a relative path a leading `..` is meaningful and is preserved, since
-/// there is no known root to climb above.
-///
-/// Normalisation is purely lexical and therefore deterministic and independent
-/// of whether the directory exists. It does not resolve symbolic links, so two
-/// roots that alias through a link remain distinct store identities for
-/// in-process ordering; the operating-system lock still provides mutual
-/// exclusion in that case and acquisition remains bounded.
-fn normalize_root(root: PathBuf) -> PathBuf {
-    let mut parts: Vec<Component<'_>> = Vec::new();
-    let mut rooted = false;
-    let mut depth: usize = 0;
-    for component in root.components() {
-        match component {
-            Component::CurDir => {}
-            Component::ParentDir => {
-                if depth > 0 {
-                    parts.pop();
-                    depth -= 1;
-                } else if !rooted {
-                    parts.push(component);
-                }
-                // A rooted path at depth zero discards it: `/..` is `/`.
-            }
-            Component::RootDir => {
-                rooted = true;
-                parts.push(component);
-            }
-            // A Windows prefix alone does not make a path rooted: `C:a` is
-            // drive-relative, so a following parent component is meaningful.
-            Component::Prefix(_) => parts.push(component),
-            Component::Normal(_) => {
-                parts.push(component);
-                depth += 1;
-            }
-        }
-    }
-    // Reassemble explicitly rather than through `PathBuf::push` or `collect`.
-    // Pushing a component whose text parses as a Windows prefix replaces the
-    // whole accumulated path, so a directory literally named `C:` would silently
-    // re-root the store and a verbatim prefix would be corrupted into a
-    // drive-relative path. Concatenating with an explicit separator keeps every
-    // component a component.
-    let mut assembled = OsString::new();
-    let mut need_separator = false;
-    for component in parts {
-        match component {
-            Component::Prefix(prefix) => {
-                assembled.push(prefix.as_os_str());
-                need_separator = false;
-            }
-            Component::RootDir => {
-                assembled.push(MAIN_SEPARATOR_STR);
-                need_separator = false;
-            }
-            other => {
-                if need_separator {
-                    assembled.push(MAIN_SEPARATOR_STR);
-                }
-                assembled.push(other.as_os_str());
-                need_separator = true;
-            }
-        }
-    }
-    if assembled.is_empty() {
-        return PathBuf::from(".");
-    }
-    PathBuf::from(assembled)
 }
 
 const HEX_DIGITS: &[u8; 16] = b"0123456789abcdef";
@@ -557,6 +551,13 @@ pub struct ProjectLock {
     inner: StoreLock,
     project: ProjectId,
     root: PathBuf,
+    /// Keeps the guard on its acquiring thread.
+    ///
+    /// Ordering accounting is thread-local, so moving a guard to another thread
+    /// would leave the releasing thread decrementing a count it never
+    /// incremented while the acquiring thread kept one forever. Making the guard
+    /// `!Send` removes that possibility rather than documenting it.
+    _not_send: PhantomData<*const ()>,
 }
 
 impl ProjectLock {
@@ -734,18 +735,22 @@ impl EvidenceStore {
 
     /// Acquire the store-wide identity catalog lock. S2-E005, S2-I011.
     ///
-    /// Canonical clarification Q26 fixes catalog-before-project ordering when an
-    /// operation needs both locks. This call therefore refuses with
-    /// [`StoreError::LockOrderViolation`] while this process holds a project
-    /// lock on the same store root, so the order cannot be inverted through the
-    /// supported API even though project-only locking stays available.
+    /// Canonical clarification Q26 fixes catalog-before-project ordering when a
+    /// single operation needs both locks. That is a property of one caller, so
+    /// this refuses with [`StoreError::LockOrderViolation`] when the **calling
+    /// thread** already holds a project guard on the same store root.
     ///
-    /// The constraint is keyed on the store root, so two independently
-    /// constructed handles to the same store share it. Enforcement is
-    /// process-local. A second process inverting the order cannot deadlock,
-    /// because acquisition is bounded and fails with a stable busy error.
+    /// A different thread holding only a project lock does not block this call.
+    /// Those are two single-resource operations, not an inverted acquisition,
+    /// and refusing them would be stricter than canonical authority requires.
+    ///
+    /// The check reads thread-local state, so no other thread can change the
+    /// answer between the check and the acquisition. A process-wide count could
+    /// not offer that: it had to be read and released before the
+    /// operating-system call, leaving a window in which another thread
+    /// registered.
     pub fn lock_catalog(&self, cancelled: &dyn Fn() -> bool) -> Result<CatalogLock, StoreError> {
-        if project_locks_held(&self.root) > 0 {
+        if project_locks_held_by_this_thread(&self.root) > 0 {
             return Err(StoreError::LockOrderViolation);
         }
         Ok(CatalogLock {
@@ -782,6 +787,7 @@ impl EvidenceStore {
             inner,
             project: project.clone(),
             root: self.root.clone(),
+            _not_send: PhantomData,
         };
         pending.into_owned();
         Ok(guard)

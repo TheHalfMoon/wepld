@@ -51,10 +51,10 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use sha2::{Digest as _, Sha256};
 use wepld_contracts::{
     ContentDigest, ContractValueError, EvidenceStatus, FreshnessBasis, GenerationId,
-    IdentityCatalogReservation, ProjectContractCodecError, ProjectContractVersion,
-    ProjectCurrentRef, ProjectGenerationManifest, ProjectId, RecordDigest, RecordDigestList,
-    RecordId, StoreAuthenticity, StoreLockScope, UnixMillis, canonical_project_json,
-    decode_project_json,
+    IdentityCatalogReservation, MAX_RECORD_DIGESTS, ProjectContractCodecError,
+    ProjectContractVersion, ProjectCurrentRef, ProjectGenerationManifest, ProjectId, RecordDigest,
+    RecordDigestList, RecordId, StoreAuthenticity, StoreLockScope, UnixMillis,
+    canonical_project_json, decode_project_json,
 };
 
 use crate::identity::IdentityError;
@@ -197,7 +197,13 @@ pub enum StoreError {
     },
     /// A structural defect was detected. S2-E010.
     Defect(StoreDefect),
-    /// A bounded read limit was exceeded before parsing. S2-E004.
+    /// A bounded limit was exceeded.
+    ///
+    /// This covers a persisted read limit reached before parsing (S2-E004) and a
+    /// contract collection bound on a caller-supplied value. `limit` always
+    /// carries the limit that was exceeded and never the observed size: the
+    /// message reads "exceeds bounded limit N", so putting the observed size
+    /// there would tell a caller the bound is whatever they happened to send.
     TooLarge {
         limit: usize,
     },
@@ -1360,6 +1366,18 @@ impl EvidenceStore {
     /// `CURRENT` is read a single time and the returned manifest is the one it
     /// names. Callers must not re-read `CURRENT` while consuming a generation;
     /// doing so is what would allow records from two generations to be mixed.
+    ///
+    /// # Bounds are per artifact, not per generation
+    ///
+    /// This call validates every referenced record, and each read is bounded by
+    /// [`MAX_RECORD_BYTES`] individually. There is no aggregate ceiling across a
+    /// generation, so a manifest referencing many maximal records costs their
+    /// sum. Canonical planning lists a per-record **and aggregate** evidence
+    /// bound as a target whose values must be frozen before the code that
+    /// enforces them, and no aggregate value is frozen yet. Inventing one here
+    /// would be inventing authority, so the per-artifact bound is what this
+    /// tranche implements and the missing aggregate bound is stated rather than
+    /// implied. It belongs to the separate evidence bounded-read unit.
     pub fn read_published_generation(
         &self,
         project: &ProjectId,
@@ -1461,6 +1479,14 @@ impl EvidenceStore {
     /// They are reported for diagnosis and are never promoted, never read as
     /// current, and never deleted by this tranche.
     ///
+    /// A defective published generation is propagated, not flattened into "no
+    /// generation is published". Only an absent `CURRENT` means nothing is
+    /// published; a corrupt pointer, an unreadable manifest, a digest mismatch
+    /// or a corrupt record all mean the store cannot determine what is current.
+    /// Treating those as "nothing is published" would report a genuinely
+    /// published generation as residue, which is the one classification a caller
+    /// may act on destructively later.
+    ///
     /// An entry is reported only when it is one this store could itself have
     /// written: a directory whose name is exactly the path segment
     /// [`Self::generation_dir`] would produce for that identifier. The contract
@@ -1478,7 +1504,13 @@ impl EvidenceStore {
     pub fn orphan_generations(&self, project: &ProjectId) -> Result<Vec<GenerationId>, StoreError> {
         let published = match self.read_published_generation(project) {
             Ok(generation) => Some(generation.current.generation_id),
-            Err(StoreError::Defect(_)) => None,
+            // No pointer at all is the ordinary state before a first publish and
+            // the expected residue of a crash before the commit point. Nothing
+            // is published, so every generation directory genuinely is one.
+            Err(StoreError::Defect(StoreDefect::CurrentMissing)) => None,
+            // Every other outcome means the current generation is undetermined
+            // rather than absent, and an undetermined pointer is not evidence
+            // that the generation it named is residue.
             Err(error) => return Err(error),
         };
         let dir = self.project_dir(project)?.join(GENERATIONS_DIR);
@@ -1565,9 +1597,9 @@ pub fn build_manifest(
     digests: Vec<RecordDigest>,
     created_at: UnixMillis,
 ) -> Result<ProjectGenerationManifest, StoreError> {
-    let count = digests.len();
-    let record_digests =
-        RecordDigestList::try_from(digests).map_err(|_| StoreError::TooLarge { limit: count })?;
+    let record_digests = RecordDigestList::try_from(digests).map_err(|_| StoreError::TooLarge {
+        limit: MAX_RECORD_DIGESTS,
+    })?;
     Ok(ProjectGenerationManifest {
         schema_version: ProjectContractVersion::V1,
         generation_id,

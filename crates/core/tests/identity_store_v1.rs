@@ -33,9 +33,9 @@ use std::time::Instant;
 use wepld_contracts::{
     EvidenceRecordRefs, EvidenceStatus, FreshnessBasis, GenerationId, IdentityConflictKind,
     IdentityMatchStrength, IdentityRecordState, IdentityReservationState, IdentityResolution,
-    MachinePath, Observation, ObservationErrorClass, ProjectContractVersion, ProjectCurrentRef,
-    ProjectId, ProjectLocator, RecordDigest, StoreAuthenticity, StoreLockScope, UnixMillis,
-    canonical_project_json,
+    MAX_RECORD_DIGESTS, MachinePath, Observation, ObservationErrorClass, ProjectContractVersion,
+    ProjectCurrentRef, ProjectId, ProjectLocator, RecordDigest, StoreAuthenticity, StoreLockScope,
+    UnixMillis, canonical_project_json,
 };
 use wepld_core::evidence_store::{EvidenceStore, ProjectLock, StoreDefect, StoreError};
 use wepld_core::identity::{
@@ -1602,6 +1602,56 @@ fn an_entry_this_store_could_never_have_written_is_not_an_orphan() -> TestResult
     Ok(())
 }
 
+#[test]
+fn a_defective_current_pointer_does_not_turn_the_published_generation_into_residue() -> TestResult {
+    // An undetermined current generation is not an absent one. Flattening every
+    // defect into "nothing is published" reported a live, validly published
+    // generation as residue, which is the one classification a caller may later
+    // act on destructively.
+    let root = temp_root("orphandefect")?;
+    let store = EvidenceStore::new(&root)?;
+    store.initialize()?;
+    let project = allocate_project_id()?;
+    let published = write_generation(&store, &project)?;
+
+    let current_path = root.join("projects").join(project.as_str()).join("CURRENT");
+    fs::write(&current_path, b"{ not a pointer")?;
+
+    let outcome = store.orphan_generations(&project);
+    assert!(
+        matches!(
+            outcome,
+            Err(StoreError::Defect(StoreDefect::CurrentCorrupt))
+        ),
+        "a corrupt pointer must surface as a defect, not as an orphan listing"
+    );
+
+    // The repair must not silence the ordinary case: with no pointer at all,
+    // nothing is published and every generation genuinely is unpublished.
+    let unpublished_root = temp_root("orphannocurrent")?;
+    let unpublished_store = EvidenceStore::new(&unpublished_root)?;
+    unpublished_store.initialize()?;
+    let bare = allocate_project_id()?;
+    let generation = allocate_generation_id()?;
+    let record = allocate_record_id()?;
+    let lock = unpublished_store.lock_project(&bare, &never_cancelled())?;
+    unpublished_store.write_generation_record(
+        &lock,
+        &bare,
+        &generation,
+        &record,
+        IDENTITY_PAYLOAD,
+    )?;
+    drop(lock);
+    let orphans = unpublished_store.orphan_generations(&bare)?;
+    assert!(
+        orphans.contains(&generation),
+        "with no pointer at all, an unpublished generation is still an orphan"
+    );
+    assert!(!orphans.contains(&published));
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // S2-E014 failure injection at every commit boundary
 // ---------------------------------------------------------------------------
@@ -2073,6 +2123,41 @@ fn an_unsupported_producer_contract_version_is_refused_at_publish_and_read() -> 
             ))
         ),
         "a record must not be readable through a manifest from an unsupported producer"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_manifest_beyond_the_digest_bound_reports_the_bound_not_the_count() -> TestResult {
+    // `limit` names the limit that was exceeded. Reporting the observed count
+    // there tells a caller the bound is whatever they happened to send, which is
+    // precisely backwards when the message reads "exceeds bounded limit N".
+    let project = allocate_project_id()?;
+    let generation = allocate_generation_id()?;
+    let mut digests = Vec::with_capacity(MAX_RECORD_DIGESTS + 1);
+    for _ in 0..=MAX_RECORD_DIGESTS {
+        digests.push(RecordDigest {
+            record_id: allocate_record_id()?,
+            digest: content_digest(b"{}")?,
+        });
+    }
+    assert_eq!(digests.len(), MAX_RECORD_DIGESTS + 1);
+
+    let outcome = build_manifest(
+        project,
+        generation,
+        allocate_record_id()?,
+        allocate_record_id()?,
+        EvidenceRecordRefs::try_from(Vec::new())?,
+        digests,
+        UnixMillis::new(1),
+    );
+    let Err(StoreError::TooLarge { limit }) = outcome else {
+        return Err("a manifest beyond the digest bound must be refused".into());
+    };
+    assert_eq!(
+        limit, MAX_RECORD_DIGESTS,
+        "limit must name the bound, not the observed count"
     );
     Ok(())
 }

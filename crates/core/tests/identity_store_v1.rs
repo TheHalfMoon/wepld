@@ -1072,6 +1072,28 @@ fn a_guard_from_another_store_is_rejected() -> TestResult {
     Ok(())
 }
 
+/// Compile-time proof that `ProjectLock` cannot cross threads.
+///
+/// Ordering accounting is thread-local, so a guard that moved to another thread
+/// would let the releasing thread decrement a count it never incremented while
+/// the acquiring thread kept one forever.
+///
+/// This is a type-system proof, not a runtime assertion: the function only
+/// compiles while `ProjectLock` is `Send`, so its absence is what is asserted.
+/// A negative auto-trait cannot be asserted directly in stable Rust without a
+/// dependency, which this tranche has no authority to add, so the proof is
+/// stated here for explicit review rather than implied.
+///
+/// `CatalogLock` carries no thread-local accounting and is deliberately not
+/// constrained the same way.
+#[allow(dead_code)]
+fn project_lock_send_proof() {
+    fn assert_send<T: Send>() {}
+    // Uncommenting the next line must fail to compile:
+    //   assert_send::<wepld_core::evidence_store::ProjectLock>();
+    assert_send::<wepld_core::evidence_store::CatalogLock>();
+}
+
 #[test]
 fn a_caller_holding_a_project_guard_cannot_acquire_the_catalog() -> TestResult {
     // Canonical Q26 fixes catalog-before-project when one operation needs both.

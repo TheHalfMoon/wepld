@@ -343,24 +343,24 @@ fn normalize_root(root: PathBuf) -> PathBuf {
     PathBuf::from(assembled)
 }
 
-/// Project guards held by the current thread, keyed by store root.
-///
-/// Canonical clarification Q26 fixes catalog-before-project ordering whenever a
-/// single operation needs both locks, while explicitly permitting a project-only
-/// lock for ordinary updates. The constraint is therefore a property of one
-/// caller, not of the whole process: a thread holding only the project lock and
-/// a different thread holding only the catalog lock is two single-resource
-/// operations, not an inverted acquisition.
-///
-/// Tracking this per thread rather than per process makes the check exact and
-/// removes a race. A process-wide count had to be read and released before the
-/// operating-system acquisition, so another thread could register between the
-/// check and the acquisition; per-thread state cannot be mutated by another
-/// thread, so the check and the acquisition cannot interleave with anything that
-/// would change the answer.
-///
-/// It is also no longer over-strict: an unrelated thread's project work no
-/// longer blocks catalog acquisition, which the process-wide count refused.
+// Project guards held by the current thread, keyed by store root.
+//
+// Canonical clarification Q26 fixes catalog-before-project ordering whenever a
+// single operation needs both locks, while explicitly permitting a project-only
+// lock for ordinary updates. The constraint is therefore a property of one
+// caller, not of the whole process: a thread holding only the project lock and
+// a different thread holding only the catalog lock is two single-resource
+// operations, not an inverted acquisition.
+//
+// Tracking this per thread rather than per process makes the check exact and
+// removes a race. A process-wide count had to be read and released before the
+// operating-system acquisition, so another thread could register between the
+// check and the acquisition; per-thread state cannot be mutated by another
+// thread, so the check and the acquisition cannot interleave with anything that
+// would change the answer.
+//
+// It is also no longer over-strict: an unrelated thread's project work no
+// longer blocks catalog acquisition, which the process-wide count refused.
 thread_local! {
     static HELD_PROJECT_LOCKS: RefCell<HashMap<PathBuf, usize>> =
         RefCell::new(HashMap::new());

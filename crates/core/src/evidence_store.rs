@@ -933,7 +933,15 @@ impl EvidenceStore {
         let Some(bytes) = Self::read_bounded(&path, MAX_RECORD_BYTES)? else {
             return Ok(None);
         };
-        let reservation: IdentityCatalogReservation = decode_project_json(&bytes)?;
+        // A malformed persisted record is a store defect, not a codec accident.
+        // FR-023 requires malformed, truncated, digest-mismatched,
+        // unsupported-version and partially committed records to be treated as
+        // invalid consistently. Surfacing the raw codec error here while
+        // `list_reservations` reports `RecordCorrupt` for the same bytes would
+        // give one corruption two classifications depending on which API
+        // observed it.
+        let reservation: IdentityCatalogReservation = decode_project_json(&bytes)
+            .map_err(|_| StoreError::Defect(StoreDefect::RecordCorrupt))?;
         if reservation.schema_version != ProjectContractVersion::V1 {
             return Err(StoreError::Defect(StoreDefect::UnsupportedSchemaVersion));
         }

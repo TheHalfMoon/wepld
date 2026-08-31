@@ -749,23 +749,75 @@ fn root_normalisation_preserves_components_and_prefixes() -> TestResult {
     Ok(())
 }
 
+/// Assert a fixture genuinely carries a Windows `Component::Prefix`.
+///
+/// A single leading backslash does not produce a prefix: `\?\C:\a` parses as
+/// `RootDir` plus ordinary components, so a fixture written that way exercises
+/// none of the prefix handling while still passing. Two leading backslashes are
+/// required. This guard makes that degradation a test failure instead of silent
+/// vacuous coverage.
+#[cfg(windows)]
+fn assert_has_prefix(raw: &std::path::Path) -> TestResult {
+    let has_prefix = raw
+        .components()
+        .any(|component| matches!(component, std::path::Component::Prefix(_)));
+    if !has_prefix {
+        return Err(format!(
+            "fixture {raw:?} carries no Component::Prefix, so it does not exercise \
+             Windows prefix handling"
+        )
+        .into());
+    }
+    Ok(())
+}
+
 #[cfg(windows)]
 #[test]
 fn windows_root_forms_normalise_without_loss() -> TestResult {
     // Verbatim and UNC prefixes must survive normalisation intact, and a parent
     // component must clamp at the drive root rather than escaping it.
-    let verbatim = EvidenceStore::new(PathBuf::from(r"\?\C:\a\..\b"));
-    assert_eq!(verbatim.root(), &PathBuf::from(r"\?\C:\b"));
+    //
+    // Scope of this test, stated precisely. It establishes the positive
+    // property that genuine Windows prefix forms round-trip through
+    // normalisation, and the `assert_has_prefix` guard proves the fixtures
+    // actually reach `Component::Prefix` rather than parsing as ordinary
+    // components. It does NOT catch the reassembly defect that motivated this
+    // work: a syntactic prefix survives `PathBuf::push` intact, so this test
+    // passes against that defective implementation too. The test with
+    // fail-before proof for that defect is
+    // `root_normalisation_preserves_components_and_prefixes`, which uses a
+    // Normal component whose text merely resembles a prefix.
+    let verbatim_input = PathBuf::from(r"\\?\C:\a\..\b");
+    let verbatim_expected = PathBuf::from(r"\\?\C:\b");
+    assert_has_prefix(&verbatim_input)?;
+    assert_has_prefix(&verbatim_expected)?;
+    let verbatim = EvidenceStore::new(verbatim_input);
+    assert_eq!(verbatim.root(), &verbatim_expected);
 
-    let unc = EvidenceStore::new(PathBuf::from(r"\server\share\a\..\b"));
-    assert_eq!(unc.root(), &PathBuf::from(r"\server\share\b"));
+    let unc_input = PathBuf::from(r"\\server\share\a\..\b");
+    let unc_expected = PathBuf::from(r"\\server\share\b");
+    assert_has_prefix(&unc_input)?;
+    assert_has_prefix(&unc_expected)?;
+    let unc = EvidenceStore::new(unc_input);
+    assert_eq!(unc.root(), &unc_expected);
 
-    let clamped = EvidenceStore::new(PathBuf::from(r"C:\.."));
+    // The verbatim UNC form carries a distinct prefix kind and must also survive.
+    let verbatim_unc_input = PathBuf::from(r"\\?\UNC\server\share\a\..\b");
+    let verbatim_unc_expected = PathBuf::from(r"\\?\UNC\server\share\b");
+    assert_has_prefix(&verbatim_unc_input)?;
+    let verbatim_unc = EvidenceStore::new(verbatim_unc_input);
+    assert_eq!(verbatim_unc.root(), &verbatim_unc_expected);
+
+    let clamped_input = PathBuf::from(r"C:\..");
+    assert_has_prefix(&clamped_input)?;
+    let clamped = EvidenceStore::new(clamped_input);
     assert_eq!(clamped.root(), &PathBuf::from(r"C:\"));
 
     // A drive-relative path is not rooted, so its parent component is
     // meaningful and must be preserved rather than discarded.
-    let drive_relative = EvidenceStore::new(PathBuf::from(r"C:.."));
+    let drive_relative_input = PathBuf::from(r"C:..");
+    assert_has_prefix(&drive_relative_input)?;
+    let drive_relative = EvidenceStore::new(drive_relative_input);
     assert_eq!(drive_relative.root(), &PathBuf::from(r"C:.."));
     Ok(())
 }
@@ -1561,6 +1613,44 @@ fn reservation_survives_temp_write_and_replace() -> TestResult {
         .ok_or("one reservation must be listed")?
         .map_err(|defect| format!("reservation decoded as defect: {defect}"))?;
     assert_eq!(entry.state, IdentityReservationState::Initialized);
+    Ok(())
+}
+
+#[test]
+fn both_reservation_apis_classify_one_corruption_the_same_way() -> TestResult {
+    // FR-023 requires malformed persisted records to be treated as invalid.
+    // One corrupt reservation must therefore carry one classification, not a
+    // codec error through one API and a store defect through another.
+    let root = temp_root("corruptclass")?;
+    let store = EvidenceStore::new(&root);
+    store.initialize()?;
+    let facts = facts_at("/projects/classify")?;
+    let project = allocate_project_id()?;
+    let reservation = build_reservation(project.clone(), &facts, UnixMillis::new(1))?;
+    let catalog = store.lock_catalog(&never_cancelled())?;
+    store.write_reservation(&catalog, &reservation)?;
+    drop(catalog);
+
+    let path = root
+        .join("catalog")
+        .join("reservations")
+        .join(format!("{}.json", project.as_str()));
+    fs::write(&path, b"{ not valid json")?;
+
+    // Single-record read.
+    let single = store.read_reservation(&project);
+    assert!(
+        matches!(single, Err(StoreError::Defect(StoreDefect::RecordCorrupt))),
+        "read_reservation must report a store defect, not a codec error"
+    );
+
+    // Enumeration of the same record.
+    let listed = store.list_reservations()?;
+    assert_eq!(listed.len(), 1);
+    assert!(matches!(
+        listed.first(),
+        Some(Err(StoreDefect::RecordCorrupt))
+    ));
     Ok(())
 }
 

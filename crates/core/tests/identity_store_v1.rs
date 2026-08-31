@@ -45,8 +45,8 @@ use wepld_core::identity::{
     match_strength_rank, recover_reservation, resolve_identity,
 };
 use wepld_core::{
-    LOCK_ACQUIRE_DEADLINE_MS, MAX_RECORD_BYTES, build_manifest, busy_error_code, content_digest,
-    redacted_summary, safe_path_segment,
+    LOCK_ACQUIRE_DEADLINE_MS, MAX_MANIFEST_BYTES, MAX_RECORD_BYTES, PRODUCER_CONTRACT_VERSION,
+    build_manifest, busy_error_code, content_digest, redacted_summary, safe_path_segment,
 };
 
 /// Local test error.
@@ -1470,12 +1470,66 @@ fn interrupted_generation_never_becomes_current() -> TestResult {
     let lock = store.lock_project(&project, &never_cancelled())?;
     store.write_generation_record(&lock, &project, &generation, &record, b"{}")?;
 
+    // The generation was never closed, and no pointer names it. Reporting a
+    // dangling `CURRENT` here would describe a pointer that does not exist.
     let outcome = store.publish_generation(&lock, &project, &generation);
     assert!(matches!(
         outcome,
-        Err(StoreError::Defect(StoreDefect::CurrentDanglingGeneration))
+        Err(StoreError::Defect(StoreDefect::GenerationManifestMissing))
     ));
     assert!(store.read_published_generation(&project).is_err());
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn an_unreadable_closure_state_is_refused_before_any_write_effect() -> TestResult {
+    // Scope of this test, stated precisely. It proves that when the closure
+    // state of a generation cannot be read at all, the store refuses and
+    // performs no write effect, rather than reading the failure as "not closed"
+    // and proceeding.
+    //
+    // It is Unix-only because the fixture depends on a POSIX metadata error:
+    // resolving a path whose prefix component is a regular file fails with
+    // ENOTDIR, while Windows reports that same shape as an ordinary
+    // path-not-found and so cannot reach the error branch at all. The Windows
+    // side of this behaviour is therefore not covered here.
+    //
+    // What separates the two implementations is the side effect. Both fail, but
+    // the previous one turned the metadata error into `false`, decided the
+    // generation was open, and went on to create its temporary directory before
+    // the destination write failed for the same underlying reason.
+    let root = temp_root("closurestate")?;
+    let store = EvidenceStore::new(&root);
+    store.initialize()?;
+    let project = allocate_project_id()?;
+    let generation = allocate_generation_id()?;
+    let record = allocate_record_id()?;
+
+    let lock = store.lock_project(&project, &never_cancelled())?;
+
+    let project_dir = root.join("projects").join(project.as_str());
+    let generations = project_dir.join("generations");
+    fs::create_dir_all(&generations)?;
+    // The generation "directory" is a regular file, so every metadata call
+    // through it fails instead of reporting absence.
+    fs::write(generations.join(generation.as_str()), b"not a directory")?;
+
+    let temp_dir = project_dir.join("tmp");
+    assert!(
+        !temp_dir.exists(),
+        "the fixture must start with no temporary directory"
+    );
+
+    let outcome = store.write_generation_record(&lock, &project, &generation, &record, b"{}");
+    assert!(
+        matches!(outcome, Err(StoreError::Io(_))),
+        "an unreadable closure state must fail rather than be read as open"
+    );
+    assert!(
+        !temp_dir.exists(),
+        "the store must perform no write effect when it cannot determine closure"
+    );
     Ok(())
 }
 
@@ -1621,6 +1675,204 @@ fn manifest_digest_mismatch_is_detected() -> TestResult {
         outcome,
         Err(StoreError::Defect(StoreDefect::ManifestDigestMismatch))
     ));
+    Ok(())
+}
+
+#[test]
+fn an_oversized_persisted_manifest_is_classified_as_corrupt() -> TestResult {
+    // The StoreDefect documentation says an over-limit manifest is corrupt. The
+    // read paths returned the bounded-read refusal instead, so one corruption
+    // carried two classes depending on how it was produced. A caller-supplied
+    // oversized value is still an argument error; bytes already on disk are not.
+    let root = temp_root("oversizemanifest")?;
+    let store = EvidenceStore::new(&root);
+    store.initialize()?;
+    let project = allocate_project_id()?;
+    let generation = write_generation(&store, &project)?;
+
+    let manifest_path = root
+        .join("projects")
+        .join(project.as_str())
+        .join("generations")
+        .join(generation.as_str())
+        .join("manifest.json");
+    fs::write(&manifest_path, vec![b'x'; MAX_MANIFEST_BYTES + 1])?;
+
+    assert!(
+        matches!(
+            store.read_published_generation(&project),
+            Err(StoreError::Defect(StoreDefect::ManifestCorrupt))
+        ),
+        "an over-limit persisted manifest must be a store defect"
+    );
+    assert!(matches!(
+        store.validate_generation(&project, &generation),
+        Err(StoreError::Defect(StoreDefect::ManifestCorrupt))
+    ));
+    Ok(())
+}
+
+#[test]
+fn an_oversized_persisted_record_is_classified_as_corrupt() -> TestResult {
+    let root = temp_root("oversizerecord")?;
+    let store = EvidenceStore::new(&root);
+    store.initialize()?;
+    let project = allocate_project_id()?;
+    write_generation(&store, &project)?;
+
+    let published = store.read_published_generation(&project)?;
+    let record_path = root
+        .join("projects")
+        .join(project.as_str())
+        .join("generations")
+        .join(published.manifest.generation_id.as_str())
+        .join("records")
+        .join(format!(
+            "{}.json",
+            published.manifest.identity_record_ref.as_str()
+        ));
+    fs::write(&record_path, vec![b'x'; MAX_RECORD_BYTES + 1])?;
+
+    assert!(
+        matches!(
+            store.read_generation_record(
+                &published.manifest,
+                &published.manifest.identity_record_ref
+            ),
+            Err(StoreError::Defect(StoreDefect::RecordCorrupt))
+        ),
+        "an over-limit persisted record must be a store defect"
+    );
+    assert!(matches!(
+        store.read_published_generation(&project),
+        Err(StoreError::Defect(StoreDefect::RecordCorrupt))
+    ));
+    Ok(())
+}
+
+#[test]
+fn an_oversized_reservation_is_classified_the_same_way_by_both_apis() -> TestResult {
+    // Same rule as the malformed-reservation case: one corruption, one class,
+    // whichever API observes it. Enumeration must also keep reporting the other
+    // entries rather than aborting on the oversized one.
+    let root = temp_root("oversizereservation")?;
+    let store = EvidenceStore::new(&root);
+    store.initialize()?;
+    let facts = facts_at("/projects/oversize")?;
+    let good = allocate_project_id()?;
+    let bad = allocate_project_id()?;
+    let catalog = store.lock_catalog(&never_cancelled())?;
+    store.write_reservation(
+        &catalog,
+        &build_reservation(good, &facts, UnixMillis::new(1))?,
+    )?;
+    drop(catalog);
+
+    let path = root
+        .join("catalog")
+        .join("reservations")
+        .join(format!("{}.json", bad.as_str()));
+    fs::write(&path, vec![b'x'; MAX_RECORD_BYTES + 1])?;
+
+    assert!(matches!(
+        store.read_reservation(&bad),
+        Err(StoreError::Defect(StoreDefect::RecordCorrupt))
+    ));
+
+    let listed = store.list_reservations()?;
+    assert_eq!(listed.len(), 2, "the valid entry must still be enumerated");
+    assert_eq!(
+        listed
+            .iter()
+            .filter(|entry| matches!(entry, Err(StoreDefect::RecordCorrupt)))
+            .count(),
+        1
+    );
+    assert_eq!(listed.iter().filter(|entry| entry.is_ok()).count(), 1);
+    Ok(())
+}
+
+#[test]
+fn an_unsupported_producer_contract_version_is_refused_at_publish_and_read() -> TestResult {
+    // The producer contract version records what the writer meant by the fields,
+    // which the serialization schema version does not capture. A reader that
+    // accepted any value would make the field decorative and would adopt a
+    // generation whose semantics it does not implement.
+    let root = temp_root("producerversion")?;
+    let store = EvidenceStore::new(&root);
+    store.initialize()?;
+    let project = allocate_project_id()?;
+    let generation = allocate_generation_id()?;
+    let identity_record = allocate_record_id()?;
+    let index_record = allocate_record_id()?;
+
+    let lock = store.lock_project(&project, &never_cancelled())?;
+    let identity_digest = store.write_generation_record(
+        &lock,
+        &project,
+        &generation,
+        &identity_record,
+        IDENTITY_PAYLOAD,
+    )?;
+    let index_digest = store.write_generation_record(
+        &lock,
+        &project,
+        &generation,
+        &index_record,
+        INDEX_PAYLOAD,
+    )?;
+    let mut manifest = build_manifest(
+        project.clone(),
+        generation.clone(),
+        identity_record,
+        index_record,
+        EvidenceRecordRefs::try_from(Vec::new())?,
+        vec![identity_digest, index_digest],
+        UnixMillis::new(1),
+    )?;
+    manifest.producer_contract_version = PRODUCER_CONTRACT_VERSION + 1;
+    store.write_generation_manifest(&lock, &manifest)?;
+
+    // Publication refuses it, so this generation can never become current
+    // through the supported path.
+    assert!(
+        matches!(
+            store.publish_generation(&lock, &project, &generation),
+            Err(StoreError::Defect(
+                StoreDefect::UnsupportedProducerContractVersion
+            ))
+        ),
+        "an unsupported producer contract must not be publishable"
+    );
+
+    // A writer-capable actor can still point CURRENT at it directly, with a
+    // matching manifest digest, so the read path must refuse it as well. The
+    // digest agrees; only the producer contract does not.
+    let manifest_path = root
+        .join("projects")
+        .join(project.as_str())
+        .join("generations")
+        .join(generation.as_str())
+        .join("manifest.json");
+    let manifest_bytes = fs::read(&manifest_path)?;
+    let current = ProjectCurrentRef {
+        schema_version: ProjectContractVersion::V1,
+        project_id: project.clone(),
+        generation_id: generation,
+        manifest_digest: content_digest(&manifest_bytes)?,
+    };
+    let current_path = root.join("projects").join(project.as_str()).join("CURRENT");
+    fs::write(&current_path, canonical_project_json(&current)?)?;
+
+    assert!(
+        matches!(
+            store.read_published_generation(&project),
+            Err(StoreError::Defect(
+                StoreDefect::UnsupportedProducerContractVersion
+            ))
+        ),
+        "a coherent generation from an unsupported producer must not be read as current"
+    );
     Ok(())
 }
 

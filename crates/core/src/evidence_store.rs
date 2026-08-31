@@ -95,15 +95,27 @@ const TEMP_SUFFIX: &str = ".tmp";
 pub enum StoreDefect {
     /// `CURRENT` is absent; the project store has no published generation.
     CurrentMissing,
-    /// `CURRENT` exists but does not decode as a valid pointer record.
+    /// `CURRENT` exists but is not a usable pointer record: it does not decode,
+    /// or it exceeds its bounded read size.
     CurrentCorrupt,
     /// `CURRENT` names a generation whose directory or manifest is absent.
     /// This is the signature of a crash between generation write and publish.
     CurrentDanglingGeneration,
     /// The manifest does not decode, or exceeds its bounded read size.
+    ///
+    /// Both are properties of the bytes on disk, so both are store defects. A
+    /// bounded-read refusal is a caller-input error only when the caller itself
+    /// supplied the oversized value.
     ManifestCorrupt,
     /// The manifest digest recorded in `CURRENT` does not match the manifest.
     ManifestDigestMismatch,
+    /// A generation exists but carries no manifest, so it was never closed.
+    ///
+    /// This is the residue of an interrupted write. It is distinct from
+    /// [`Self::CurrentDanglingGeneration`], which is specifically about a
+    /// published pointer naming a generation that cannot be resolved; a
+    /// generation can be unclosed while no pointer names it at all.
+    GenerationManifestMissing,
     /// The manifest references a record that is not present.
     RecordMissing,
     /// A record does not decode, or exceeds its bounded read size.
@@ -119,6 +131,14 @@ pub enum StoreDefect {
     ProjectMismatch,
     /// A schema version outside the supported contract range was persisted.
     UnsupportedSchemaVersion,
+    /// The manifest was written by a producer contract this reader does not
+    /// support.
+    ///
+    /// The producer contract version records what the writer meant by the
+    /// fields, which the serialization schema version does not capture. A reader
+    /// that accepted any value would make the field decorative and would
+    /// silently adopt a generation whose semantics it does not implement.
+    UnsupportedProducerContractVersion,
 }
 
 impl fmt::Display for StoreDefect {
@@ -127,6 +147,7 @@ impl fmt::Display for StoreDefect {
             Self::CurrentMissing => "no published generation pointer",
             Self::CurrentCorrupt => "current generation pointer is corrupt",
             Self::CurrentDanglingGeneration => "current pointer names a missing generation",
+            Self::GenerationManifestMissing => "generation has no manifest and was never closed",
             Self::ManifestCorrupt => "generation manifest is corrupt",
             Self::ManifestDigestMismatch => "generation manifest digest mismatch",
             Self::RecordMissing => "referenced evidence record is missing",
@@ -135,6 +156,9 @@ impl fmt::Display for StoreDefect {
             Self::RecordDigestMissing => "manifest omits a digest for a referenced record",
             Self::ProjectMismatch => "generation manifest describes a different project",
             Self::UnsupportedSchemaVersion => "persisted schema version is unsupported",
+            Self::UnsupportedProducerContractVersion => {
+                "generation was written by an unsupported producer contract"
+            }
         };
         formatter.write_str(text)
     }
@@ -872,6 +896,25 @@ impl EvidenceStore {
         Ok(Some(buffer))
     }
 
+    /// Read a persisted store artifact, classifying an over-limit file.
+    ///
+    /// [`Self::read_bounded`] reports an over-limit file as
+    /// [`StoreError::TooLarge`], which is the right answer when a caller
+    /// supplied the oversized value. A file already on disk that exceeds its
+    /// bound is a different thing: the artifact cannot be valid, and the
+    /// [`StoreDefect`] documentation says so. Classifying it here stops one
+    /// corruption from carrying two classes depending on which API observed it.
+    fn read_persisted(
+        path: &Path,
+        limit: usize,
+        defect: StoreDefect,
+    ) -> Result<Option<Vec<u8>>, StoreError> {
+        match Self::read_bounded(path, limit) {
+            Err(StoreError::TooLarge { .. }) => Err(StoreError::Defect(defect)),
+            other => other,
+        }
+    }
+
     fn temp_dir(&self, project: Option<&ProjectId>) -> Result<PathBuf, StoreError> {
         Ok(match project {
             Some(project) => self.project_dir(project)?.join(TEMP_DIR),
@@ -955,7 +998,9 @@ impl EvidenceStore {
         project: &ProjectId,
     ) -> Result<Option<IdentityCatalogReservation>, StoreError> {
         let path = self.reservation_path(project)?;
-        let Some(bytes) = Self::read_bounded(&path, MAX_RECORD_BYTES)? else {
+        let Some(bytes) =
+            Self::read_persisted(&path, MAX_RECORD_BYTES, StoreDefect::RecordCorrupt)?
+        else {
             return Ok(None);
         };
         // A malformed persisted record is a store defect, not a codec accident.
@@ -1011,9 +1056,18 @@ impl EvidenceStore {
         }
         paths.sort();
         for path in paths {
-            let Some(bytes) = Self::read_bounded(&path, MAX_RECORD_BYTES)? else {
-                continue;
-            };
+            let bytes =
+                match Self::read_persisted(&path, MAX_RECORD_BYTES, StoreDefect::RecordCorrupt) {
+                    Ok(Some(bytes)) => bytes,
+                    Ok(None) => continue,
+                    // Enumeration reports a defective entry rather than aborting,
+                    // so one oversized file cannot hide every other reservation.
+                    Err(StoreError::Defect(defect)) => {
+                        found.push(Err(defect));
+                        continue;
+                    }
+                    Err(error) => return Err(error),
+                };
             let named = path
                 .file_stem()
                 .and_then(|stem| stem.to_str())
@@ -1180,13 +1234,25 @@ impl EvidenceStore {
         generation: &GenerationId,
     ) -> Result<ContentDigest, StoreError> {
         let manifest_path = self.manifest_path(project, generation)?;
-        let Some(manifest_bytes) = Self::read_bounded(&manifest_path, MAX_MANIFEST_BYTES)? else {
-            return Err(StoreError::Defect(StoreDefect::CurrentDanglingGeneration));
+        let Some(manifest_bytes) = Self::read_persisted(
+            &manifest_path,
+            MAX_MANIFEST_BYTES,
+            StoreDefect::ManifestCorrupt,
+        )?
+        else {
+            // Nothing here concerns `CURRENT`: this generation simply carries no
+            // manifest, so it was never closed.
+            return Err(StoreError::Defect(StoreDefect::GenerationManifestMissing));
         };
         let manifest: ProjectGenerationManifest = decode_project_json(&manifest_bytes)
             .map_err(|_| StoreError::Defect(StoreDefect::ManifestCorrupt))?;
         if manifest.schema_version != ProjectContractVersion::V1 {
             return Err(StoreError::Defect(StoreDefect::UnsupportedSchemaVersion));
+        }
+        if manifest.producer_contract_version != PRODUCER_CONTRACT_VERSION {
+            return Err(StoreError::Defect(
+                StoreDefect::UnsupportedProducerContractVersion,
+            ));
         }
         if &manifest.project_id != project || &manifest.generation_id != generation {
             return Err(StoreError::Defect(StoreDefect::ProjectMismatch));
@@ -1218,7 +1284,9 @@ impl EvidenceStore {
 
         for record in &referenced {
             let path = self.record_path(&manifest.project_id, &manifest.generation_id, record)?;
-            let Some(bytes) = Self::read_bounded(&path, MAX_RECORD_BYTES)? else {
+            let Some(bytes) =
+                Self::read_persisted(&path, MAX_RECORD_BYTES, StoreDefect::RecordCorrupt)?
+            else {
                 return Err(StoreError::Defect(StoreDefect::RecordMissing));
             };
             let Some(expected) = Self::digest_for(manifest, record) else {
@@ -1242,7 +1310,12 @@ impl EvidenceStore {
         project: &ProjectId,
     ) -> Result<PublishedGeneration, StoreError> {
         let current_path = self.current_path(project)?;
-        let Some(current_bytes) = Self::read_bounded(&current_path, MAX_CURRENT_BYTES)? else {
+        let Some(current_bytes) = Self::read_persisted(
+            &current_path,
+            MAX_CURRENT_BYTES,
+            StoreDefect::CurrentCorrupt,
+        )?
+        else {
             return Err(StoreError::Defect(StoreDefect::CurrentMissing));
         };
         let current: ProjectCurrentRef = decode_project_json(&current_bytes)
@@ -1255,7 +1328,12 @@ impl EvidenceStore {
         }
 
         let manifest_path = self.manifest_path(project, &current.generation_id)?;
-        let Some(manifest_bytes) = Self::read_bounded(&manifest_path, MAX_MANIFEST_BYTES)? else {
+        let Some(manifest_bytes) = Self::read_persisted(
+            &manifest_path,
+            MAX_MANIFEST_BYTES,
+            StoreDefect::ManifestCorrupt,
+        )?
+        else {
             return Err(StoreError::Defect(StoreDefect::CurrentDanglingGeneration));
         };
         let observed_digest = content_digest(&manifest_bytes)?;
@@ -1264,6 +1342,11 @@ impl EvidenceStore {
         }
         let manifest: ProjectGenerationManifest = decode_project_json(&manifest_bytes)
             .map_err(|_| StoreError::Defect(StoreDefect::ManifestCorrupt))?;
+        if manifest.producer_contract_version != PRODUCER_CONTRACT_VERSION {
+            return Err(StoreError::Defect(
+                StoreDefect::UnsupportedProducerContractVersion,
+            ));
+        }
         if &manifest.project_id != project || manifest.generation_id != current.generation_id {
             return Err(StoreError::Defect(StoreDefect::ProjectMismatch));
         }
@@ -1285,7 +1368,9 @@ impl EvidenceStore {
             return Err(StoreError::Defect(StoreDefect::RecordDigestMissing));
         };
         let path = self.record_path(&manifest.project_id, &manifest.generation_id, record)?;
-        let Some(bytes) = Self::read_bounded(&path, MAX_RECORD_BYTES)? else {
+        let Some(bytes) =
+            Self::read_persisted(&path, MAX_RECORD_BYTES, StoreDefect::RecordCorrupt)?
+        else {
             return Err(StoreError::Defect(StoreDefect::RecordMissing));
         };
         if content_digest(&bytes)? != expected {

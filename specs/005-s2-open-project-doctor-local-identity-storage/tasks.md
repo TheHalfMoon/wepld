@@ -19,8 +19,9 @@ LAST_MERGED_TRANCHE_BASE = 573670eca575a5972e52b623b01b3143d036d281
 LAST_MERGED_TRANCHE_HEAD = bdebfbaa8f146115321e6d204da9e49d367047e2
 LAST_MERGED_TRANCHE_MERGE = a6edc3af9e0435ed6283b2bf42ab0aff240b10db
 LAST_MERGED_TRANCHE_TREE = c1b7f68992211f28aac8b4ad4dff54db1b18939f
-LAST_MERGED_TRANCHE_REVIEW_ROUNDS = 17
+LAST_MERGED_TRANCHE_REVIEW_ROUNDS = 17_BY_PROJECT_DEFINITION_NOT_A_GITHUB_CONCEPT
 LAST_MERGED_TRANCHE_UNRESOLVED_FINDINGS_AT_MERGE = 0
+LAST_MERGED_TRANCHE_ACCEPTANCE_RECORD = PR 240 comment 5483115585
 ```
 
 ## Planning gates
@@ -55,6 +56,8 @@ LAST_MERGED_TRANCHE_UNRESOLVED_FINDINGS_AT_MERGE = 0
 - [ ] **S2-P019A** Reread Ready-triggered trusted-base admission and require genuine PASS on the same exact head.
 - [ ] **S2-P020** Guarded merge with current founder/canonical authorization evidence plus expected-head protection.
 - [ ] **S2-P021** Prove post-merge canonical planning activation/Foundation on exact `main`.
+
+Two of the markers above name things GitHub does not expose, and they are qualified rather than left to look like platform facts. A review round is a project concept: GitHub reports reviews, comments and timeline events and has no notion of a round, so the count is narrative and cannot be reproduced from the API. The zero-unresolved-findings state is verifiable now, but a historical snapshot at the exact merge instant is not retrievable either; the evidence is the acceptance record posted to PR 240 before the merge, whose comment identifier is given above and whose timestamp precedes the merge.
 
 Historical checks/reviews on a superseded head are evidence of the review process, not acceptance evidence for the current repaired head. Tracked checkboxes are coordination only; live GitHub exact-head/post-merge evidence is authority for qualification claims.
 

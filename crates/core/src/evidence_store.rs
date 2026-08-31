@@ -96,7 +96,13 @@ pub enum StoreDefect {
     /// `CURRENT` is absent; the project store has no published generation.
     CurrentMissing,
     /// `CURRENT` exists but is not a usable pointer record: it does not decode,
-    /// or it exceeds its bounded read size.
+    /// it exceeds its bounded read size, or it names a generation this store
+    /// could never have addressed.
+    ///
+    /// The last case is reachable because the contract identifier charset is
+    /// wider than the path projection. A persisted pointer carrying such an
+    /// identifier is a defective pointer rather than a caller argument fault, so
+    /// it is classified here and not as [`StoreError::UnsafeIdentifier`].
     CurrentCorrupt,
     /// `CURRENT` names a generation whose directory or manifest is absent.
     /// This is the signature of a crash between generation write and publish.
@@ -197,6 +203,15 @@ pub enum StoreError {
     },
     /// An opaque identifier could not be projected to a safe path. S2-E003.
     UnsafeIdentifier,
+    /// The store root is not an absolute path.
+    ///
+    /// A relative root resolves against the process working directory, so one
+    /// store handle would address different locations depending on when it was
+    /// used, and creating the skeleton would put directories wherever the
+    /// process happened to be. A Windows drive-relative root such as `C:work` is
+    /// equally unanchored, because it resolves against a per-drive current
+    /// directory; `Path::is_absolute` refuses both.
+    RelativeStoreRoot,
     /// A project lock guard was presented for a different project.
     WrongProjectLock,
     /// A lock guard was presented that protects a different store root.
@@ -238,6 +253,9 @@ impl fmt::Display for StoreError {
             }
             Self::UnsafeIdentifier => {
                 write!(formatter, "opaque identifier is not safe as a path segment")
+            }
+            Self::RelativeStoreRoot => {
+                write!(formatter, "store root must be an absolute path")
             }
             Self::WrongProjectLock => write!(
                 formatter,
@@ -321,6 +339,11 @@ impl From<ProjectContractCodecError> for StoreError {
 /// because both POSIX and Windows resolve it to the root itself; leaving it
 /// would keep two spellings of one location distinct and would name nothing.
 /// For a relative path a leading `..` is meaningful and is preserved.
+///
+/// The relative-path branches below are unreachable through the public API,
+/// because [`EvidenceStore::new`] refuses a root that is not absolute. They are
+/// kept so the function is total and correct on its own terms rather than
+/// correct only because of a caller's precondition.
 ///
 /// Normalisation is purely lexical and therefore deterministic and independent
 /// of whether the directory exists. It does not resolve symbolic links, so two
@@ -655,6 +678,15 @@ pub struct Freshness {
 impl EvidenceStore {
     /// Open a store rooted at an absolute WePLD-owned data root.
     ///
+    /// A root that is not absolute is refused with
+    /// [`StoreError::RelativeStoreRoot`] before any store handle exists. The
+    /// requirement used to be documentation only, which meant a relative root
+    /// was accepted and every later path resolved against the process working
+    /// directory: the same handle would address different locations at different
+    /// times, and [`Self::initialize`] would create the skeleton wherever the
+    /// process happened to be. Refusing at construction is what makes the
+    /// documented contract true.
+    ///
     /// The root is lexically normalised once, here, so that two handles naming
     /// the same directory with different spellings share one store identity.
     /// Without this, `/state/wepld` and `/state/wepld/.` would be distinct
@@ -673,10 +705,14 @@ impl EvidenceStore {
     /// guards per root would have made the ordering rule evadable by naming a
     /// second root, a symbolic-link alias of the same physical store included,
     /// so the ordering check is root-independent. See [`Self::lock_catalog`].
-    pub fn new(root: impl Into<PathBuf>) -> Self {
-        Self {
-            root: normalize_root(root.into()),
+    pub fn new(root: impl Into<PathBuf>) -> Result<Self, StoreError> {
+        let root = root.into();
+        if !root.is_absolute() {
+            return Err(StoreError::RelativeStoreRoot);
         }
+        Ok(Self {
+            root: normalize_root(root),
+        })
     }
 
     pub fn root(&self) -> &Path {
@@ -1346,7 +1382,16 @@ impl EvidenceStore {
             return Err(StoreError::Defect(StoreDefect::ProjectMismatch));
         }
 
-        let manifest_path = self.manifest_path(project, &current.generation_id)?;
+        // The generation identifier came off disk, so an identifier this store
+        // could never address is a property of the persisted pointer rather than
+        // of the caller. `StoreError::UnsafeIdentifier` is the right answer for a
+        // caller-supplied identifier and the wrong one here, because it would
+        // report an argument fault for bytes the caller never chose. This is
+        // reachable from a hand-written pointer alone, since the contract
+        // identifier charset is wider than the path projection.
+        let Ok(manifest_path) = self.manifest_path(project, &current.generation_id) else {
+            return Err(StoreError::Defect(StoreDefect::CurrentCorrupt));
+        };
         let Some(manifest_bytes) = Self::read_persisted(
             &manifest_path,
             MAX_MANIFEST_BYTES,
@@ -1415,6 +1460,21 @@ impl EvidenceStore {
     /// S2-E010. Orphans are the expected residue of an interrupted publish.
     /// They are reported for diagnosis and are never promoted, never read as
     /// current, and never deleted by this tranche.
+    ///
+    /// An entry is reported only when it is one this store could itself have
+    /// written: a directory whose name is exactly the path segment
+    /// [`Self::generation_dir`] would produce for that identifier. The contract
+    /// identifier charset is wider than the path projection, admitting `.` and
+    /// `:` which [`safe_path_segment`] refuses, so a name can parse as a valid
+    /// [`GenerationId`] and still be one this store can never address. Reporting
+    /// such an entry would hand a caller an orphan identifier that every
+    /// subsequent store call refuses.
+    ///
+    /// Entries that are not directories, whose names are not identifiers, or
+    /// which fail that binding are therefore not listed. They are not
+    /// generations, and this function makes no claim about them; a general
+    /// account of unexpected store entries belongs to the Doctor rules that
+    /// inspect the store as a whole.
     pub fn orphan_generations(&self, project: &ProjectId) -> Result<Vec<GenerationId>, StoreError> {
         let published = match self.read_published_generation(project) {
             Ok(generation) => Some(generation.current.generation_id),
@@ -1440,6 +1500,14 @@ impl EvidenceStore {
             let Ok(generation) = GenerationId::try_from(name) else {
                 continue;
             };
+            // Only an entry this store could have written is a generation of
+            // this store. A wider contract charset must not produce an orphan
+            // identifier that every later call would refuse.
+            if self.generation_dir(project, &generation).ok().as_deref()
+                != Some(entry.path().as_path())
+            {
+                continue;
+            }
             if published.as_ref() == Some(&generation) {
                 continue;
             }

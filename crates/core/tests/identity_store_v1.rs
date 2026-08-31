@@ -105,6 +105,25 @@ fn temp_root(name: &str) -> Result<PathBuf, TestError> {
     Ok(root)
 }
 
+/// Build a fixture root the running platform genuinely calls absolute.
+///
+/// `Path::is_absolute` is platform-specific and the difference matters here. On
+/// Windows a leading separator alone is root-relative: `/state/wepld` resolves
+/// against the current drive and is therefore not an absolute Windows path.
+/// These fixtures are about lexical normalisation rather than about that
+/// distinction, so they are anchored with a drive prefix on Windows and used
+/// unchanged elsewhere.
+fn absolute_fixture(path: &str) -> PathBuf {
+    #[cfg(windows)]
+    {
+        PathBuf::from(format!("C:{path}"))
+    }
+    #[cfg(not(windows))]
+    {
+        PathBuf::from(path)
+    }
+}
+
 fn locator_at(path: &str, observed_at: u64) -> Result<ProjectLocator, TestError> {
     let machine = MachinePath::utf8(path)?;
     Ok(ProjectLocator {
@@ -735,17 +754,21 @@ fn root_normalisation_collapses_aliases_without_escaping() -> TestResult {
     // Aliases of one location must share an enforcement identity. A `.` form is
     // not sufficient evidence because Rust path comparison already collapses it,
     // so the `..` forms carry the weight here.
-    let base = PathBuf::from("/state/wepld");
+    let base = absolute_fixture("/state/wepld");
     let aliases = [
-        PathBuf::from("/state/wepld"),
-        PathBuf::from("/state/./wepld"),
-        PathBuf::from("/state/other/../wepld"),
-        PathBuf::from("/state/a/b/../../wepld"),
+        absolute_fixture("/state/wepld"),
+        absolute_fixture("/state/./wepld"),
+        absolute_fixture("/state/other/../wepld"),
+        absolute_fixture("/state/a/b/../../wepld"),
     ];
+    assert!(
+        base.is_absolute(),
+        "the fixture root must be absolute on this platform"
+    );
     for alias in aliases {
         assert_eq!(
-            EvidenceStore::new(alias.clone()).root(),
-            EvidenceStore::new(base.clone()).root(),
+            EvidenceStore::new(alias.clone())?.root(),
+            EvidenceStore::new(base.clone())?.root(),
             "alias {alias:?} must normalise to the base root"
         );
     }
@@ -754,26 +777,57 @@ fn root_normalisation_collapses_aliases_without_escaping() -> TestResult {
     // matching how both POSIX and Windows resolve it. Retaining it would leave
     // two spellings of one location as different keys and would name nothing.
     assert_eq!(
-        EvidenceStore::new(PathBuf::from("/a/../../b")).root(),
-        EvidenceStore::new(PathBuf::from("/b")).root()
+        EvidenceStore::new(absolute_fixture("/a/../../b"))?.root(),
+        EvidenceStore::new(absolute_fixture("/b"))?.root()
     );
     assert_eq!(
-        EvidenceStore::new(PathBuf::from("/..")).root(),
-        EvidenceStore::new(PathBuf::from("/")).root()
+        EvidenceStore::new(absolute_fixture("/.."))?.root(),
+        EvidenceStore::new(absolute_fixture("/"))?.root()
     );
 
-    // Normalisation must not invent a root for a relative path, and a leading
-    // parent component stays meaningful because there is no known root above.
-    assert_eq!(
-        EvidenceStore::new(PathBuf::from("../x")).root(),
-        PathBuf::from("../x")
-    );
+    // A relative root is refused outright. It would resolve against the process
+    // working directory, so one handle would address different locations at
+    // different times and initialize would create the skeleton wherever the
+    // process happened to be.
+    assert!(matches!(
+        EvidenceStore::new(PathBuf::from("../x")),
+        Err(StoreError::RelativeStoreRoot)
+    ));
+    assert!(matches!(
+        EvidenceStore::new(PathBuf::from("relative/child")),
+        Err(StoreError::RelativeStoreRoot)
+    ));
 
     // Distinct locations must stay distinct.
     assert_ne!(
-        EvidenceStore::new(PathBuf::from("/state/wepld")).root(),
-        EvidenceStore::new(PathBuf::from("/state/wepld-other")).root()
+        EvidenceStore::new(absolute_fixture("/state/wepld"))?.root(),
+        EvidenceStore::new(absolute_fixture("/state/wepld-other"))?.root()
     );
+    Ok(())
+}
+
+#[test]
+fn a_relative_store_root_is_refused_before_a_store_exists() -> TestResult {
+    // The absolute-root requirement used to be documentation only. A relative
+    // root was accepted, and every later path resolved against the process
+    // working directory, so initialize would have created the store skeleton
+    // wherever the process happened to be. The refusal has to happen at
+    // construction: no handle, therefore no write path.
+    for relative in ["relative", "./relative", "../relative", "a/b/c"] {
+        assert!(
+            matches!(
+                EvidenceStore::new(PathBuf::from(relative)),
+                Err(StoreError::RelativeStoreRoot)
+            ),
+            "relative root {relative:?} must be refused"
+        );
+    }
+
+    // An absolute root is still accepted and still normalised.
+    let root = temp_root("absoluteroot")?;
+    let store = EvidenceStore::new(root.join("sibling").join(".."))?;
+    assert_eq!(store.root(), root.as_path());
+    store.initialize()?;
     Ok(())
 }
 
@@ -782,8 +836,8 @@ fn root_normalisation_preserves_components_and_prefixes() -> TestResult {
     // A path component may legitimately look like a Windows drive prefix. It
     // must stay a component: reassembling through PathBuf::push would let such a
     // component replace the accumulated path and silently re-root the store.
-    let lookalike = PathBuf::from("/outer/C:/inner");
-    let normalised = EvidenceStore::new(lookalike.clone());
+    let lookalike = absolute_fixture("/outer/C:/inner");
+    let normalised = EvidenceStore::new(lookalike.clone())?;
     let rendered = normalised.root().to_string_lossy().into_owned();
     assert!(
         rendered.contains("outer") && rendered.contains("inner"),
@@ -797,8 +851,8 @@ fn root_normalisation_preserves_components_and_prefixes() -> TestResult {
 
     // Normalisation must be idempotent: normalising an already-normal root
     // cannot drift.
-    let once = EvidenceStore::new(lookalike);
-    let twice = EvidenceStore::new(once.root().to_path_buf());
+    let once = EvidenceStore::new(lookalike)?;
+    let twice = EvidenceStore::new(once.root().to_path_buf())?;
     assert_eq!(once.root(), twice.root());
     Ok(())
 }
@@ -845,34 +899,41 @@ fn windows_root_forms_normalise_without_loss() -> TestResult {
     let verbatim_expected = PathBuf::from(r"\\?\C:\b");
     assert_has_prefix(&verbatim_input)?;
     assert_has_prefix(&verbatim_expected)?;
-    let verbatim = EvidenceStore::new(verbatim_input);
+    let verbatim = EvidenceStore::new(verbatim_input)?;
     assert_eq!(verbatim.root(), &verbatim_expected);
 
     let unc_input = PathBuf::from(r"\\server\share\a\..\b");
     let unc_expected = PathBuf::from(r"\\server\share\b");
     assert_has_prefix(&unc_input)?;
     assert_has_prefix(&unc_expected)?;
-    let unc = EvidenceStore::new(unc_input);
+    let unc = EvidenceStore::new(unc_input)?;
     assert_eq!(unc.root(), &unc_expected);
 
     // The verbatim UNC form carries a distinct prefix kind and must also survive.
     let verbatim_unc_input = PathBuf::from(r"\\?\UNC\server\share\a\..\b");
     let verbatim_unc_expected = PathBuf::from(r"\\?\UNC\server\share\b");
     assert_has_prefix(&verbatim_unc_input)?;
-    let verbatim_unc = EvidenceStore::new(verbatim_unc_input);
+    let verbatim_unc = EvidenceStore::new(verbatim_unc_input)?;
     assert_eq!(verbatim_unc.root(), &verbatim_unc_expected);
 
     let clamped_input = PathBuf::from(r"C:\..");
     assert_has_prefix(&clamped_input)?;
-    let clamped = EvidenceStore::new(clamped_input);
+    let clamped = EvidenceStore::new(clamped_input)?;
     assert_eq!(clamped.root(), &PathBuf::from(r"C:\"));
 
-    // A drive-relative path is not rooted, so its parent component is
-    // meaningful and must be preserved rather than discarded.
+    // A drive-relative path carries a prefix but no root, so it resolves
+    // against a per-drive current directory. It is as unanchored as any other
+    // relative root and is refused for the same reason.
     let drive_relative_input = PathBuf::from(r"C:..");
     assert_has_prefix(&drive_relative_input)?;
-    let drive_relative = EvidenceStore::new(drive_relative_input);
-    assert_eq!(drive_relative.root(), &PathBuf::from(r"C:.."));
+    assert!(
+        !drive_relative_input.is_absolute(),
+        "the fixture must genuinely be drive-relative"
+    );
+    assert!(matches!(
+        EvidenceStore::new(drive_relative_input),
+        Err(StoreError::RelativeStoreRoot)
+    ));
     Ok(())
 }
 
@@ -892,7 +953,7 @@ fn ordering_state_drains_under_concurrent_churn() -> TestResult {
     // construction and review rather than by this test. It is recorded that way
     // rather than implied.
     let root = temp_root("orderchurn")?;
-    let store = Arc::new(EvidenceStore::new(&root));
+    let store = Arc::new(EvidenceStore::new(&root)?);
     store.initialize()?;
     let project = Arc::new(allocate_project_id()?);
 
@@ -951,7 +1012,7 @@ fn a_panicking_cancellation_callback_leaves_no_phantom_ownership() -> TestResult
     // operating-system lock is held, and every later catalog acquisition for
     // this root fails for the lifetime of the process.
     let root = temp_root("panicunwind")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let project = allocate_project_id()?;
 
@@ -977,7 +1038,7 @@ fn a_refused_project_acquisition_leaves_no_phantom_ownership() -> TestResult {
     // registry holding ownership that never existed, so the catalog is not
     // blocked forever.
     let root = temp_root("phantom")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let project = allocate_project_id()?;
 
@@ -997,7 +1058,7 @@ fn readers_never_observe_bytes_rewritten_in_a_selected_generation() -> TestResul
     // A reader that selected generation N must not have N change underneath it.
     // Closure makes that structural rather than a race the reader has to survive.
     let root = temp_root("closerace")?;
-    let store = Arc::new(EvidenceStore::new(&root));
+    let store = Arc::new(EvidenceStore::new(&root)?);
     store.initialize()?;
     let project = Arc::new(allocate_project_id()?);
     write_generation(&store, &project)?;
@@ -1043,7 +1104,7 @@ fn a_closed_generation_cannot_be_rewritten() -> TestResult {
     // project guard must still not rewrite it, or a published generation could
     // change underneath a reader that already selected it.
     let root = temp_root("immutable")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let project = allocate_project_id()?;
     let lock = store.lock_project(&project, &never_cancelled())?;
@@ -1085,7 +1146,7 @@ fn a_closed_generation_cannot_be_rewritten() -> TestResult {
 fn a_new_generation_is_still_writable_after_one_is_closed() -> TestResult {
     // Immutability must seal a generation without freezing the project.
     let root = temp_root("immutable-next")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let project = allocate_project_id()?;
     let first = write_generation(&store, &project)?;
@@ -1108,7 +1169,7 @@ fn a_new_generation_is_still_writable_after_one_is_closed() -> TestResult {
 #[test]
 fn mutations_reject_a_lock_for_a_different_project() -> TestResult {
     let root = temp_root("wronglock")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let owned = allocate_project_id()?;
     let other = allocate_project_id()?;
@@ -1131,8 +1192,8 @@ fn a_guard_from_another_store_is_rejected() -> TestResult {
     // where no lock is actually held.
     let root_a = temp_root("foreign-a")?;
     let root_b = temp_root("foreign-b")?;
-    let store_a = EvidenceStore::new(&root_a);
-    let store_b = EvidenceStore::new(&root_b);
+    let store_a = EvidenceStore::new(&root_a)?;
+    let store_b = EvidenceStore::new(&root_b)?;
     store_a.initialize()?;
     store_b.initialize()?;
 
@@ -1212,7 +1273,7 @@ fn a_caller_holding_a_project_guard_cannot_acquire_the_catalog() -> TestResult {
     // must be refused the catalog. The check reads thread-local state, so no
     // other thread can change the answer between the check and the acquisition.
     let root = temp_root("reverseorder")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let project = allocate_project_id()?;
 
@@ -1227,7 +1288,7 @@ fn a_caller_holding_a_project_guard_cannot_acquire_the_catalog() -> TestResult {
 
     // A second handle to the same root is the same caller, so the guard cannot
     // be laundered through another handle.
-    let other_handle = EvidenceStore::new(&root);
+    let other_handle = EvidenceStore::new(&root)?;
     assert!(matches!(
         other_handle.lock_catalog(&never_cancelled()),
         Err(StoreError::LockOrderViolation)
@@ -1241,7 +1302,7 @@ fn a_caller_holding_a_project_guard_cannot_acquire_the_catalog() -> TestResult {
         aliased_spelling, root,
         "the alias fixture must not already compare equal"
     );
-    let aliased = EvidenceStore::new(aliased_spelling);
+    let aliased = EvidenceStore::new(aliased_spelling)?;
     assert_eq!(aliased.root(), store.root());
     assert!(matches!(
         aliased.lock_catalog(&never_cancelled()),
@@ -1266,8 +1327,8 @@ fn a_different_store_root_cannot_launder_a_held_project_guard() -> TestResult {
     // all, not about which root that guard names.
     let first = temp_root("launderfirst")?;
     let second = temp_root("laundersecond")?;
-    let store_a = EvidenceStore::new(&first);
-    let store_b = EvidenceStore::new(&second);
+    let store_a = EvidenceStore::new(&first)?;
+    let store_b = EvidenceStore::new(&second)?;
     store_a.initialize()?;
     store_b.initialize()?;
     assert_ne!(
@@ -1299,7 +1360,7 @@ fn another_thread_holding_a_project_guard_does_not_block_the_catalog() -> TestRe
     // catalog acquisition would be stricter than canonical authority requires,
     // and it was also the shape that made the previous check racy.
     let root = temp_root("crossthread")?;
-    let store = Arc::new(EvidenceStore::new(&root));
+    let store = Arc::new(EvidenceStore::new(&root)?);
     store.initialize()?;
     let project = Arc::new(allocate_project_id()?);
 
@@ -1335,7 +1396,7 @@ fn reverse_lock_acquisition_is_refused() -> TestResult {
     // Holding a project guard must therefore make catalog acquisition refuse
     // rather than invert the order.
     let root = temp_root("reverseorder")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let project = allocate_project_id()?;
 
@@ -1348,7 +1409,7 @@ fn reverse_lock_acquisition_is_refused() -> TestResult {
 
     // A second independently constructed handle to the same root shares the
     // constraint, so the guard cannot be laundered through another handle.
-    let other_handle = EvidenceStore::new(&root);
+    let other_handle = EvidenceStore::new(&root)?;
     let laundered = other_handle.lock_catalog(&never_cancelled());
     assert!(matches!(laundered, Err(StoreError::LockOrderViolation)));
 
@@ -1362,7 +1423,7 @@ fn reverse_lock_acquisition_is_refused() -> TestResult {
         aliased_spelling, root,
         "the alias fixture must not already compare equal"
     );
-    let aliased = EvidenceStore::new(aliased_spelling);
+    let aliased = EvidenceStore::new(aliased_spelling)?;
     assert_eq!(aliased.root(), store.root());
     assert!(matches!(
         aliased.lock_catalog(&never_cancelled()),
@@ -1393,7 +1454,7 @@ fn reverse_lock_acquisition_is_refused() -> TestResult {
 #[test]
 fn ordered_acquisition_yields_both_guards_in_canonical_order() -> TestResult {
     let root = temp_root("ordered")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let project = allocate_project_id()?;
 
@@ -1444,7 +1505,7 @@ fn safe_path_segment_rejects_traversal_and_stream_selectors() {
 #[test]
 fn published_generation_round_trips() -> TestResult {
     let root = temp_root("publish")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let project = allocate_project_id()?;
 
@@ -1464,7 +1525,7 @@ fn published_generation_round_trips() -> TestResult {
 #[test]
 fn missing_current_is_a_typed_defect_not_an_invented_generation() -> TestResult {
     let root = temp_root("nocurrent")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let project = allocate_project_id()?;
 
@@ -1479,7 +1540,7 @@ fn missing_current_is_a_typed_defect_not_an_invented_generation() -> TestResult 
 #[test]
 fn publishing_a_second_generation_replaces_the_pointer_atomically() -> TestResult {
     let root = temp_root("republish")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let project = allocate_project_id()?;
 
@@ -1498,6 +1559,49 @@ fn publishing_a_second_generation_replaces_the_pointer_atomically() -> TestResul
     Ok(())
 }
 
+#[test]
+fn an_entry_this_store_could_never_have_written_is_not_an_orphan() -> TestResult {
+    // Same wider-charset gap as the reservation binding, one directory over. The
+    // contract identifier charset admits `.` and `:`; safe_path_segment refuses
+    // them. A directory named `g_a.b` therefore parses as a valid GenerationId
+    // while being one this store can never address, and reporting it as an
+    // orphan would hand a caller an identifier every later store call refuses.
+    let root = temp_root("unwritableorphan")?;
+    let store = EvidenceStore::new(&root)?;
+    store.initialize()?;
+    let project = allocate_project_id()?;
+    let published = write_generation(&store, &project)?;
+
+    let unwritable = GenerationId::try_from("g_a.b")?;
+    assert!(
+        safe_path_segment(unwritable.as_str()).is_err(),
+        "the fixture identifier must be one the path projection refuses"
+    );
+    let generations = root
+        .join("projects")
+        .join(project.as_str())
+        .join("generations");
+    fs::create_dir_all(generations.join(unwritable.as_str()))?;
+
+    let orphans = store.orphan_generations(&project)?;
+    assert!(
+        !orphans.contains(&unwritable),
+        "an entry this store could not have written must not be reported as an orphan"
+    );
+    assert!(
+        !orphans.contains(&published),
+        "the published generation is never an orphan"
+    );
+
+    // A genuine orphan is still reported, so the binding does not silence the
+    // case the function exists for.
+    let second = write_generation(&store, &project)?;
+    assert_ne!(second, published);
+    let orphans = store.orphan_generations(&project)?;
+    assert!(orphans.contains(&published));
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // S2-E014 failure injection at every commit boundary
 // ---------------------------------------------------------------------------
@@ -1506,7 +1610,7 @@ fn publishing_a_second_generation_replaces_the_pointer_atomically() -> TestResul
 fn interrupted_generation_never_becomes_current() -> TestResult {
     // Records written but manifest never written: publication must refuse.
     let root = temp_root("nomanifest")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let project = allocate_project_id()?;
     let generation = allocate_generation_id()?;
@@ -1545,7 +1649,7 @@ fn an_unreadable_closure_state_is_refused_before_any_write_effect() -> TestResul
     // generation was open, and went on to create its temporary directory before
     // the destination write failed for the same underlying reason.
     let root = temp_root("closurestate")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let project = allocate_project_id()?;
     let generation = allocate_generation_id()?;
@@ -1581,7 +1685,7 @@ fn an_unreadable_closure_state_is_refused_before_any_write_effect() -> TestResul
 #[test]
 fn manifest_referencing_a_missing_record_is_refused_at_publish() -> TestResult {
     let root = temp_root("missingrecord")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let project = allocate_project_id()?;
     let generation = allocate_generation_id()?;
@@ -1620,7 +1724,7 @@ fn manifest_referencing_a_missing_record_is_refused_at_publish() -> TestResult {
 #[test]
 fn torn_record_is_detected_by_digest_mismatch() -> TestResult {
     let root = temp_root("tornrecord")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let project = allocate_project_id()?;
     let generation = write_generation(&store, &project)?;
@@ -1654,7 +1758,7 @@ fn torn_record_is_detected_by_digest_mismatch() -> TestResult {
 #[test]
 fn corrupt_current_pointer_is_detected() -> TestResult {
     let root = temp_root("corruptcurrent")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let project = allocate_project_id()?;
     write_generation(&store, &project)?;
@@ -1671,9 +1775,47 @@ fn corrupt_current_pointer_is_detected() -> TestResult {
 }
 
 #[test]
+fn a_current_pointer_naming_an_unaddressable_generation_is_corrupt() -> TestResult {
+    // The generation identifier came off disk, so an identifier this store could
+    // never address is a property of the persisted pointer, not of the caller.
+    // Before this was classified, the read returned StoreError::UnsafeIdentifier,
+    // which reports an argument fault for bytes no caller chose.
+    let root = temp_root("unaddressablecurrent")?;
+    let store = EvidenceStore::new(&root)?;
+    store.initialize()?;
+    let project = allocate_project_id()?;
+    write_generation(&store, &project)?;
+
+    let unaddressable = GenerationId::try_from("g_a.b")?;
+    assert!(
+        safe_path_segment(unaddressable.as_str()).is_err(),
+        "the fixture identifier must be one the path projection refuses"
+    );
+    let current = ProjectCurrentRef {
+        schema_version: ProjectContractVersion::V1,
+        project_id: project.clone(),
+        generation_id: unaddressable,
+        manifest_digest: content_digest(b"{}")?,
+    };
+    fs::write(
+        root.join("projects").join(project.as_str()).join("CURRENT"),
+        canonical_project_json(&current)?,
+    )?;
+
+    assert!(
+        matches!(
+            store.read_published_generation(&project),
+            Err(StoreError::Defect(StoreDefect::CurrentCorrupt))
+        ),
+        "a pointer naming an unaddressable generation is a defective pointer"
+    );
+    Ok(())
+}
+
+#[test]
 fn current_pointing_at_a_missing_generation_is_detected() -> TestResult {
     let root = temp_root("danglingcurrent")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let project = allocate_project_id()?;
     write_generation(&store, &project)?;
@@ -1700,7 +1842,7 @@ fn current_pointing_at_a_missing_generation_is_detected() -> TestResult {
 #[test]
 fn manifest_digest_mismatch_is_detected() -> TestResult {
     let root = temp_root("manifestdigest")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let project = allocate_project_id()?;
     let generation = write_generation(&store, &project)?;
@@ -1730,7 +1872,7 @@ fn an_oversized_persisted_manifest_is_classified_as_corrupt() -> TestResult {
     // carried two classes depending on how it was produced. A caller-supplied
     // oversized value is still an argument error; bytes already on disk are not.
     let root = temp_root("oversizemanifest")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let project = allocate_project_id()?;
     let generation = write_generation(&store, &project)?;
@@ -1760,7 +1902,7 @@ fn an_oversized_persisted_manifest_is_classified_as_corrupt() -> TestResult {
 #[test]
 fn an_oversized_persisted_record_is_classified_as_corrupt() -> TestResult {
     let root = temp_root("oversizerecord")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let project = allocate_project_id()?;
     write_generation(&store, &project)?;
@@ -1801,7 +1943,7 @@ fn an_oversized_reservation_is_classified_the_same_way_by_both_apis() -> TestRes
     // whichever API observes it. Enumeration must also keep reporting the other
     // entries rather than aborting on the oversized one.
     let root = temp_root("oversizereservation")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let facts = facts_at("/projects/oversize")?;
     let good = allocate_project_id()?;
@@ -1844,7 +1986,7 @@ fn an_unsupported_producer_contract_version_is_refused_at_publish_and_read() -> 
     // accepted any value would make the field decorative and would adopt a
     // generation whose semantics it does not implement.
     let root = temp_root("producerversion")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let project = allocate_project_id()?;
     let generation = allocate_generation_id()?;
@@ -1938,7 +2080,7 @@ fn an_unsupported_producer_contract_version_is_refused_at_publish_and_read() -> 
 #[test]
 fn oversized_record_is_refused_before_it_is_written() -> TestResult {
     let root = temp_root("oversize")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let project = allocate_project_id()?;
     let generation = allocate_generation_id()?;
@@ -1954,7 +2096,7 @@ fn oversized_record_is_refused_before_it_is_written() -> TestResult {
 #[test]
 fn reservation_survives_temp_write_and_replace() -> TestResult {
     let root = temp_root("reservationio")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let facts = facts_at("/projects/persisted")?;
     let project = allocate_project_id()?;
@@ -1986,7 +2128,7 @@ fn both_reservation_apis_classify_one_corruption_the_same_way() -> TestResult {
     // One corrupt reservation must therefore carry one classification, not a
     // codec error through one API and a store defect through another.
     let root = temp_root("corruptclass")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let facts = facts_at("/projects/classify")?;
     let project = allocate_project_id()?;
@@ -2026,7 +2168,7 @@ fn a_reservation_bound_to_another_project_is_a_typed_defect() -> TestResult {
     // project's path and be returned as that project's reservation. Recovery
     // would then resume an identity this store never reserved under that name.
     let root = temp_root("misboundreservation")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let facts = facts_at("/projects/misbound")?;
     let owner = allocate_project_id()?;
@@ -2079,7 +2221,7 @@ fn an_unsupported_persisted_schema_version_is_reported_as_corruption() -> TestRe
     // The behaviour is recorded rather than assumed, so a later codec change
     // makes this test fail instead of quietly turning dead guards live.
     let root = temp_root("schemaversion")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let facts = facts_at("/projects/schemaversion")?;
     let project = allocate_project_id()?;
@@ -2170,7 +2312,7 @@ fn a_reservation_this_store_could_never_have_written_is_a_typed_defect() -> Test
     // project it could not open. The binding is a path comparison now, so the
     // record is valid only where this store itself would have filed it.
     let root = temp_root("unwritablereservation")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let facts = facts_at("/projects/unwritable")?;
 
@@ -2208,7 +2350,7 @@ fn corrupt_reservation_is_reported_rather_than_skipped() -> TestResult {
     // Silently skipping a corrupt reservation would let a second identity be
     // allocated for an already-reserved project.
     let root = temp_root("corruptreservation")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let facts = facts_at("/projects/corrupt")?;
     let project = allocate_project_id()?;
@@ -2239,7 +2381,7 @@ fn corrupt_reservation_is_reported_rather_than_skipped() -> TestResult {
 #[test]
 fn contended_lock_returns_a_stable_busy_result_within_the_deadline() -> TestResult {
     let root = temp_root("lockbusy")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
 
     let held = store.lock_catalog(&never_cancelled())?;
@@ -2265,7 +2407,7 @@ fn contended_lock_returns_a_stable_busy_result_within_the_deadline() -> TestResu
 #[test]
 fn cancellation_stops_lock_acquisition_promptly() -> TestResult {
     let root = temp_root("lockcancel")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let held = store.lock_catalog(&never_cancelled())?;
 
@@ -2287,7 +2429,7 @@ fn releasing_a_lock_allows_immediate_reacquisition() -> TestResult {
     // the lock is available again, which is the same path a crashed process
     // takes when the operating system closes its handles.
     let root = temp_root("lockrelease")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
 
     let held = store.lock_catalog(&never_cancelled())?;
@@ -2306,7 +2448,7 @@ fn releasing_a_lock_allows_immediate_reacquisition() -> TestResult {
 #[test]
 fn catalog_and_project_locks_are_independent_scopes() -> TestResult {
     let root = temp_root("lockscopes")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let project = allocate_project_id()?;
 
@@ -2330,7 +2472,7 @@ fn catalog_and_project_locks_are_independent_scopes() -> TestResult {
 fn concurrent_first_open_yields_one_identity_or_a_stable_busy() -> TestResult {
     // S2-I014. Never two identities for the same facts.
     let root = temp_root("firstopen")?;
-    let store = Arc::new(EvidenceStore::new(&root));
+    let store = Arc::new(EvidenceStore::new(&root)?);
     store.initialize()?;
     let facts = Arc::new(facts_at("/projects/race")?);
 
@@ -2403,7 +2545,7 @@ fn concurrent_ordinary_writers_never_publish_a_mixed_generation() -> TestResult 
     // S2-E013. Each writer publishes a complete generation under the project
     // lock. Readers always observe one coherent generation.
     let root = temp_root("concurrentwriters")?;
-    let store = Arc::new(EvidenceStore::new(&root));
+    let store = Arc::new(EvidenceStore::new(&root)?);
     store.initialize()?;
     let project = Arc::new(allocate_project_id()?);
 
@@ -2439,7 +2581,7 @@ fn concurrent_ordinary_writers_never_publish_a_mixed_generation() -> TestResult 
 #[test]
 fn readers_observe_a_coherent_generation_while_a_writer_publishes() -> TestResult {
     let root = temp_root("readerwriter")?;
-    let store = Arc::new(EvidenceStore::new(&root));
+    let store = Arc::new(EvidenceStore::new(&root)?);
     store.initialize()?;
     let project = Arc::new(allocate_project_id()?);
     write_generation(&store, &project)?;
@@ -2517,7 +2659,7 @@ fn readers_observe_a_coherent_generation_while_a_writer_publishes() -> TestResul
 #[test]
 fn freshness_uses_generation_commit_time_not_filesystem_metadata() -> TestResult {
     let root = temp_root("freshness")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let project = allocate_project_id()?;
     write_generation(&store, &project)?;
@@ -2603,7 +2745,7 @@ fn a_forged_but_self_consistent_generation_is_not_reported_as_authenticated() ->
     // S2-S015 in miniature: an actor with writer access can rebuild a complete
     // generation that validates. Validation success is coherence evidence only.
     let root = temp_root("forged")?;
-    let store = EvidenceStore::new(&root);
+    let store = EvidenceStore::new(&root)?;
     store.initialize()?;
     let project = allocate_project_id()?;
     write_generation(&store, &project)?;
@@ -2629,12 +2771,12 @@ fn published_records_are_durable_and_byte_exact_after_reopen() -> TestResult {
     let root = temp_root("durability")?;
     let project = allocate_project_id()?;
     {
-        let store = EvidenceStore::new(&root);
+        let store = EvidenceStore::new(&root)?;
         store.initialize()?;
         write_generation(&store, &project)?;
     }
 
-    let reopened = EvidenceStore::new(&root);
+    let reopened = EvidenceStore::new(&root)?;
     let published = reopened.read_published_generation(&project)?;
     let identity_bytes = reopened
         .read_generation_record(&published.manifest, &published.manifest.identity_record_ref)?;

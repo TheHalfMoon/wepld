@@ -1,4 +1,4 @@
-# Source Acquisition — IssueOps / Workflow Skills / Delegation
+# Source Acquisition — IssueOps / Workflow Skills / Delegation / Web Agents
 
 ```text
 STATUS = RESEARCH_INPUT_ONLY
@@ -8,7 +8,7 @@ DEPENDENCY_ADMISSION = NONE
 IMPLEMENTATION_AUTHORITY = NONE
 ```
 
-The canonical source registry does not currently admit the two newly studied donor repositories below. This document records them as future source-acquisition candidates only. A separately governed registry revision is required before any admission/import.
+The canonical source registry does not currently admit the newly studied donor/protocol candidates below. This document records them as future source-acquisition candidates only. A separately governed registry revision is required before any admission/import.
 
 ## Candidate A — mattpocock/skills
 
@@ -182,26 +182,125 @@ PROVIDER_SESSION_ID != TRUST
 
 WePLD must qualify containment and effect behavior independently.
 
+## Candidate C — WebMCP / webmachinelearning/webmcp
+
+```text
+UPSTREAM = W3C Web Machine Learning Community Group WebMCP draft
+OFFICIAL_SPEC = https://webmachinelearning.github.io/webmcp/
+UPSTREAM_REPOSITORY = webmachinelearning/webmcp
+OBSERVED_ON = 2026-08-31
+STATUS_OBSERVED = COMMUNITY_GROUP_DRAFT / NOT_W3C_STANDARD / NOT_STANDARDS_TRACK
+EDITORS_OBSERVED = MICROSOFT + GOOGLE
+ROLE_CANDIDATE = PROTOCOL_SPECIFICATION_ORACLE + TEST_ORACLE + BROWSER_TOOL_INTEROP_CANDIDATE
+SOURCE_ADMISSION = NONE
+```
+
+Observed capability themes:
+
+- JavaScript-based web-application tools exposed to agents;
+- imperative tool registration;
+- declarative HTML-form-oriented tool exposure;
+- structured input schemas;
+- tool annotations including advisory read-only/untrusted-content signals;
+- origin/exposure semantics;
+- Permissions Policy integration;
+- security/privacy sections covering prompt injection, tool poisoning, output injection, intent misrepresentation, privacy leakage, and same-origin risks;
+- Web Platform Tests as a future conformance/test oracle candidate.
+
+WePLD adaptation:
+
+```text
+website WebMCP tool
+-> untrusted WebToolObservation
+-> independent effect classification
+-> Mirefa qualification
+-> Nawat exact-context grant/revalidation
+-> qualified browser/UWC adapter
+-> evidence
+```
+
+WebMCP metadata, annotations, tool availability, and tool output MUST NOT become WePLD authority.
+
+## Candidate D — Chrome WebMCP implementation/docs
+
+```text
+UPSTREAM = Chrome for Developers / Chromium WebMCP implementation surface
+OFFICIAL_DOCS = https://developer.chrome.com/docs/ai/webmcp
+OBSERVED_ON = 2026-08-31
+ROLE_CANDIDATE = IMPLEMENTATION_BEHAVIOR_ORACLE + COMPATIBILITY_ORACLE + FIXTURE/TEST_QUARRY
+SOURCE_ADMISSION = NONE
+```
+
+Observed implementation themes include imperative/declarative APIs, origin-isolation requirements, `tools` Permissions Policy, current experimental/origin-trial behavior, local testing flags, tool inspector behavior, and browser-context requirements.
+
+Current browser support MUST be reverified at the owning acquisition gate; no planning-time browser/version statement is frozen as implementation truth.
+
+## Candidate E — Chrome DevTools MCP / Microsoft Edge + WebView2 compatibility
+
+```text
+UPSTREAM = Chrome DevTools for agents / chrome-devtools-mcp
+MICROSOFT_REFERENCE = Microsoft Edge DevTools MCP guidance
+MICROSOFT_DOCS = https://learn.microsoft.com/en-us/microsoft-edge/web-platform/devtools-mcp-server
+OBSERVED_ON = 2026-08-31
+ROLE_CANDIDATE = BROWSER_DIAGNOSTICS_ADAPTER + DEVTOOLS_BEHAVIOR_ORACLE + EDGE_WEBVIEW2_COMPATIBILITY_ORACLE
+SOURCE_ADMISSION = NONE
+```
+
+Observed capability themes:
+
+- agent-driven inspection/control of Chromium-based browsers;
+- Edge compatibility;
+- WebView2 compatibility;
+- DOM/page inspection;
+- debugging and performance analysis;
+- browser target/session connection semantics;
+- browser-profile/user-data-directory implications;
+- underlying DevTools/Puppeteer implementation behavior.
+
+This candidate is distinct from WebMCP. WebMCP exposes application-defined structured tools; DevTools MCP exposes browser inspection/control. WePLD should support both behind different capability/effect classifications.
+
+## Web-agent security acquisition requirements
+
+Any future browser/WebMCP source acquisition MUST explicitly qualify:
+
+- browser session/profile identity;
+- origin and page/tool generation freshness;
+- authenticated-session ambient authority;
+- cookies/password-manager/autofill/SSO handling;
+- WebMCP tool poisoning and output injection;
+- advisory annotations vs independently verified effect classes;
+- cross-origin iframe/tool exposure;
+- tool-definition mutation after discovery;
+- duplicate/non-idempotent invocation;
+- browser navigation and origin changes;
+- download/upload semantics;
+- local vs remote browser boundaries;
+- headless vs visible-session behavior;
+- fallback behavior among WebMCP, DOM automation, DevTools, local browser, remote browser, Chrome, Edge, and WebView2;
+- data capture/egress from console/network/DOM/screenshots;
+- Windows-first portability and containment.
+
 ## Future acquisition sequence
 
 1. Create a separately governed next source-registry revision candidate.
-2. Add both repositories as pinned candidates with license/source hashes.
+2. Add only the candidates needed by the owning tranche with exact revisions/versions/source hashes where applicable.
 3. Mine only the paths needed by the owning slice.
 4. Extract tests, fixtures, behavior contracts, negative oracles, and security/containment differences.
 5. Compare against already-admitted sources to avoid duplicate machinery.
 6. Decide reuse mode independently per capability:
    - reject;
+   - specification oracle;
    - behavior oracle only;
    - test/fixture acquisition;
    - documentation/process pattern;
    - bounded source reuse;
-   - adapter candidate.
+   - protocol/adapter candidate.
 7. Run applicable license/security/dependency/portability/maintenance/exit qualification.
 8. Admit only through the owning future slice; never through this planning candidate.
 
 ## Additional source classes to qualify later
 
-IssueOps and RAG will require capability-triggered acquisition rather than broad discovery. Candidate categories include:
+IssueOps, RAG, and web-agent interoperability will require capability-triggered acquisition rather than broad discovery. Candidate categories include:
 
 - GitHub API/App/webhook/reference implementations and fixtures;
 - GitLab/Linear/Jira/Azure DevOps/Sentry API contracts when their adapter is actually activated;
@@ -210,6 +309,7 @@ IssueOps and RAG will require capability-triggered acquisition rather than broad
 - lexical/full-text retrieval engines;
 - optional vector/embedding/index engines only if S4 evidence proves the need;
 - code semantic-index/graph sources already contemplated by Fehrest;
+- browser/WebMCP/DevTools protocol fixtures and adversarial corpora;
 - retry/idempotency/checkpoint libraries or patterns only when stdlib/admitted machinery is insufficient.
 
 No category listing is source admission.

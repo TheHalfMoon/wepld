@@ -8,6 +8,13 @@
 //! read `CURRENT` once and validate exactly that generation; records are never
 //! combined across generations.
 //!
+//! Immutability is enforced rather than asserted. Writing the manifest closes a
+//! generation, and every later record or manifest write targeting that
+//! generation is rejected with [`StoreError::GenerationAlreadyClosed`]. Without
+//! that rule a caller holding the correct project lock could rewrite a
+//! published generation in place, which would turn an immutability guarantee
+//! into a digest mismatch surfaced to an unlucky reader.
+//!
 //! Covered tasks: S2-E003, S2-E004, S2-E005, S2-E006, S2-E007, S2-E008,
 //! S2-E009, S2-E010, S2-E011, S2-E012, S2-E017.
 //!
@@ -35,7 +42,7 @@ use std::error::Error;
 use std::fmt;
 use std::fs::{self, File, OpenOptions, TryLockError};
 use std::io::{self, Read as _, Write as _};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -152,6 +159,12 @@ pub enum StoreError {
     WrongProjectLock,
     /// A lock guard was presented that protects a different store root.
     ForeignLock,
+    /// A write targeted a generation that is already closed by a manifest.
+    ///
+    /// Generations are immutable once closed. Rewriting a closed generation
+    /// would let a published generation change underneath a reader that already
+    /// selected it.
+    GenerationAlreadyClosed,
     /// The canonical catalog-before-project lock order was violated.
     ///
     /// Canonical authority fixes the order when an operation needs both locks.
@@ -189,6 +202,10 @@ impl fmt::Display for StoreError {
             Self::ForeignLock => write!(
                 formatter,
                 "lock guard protects a different store root than the one being mutated"
+            ),
+            Self::GenerationAlreadyClosed => write!(
+                formatter,
+                "generation is closed by a manifest and is immutable"
             ),
             Self::LockOrderViolation => write!(
                 formatter,
@@ -291,6 +308,30 @@ fn release_project_lock(root: &Path) {
             guard.remove(root);
         }
     }
+}
+
+/// Lexically normalise a store root so equivalent spellings share one identity.
+///
+/// `.` components are dropped and `..` components pop the previous normal
+/// component. Prefix and root components are preserved so absolute paths stay
+/// absolute on every platform.
+fn normalize_root(root: PathBuf) -> PathBuf {
+    let mut normalized = PathBuf::new();
+    for component in root.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if !normalized.pop() {
+                    normalized.push(Component::ParentDir.as_os_str());
+                }
+            }
+            other => normalized.push(other.as_os_str()),
+        }
+    }
+    if normalized.as_os_str().is_empty() {
+        return PathBuf::from(".");
+    }
+    normalized
 }
 
 const HEX_DIGITS: &[u8; 16] = b"0123456789abcdef";
@@ -478,8 +519,24 @@ pub struct Freshness {
 
 impl EvidenceStore {
     /// Open a store rooted at an absolute WePLD-owned data root.
+    ///
+    /// The root is lexically normalised once, here, so that two handles naming
+    /// the same directory with different spellings share one store identity.
+    /// Without this, `/state/wepld` and `/state/wepld/.` would be distinct
+    /// registry keys and distinct guard bindings while addressing the same lock
+    /// files, which would both bypass lock-order enforcement and make a valid
+    /// guard look foreign.
+    ///
+    /// Normalisation is purely lexical and therefore deterministic and
+    /// independent of whether the directory exists yet. It resolves `.` and
+    /// `..` components. It does not resolve symbolic links, so two roots that
+    /// alias through a link remain distinct store identities for in-process
+    /// ordering; the operating-system lock still provides mutual exclusion in
+    /// that case, and acquisition remains bounded.
     pub fn new(root: impl Into<PathBuf>) -> Self {
-        Self { root: root.into() }
+        Self {
+            root: normalize_root(root.into()),
+        }
     }
 
     pub fn root(&self) -> &Path {
@@ -616,8 +673,21 @@ impl EvidenceStore {
         project: &ProjectId,
         cancelled: &dyn Fn() -> bool,
     ) -> Result<ProjectLock, StoreError> {
-        let inner = self.acquire_lock(StoreLockScope::ProjectStore, Some(project), cancelled)?;
+        // Register the pending acquisition before taking the operating-system
+        // lock. Registering afterwards leaves a window in which another thread
+        // passes the catalog-order check while this project lock is already
+        // held, which inverts the canonical order without the registry ever
+        // seeing it. The registration is released if acquisition fails, so a
+        // failed attempt cannot block the catalog permanently.
         register_project_lock(&self.root);
+        let inner = match self.acquire_lock(StoreLockScope::ProjectStore, Some(project), cancelled)
+        {
+            Ok(inner) => inner,
+            Err(error) => {
+                release_project_lock(&self.root);
+                return Err(error);
+            }
+        };
         Ok(ProjectLock {
             inner,
             project: project.clone(),
@@ -838,6 +908,19 @@ impl EvidenceStore {
         Ok(self.project_dir(project)?.join(CURRENT_FILE))
     }
 
+    /// Whether a generation has been closed by a manifest.
+    ///
+    /// A closed generation is immutable. This is checked by the presence of the
+    /// manifest rather than by the `CURRENT` pointer, because a generation is
+    /// sealed the moment its manifest exists, whether or not it was published.
+    fn generation_is_closed(
+        &self,
+        project: &ProjectId,
+        generation: &GenerationId,
+    ) -> Result<bool, StoreError> {
+        Ok(self.manifest_path(project, generation)?.exists())
+    }
+
     /// Write one immutable evidence record into a generation under construction.
     ///
     /// S2-E007. Records are written before the manifest and the manifest is
@@ -852,6 +935,9 @@ impl EvidenceStore {
         bytes: &[u8],
     ) -> Result<RecordDigest, StoreError> {
         lock.require(self, project)?;
+        if self.generation_is_closed(project, generation)? {
+            return Err(StoreError::GenerationAlreadyClosed);
+        }
         if bytes.len() > MAX_RECORD_BYTES {
             return Err(StoreError::TooLarge {
                 limit: MAX_RECORD_BYTES,
@@ -872,6 +958,9 @@ impl EvidenceStore {
         manifest: &ProjectGenerationManifest,
     ) -> Result<ContentDigest, StoreError> {
         lock.require(self, &manifest.project_id)?;
+        if self.generation_is_closed(&manifest.project_id, &manifest.generation_id)? {
+            return Err(StoreError::GenerationAlreadyClosed);
+        }
         let bytes = canonical_project_json(manifest)?;
         if bytes.len() > MAX_MANIFEST_BYTES {
             return Err(StoreError::TooLarge {

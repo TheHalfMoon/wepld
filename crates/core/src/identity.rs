@@ -231,21 +231,29 @@ impl ProjectMatchFacts {
 
     /// Digest of the stable revalidated matching facts.
     ///
-    /// Only facts that are stable for an unchanged project participate.
+    /// Only the resolved path participates. It is the one locator component that
+    /// is a property of the project rather than of how a caller happened to name
+    /// it on this invocation.
     ///
-    /// `ProjectLocator::observation_time` is excluded: it changes on every open,
-    /// so including it would make the digest volatile, prevent exact rebinding,
-    /// and make a resumed first open fail to recognise its own reservation.
+    /// `input_path` is deliberately excluded. It is caller-supplied spelling:
+    /// `/a/b`, `/a/./b`, and a relative path from a different working directory
+    /// all name the same project, and digesting any of them would split one
+    /// project into several identities and make a valid reservation unrecoverable
+    /// under a different spelling. `lexical_absolute_path` is excluded for the
+    /// same reason, since it is derived from that spelling.
     ///
-    /// An unavailable resolved-path observation is rejected rather than
-    /// digested. A failed resolution is a transient condition, and its error
-    /// class would otherwise become identity input: the same project would take
-    /// one identity when resolution succeeded and another when it did not.
+    /// `observation_time` is excluded because it changes on every open.
     ///
-    /// Paths are normalised so that equivalent representations agree. The
-    /// components are digested in a fixed order under a domain separation tag
-    /// with explicit length prefixes, so no component boundary can be forged by
-    /// concatenation.
+    /// An unavailable resolved-path observation is rejected rather than digested.
+    /// A failed resolution is transient, and its error class must never become
+    /// identity input.
+    ///
+    /// The path is normalised so equivalent representations agree, and is framed
+    /// with an explicit length prefix under a domain separation tag so no
+    /// boundary can be forged by concatenation.
+    ///
+    /// This digest is a matching key, not the identity itself. WePLD owns
+    /// `ProjectId`; a resolved path is evidence used to rebind to it.
     ///
     /// The digest is unkeyed. It detects drift and supports coherent matching;
     /// it authenticates nothing.
@@ -253,15 +261,11 @@ impl ProjectMatchFacts {
         let Observation::Available { value: resolved } = &self.locator.resolved_path else {
             return Err(IdentityError::ResolvedPathUnavailable);
         };
-        let input = stable_path_bytes(&self.locator.input_path);
-        let lexical = stable_path_bytes(&self.locator.lexical_absolute_path);
-        let resolved = stable_path_bytes(resolved);
-        let mut buffer = Vec::with_capacity(input.len() + lexical.len() + resolved.len() + 24);
-        for component in [&input, &lexical, &resolved] {
-            let length = u64::try_from(component.len()).unwrap_or(u64::MAX);
-            buffer.extend_from_slice(&length.to_be_bytes());
-            buffer.extend_from_slice(component);
-        }
+        let encoded = stable_path_bytes(resolved);
+        let length = u64::try_from(encoded.len()).unwrap_or(u64::MAX);
+        let mut buffer = Vec::with_capacity(encoded.len() + 8);
+        buffer.extend_from_slice(&length.to_be_bytes());
+        buffer.extend_from_slice(&encoded);
         digest_parts(&[MATCH_FACTS_DOMAIN, &buffer, FIELD_SEPARATOR])
     }
 

@@ -600,6 +600,146 @@ fn equivalent_path_representations_agree() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn equivalent_input_spellings_resolve_to_one_identity() -> TestResult {
+    // input_path is caller-supplied spelling. The same project named through a
+    // dot component, or through a different input entirely, must not split into
+    // several identities while the resolved path is the same.
+    let resolved = MachinePath::utf8("/projects/spelling")?;
+    let spellings = [
+        "/projects/spelling",
+        "/projects/./spelling",
+        "/projects/other/../spelling",
+        "spelling",
+    ];
+    let mut digests = Vec::new();
+    for spelling in spellings {
+        let input = MachinePath::utf8(spelling)?;
+        let facts = ProjectMatchFacts::new(ProjectLocator {
+            schema_version: ProjectContractVersion::V1,
+            input_path: input.clone(),
+            lexical_absolute_path: input,
+            resolved_path: Observation::Available {
+                value: resolved.clone(),
+            },
+            observation_time: UnixMillis::new(1_000),
+        });
+        digests.push(facts.facts_digest()?);
+    }
+    for digest in &digests {
+        assert_eq!(
+            digest, &digests[0],
+            "input spelling must not change identity"
+        );
+    }
+
+    // A genuinely different resolved path must still differ.
+    let other = ProjectMatchFacts::new(locator_at("/projects/elsewhere", 1_000)?);
+    assert_ne!(digests[0], other.facts_digest()?);
+    Ok(())
+}
+
+#[test]
+fn reservation_recovers_across_a_different_input_spelling() -> TestResult {
+    // A reservation created under one spelling must be recoverable under
+    // another, or an interrupted opener allocates a second identity.
+    let resolved = MachinePath::utf8("/projects/spelled")?;
+    let facts_for = |spelling: &str| -> Result<ProjectMatchFacts, TestError> {
+        let input = MachinePath::utf8(spelling)?;
+        Ok(ProjectMatchFacts::new(ProjectLocator {
+            schema_version: ProjectContractVersion::V1,
+            input_path: input.clone(),
+            lexical_absolute_path: input,
+            resolved_path: Observation::Available {
+                value: resolved.clone(),
+            },
+            observation_time: UnixMillis::new(1_000),
+        }))
+    };
+    let created = facts_for("/projects/spelled")?;
+    let resumed = facts_for("/projects/./spelled")?;
+    let project_id = allocate_project_id()?;
+    let reservation = build_reservation(project_id.clone(), &created, UnixMillis::new(1))?;
+
+    let recovered = recover_reservation(&reservation, &resumed)?;
+    let ReservationRecovery::ResumeSameProject {
+        project_id: resumed_id,
+    } = &recovered
+    else {
+        return Err(unexpected("resume across a different spelling", &recovered));
+    };
+    assert_eq!(resumed_id, &project_id);
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// generation immutability
+// ---------------------------------------------------------------------------
+
+#[test]
+fn a_closed_generation_cannot_be_rewritten() -> TestResult {
+    // Writing the manifest closes a generation. A caller holding the correct
+    // project guard must still not rewrite it, or a published generation could
+    // change underneath a reader that already selected it.
+    let root = temp_root("immutable")?;
+    let store = EvidenceStore::new(&root);
+    store.initialize()?;
+    let project = allocate_project_id()?;
+    let lock = store.lock_project(&project, &never_cancelled())?;
+    let generation = write_generation_locked(&store, &lock, &project)?;
+
+    let published = store.read_published_generation(&project)?;
+    let existing_record = published.manifest.identity_record_ref.clone();
+
+    // Rewriting an existing record in the closed generation is rejected.
+    assert!(matches!(
+        store.write_generation_record(&lock, &project, &generation, &existing_record, b"{}"),
+        Err(StoreError::GenerationAlreadyClosed)
+    ));
+
+    // Adding a new record to the closed generation is rejected.
+    let fresh_record = allocate_record_id()?;
+    assert!(matches!(
+        store.write_generation_record(&lock, &project, &generation, &fresh_record, b"{}"),
+        Err(StoreError::GenerationAlreadyClosed)
+    ));
+
+    // Replacing the manifest of the closed generation is rejected.
+    assert!(matches!(
+        store.write_generation_manifest(&lock, &published.manifest),
+        Err(StoreError::GenerationAlreadyClosed)
+    ));
+
+    // The published generation is unchanged and still validates.
+    let after = store.read_published_generation(&project)?;
+    assert_eq!(after.current.generation_id, generation);
+    assert_eq!(
+        after.manifest.record_digests.as_slice(),
+        published.manifest.record_digests.as_slice()
+    );
+    Ok(())
+}
+
+#[test]
+fn a_new_generation_is_still_writable_after_one_is_closed() -> TestResult {
+    // Immutability must seal a generation without freezing the project.
+    let root = temp_root("immutable-next")?;
+    let store = EvidenceStore::new(&root);
+    store.initialize()?;
+    let project = allocate_project_id()?;
+    let first = write_generation(&store, &project)?;
+    let second = write_generation(&store, &project)?;
+    assert_ne!(first, second);
+    assert_eq!(
+        store
+            .read_published_generation(&project)?
+            .current
+            .generation_id,
+        second
+    );
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // lock protocol enforced by the API
 // ---------------------------------------------------------------------------
@@ -700,6 +840,31 @@ fn reverse_lock_acquisition_is_refused() -> TestResult {
     let other_handle = EvidenceStore::new(&root);
     let laundered = other_handle.lock_catalog(&never_cancelled());
     assert!(matches!(laundered, Err(StoreError::LockOrderViolation)));
+
+    // Nor through a different lexical spelling of the same root. A `.` component
+    // would not prove anything, because Rust path comparison already skips it.
+    // A `..` component is the spelling that genuinely aliases: path comparison
+    // does not resolve it, so without root normalisation this would be a
+    // distinct registry key and would bypass ordering enforcement entirely.
+    let aliased_spelling = root.join("sibling").join("..");
+    assert_ne!(
+        aliased_spelling, root,
+        "the alias fixture must not already compare equal"
+    );
+    let aliased = EvidenceStore::new(aliased_spelling);
+    assert_eq!(aliased.root(), store.root());
+    assert!(matches!(
+        aliased.lock_catalog(&never_cancelled()),
+        Err(StoreError::LockOrderViolation)
+    ));
+
+    // A guard taken from one spelling is not foreign to the other.
+    let generation = allocate_generation_id()?;
+    let record = allocate_record_id()?;
+    assert!(!matches!(
+        aliased.write_generation_record(&project_lock, &project, &generation, &record, b"{}"),
+        Err(StoreError::ForeignLock)
+    ));
 
     // Releasing the project guard restores catalog availability.
     drop(project_lock);

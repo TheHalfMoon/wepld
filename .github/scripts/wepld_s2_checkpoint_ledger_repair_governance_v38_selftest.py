@@ -117,35 +117,154 @@ def _check_binding_is_exact_and_idempotent() -> None:
         base.fail("v38 self-test left the predecessor ledger target moved")
 
 
-def _check_correction_reaches_every_consumer() -> None:
-    """The rebind is only sufficient if every v37 consumer reads it at call time.
+class _DocView:
+    """A view that reports chosen bytes for the two documentation paths."""
 
-    v38 corrects one attribute on v37 rather than reimplementing the transition, so the
-    property that makes that safe is worth asserting rather than assuming: the inherited
-    transition must now reject the superseded identity and accept the corrected one.
+    def __init__(self, view: Any, checkpoint: bytes, ledger: bytes) -> None:
+        self._view = view
+        self._m = {p.CHECKPOINT: checkpoint, p.LEDGER: ledger}
+
+    def read_bytes(self, path: str, max_bytes: int) -> bytes:
+        if path in self._m:
+            data = self._m[path]
+            if len(data) > max_bytes:
+                base.fail(f"v38 self-test doc view exceeds read bound: {path}")
+            return data
+        return self._view.read_bytes(path, max_bytes)
+
+    def read_text(self, path: str, limit: int = base.MAX_POLICY_FILE_BYTES) -> str:
+        return self.read_bytes(path, limit).decode("utf-8", errors="strict")
+
+    def entries(self) -> Any:
+        return self._view.entries()
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._view, name)
+
+
+def _check_correction_reaches_every_consumer() -> None:
+    """Every v37 consumer must resolve the ledger identity at call time.
+
+    The risk is a consumer that captured the superseded identity at import: v38 corrects
+    one attribute on v37, so a captured copy would leave `f9b2872639...` quietly
+    reachable while every direct assertion still passed.
+
+    An earlier version of this test tried to demonstrate that by rejecting a candidate,
+    but the view it built carried the repository's real bytes, so the rejection it
+    observed was of a no-op transition and the test could not fail for the property its
+    name claims. It also cannot be fixed by feeding the superseded bytes: they are not in
+    the tree on either side of the transition, and bytes hashing to a chosen blob cannot
+    be constructed.
+
+    So the property itself is exercised. Each consumer is first shown a state it must
+    accept, with the pins moved to synthetic identities; then only `FINAL_LEDGER_BLOB` is
+    moved away and the same consumer must reject the same state. A consumer holding a
+    captured copy would not change its verdict, and would fail here.
     """
     real = p.raw_root
+    # All four identities must be distinct. The inherited local-state check resolves
+    # PRE before FINAL, so a checkpoint whose two sides shared an identity would
+    # resolve to PRE while the ledger resolved to FINAL, and the accept phase would
+    # report a half-applied tree instead of exercising anything.
+    pre_checkpoint_bytes = b"# v38 self-test synthetic PRE checkpoint\n"
+    final_checkpoint_bytes = b"# v38 self-test synthetic FINAL checkpoint\n"
+    pre_ledger_bytes = b"# v38 self-test synthetic PRE ledger\n"
+    final_ledger_bytes = b"# v38 self-test synthetic FINAL ledger\n"
 
-    class _Doc:
-        def __init__(self, checkpoint: str, ledger: str) -> None:
-            self._m = {p.CHECKPOINT: checkpoint, p.LEDGER: ledger}
-
-        def read_bytes(self, path: str, max_bytes: int) -> bytes:
-            return real.read_bytes(path, max_bytes)
-
-        def __getattr__(self, name: str) -> Any:
-            return getattr(real, name)
-
-    # The transition inherited from v37 must refuse a candidate whose ledger carries the
-    # superseded identity. Exercised through the real base, which holds the PRE side.
-    superseded = OverlayView(real, {})
-    _expect_failure(
-        "inherited transition accepting a no-op",
-        lambda: p.p.docs_transition(superseded, real),
+    synthetic_pre_checkpoint = p.V25.blob(pre_checkpoint_bytes)
+    synthetic_final_checkpoint = p.V25.blob(final_checkpoint_bytes)
+    synthetic_pre_ledger = p.V25.blob(pre_ledger_bytes)
+    synthetic_final_ledger = p.V25.blob(final_ledger_bytes)
+    synthetic = (
+        synthetic_pre_checkpoint,
+        synthetic_final_checkpoint,
+        synthetic_pre_ledger,
+        synthetic_final_ledger,
     )
+    if len(set(synthetic)) != len(synthetic):
+        base.fail("v38 self-test synthetic identities collided")
 
+    base_view = _DocView(real, pre_checkpoint_bytes, pre_ledger_bytes)
+    final_view = _DocView(real, final_checkpoint_bytes, final_ledger_bytes)
+
+    saved = (
+        p.p.PRE_CHECKPOINT_BLOB,
+        p.p.PRE_LEDGER_BLOB,
+        p.p.FINAL_CHECKPOINT_BLOB,
+        p.p.FINAL_LEDGER_BLOB,
+    )
+    widened: list[str] = []
+    original_inherited = p.p._INHERITED_STATE
+
+    def _probe(view: Any) -> str:
+        widened.append(p.p._V18.FINAL_LEARNING_BLOB)
+        return "PROBE"
+
+    try:
+        p.p.PRE_CHECKPOINT_BLOB = synthetic_pre_checkpoint
+        p.p.PRE_LEDGER_BLOB = synthetic_pre_ledger
+        p.p.FINAL_CHECKPOINT_BLOB = synthetic_final_checkpoint
+        p.p.FINAL_LEDGER_BLOB = synthetic_final_ledger
+        p.p._INHERITED_STATE = _probe
+
+        # Accept phase. Each consumer must be satisfied by the synthetic FINAL state.
+        p.p.docs_transition(final_view, base_view)
+        p.p._check_local_state_is_one_of_the_v37_pinned_states(final_view)
+        p.p._req_canonical_frontier(final_view)
+
+        del widened[:]
+        p.p._state(final_view)
+        if widened != [synthetic_final_ledger]:
+            base.fail(
+                "v38 inherited ledger widening did not widen to the current identity: "
+                f"{widened}"
+            )
+        if p.p._V18.FINAL_LEARNING_BLOB != p.p._V18_RESTING_PIN:
+            base.fail("v38 inherited ledger widening did not restore the resting pin")
+
+        # Reject phase. Only FINAL_LEDGER_BLOB moves; the same state must now fail.
+        p.p.FINAL_LEDGER_BLOB = "1" * 40
+        _expect_failure(
+            "docs_transition resolving a stale ledger identity",
+            lambda: p.p.docs_transition(final_view, base_view),
+        )
+        _expect_failure(
+            "local documentation state resolving a stale ledger identity",
+            lambda: p.p._check_local_state_is_one_of_the_v37_pinned_states(final_view),
+        )
+        _expect_failure(
+            "canonical frontier resolving a stale ledger identity",
+            lambda: p.p._req_canonical_frontier(final_view),
+        )
+
+        del widened[:]
+        p.p._state(final_view)
+        if widened != [p.p._V18_RESTING_PIN]:
+            base.fail(
+                "v38 inherited ledger widening widened for a non-authorized identity: "
+                f"{widened}"
+            )
+    finally:
+        p.p._INHERITED_STATE = original_inherited
+        (
+            p.p.PRE_CHECKPOINT_BLOB,
+            p.p.PRE_LEDGER_BLOB,
+            p.p.FINAL_CHECKPOINT_BLOB,
+            p.p.FINAL_LEDGER_BLOB,
+        ) = saved
+
+    if p.p._INHERITED_STATE is not original_inherited:
+        base.fail("v38 self-test left the inherited state hook replaced")
+    if p.p.FINAL_LEDGER_BLOB != p.FINAL_LEDGER_BLOB:
+        base.fail("v38 self-test left the corrected ledger target moved")
+    if p.p.FINAL_CHECKPOINT_BLOB != p.FINAL_CHECKPOINT_BLOB:
+        base.fail("v38 self-test left the checkpoint target moved")
+    if p.p.PRE_LEDGER_BLOB != p.PRE_LEDGER_BLOB:
+        base.fail("v38 self-test left the PRE ledger moved")
+    if p.p.PRE_CHECKPOINT_BLOB != p.PRE_CHECKPOINT_BLOB:
+        base.fail("v38 self-test left the PRE checkpoint moved")
     if p.p.FINAL_LEDGER_BLOB == p.V37_FINAL_LEDGER_BLOB:
-        base.fail("v38 left the superseded ledger identity reachable in the transition")
+        base.fail("v38 left the superseded ledger identity reachable")
 
 
 def _check_predecessor_is_exact() -> None:

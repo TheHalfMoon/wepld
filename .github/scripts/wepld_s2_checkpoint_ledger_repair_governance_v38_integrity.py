@@ -39,7 +39,7 @@ import wepld_s2_identity_store_governance_v35_integrity as _v35
 
 P = ".github/scripts/wepld_s2_checkpoint_ledger_repair_governance_v38_integrity.py"
 T = ".github/scripts/wepld_s2_checkpoint_ledger_repair_governance_v38_selftest.py"
-T_BLOB = "a635f05c8d70942559d26457912902d339d332c4"
+T_BLOB = "4f4862ec952f1670e8d726f5858396aed98da13f"
 
 V37_P_BLOB = "68012fa0da575a194e8907cb600b49ed51720a04"
 V37_T_BLOB = "7ad57d2be748cc20d1a4d7084a49ca9ca291c21e"

@@ -1,0 +1,34 @@
+{
+  "_wepldModificationNotice": "Modified by WePLD on 2026-08-23: deterministic Pictorial rebrand/path integration from the pinned upstream source.",
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "pictorial",
+  "metadata": {
+    "description": "Design fluency for AI harnesses. 1 skill, 23 commands, and curated anti-patterns for pictorial frontend design."
+  },
+  "owner": {
+    "name": "Paul Bakaus",
+    "email": "paul@paulbakaus.com"
+  },
+  "plugins": [
+    {
+      "name": "pictorial",
+      "description": "Design fluency for frontend development. 1 skill with 23 commands (/pictorial polish, /pictorial audit, /pictorial critique, etc.) and curated anti-pattern detection.",
+      "version": "4.1.1",
+      "author": {
+        "name": "Paul Bakaus",
+        "email": "paul@paulbakaus.com"
+      },
+      "source": "./plugin",
+      "category": "design",
+      "homepage": "https://github.com/TheHalfMoon/wepld",
+      "tags": [
+        "design",
+        "frontend",
+        "ui",
+        "ux",
+        "skills",
+        "commands"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "_wepldModificationNotice": "Modified by WePLD on 2026-08-23: deterministic Pictorial rebrand/path integration from the pinned upstream source.",
+  "name": "pictorial",
+  "version": "4.1.1",
+  "description": "Design fluency for frontend development. 1 skill with 23 commands (/pictorial polish, /pictorial audit, /pictorial critique, etc.) and curated anti-pattern detection.",
+  "author": {
+    "name": "Paul Bakaus",
+    "email": "paul@paulbakaus.com"
+  },
+  "homepage": "https://github.com/TheHalfMoon/wepld",
+  "repository": "https://github.com/TheHalfMoon/wepld",
+  "license": "MIT",
+  "keywords": [
+    "design",
+    "frontend",
+    "ui",
+    "ux",
+    "skills",
+    "hooks"
+  ]
+}

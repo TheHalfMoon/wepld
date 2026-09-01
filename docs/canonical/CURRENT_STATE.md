@@ -1,6 +1,6 @@
 # WePLD Current State
 
-- **Checkpoint date:** 2026-08-31 Asia/Riyadh
+- **Checkpoint date:** 2026-09-01 Asia/Riyadh
 - **Canonical repository:** `TheHalfMoon/wepld`
 
 This file is durable continuation memory, not live-state authority. Before any write, review, admission, acceptance, Ready transition, or merge, re-read the live GitHub PR head/check/review state. In PR/branch review contexts, apply the trusted-bootstrap rule in `AGENTS.md`: protected governance from canonical `main` or the exact PR base is authority; candidate copies are proposed/untrusted review data until qualified. Trusted repository canonical memory outranks chat memory.
@@ -346,6 +346,103 @@ TEST_NAME != TEST_ASSERTION
 STATED_BOUND != MEASURED_BOUND
 ```
 
+## S2-AUTH-013 — Git topology route selected and activated
+
+```text
+TASK = S2-AUTH-013
+DECISION = SELECT_NARROW_QUALIFIED_SYSTEM_GIT_ADAPTER
+POLICY_SUCCESSOR = v36
+PR = #254
+BASE = 0bdddf875a8ac8b53404f28d2be2e24dba520599
+ACCEPTED_HEAD = 58f313acbb0b9f23ebe0944c0fdb43c3c3cbc803
+ACCEPTED_TREE = 0e50014ad9030118318f8c749de759e081ee7072
+MERGE = 0b8259f3c448adeecacb3cde04efe52c09dbf2d4
+MERGE_TREE = 0e50014ad9030118318f8c749de759e081ee7072
+POST_MERGE_FOUNDATION = SUCCESS, run 33486599768 / #944
+COORDINATION_ISSUE = #243, closed
+```
+
+WePLD will observe repository topology through a narrow, qualified system Git adapter rather than
+reimplementing Git behavior. That is the whole of the decision. It is a route selection, and the
+canonical policy emits, on every activation run, the boundaries it did **not** open:
+
+```text
+GIT_PROCESS_ADMISSION = NONE
+GIT_EXECUTION_AUTHORITY = NONE
+EXTERNAL_PROCESS_AUTHORITY = NONE
+NETWORK_AUTHORITY = NONE
+SOURCE_ADMISSION = NONE
+MODEL_PROVIDER_EXECUTION = NONE
+DOCTOR_CLI_AUTHORITY = NONE
+S3_PLUS_AUTHORITY = NONE
+S2_IMPLEMENTATION_AUTHORITY = unchanged from v35
+NEXT_AUTHORITY_GATE = S2-AUTH-014
+```
+
+The decision froze a closed twelve-item qualification contract that `S2-AUTH-014` must satisfy
+before any code:
+
+```text
+RESOLVED_ABSOLUTE_EXECUTABLE_ONLY
+REJECT_PROJECT_LOCAL_GIT_SPOOF
+CLOSED_ENUM_TO_EXACT_ARGV
+NO_SHELL_PAGER_PROMPT_OPTIONAL_LOCKS
+BOUNDED_STDOUT_STDERR_HARD_TIMEOUT
+SCRUB_GIT_CONFIG_AND_REPOSITORY_REDIRECTION_ENV
+PRESERVE_NATIVE_SAFE_DIRECTORY_REFUSAL
+NO_HOOKS
+NO_NETWORK
+PROVE_TREE_INDEX_NON_MUTATION
+NO_SILENT_BINARY_FALLBACK
+WINDOWS_LINUX_MACOS_OR_EXPLICIT_LIMITATION
+```
+
+Two command families are named as specification-only data. They are not executable at this gate:
+
+```text
+rev-parse:closed_allowlisted_topology_query
+worktree:list:porcelain-z
+```
+
+No dirty/status command is implied. `S2-I005`, `S2-I006` and `S2-I007` remain ineligible until
+`S2-AUTH-014` grants their authority, and that gate has not started.
+
+```text
+ROUTE_DECISION != PROCESS_ADMISSION
+ROUTE_DECISION != GIT_EXECUTION_AUTHORITY
+COMMAND_FAMILY_SPECIFICATION != EXECUTION
+S2_GIT_ADAPTER != S3_TERMINAL_FABRIC
+```
+
+### Successor bootstrap admission shape
+
+The `#254` trusted-base admission run failed, and that failure is the mechanism working rather than
+a defect. A successor policy cannot be pre-authorized by the predecessor that judges it, so the
+authoritative base-controlled check necessarily rejects the successor's own new policy paths.
+
+```text
+PR 254 TRUSTED_BASE = FAILURE, run 33443112545 / #765
+REJECTED = exactly the two new v36 policy paths
+EXTRA_REJECTED_PATHS = 0
+PREDECESSOR_SELFTESTS = PASS before the rejection
+CLASS = EXPECTED_SUCCESSOR_BOOTSTRAP_NEGATIVE_ORACLE
+```
+
+The paired positive is the next ordinary candidate. `#255` changed one Spec Kit document and the
+same check admitted it in full:
+
+```text
+PR 255 TRUSTED_BASE = SUCCESS, run 33487553511 / #766
+```
+
+The pair is the oracle. A policy successor that *passes* trusted-base admission, or an ordinary
+candidate that fails it, would each be a defect.
+
+```text
+NEGATIVE_ORACLE != PASS
+NEGATIVE_ORACLE != CANDIDATE_DEFECT
+```
+
 ## S1 component candidates — not admitted
 
 ```text
@@ -422,7 +519,44 @@ CUBIC_OUTPUT_COUNTS_AS_REVIEW_PASS = NO
 
 Do not intentionally trigger Cubic until provider-side effective settings are independently verified.
 
+That prohibition was violated once, and the violation is recorded rather than erased. During
+reviewer fallback selection on `#254`, a session posted a Cubic trigger in comment `5485134469`
+while searching for an available reviewer. Cubic replied that it could not start because its
+workspace quota was exhausted, so no Cubic review ran, but the trigger itself was outside canonical
+eligibility.
+
+```text
+CUBIC_TRIGGER_INCIDENT = RECORDED
+CUBIC_REVIEW_STARTED = NO
+CUBIC_OUTPUT_COUNTS_AS_REVIEW = NO
+```
+
 CodeRabbit remains eligible only after an exact-head pre-egress record. Rate limits/refusals do not become review PASS.
+
+Observed provider availability, recorded so a later session does not re-derive it from scratch.
+These are point-in-time observations, not standing facts; re-check them live.
+
+```text
+CODERABBIT   ELIGIBLE, and has completed substantive exact-range reviews.
+             A rate-limit refusal is a provider message, never a review. After such a refusal the
+             incremental engine may treat the commits as already seen, so a retry on the same head
+             needs `full review`; a fresh head takes a plain `review`.
+             The provider's own `CodeRabbit` commit status context lags its review output and can
+             read `pending` for minutes after a complete review has landed. Bind qualification to
+             the review output, never to the status context.
+QODO         UNAVAILABLE, trial/billing exhausted.
+CUBIC        BLOCKED by this file, and separately quota-exhausted when the prohibited trigger fired.
+GREPTILE     NOT CONNECTED. No Greptile app has ever posted on this repository and an explicit
+             mention on `#254` drew no response. Canonical BUILD_METHOD naming a product family is
+             not evidence that the product is installed.
+AUGMENT / GRAPHITE / CONTINUE   NOT OBSERVED on this repository.
+```
+
+```text
+PROVIDER_NAMED_IN_BUILD_METHOD != PROVIDER_CONNECTED
+PROVIDER_REFUSAL != REVIEW_EVIDENCE
+PROVIDER_STATUS_CONTEXT != REVIEW_EVIDENCE
+```
 
 ## Security-review state
 
@@ -436,11 +570,25 @@ MISSING_CODEX_SECURITY != PASS
 
 If the specialized execution surface remains unavailable in this host, record `NOT_RUN_NON_BLOCKING` exactly.
 
+On `#254` the surface was reachable and the scan was actually attempted against the exact
+base/head/changed-file set. The provider returned a usage-limit refusal before producing a threat
+model, reviewing any file, or emitting any candidate finding. The record is comment `5491014720`.
+
+```text
+CODEX_SECURITY = NOT_RUN_NON_BLOCKING
+FILES_REVIEWED = 0
+SECURITY_PASS = NOT_CLAIMED
+```
+
+The distinction worth carrying forward: unavailability now has two shapes — no reachable surface,
+and a reachable surface that refuses. Both are `NOT_RUN_NON_BLOCKING`. Neither becomes `PASS`.
+
 ## Architecture / canonical artifact state
 
 ```text
-MASTER_PLAN = V2.2
-MASTER_PLAN_SHA256 = e269b10ef711731c4ad3af7b1135546f92d82a78975cabc9ff52c2dea4b5bf44
+MASTER_PLAN = V2.3
+MASTER_PLAN_PATH = docs/canonical/MASTER_PLAN_V2_3_AGENT_CONTROL_PLANE.md
+MASTER_PLAN_SHA256 = ab93dee9dfdaae9d10aaf7ee1e53e71921f1e6c1c76710b2b655ac2cdbbdbe37
 RAT-01..RAT-06 = APPROVED
 ROADMAP = P0 + S1..S10
 NON_PRIMARY_GATE = S3-D
@@ -528,16 +676,39 @@ Speak Arabic to the founder. Write repository artifacts and ready-to-use technic
 
 ## Next gate
 
-The S1-003 list that stood here was completed and is not repeated. The gates below are the ones actually open at the 2026-08-31 checkpoint.
+The S1-003 list that stood here was completed and is not repeated. The gates below are the ones actually open at the 2026-09-01 checkpoint.
 
-1. no successor currently grants any product path beyond the merged S2 identity/evidence-store set, so no further S2 product code is eligible until one does;
-2. the next successor must name its exact paths, keep Core filesystem/process/network/model and S3+ effects structurally unavailable outside what it grants, and prove activation from canonical `main` after a guarded merge;
-3. `S2-S001..S2-S015`, `S2-Q001..S2-Q009`, `S2-D001..S2-D015` and `S2-CLI001..S2-CLI010` remain unclaimed and each needs that path grant first;
-4. two S2 items are recorded as unmet rather than claimed and must not be quietly counted later: the unsupported-schema classification, and the process-crash half of `S2-E015`;
-5. every tranche continues to require exact-head deterministic gates, a recorded egress preflight, an independent review bound to the exact head, zero unresolved material findings, honest security accounting, a final race check, an `expected_head_sha`-guarded merge, and post-merge activation proof;
-6. `main` had no branch protection when this checkpoint was written, so the merge guard is the transmitted expected head and nothing else. Naming a head in prose is not a guard. The evidence is a `GET /repos/TheHalfMoon/wepld/branches/main/protection` returning HTTP 404 `Branch not protected` to a token with admin scope; a token without that scope receives HTTP 403 and cannot confirm or refute it. Re-read it live rather than trusting this line.
+1. `S2-AUTH-014` is the open authority gate. It must qualify the executable, environment, argv, timeout, output, trust, no-hook and no-network boundaries of the selected Git adapter **before** any adapter code exists. It has not started and holds no qualification evidence. Issue #213 carries the acceptance-test list it has to satisfy, including malicious-hook, `safe.directory` refusal, spoofed-executable, oversized-output, timeout, and tree/index non-mutation fixtures. Note the ordering problem it inherits: several of those fixtures require executing Git, and `GIT_EXECUTION_AUTHORITY` is `NONE`, so the qualification unit has to establish its own bounded authority rather than assume it;
+2. no successor currently grants any product path beyond the merged S2 identity/evidence-store set, so no further S2 product code is eligible until one does;
+3. the next successor must name its exact paths, keep Core filesystem/process/network/model and S3+ effects structurally unavailable outside what it grants, and prove activation from canonical `main` after a guarded merge;
+4. `S2-S001..S2-S015`, `S2-Q001..S2-Q009`, `S2-D001..S2-D015` and `S2-CLI001..S2-CLI010` remain unclaimed and each needs that path grant first;
+5. two S2 items are recorded as unmet rather than claimed and must not be quietly counted later: the unsupported-schema classification, and the process-crash half of `S2-E015`;
+6. every tranche continues to require exact-head deterministic gates, a recorded egress preflight, an independent review bound to the exact head, zero unresolved material findings, honest security accounting, a final race check, an `expected_head_sha`-guarded merge, and post-merge activation proof;
+7. `main` had no branch protection when this checkpoint was written, so the merge guard is the transmitted expected head and nothing else. Naming a head in prose is not a guard. The evidence is a `GET /repos/TheHalfMoon/wepld/branches/main/protection` returning HTTP 404 `Branch not protected` to a token with admin scope; a token without that scope receives HTTP 403 and cannot confirm or refute it. Re-read it live rather than trusting this line.
 
 ```text
 PLATFORM_REQUIRED_CHECK_ENFORCEMENT = NOT_PROVEN
 MERGE_GUARD = TRANSMITTED_EXPECTED_HEAD_SHA
 ```
+
+### Writing this file is itself gated
+
+A one-shot `PRE -> FINAL` content-addressed documentation route is spent the moment it lands. Its
+own precondition is that the base still holds the `PRE` blobs; once the transition merges, canonical
+`main` holds the `FINAL` blobs and the route fails closed. That is correct behavior, not a defect,
+but it has a consequence worth stating plainly here because this file is the thing it blocks:
+
+```text
+FROZEN_DURABLE_MEMORY_PATHS = docs/canonical/CURRENT_STATE.md
+                              docs/learning/BUILD_LEARNING_LEDGER.md
+WRITABLE_BY_AN_ORDINARY_CANDIDATE = NO
+```
+
+So a checkpoint update is never an edit. It is a paired unit: a policy successor that authorizes one
+exact transition and pins the `FINAL` bytes, then a documentation candidate that matches those bytes
+exactly. Plan both before starting either, and expect the policy half to draw the expected successor
+bootstrap negative oracle described above.
+
+Neither `docs/canonical/CURRENT_STATE.md` nor `docs/learning/BUILD_LEARNING_LEDGER.md` appears in
+`BASE_CONTROLLED_PATHS`; they are frozen by the successor chain instead. Do not conclude from their
+absence in that set that they are ordinary documents.

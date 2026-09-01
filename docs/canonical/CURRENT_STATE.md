@@ -551,9 +551,10 @@ Do not intentionally trigger Cubic until provider-side effective settings are in
 
 That prohibition was violated once, and the violation is recorded rather than erased. During
 reviewer fallback selection on `#254`, a session posted a Cubic trigger in comment `5485134469`
-while searching for an available reviewer. Cubic replied that it could not start because its
-workspace quota was exhausted, so no Cubic review ran, but the trigger itself was outside canonical
-eligibility.
+while searching for an available reviewer. Cubic replied in comment `5485135888` that it could not
+start because its workspace had reached its free monthly review limit, so no Cubic review ran, but
+the trigger itself was outside canonical eligibility. The trigger and the refusal are two separate
+comments; cite the refusal when the claim is about the refusal.
 
 ```text
 CUBIC_TRIGGER_INCIDENT = RECORDED

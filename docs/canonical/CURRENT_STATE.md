@@ -364,19 +364,49 @@ COORDINATION_ISSUE = #243, closed
 
 WePLD will observe repository topology through a narrow, qualified system Git adapter rather than
 reimplementing Git behavior. That is the whole of the decision. It is a route selection, and the
-canonical policy emits, on every activation run, the boundaries it did **not** open:
+canonical policy carries the boundaries it did **not** open in two distinguishable forms.
+
+Eight are asserted by the v36 self-test, which fails closed if any of them is not `NONE`, and which
+reported `wepld v36 S2 Git-route decision self-tests: PASS` on the post-merge run:
 
 ```text
 GIT_PROCESS_ADMISSION = NONE
-GIT_EXECUTION_AUTHORITY = NONE
 EXTERNAL_PROCESS_AUTHORITY = NONE
+GIT_EXECUTION_AUTHORITY = NONE
 NETWORK_AUTHORITY = NONE
 SOURCE_ADMISSION = NONE
 MODEL_PROVIDER_EXECUTION = NONE
 DOCTOR_CLI_AUTHORITY = NONE
 S3_PLUS_AUTHORITY = NONE
-S2_IMPLEMENTATION_AUTHORITY = unchanged from v35
-NEXT_AUTHORITY_GATE = S2-AUTH-014
+```
+
+The same self-test separately asserts that v36 changed neither the inherited S2 implementation
+authority nor the inherited dependency admission, and that the next gate is `S2-AUTH-014`.
+
+Ten lines are printed as activation markers on every activation run. These are the exact strings
+run `33486599768` / #944 emitted, and the set is not the same set:
+
+```text
+wepld_policy_successor_v36=S2_GIT_TOPOLOGY_ROUTE_DECISION_ONLY
+v36_authority=S2_GIT_TOPOLOGY_ROUTE_DECISION_ONLY
+s2_implementation_authority_v36=STAGED_EXACT_DEPENDENCY_REGISTER_THEN_IDENTITY_STORE_PATHS_ONLY
+git_route_decision_v36=SELECT_NARROW_QUALIFIED_SYSTEM_GIT_ADAPTER
+git_process_admission_v36=NONE
+git_execution_authority_v36=NONE
+external_process_authority_v36=NONE
+network_authority_v36=NONE
+source_admission_v36=NONE
+next_authority_gate_v36=S2-AUTH-014
+```
+
+`MODEL_PROVIDER_EXECUTION`, `DOCTOR_CLI_AUTHORITY` and `S3_PLUS_AUTHORITY` are therefore asserted
+but never emitted: they are checked in the trusted self-test step and are invisible in the
+activation output. Reading the activation log alone does not establish them, and reading the
+constants alone does not establish that anything enforces them.
+
+```text
+ASSERTED_BOUNDARY != EMITTED_ACTIVATION_MARKER
+DECLARED_CONSTANT != ENFORCED_BOUNDARY
 ```
 
 The decision froze a closed twelve-item qualification contract that `S2-AUTH-014` must satisfy

@@ -9,9 +9,10 @@ PLANNING_BASE = 46b1fc423f3fc5175d79acaf0f134747bf0d90f0
 INITIAL_REVIEWED_HEAD = 4a9b3566c74818c6b53a4ac4026b3a4937678d2e
 SECOND_REVIEWED_HEAD = 63270002470a32d8ffef34be9c75e0befc30e7a9
 PLANNING_STATE = MERGED_TO_CANONICAL_MAIN
-S2_IMPLEMENTATION_AUTHORITY = STAGED_EXACT_DEPENDENCY_THEN_IDENTITY_STORE_PATHS_ONLY
+S2_IMPLEMENTATION_AUTHORITY = STAGED_EXACT_DEPENDENCY_REGISTER_THEN_IDENTITY_STORE_PATHS_ONLY
 ACTIVE_IMPLEMENTATION_TASK = NONE
 NEXT_IMPLEMENTATION_TASK = NOT_AUTHORIZED_UNTIL_A_SUCCESSOR_GRANTS_ITS_EXACT_PATHS
+NEXT_AUTHORITY_GATE = S2-AUTH-014
 
 LAST_MERGED_TRANCHE = S2 identity and local evidence store
 LAST_MERGED_TRANCHE_PR = 240
@@ -114,12 +115,67 @@ The successor strategy is now staged so the plan in the repository is directly e
 - [ ] **S2-AUTH-010** After contracts are canonical, authorize bounded locator/identity/evidence Core paths only.
 - [ ] **S2-AUTH-011** Freeze per-platform data-root, lossless OS-path, opaque-ID, digest, catalog, generation, and locking machinery before corresponding Core mutation.
 - [ ] **S2-AUTH-012** Decide any direct `uuid`/`sha2` Core dependency edge under a focused exact dependency-admission gate; transitive presence is not admission.
-- [ ] **S2-AUTH-013** Decide external Git route separately: `NONE` or exact bounded Git adapter.
-- [ ] **S2-AUTH-014** If Git adapter is selected, qualify executable/environment/argv/timeout/output/trust/no-hook/no-network boundaries before code.
+- [x] **S2-AUTH-013** Decide external Git route separately: `NONE` or exact bounded Git adapter. Decided `SELECT_NARROW_QUALIFIED_SYSTEM_GIT_ADAPTER`; evidence below.
+- [ ] **S2-AUTH-014** If Git adapter is selected, qualify executable/environment/argv/timeout/output/trust/no-hook/no-network boundaries before code. Now the next authority gate. Not started; no qualification evidence exists yet.
 - [ ] **S2-AUTH-015** Authorize Doctor + CLI projections only after underlying observations/contracts exist.
 - [ ] **S2-AUTH-016** Keep network/model/S3/S4 authority denied throughout S2.
 
 No S2 implementation task below becomes eligible until the canonical successor for that task explicitly grants its paths/effects.
+
+### S2-AUTH-013 evidence
+
+```text
+DECISION = SELECT_NARROW_QUALIFIED_SYSTEM_GIT_ADAPTER
+PR = 254
+BASE = 0bdddf875a8ac8b53404f28d2be2e24dba520599
+ACCEPTED_HEAD = 58f313acbb0b9f23ebe0944c0fdb43c3c3cbc803
+ACCEPTED_TREE = 0e50014ad9030118318f8c749de759e081ee7072
+CHANGED_FILES = 4
+PRODUCT_PATHS = 0
+SPEC_PATHS = 0
+MERGE = 0b8259f3c448adeecacb3cde04efe52c09dbf2d4
+MERGE_TREE = 0e50014ad9030118318f8c749de759e081ee7072
+EXACT_HEAD_FOUNDATION = SUCCESS, run 33443112504 / 943
+TRUSTED_BASE_RUN = 33443112545 / 765, expected successor bootstrap negative oracle
+POST_MERGE_FOUNDATION = SUCCESS, run 33486599768 / 944
+ACTIVATION_MARKER = git_route_decision_v36=SELECT_NARROW_QUALIFIED_SYSTEM_GIT_ADAPTER
+INDEPENDENT_REVIEW = SATISFIED, CodeRabbit, PR 254 comment 5491029654
+CODEX_SECURITY = NOT_RUN_NON_BLOCKING, provider usage-limit refusal, PR 254 comment 5491014720
+SECURITY_PASS = NOT_CLAIMED
+```
+
+Every identity above is a GitHub or Actions fact rather than a project determination, except
+`INDEPENDENT_REVIEW`, which is the project's qualification of the reviewer output cited beside it.
+
+The merge tree equals the accepted tree, so nothing outside the reviewed range entered canonical
+`main`.
+
+What the decision grants is narrower than its name suggests. The canonical policy emitted, on the
+post-merge run:
+
+```text
+GIT_PROCESS_ADMISSION = NONE
+GIT_EXECUTION_AUTHORITY = NONE
+EXTERNAL_PROCESS_AUTHORITY = NONE
+NETWORK_AUTHORITY = NONE
+SOURCE_ADMISSION = NONE
+```
+
+The two candidate command families stay specification-only:
+
+```text
+rev-parse:closed_allowlisted_topology_query
+worktree:list:porcelain-z
+```
+
+`S2-I005`, `S2-I006` and `S2-I007` therefore remain ineligible. `S2-AUTH-014` must grant their
+authority first, and it has not run.
+
+`S2-AUTH-010`, `S2-AUTH-011` and `S2-AUTH-012` are left unchecked on purpose. The merged S2
+identity/evidence-store tranche and the recorded `getrandom`/`sha2` dependency admission suggest
+their substance was performed, but this update carries no assembled run and merge identities for
+them. Flipping them on that inference is the defect class this ledger already refuses elsewhere.
+Anyone holding that evidence should record it here the way `S2-AUTH-013` is recorded above.
 
 ## Contract tasks — first implementation tranche candidate
 

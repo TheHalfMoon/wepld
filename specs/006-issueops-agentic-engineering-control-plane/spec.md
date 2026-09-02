@@ -15,7 +15,7 @@ WePLD should become the best place to operate engineering issues with humans and
 
 ## Product outcome
 
-A user can bring a GitHub issue, another tracker item, a dropped file/directory, a URL, repository context, browser/web context, or an observed failure into WePLD and obtain one normalized `Case`. WePLD can then triage, retrieve evidence, reproduce, inspect browser/application behavior, plan, delegate, implement, review, repair, verify, land, close, and learn within explicit authority.
+A user can bring a GitHub issue, another tracker item, a dropped file/directory, a URL, repository context, browser/web context, or an observed failure into WePLD and obtain one normalized `Case`. WePLD can then triage, retrieve evidence, reproduce, inspect browser/application behavior, plan, delegate, implement, review, secure, test, repair, verify, land, close, and learn within explicit authority.
 
 ## Functional requirements
 
@@ -35,9 +35,9 @@ Provider-specific fields SHOULD remain versioned adapter observations/extensions
 
 ### FR-004 — Provider observation conflicts
 
-Provider observations MUST be append-only evidence. Contradictory provider states, relationships, freshness, or identity-binding evidence MUST remain inspectable and MUST NOT be silently resolved through generic latest-write-wins behavior.
+Provider observations MUST be append-only evidence. Contradictory provider states, relationships, freshness, completeness, authenticity, or identity-binding evidence MUST remain inspectable and MUST NOT be silently resolved through generic latest-write-wins behavior.
 
-When a dependent effect or completion decision requires a single current semantic, unresolved acceptance-critical conflict MUST cause fail-closed, abstention, re-observation, or an explicit DecisionBoundary under the owning contract.
+When a dependent effect or completion decision requires a single complete current semantic, unresolved acceptance-critical conflict/partial/unauthenticated state MUST cause fail-closed, abstention, re-observation, or an explicit DecisionBoundary under the owning contract.
 
 ### FR-005 — Agentic lifecycle
 
@@ -75,13 +75,15 @@ Each active `Case` SHOULD expose a durable room showing assigned roles/workers, 
 
 Users MUST be able to create named knowledge collections and add qualified supported sources including files, directories, pasted text, URLs, documentation, repositories, structured data, logs, and later additional source types.
 
-### FR-011 — RAG scopes
+### FR-011 — RAG scopes and access
 
-Knowledge collections MUST support explicit scope semantics such as session, project, workspace, and global, with visibility and authority remaining separate concerns.
+Knowledge collections MUST support explicit scope semantics such as session, project, workspace, and global, while source access, collection scope, worker visibility, egress permission, and effect authority remain separate concerns.
+
+Source/access revocation MUST propagate to derived retrieval/index/context eligibility; cached derived content MUST NOT preserve broader visibility than the current source policy.
 
 ### FR-012 — Provenance-first retrieval
 
-Every material retrieval result MUST retain source identity, location/citation where available, ingest identity, freshness, parser/index provenance, trust classification, and sufficient evidence to explain why it was retrieved. Retrieval scores MUST NOT become truth or authority.
+Every material retrieval result MUST retain source identity, generation/projection identity, location/citation where available, freshness, parser/index provenance, current access policy, trust classification, and sufficient evidence to explain why it was retrieved. Retrieval scores MUST NOT become truth or authority.
 
 ### FR-013 — Hybrid retrieval
 
@@ -89,31 +91,34 @@ The architecture MUST support replaceable exact, lexical, metadata, Fehrest.Maem
 
 Signal selection MUST be minimum-sufficient and query/source aware rather than a rigid serial ladder. Semantic/vector retrieval MAY be selected early for conceptual/paraphrastic query classes but MUST NOT become a prerequisite without predeclared benchmark evidence of incremental value and qualified privacy/cost/latency/exit behavior.
 
+Source refresh MUST use generation semantics that prevent mixed old/new projections from masquerading as one current source view.
+
 ### FR-014 — Drag/drop and paste intake
 
-Desktop and CLI surfaces MUST normalize dropped, pasted, or selected artifacts into an inert `InputArtifact` representation. Native desktop drop events and terminal path-paste behavior MUST converge on the same contract.
+Desktop and CLI surfaces MUST normalize dropped, pasted, selected, downloaded, or otherwise imported artifacts into an inert `InputArtifact` representation where the artifact crosses into WePLD-managed source/workflow handling. Native desktop drop events and terminal path-paste behavior MUST converge on the same contract.
 
 ### FR-015 — No implicit execution from intake
 
-Dropping, pasting, attaching, or adding a URL MUST NOT execute code, install dependencies, expand untrusted archives, access the network, mutate a repository, or send content externally without separate qualified actions.
+Dropping, pasting, attaching, downloading, or adding a URL MUST NOT execute code, install dependencies, expand untrusted archives, access the network, mutate a repository, enter RAG, or send content externally without separate qualified actions.
 
 ### FR-016 — Untrusted content remains data
 
-Issue bodies, PR descriptions, comments, repositories, logs, documents, browser/page content, WebMCP metadata/output, provider attachments, retrieved passages, worker output, and model output MUST default to data/evidence rather than instruction authority.
+Issue bodies, PR descriptions, comments, repositories, logs, documents, browser/page content, WebMCP metadata/output, downloaded artifacts, provider attachments, retrieved passages, worker output, and model output MUST default to data/evidence rather than instruction authority.
 
 Untrusted content MUST NOT by itself create `WorkflowIntent`, change autonomy ceilings, expand file/secret/collection/network/provider/browser access, select a paid/remote route, disable containment/review, mint Nawat authority, or mark Trusted Completion.
 
-Effect-capable workflows MUST preserve source/trust labels in context packages and MUST validate effects independently at exact effect-time boundaries. Sanitization, prompt filtering, model-side refusal, or injection classifiers MAY provide defense-in-depth but MUST NOT substitute for structural authority enforcement.
+Effect-capable workflows MUST preserve source/trust/access labels in context packages and MUST validate effects independently at exact effect-time boundaries. Sanitization, prompt filtering, model-side refusal, or injection classifiers MAY provide defense-in-depth but MUST NOT substitute for structural authority enforcement.
 
 ### FR-017 — WePLD-native command surface
 
-The planned command catalog SHOULD include:
+The canonical planned stable catalog is owned by `contracts/command-surface.md` and includes:
 
 ```text
 /askme
 /btw
-/rag
 /issues
+/rag
+/web
 /triage
 /grill
 /architect
@@ -122,6 +127,8 @@ The planned command catalog SHOULD include:
 /build
 /debug
 /review
+/security
+/fulltest
 /prototype
 /research
 /wayfinder
@@ -133,7 +140,6 @@ The planned command catalog SHOULD include:
 /workflow
 /delegate
 /workers
-/web
 ```
 
 Commands are intent surfaces over WePLD capabilities, not independent authority paths. The full catalog does not imply equal day-one prominence; initial UX SHOULD use routing and progressive disclosure.
@@ -146,33 +152,35 @@ Domain modeling and deep-module/boundary analysis SHOULD be explicit reusable mo
 
 ### FR-019 — Provider-neutral delegation
 
-`/delegate` MUST assign work through WePLD-owned worker/capability contracts. Provider-specific commands MUST NOT define the core product architecture.
+`/delegate` MUST assign work through WePLD-owned `WorkerRequirement`/worker/capability contracts. Provider-specific commands MUST NOT define the core product architecture.
 
 ### FR-020 — Explicit worker selection
 
-A user MAY request a specific worker through a form such as `/delegate --to <worker> ...`, but explicit selection MUST still pass capability qualification, containment requirements, cost policy, and Nawat authorization.
+A user MAY request a specific worker through a form such as `/delegate --to <worker> ...`, but explicit selection MUST still pass capability-vocabulary compatibility, qualification, containment requirements, cost policy, and Nawat authorization.
 
 ### FR-021 — Worker catalog
 
-WePLD MUST support a worker catalog describing stable WePLD worker identity, provider/adapter identity, capabilities, containment characteristics, supported effect classes, cost/metering properties, availability, and qualification evidence.
+WePLD MUST support a worker catalog describing stable WePLD worker identity, provider/adapter identity, versioned capabilities, provider permission claims, containment evidence, session/cancellation/recovery semantics, supported effect classes, cost/metering properties, availability, and qualification evidence.
 
 ### FR-022 — Qualification / authorization / runtime separation
 
 Edara topology/staffing, Mirefa route qualification, Nawat effect-time authority, Mission Runtime execution hosting, and UWC adapter behavior MUST remain semantically distinct even if an early implementation co-locates them in one process.
 
-Mirefa qualification MUST NOT mint effect authority. Mission Runtime MUST NOT widen or reuse expired grants, hide Nawat denial, or silently substitute worker/provider/model routes.
+Mirefa qualification MUST NOT mint effect authority. Mission Runtime MUST NOT widen or reuse expired grants, hide Nawat denial, silently substitute worker/provider/model routes, or blindly retry a material effect whose external outcome is unknown.
 
 ### FR-023 — No silent fallback
 
-If a requested or selected worker/provider/model/browser route is unavailable or unqualified, WePLD MUST fail closed or request/obtain an explicitly authorized alternative. Silent substitution is prohibited.
+If a requested or selected worker/provider/model/browser/assurance-engine route is unavailable or unqualified, WePLD MUST fail closed or request/obtain an explicitly authorized alternative. Silent substitution is prohibited.
 
 ### FR-024 — Cost-aware execution
 
-Paid, quota-consuming, or materially metered worker/browser execution MUST be explicit in metadata and MUST NOT be silently initiated when the controlling policy disallows it.
+Paid, quota-consuming, or materially metered worker/browser/assurance execution MUST be explicit in metadata and MUST NOT be silently initiated when the controlling policy disallows it.
 
 ### FR-025 — Bounded context packages
 
-Delegated work SHOULD receive the minimum sufficient context package: relevant files/symbols, spec/task fragments, decisions, tests, known failures, RAG/browser evidence with provenance/trust labels, and an authority/effect envelope.
+Delegated work SHOULD receive the minimum sufficient canonical `ContextPackage`: relevant files/symbols, spec/task fragments, decisions, tests, known failures, RAG/browser evidence with provenance/trust/access labels, and an authority/effect envelope.
+
+A source/access-policy change after package construction MUST stale affected future package use/egress.
 
 ### FR-026 — Dynamic teams
 
@@ -186,15 +194,17 @@ S7 Assurance MAY participate in a tight repair loop with S8 but MUST remain sema
 
 ### FR-028 — Repair loops
 
-Valid findings, failed checks, stale evidence, changed external state, and stale browser/page/tool generations MUST be able to trigger bounded repair/reassignment/reverification loops without erasing prior attempts or findings.
+Valid findings, failed checks, stale evidence, changed external state, access revocation, and stale browser/page/tool generations MUST be able to trigger bounded repair/reassignment/reverification loops without erasing prior attempts or findings.
 
-### FR-029 — Issue/PR landing
+### FR-029 — Issue/PR landing and uncertain outcomes
 
-Issue provider mutation, branch/PR creation or update, merge, and issue closeout MUST be modeled as explicit effects with exact-target preconditions and replay/idempotency protections appropriate to the provider.
+Issue provider mutation, branch/PR creation/update, merge, issue closeout, browser submission, upload/download, and other externally observable effects MUST be explicit effects with exact-target preconditions and replay/idempotency/reconciliation protections appropriate to the route.
+
+If execution may have committed remotely but the local result is lost, the state MUST become `EFFECT_OUTCOME_UNKNOWN`; WePLD MUST reconcile before unsafe retry.
 
 ### FR-030 — Completion evidence
 
-Closing or merging an external object, passing a browser check, or receiving WebMCP success MUST NOT itself establish completion. WePLD MUST record the exact evidence used for the governed completion decision.
+Closing or merging an external object, passing a browser check, receiving WebMCP success, or obtaining a supported Assurance claim MUST NOT itself establish completion. WePLD MUST record the exact evidence used for the governed completion decision, and no acceptance-critical effect may remain outcome-unknown.
 
 ### FR-031 — Learning
 
@@ -204,27 +214,65 @@ Completed cases SHOULD contribute evidence-backed reusable mechanics, failure pa
 
 WePLD SHOULD support WebMCP-class website tools as a replaceable browser/application interoperability protocol after the owning Source Acquisition and browser/runtime qualification gates.
 
-A discovered website tool MUST be represented as an untrusted capability observation. Tool availability, descriptions, schemas, annotations, `read-only` hints, outputs, browser login state, cookies, or ambient session authority MUST NOT substitute for WePLD effect classification, Mirefa qualification, Nawat authorization, containment, or user intent.
+A discovered website tool MUST be represented by the canonical `WebToolObservation` from `contracts/web-agent-boundary.md` as an untrusted capability observation. Tool availability, descriptions, schemas, annotations, `read-only` hints, outputs, browser login state, cookies, or ambient session authority MUST NOT substitute for WePLD effect classification, Mirefa qualification, Nawat authorization, containment, or user intent.
 
-### FR-033 — Browser diagnostics/control
+### FR-033 — Browser diagnostics/control/artifact boundary
 
-WePLD SHOULD support a separately qualified DevTools-class browser adapter for DOM/accessibility/console/network/performance/screenshot inspection and bounded browser control, including Chromium/Edge/WebView2-class targets when independently qualified.
+WePLD SHOULD support a separately qualified DevTools-class browser adapter for diagnostics and bounded browser control, including Chromium/Edge/WebView2-class targets when independently qualified.
 
-Browser diagnostics MUST remain distinct from WebMCP application-tool invocation even when one runtime can access both.
+Browser diagnostics, WebMCP invocation, actuation, artifact transfer, clipboard/native-dialog/permission effects, and context-target control MUST remain distinguishable capability/effect classes even when one runtime exposes all of them.
 
 ### FR-034 — Exact browser/web context
 
-Acceptance-critical browser/WebMCP effects MUST bind explicit browser session/profile, page context, origin, tool definition/generation, input identity, effect class, qualification evidence, Nawat decision, containment state, and expected postcondition.
+Acceptance-critical browser/WebMCP effects MUST bind explicit browser session/profile/context/frame/target, origin, tool definition/generation, input/artifact identity, effect class, qualification evidence, Nawat decision, containment/access state, and expected postcondition.
 
-Material navigation, origin, authentication, profile, target, tool-set, definition, containment, or freshness changes MUST force revalidation.
+Material navigation, origin, authentication, profile, target/context/frame, tool-set, definition, containment, access-policy, or freshness changes MUST force revalidation.
 
 ### FR-035 — No silent browser fallback
 
-WePLD MUST NOT silently fall back among WebMCP structured tools, raw DOM click/type automation, DevTools actions, headless/local/remote browsers, Chrome, Edge, WebView2, or another browser profile/session. An alternative route requires explicit qualification and governing authorization.
+WePLD MUST NOT silently fall back among WebMCP structured tools, raw DOM click/type automation, DevTools actions, headless/local/remote browsers, Chrome, Edge, WebView2, another browser profile/session/context, or another upload/download artifact route. An alternative route requires explicit qualification and governing authorization.
 
 ### FR-036 — Web agent publisher mode
 
 A future WePLD web/Desktop surface MAY expose selected capabilities through WebMCP. Such tools SHOULD expose safe intent/proposal/read surfaces by default. A WebMCP call into WePLD MUST NOT become a direct authority grant; any effectful operation still traverses the native WePLD qualification/authorization/execution/evidence pipeline.
+
+### FR-037 — Explicit Assurance claim semantics
+
+`/review`, `/security`, and `/fulltest` MUST use one shared Assurance Fabric and produce a typed `ClaimAssessment` for the exact requested claim under an immutable `AssurancePolicySnapshot`.
+
+Missing/stale required evidence, unresolved blocking findings, material unresolved conflicts, or blocked required checks MUST prevent `SUPPORTED`.
+
+```text
+CLAIM_SUPPORTED != TRUSTED_COMPLETION
+```
+
+### FR-038 — Assurance evidence handling
+
+Durable review/security/test/browser/performance evidence MUST carry content/trust classification, access and handling policy, redaction, retention/tombstone, freshness, and export/egress semantics sufficient to prevent the evidence timeline from becoming a secondary secret/private-data leak.
+
+### FR-039 — Assurance engine identity and containment
+
+Acceptance-critical engine execution MUST bind the actual executable/runtime/artifact identity and material rule/database/template/config snapshots plus a bounded resource/cleanup environment. PATH discovery or a matching version string alone MUST NOT satisfy engine identity.
+
+### FR-040 — Finding governance
+
+Assurance MUST preserve validated findings without majority erasure and support evidence-backed correlation plus scoped/authorized/expiring finding disposition for accepted risk, suppression, false positive, rule exception, fixed, and superseded states.
+
+### FR-041 — Qualified performance evidence
+
+A material performance finding/claim MUST bind benchmark/baseline/environment/fixture identity, warmup/repetition/noise semantics, threshold/decision rule, and explicit inconclusive states. A one-shot noisy timing MUST NOT become acceptance-critical performance evidence.
+
+### FR-042 — Provider observation completeness/authenticity
+
+Provider reads/events MUST expose completeness/authenticity, pagination/permission/rate-limit limitations, and stale state. Partial or unauthenticated observations MUST NOT silently become complete current provider truth.
+
+### FR-043 — Remote RAG source security
+
+Future remote URL/documentation ingestion MUST require exact network/source authority and defenses for redirect escape, DNS rebinding, private/link-local/metadata targets, credential/header forwarding, content/size/time bounds, and parser/decompression effects.
+
+### FR-044 — Durable recovery and schema evolution
+
+Before autonomous scale, durable Case/evidence/Assurance history MUST define schema migration, backup/restore, interruption recovery, tombstone/redaction propagation, and reconstruction sufficient to explain historical authority/assurance/completion decisions.
 
 ## Non-goals for this planning candidate
 

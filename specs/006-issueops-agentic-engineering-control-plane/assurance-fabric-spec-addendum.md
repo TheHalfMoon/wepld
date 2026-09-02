@@ -22,7 +22,7 @@ WePLD needs one native assurance plane that can bind review, security, testing, 
 
 ## Product outcome
 
-A user can invoke `/review`, `/security`, or `/fulltest` from WePLD or a supported IDE surface and receive an inspectable assurance plan and an exact-target evidence bundle. The system can correlate findings across code context, security reachability, selected tests, coverage, mutation/property/fuzz/formal evidence, CI state, and independent review without allowing any engine, model, scanner, test runner, or majority vote to become completion authority.
+A user can invoke `/review`, `/security`, or `/fulltest` from WePLD or a supported IDE surface and receive an inspectable assurance plan, an exact-target evidence bundle, and a typed assessment of the exact requested claim. The system can correlate findings across code context, security reachability, selected tests, coverage, mutation/property/fuzz/formal evidence, CI state, and independent review without allowing any engine, model, scanner, test runner, or majority vote to become completion authority.
 
 ## Functional requirements
 
@@ -30,11 +30,13 @@ A user can invoke `/review`, `/security`, or `/fulltest` from WePLD or a support
 
 WePLD MUST implement `/review`, `/security`, and `/fulltest` as profiles over one shared Assurance Fabric rather than three unrelated evidence systems.
 
-The shared fabric MUST own normalized target binding, planning, engine descriptors/runs, findings, evidence references, coverage claims, freshness/staleness, correlation, and AssuranceBundle production.
+The shared fabric MUST own normalized target binding, planning, engine descriptors/runs, findings, evidence references, coverage claims, freshness/staleness, correlation, claim assessment, and AssuranceBundle production.
 
 ### AF-FR002 — Exact assurance target
 
-Every acceptance-critical assurance artifact MUST bind the exact target identity required by its claim, including exact base/head/tree/change identity and relevant graph/rule/environment generations where applicable.
+Every acceptance-critical assurance artifact MUST bind the exact target identity required by its claim, including exact base/head/tree/change identity and relevant workspace-material/graph/rule/environment generations where applicable.
+
+Workspace assurance MUST account for material uncommitted/untracked/nested/generated state according to the owning target policy; a commit SHA alone is insufficient when that state affects the claim.
 
 A material target change MUST invalidate prior evidence unless a separately defined compatibility proof establishes equivalence for that evidence class.
 
@@ -59,8 +61,10 @@ Commands MUST normalize user intent into `AssuranceIntent`. A command invocation
 Before an assurance action performs an effectful engine run, WePLD MUST be able to produce an inspectable `AssurancePlan` containing:
 
 - requested claim and exact target;
+- exact `AssurancePolicySnapshot`;
 - selected check classes and engines;
 - selected context/input manifests;
+- required/conditional/optional classification for each check;
 - required effect classes and qualifications;
 - timeout/resource/budget envelope;
 - expected evidence outputs;
@@ -74,6 +78,8 @@ No required check may be silently omitted.
 `/fulltest` MUST mean “construct the minimum-sufficient qualified assurance test plan for the requested confidence claim.” It MUST NOT blindly execute every project command, script, test, package-manager hook, or discovered tool.
 
 Impact selection SHOULD use qualified changed-file/symbol, reference/call graph, package/build graph, test mapping, coverage history, runtime/platform, and risk evidence where available.
+
+A budget or availability limit MUST NOT silently downgrade required evidence. If a required check cannot run, the requested claim becomes blocked/inconclusive/not-supported according to the exact policy snapshot.
 
 ### AF-FR006 — Typed test outcomes
 
@@ -93,6 +99,8 @@ UNSUPPORTED
 
 `RETRY_PASS_FLAKY`, `INFRA_FAILURE`, `NOT_RUN`, or `UNSUPPORTED` MUST NOT normalize to a clean pass.
 
+Known-flake/quarantine state MUST have owner/evidence/scope/expiry or review date and MUST NOT erase the underlying failure observation.
+
 ### AF-FR007 — Test quality beyond line coverage
 
 The architecture MUST support typed evidence for coverage, changed-region coverage, mutation testing, property-based tests, fuzzing, API/schema testing, browser/E2E traces, platform matrices, formal/model checking, performance regressions, and other qualified assurance classes.
@@ -109,7 +117,7 @@ Multiple clean reviewers or scanners MUST NOT erase one independently validated 
 
 When review is acceptance-critical, the implementer MUST NOT satisfy its own independent-review requirement.
 
-Review evidence MUST preserve reviewer/producer identity, qualification, independence, exact target, covered scope, findings, and coverage limitations.
+Review evidence MUST preserve reviewer/producer identity, qualification, independence, exact target, covered scope, findings, and coverage limitations. Reviewer scope/context coverage SHOULD be represented as a typed `CoverageClaim` rather than prose only.
 
 Reviewer context MAY consume a bounded Fehrest-derived Review Context Capsule but MUST NOT automatically inherit builder-private reasoning or become authority.
 
@@ -195,17 +203,17 @@ SCANNER_TARGET_DISCOVERED != SCANNER_TARGET_AUTHORIZED
 
 Finding a scanner/test tool/configuration in PATH, a repository, an IDE, a manifest, or a package manager MUST NOT automatically install, update, configure, or execute it.
 
-Every engine used for acceptance-critical evidence MUST have a qualified exact identity and effect profile.
+Every engine used for acceptance-critical evidence MUST have a qualified exact executable/artifact/runtime identity and effect profile, not only a matching version string.
 
 ### AF-FR019 — Engine failure is not clean evidence
 
-Engine crash, parser failure, timeout, cancellation, unsupported language/region, missing database, missing credential, blocked network, or infrastructure failure MUST remain an explicit run/coverage state. None may normalize to `NO_FINDINGS` or `PASS`.
+Engine crash, parser failure, timeout, cancellation, unsupported language/region, missing database, missing credential, blocked network, resource-limit breach, incomplete cleanup, or infrastructure failure MUST remain an explicit run/coverage state. None may normalize to `NO_FINDINGS` or `PASS`.
 
 ### AF-FR020 — Source-controlled configuration is untrusted
 
-Repository/PR/source-branch scanner, review, test, rule, template, plugin, workflow, or tool configuration MUST carry provenance/trust classification.
+Repository/PR/source-branch scanner, review, test, rule, template, plugin, workflow, or tool configuration MUST carry provenance/trust classification and deterministic precedence.
 
-A proposed change MUST NOT be able to weaken canonical review, security, authority, egress, or acceptance requirements for itself.
+A proposed change MUST NOT be able to weaken canonical review, security, authority, egress, or acceptance requirements for itself. A configuration conflict without a defined merge/precedence rule MUST fail explicitly rather than use generic latest-write-wins.
 
 ### AF-FR021 — Local-first useful baseline
 
@@ -223,11 +231,11 @@ External output MUST enter WePLD as untrusted evidence, not authority.
 
 Assurance SHOULD support qualified adapters for formats such as SARIF, JUnit/native test events, coverage formats, CycloneDX/SPDX, OSV, browser traces, mutation reports, fuzz counterexamples, and proof/model-checker results.
 
-WePLD MUST retain a richer internal Finding/Evidence model where exact target, reachability, freshness, authority, reconciliation, and coverage semantics exceed an interchange format.
+WePLD MUST retain a richer internal Finding/Evidence model where exact target, reachability, freshness, authority, reconciliation, handling, and coverage semantics exceed an interchange format.
 
 ### AF-FR024 — Native IDE assurance surface
 
-Supported IDE/Desktop surfaces SHOULD expose native Assurance views for Review, Security, Tests, Coverage, Findings, Evidence, and History, with gutter/inline diagnostics and exact-target stale indicators.
+Supported IDE/Desktop surfaces SHOULD expose native Assurance views for Review, Security, Tests, Coverage, Findings, Evidence, History, and the current exact claim assessment, with gutter/inline diagnostics and exact-target stale indicators.
 
 IDE actions MUST remain routed through core authority/evidence contracts.
 
@@ -236,11 +244,12 @@ IDE_CLICK_RUN != EXECUTION_AUTHORITY
 IDE_QUICK_FIX != WRITE_AUTHORITY
 IDE_SUPPRESS != ACCEPTED_RISK
 IDE_TEST_GREEN != TRUSTED_COMPLETION
+GENERIC_GREEN_ICON != CLAIM_ASSESSMENT
 ```
 
 ### AF-FR025 — Finding card evidence
 
-A material finding presentation SHOULD expose severity, validation state, rule/kind, exact target, locations/flow, producers, reachability, reproduction/proof, coverage limitations, related tests, first-seen/last-verified identities, reconciliation history, and authorized next-action availability.
+A material finding presentation SHOULD expose severity, validation state, rule/kind, exact target, locations/flow, producers, reachability, reproduction/proof, coverage limitations, related tests, first-seen/last-verified identities, reconciliation/disposition history, and authorized next-action availability.
 
 ### AF-FR026 — Repair remains S8-owned
 
@@ -250,9 +259,9 @@ Finding history MUST NOT be erased by repair.
 
 ### AF-FR027 — Assurance history remains S9-owned
 
-S9 Quality Passport/Evidence Timeline SHOULD consume exact `AssuranceBundle` records including provenance, target identity, producer versions, findings, coverage gaps, conflicts, and freshness/expiry state.
+S9 Quality Passport/Evidence Timeline SHOULD consume exact `AssuranceBundle` records including provenance, target identity, policy snapshot, producer versions, findings, coverage gaps, conflicts, claim assessment, and freshness/expiry state.
 
-A historical green result MUST remain historical after a target or material engine/rule/environment change.
+A historical supported claim MUST remain historical after a target or material engine/rule/policy/environment change.
 
 ### AF-FR028 — Cross-engine conflicts remain visible
 
@@ -293,11 +302,11 @@ Future implementation MUST explicitly threat-model malicious repository configur
 
 ### AF-FR034 — Bounded engine execution
 
-Effectful engine runs MUST support explicit timeout/cancellation, bounded output/log handling, bounded resource/budget policy appropriate to the engine, and deterministic distinction between engine failure and check failure.
+Effectful engine runs MUST support explicit timeout/cancellation, bounded output/log handling, process-tree termination, resource/budget limits appropriate to the engine, temporary-artifact cleanup, minimized inherited environment/credentials, concurrency arbitration, and deterministic distinction between engine failure and check failure.
 
 ### AF-FR035 — No hidden engine auto-update
 
-Acceptance-critical evidence MUST bind the actual engine/version/rule/config identity used. Silent automatic engine/rule/template/plugin updates that change that identity MUST invalidate or requalify affected evidence.
+Acceptance-critical evidence MUST bind the actual executable/artifact/version/rule/database/template/config identity used. Silent automatic updates that change any material identity MUST invalidate or requalify affected evidence.
 
 ### AF-FR036 — Assurance profiles
 
@@ -312,7 +321,7 @@ ADVERSARIAL
 RELEASE
 ```
 
-Profiles MUST define allowed effects, expected evidence, budgets, staleness requirements, and omitted-check behavior. `LIVE` MUST default to editor-safe behavior without surprise process/network effects.
+Profiles MUST have versioned policy identities and define allowed effects, expected evidence, required/conditional/optional checks, budgets, staleness requirements, and omitted-check behavior. `LIVE` MUST default to editor-safe behavior without surprise process/network effects.
 
 ### AF-FR037 — Source acquisition before reinvention
 
@@ -326,11 +335,72 @@ The owning tranche SHOULD choose the minimum sufficient non-overlapping engine s
 
 ### AF-FR039 — Quality claim is explicit
 
-Every `AssuranceBundle` consumed by an acceptance or release gate MUST identify the requested/established claim. A generic green icon or aggregate “quality score” MUST NOT stand in for an explicit claim and its required evidence.
+Every `AssuranceBundle` consumed by a user, acceptance, or release gate MUST identify the requested claim and contain a typed `ClaimAssessment`. A generic green icon or aggregate “quality score” MUST NOT stand in for an explicit claim and its required evidence.
 
 ### AF-FR040 — Trusted Completion remains separate
 
-No combination of test passes, clean scans, clean reviewers, high coverage, no open findings, merged PR state, or AssuranceBundle creation may directly set Trusted Completion without the owning completion decision boundary.
+No `ClaimAssessment`, test pass, clean scan, clean reviewer, high coverage, no-open-findings state, merged PR state, or AssuranceBundle creation may directly set Trusted Completion without the owning completion decision boundary.
+
+### AF-FR041 — Typed claim assessment
+
+Assurance MUST represent the outcome of the exact requested claim using at least:
+
+```text
+SUPPORTED
+NOT_SUPPORTED
+PARTIALLY_SUPPORTED
+INCONCLUSIVE
+BLOCKED
+STALE
+```
+
+The assessment MUST bind the exact target and policy snapshot and preserve required evidence, satisfied evidence, missing evidence, blocking findings, conflicts, coverage gaps, stale evidence, residual limitations, and rationale.
+
+Missing/stale required evidence or unresolved blocking findings MUST prevent `SUPPORTED`.
+
+### AF-FR042 — Immutable assurance policy snapshot
+
+Every acceptance/release-relevant plan and claim assessment MUST bind an immutable `AssurancePolicySnapshot` containing the exact profile-policy version, claim schema, required/conditional/optional evidence rules, canonical policy refs, rule-pack identity, conflict/staleness/disposition rules, and benchmark thresholds used.
+
+A later policy change MUST NOT silently reinterpret a historical bundle.
+
+### AF-FR043 — Finding correlation and governed disposition
+
+Assurance MUST support stable finding fingerprints/correlation without collapsing producer evidence. Accepted-risk, suppression, false-positive, rule-exception, fixed, and superseded dispositions MUST bind exact scope, reason, target/policy, authority/decision evidence, and expiry/review date where applicable.
+
+Untrusted repository configuration MUST NOT forge, broaden, or indefinitely extend a disposition.
+
+### AF-FR044 — Evidence handling and privacy
+
+Durable evidence MUST carry content/trust classification, access-policy reference, handling-policy reference, redaction state, retention/expiry state, and freshness.
+
+Handling policy MUST cover visibility, storage/encryption requirements where applicable, redaction, retention/tombstone, export/egress, and safe rendering. Secret/private browser/network/log/source content MUST NOT become a durable secondary leak merely because it is evidence.
+
+### AF-FR045 — Exact engine artifact and resource identity
+
+Acceptance-critical `EngineRun` MUST bind the actual resolved executable/runtime/artifact identity and digest where available, plus material rule/database/template/config snapshots and resource envelope. PATH discovery or a matching version string alone is insufficient qualification evidence.
+
+### AF-FR046 — Performance evidence is statistically/environmentally qualified
+
+A material performance claim MUST bind benchmark identity, baseline target, hardware/runtime identity, fixture/data identity, warmup/repetition policy, sample/noise summary, threshold/decision rule, and explicit inconclusive states.
+
+One noisy wall-clock sample MUST NOT become a performance regression or clean-performance claim.
+
+### AF-FR047 — Required-check monotonicity
+
+For the same target/risk class, a stronger assurance/release claim MUST NOT silently select a strictly weaker required evidence set than a weaker profile. Evidence substitution requires an explicit policy-defined compatibility/equivalence rule and supporting evidence.
+
+### AF-FR048 — Configuration precedence is deterministic
+
+The assurance policy MUST define precedence/merge rules across canonical, trusted repository, component/spec, source-branch proposed, provider, and user-session configuration. Undefined conflict produces explicit plan/config failure rather than latest-write-wins.
+
+### AF-FR049 — Review coverage is explicit evidence
+
+Acceptance-critical independent review MUST preserve the exact reviewed base/head/file scope and a typed review-context/scope coverage claim sufficient to expose omitted or unsupported regions. Reviewer confidence or prose that the review was “comprehensive” is not coverage proof by itself.
+
+### AF-FR050 — Evidence-store evolution and recovery
+
+Before S9 treats Assurance history as durable project memory, the owning implementation MUST qualify schema migration, backup/restore, corruption/partial-migration behavior, redaction/tombstone propagation, and reconstruction of the exact policy/target/evidence graph supporting a historical decision.
 
 ## Non-goals
 

@@ -25,18 +25,19 @@ freezes it until a later authority successor.
 
 Package-load note: v36 reads workflow bytes while its Python module is imported.
 A simple v45->v44 projected import is therefore insufficient across the deep
-v44..v36 successor chain: nested module-load projections can expose the wrong
-resting workflow image to v36 before v45 itself gets control. v45 preloads each
-workflow-reading successor from v36 through v44 under the exact workflow image
-for that version, oldest to newest. This is an import-time fixture/projection
-repair only; repository workflow bytes remain the candidate v45 bytes and all
-runtime/admission checks still bind exact v45/v44 identities.
+v44..v36 successor chain if the projection is built over an inherited resting
+view. v45 owns a fresh LocalRepositoryView of the exact checked-out head and
+preloads each workflow-reading successor from v36 through v44 under the exact
+workflow image for that version, oldest to newest. This is an import-time
+fixture/projection repair only; repository workflow bytes remain the candidate
+v45 bytes and all runtime/admission checks still bind exact v45/v44 identities.
 """
 
 from __future__ import annotations
 
 import argparse
 import importlib
+from pathlib import Path
 import sys
 from typing import Any
 
@@ -58,7 +59,10 @@ AW = _v35.AW
 CW = _v35.CW
 _WORKFLOW_ENTRYPOINT_COUNTS = {FW: 3, AW: 2}
 
-raw_root = _v35.root
+# Do not inherit a predecessor module's resting/projection view. v45 must base
+# all of its own exact-head and predecessor projections on the actual checked-
+# out repository bytes.
+raw_root = base.LocalRepositoryView(Path(__file__).resolve().parents[2])
 
 _PRELOAD_CHAIN: tuple[tuple[str, bytes], ...] = (
     (

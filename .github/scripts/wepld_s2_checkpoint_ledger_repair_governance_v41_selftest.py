@@ -51,10 +51,17 @@ class _FixedView:
         return [base.TrackedEntry(mode="100644", path=path) for path in self._values]
 
 
-def _expect_failure(label: str, action: Any) -> None:
+def _expect_failure(label: str, action: Any, expected: str) -> None:
+    """Assert `action` raises PolicyError, and that it raised for the expected
+    reason - not merely that some PolicyError, from any cause, was raised.
+    """
     try:
         action()
-    except base.PolicyError:
+    except base.PolicyError as exc:
+        if expected not in str(exc):
+            base.fail(
+                f"v41 self-test rejection came from the wrong cause: {label}: {exc}"
+            )
         return
     base.fail(f"v41 self-test expected a fail-closed rejection: {label}")
 
@@ -134,15 +141,19 @@ def _check_narrow_call_sites_still_reconcile() -> None:
     def _raiser() -> None:
         base.fail("v41 self-test induced failure")
 
-    _expect_failure("wrapped call that raises", p.p._with_v39_resting_view(_raiser))
+    _expect_failure(
+        "wrapped call that raises",
+        p.p._with_v39_resting_view(_raiser),
+        "v41 self-test induced failure",
+    )
     if v37.FINAL_CHECKPOINT_BLOB != real_checkpoint or v37.FINAL_LEDGER_BLOB != real_ledger:
         base.fail("v41 narrow resting-view wrapper did not restore the real pair after a raise")
 
     for module, name in p._NARROW_RESTING_VIEW_CALL_SITES:
-        if getattr(module, name) not in p._ORIGINAL_NARROW_CALL_SITE_FUNCTIONS.values():
+        if getattr(module, name) is not p._ORIGINAL_NARROW_CALL_SITE_FUNCTIONS[(module, name)]:
             base.fail(
-                "v41 narrow resting-view call site left wrapped outside a call: "
-                f"{module.__name__}.{name}"
+                "v41 narrow resting-view call site left wrapped (or cross-restored to a "
+                f"different original) outside a call: {module.__name__}.{name}"
             )
 
 
@@ -238,6 +249,7 @@ def _check_widening_chain_still_discriminates() -> None:
         _expect_failure(
             "widening chain accepting content that matches no recognized identity",
             lambda: _v18.state(wrong_view),
+            "S1-016 Build Learning bytes drifted",
         )
     finally:
         v37.FINAL_LEDGER_BLOB = saved_ledger
@@ -274,6 +286,7 @@ def _check_workflow_projection_rejects_drift() -> None:
     _expect_failure(
         "workflow entrypoint count drift",
         lambda: p._workflow_predecessor_projection(view),
+        "v41 workflow entrypoint count drifted",
     )
 
 
@@ -283,6 +296,7 @@ def _check_workflow_projection_rejects_extra_content() -> None:
     _expect_failure(
         "workflow carries content beyond the entrypoint migration",
         lambda: p._workflow_predecessor_projection(view),
+        "v41 workflow does not reverse to exact canonical v40 predecessor",
     )
 
 
@@ -347,6 +361,7 @@ def _check_bootstrap_delta_rejects_third_path() -> None:
     _expect_failure(
         "bootstrap delta carrying a fifth (unauthorized) path",
         lambda: p.delta(candidate, _BootBase()),
+        "v41 bootstrap delta must be exactly two v41 policy files plus two integrity workflows",
     )
 
 
@@ -356,6 +371,7 @@ def _check_predecessor_package_exactness_rejects_drift() -> None:
     _expect_failure(
         "predecessor v40 integrity file drifted",
         lambda: p.req_v40(drifted_view),
+        "frozen v40 predecessor drifted",
     )
 
 

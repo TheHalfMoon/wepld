@@ -67,7 +67,7 @@ import wepld_s2_identity_store_governance_v35_integrity as _v35
 
 P = ".github/scripts/wepld_s2_checkpoint_ledger_repair_governance_v41_integrity.py"
 T = ".github/scripts/wepld_s2_checkpoint_ledger_repair_governance_v41_selftest.py"
-T_BLOB = "2dc035ccf3cb5c4f1c648ed0a5d53c2d0484ea81"
+T_BLOB = "6376c146f6d4fd4f96dc8ad11741a994ada33325"
 
 V40_P_BLOB = "19c98eb05fbebfc41f7c793ee269a89b1db95880"
 V40_T_BLOB = "9f6ca73a3e03a7704cf8608224750d37355a32d2"
@@ -433,10 +433,10 @@ def overlay() -> None:
     if p.run_predecessor_selftests is not _corrected_run_predecessor_selftests:
         base.fail("v41 predecessor-selftest resting-view scope repair is not installed")
     for module, name in _NARROW_RESTING_VIEW_CALL_SITES:
-        if getattr(module, name) not in _ORIGINAL_NARROW_CALL_SITE_FUNCTIONS.values():
+        if getattr(module, name) is not _ORIGINAL_NARROW_CALL_SITE_FUNCTIONS[(module, name)]:
             base.fail(
-                "v41 narrow resting-view call site left wrapped outside a call: "
-                f"{module.__name__}.{name}"
+                "v41 narrow resting-view call site left wrapped (or cross-restored to a "
+                f"different original) outside a call: {module.__name__}.{name}"
             )
 
 

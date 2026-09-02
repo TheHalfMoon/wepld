@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Narrow v40's five remaining over-broad resting-view call sites; correct no
+"""Narrow v40's six remaining over-broad resting-view call sites; correct no
 target.
 
 v41 (PR #264) and v42 (PR #265) each corrected one instance of the identical
@@ -11,7 +11,7 @@ candidate content observe the stale pre-v40 pin instead of the real one. v41
 fixed `run_predecessor_selftests`; v42 fixed `files`. Both are call sites v40
 itself defines.
 
-v40 defines **seven** such broad wraps in total:
+v40 defines **eight** such broad wraps in total:
 
     run_predecessor_selftests   (v41 fixed)
     files                        (v42 fixed)
@@ -51,13 +51,13 @@ candidate) - each one poses the identical risk for any downstream check
 inside its own predecessor cascade that classifies real candidate content
 against a live pin. `printer` and `install` wrap narrower predecessor calls
 that v41's own docstring already reasoned do not reach the live-tree
-classification chain, but this successor closes all five uniformly rather
+classification chain, but this successor closes all six uniformly rather
 than relying on that reasoning holding for every future predecessor change:
 the whole point of this defect class is that a broad wrap is unsafe by
 default, not that any particular one happens not to matter today.
 
 The fix generalizes v41's and v42's identical technique into one reusable
-wrapper, applied uniformly to all five remaining v40 attributes (`delta`,
+wrapper, applied uniformly to all six remaining v40 attributes (`delta`,
 `basectrl`, `ext`, `allowed`, `printer`, `install` - `files` is left alone,
 already correctly narrowed by v42): for the dynamic extent of one call,
 install the same six call sites v41 already proved necessary
@@ -79,7 +79,7 @@ import wepld_s2_identity_store_governance_v35_integrity as _v35
 
 P = ".github/scripts/wepld_s2_checkpoint_ledger_repair_governance_v43_integrity.py"
 T = ".github/scripts/wepld_s2_checkpoint_ledger_repair_governance_v43_selftest.py"
-T_BLOB = "f92c1d464005b5bb89e3882e4ecb9b08ea91b60a"
+T_BLOB = "49d388068824ee466738dccadbbd9e131bc90ff9"
 
 V42_P_BLOB = "598dda532393aaf2927ea91a745169b8f90e3987"
 V42_T_BLOB = "9691772fb016b8b4c21b92c4921c7e9799d44821"

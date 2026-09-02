@@ -128,33 +128,45 @@ def _check_docs_transition_rejects_drifted_checkpoint() -> None:
     # Positive oracle: `raw_root` (main, as checked out) still carries the
     # PRE-transition documentation - PR #263, which lands the reviewed FINAL
     # bytes, has not merged yet - so `raw_root` is a valid *base* but can
-    # never itself be a valid *candidate* for `docs_transition`. Build a
-    # candidate whose checkpoint/ledger content is genuinely PR #261's
-    # reviewed FINAL bytes (fetched from this repository's own object
-    # database, which already holds them via previously-fetched history) and
-    # confirm `docs_transition` accepts exactly that pairing.
-    import subprocess
+    # never itself be a valid *candidate* for `docs_transition`. Rather than
+    # fetch PR #261's real reviewed bytes (which would need a `git`
+    # subprocess call - unprecedented in any self-test in this codebase, and
+    # in tension with this successor's own declared GIT_EXECUTION_AUTHORITY =
+    # NONE), this uses v41's own established technique from `_check_widening_
+    # chain_still_discriminates`: temporarily rebind v37's live
+    # FINAL_CHECKPOINT_BLOB/FINAL_LEDGER_BLOB to match synthetic content this
+    # test fully controls, so no external fetch of any kind is needed to
+    # prove `docs_transition` accepts a candidate whose bytes genuinely equal
+    # whatever the live target currently is.
+    synthetic_checkpoint = b"# v43 self-test synthetic FINAL checkpoint\n"
+    synthetic_ledger = b"# v43 self-test synthetic FINAL ledger\n"
+    synthetic_checkpoint_blob = p.V25.blob(synthetic_checkpoint)
+    synthetic_ledger_blob = p.V25.blob(synthetic_ledger)
+    if synthetic_checkpoint_blob == p.PRE_CHECKPOINT_BLOB or synthetic_ledger_blob == p.PRE_LEDGER_BLOB:
+        base.fail("v43 self-test synthetic FINAL identity collided with the real PRE identity")
 
-    final_checkpoint = subprocess.check_output(
-        ["git", "cat-file", "-p", p.FINAL_CHECKPOINT_BLOB], stderr=subprocess.STDOUT
-    )
-    final_ledger = subprocess.check_output(
-        ["git", "cat-file", "-p", p.FINAL_LEDGER_BLOB], stderr=subprocess.STDOUT
-    )
-    if p.V25.blob(final_checkpoint) != p.FINAL_CHECKPOINT_BLOB:
-        base.fail("v43 self-test could not fetch the real FINAL checkpoint bytes")
-    if p.V25.blob(final_ledger) != p.FINAL_LEDGER_BLOB:
-        base.fail("v43 self-test could not fetch the real FINAL ledger bytes")
-    final_candidate = OverlayView(
-        p.raw_root, {p.CHECKPOINT: final_checkpoint, p.LEDGER: final_ledger}
-    )
+    v37 = p._v37
+    saved_checkpoint = v37.FINAL_CHECKPOINT_BLOB
+    saved_ledger = v37.FINAL_LEDGER_BLOB
+    v37.FINAL_CHECKPOINT_BLOB = synthetic_checkpoint_blob
+    v37.FINAL_LEDGER_BLOB = synthetic_ledger_blob
     try:
-        p._v37.docs_transition(final_candidate, p.raw_root)
-    except base.PolicyError as exc:
-        base.fail(
-            "v43 docs_transition must accept a candidate carrying the real FINAL "
-            f"checkpoint/ledger identity against the real PRE base: {exc}"
+        final_candidate = OverlayView(
+            p.raw_root, {p.CHECKPOINT: synthetic_checkpoint, p.LEDGER: synthetic_ledger}
         )
+        try:
+            p._v37.docs_transition(final_candidate, p.raw_root)
+        except base.PolicyError as exc:
+            base.fail(
+                "v43 docs_transition must accept a candidate whose checkpoint/ledger "
+                f"bytes genuinely match the live FINAL identity: {exc}"
+            )
+    finally:
+        v37.FINAL_CHECKPOINT_BLOB = saved_checkpoint
+        v37.FINAL_LEDGER_BLOB = saved_ledger
+
+    if v37.FINAL_CHECKPOINT_BLOB != saved_checkpoint or v37.FINAL_LEDGER_BLOB != saved_ledger:
+        base.fail("v43 self-test left the live checkpoint/ledger pin moved")
 
 
 def _check_all_five_attrs_are_wrapped() -> None:

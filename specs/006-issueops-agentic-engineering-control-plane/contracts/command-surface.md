@@ -7,7 +7,7 @@ IMPLEMENTATION_AUTHORITY = NONE
 
 ## Command principle
 
-Slash commands are user-intent surfaces. They normalize intent into WePLD capabilities and never bypass qualification, containment, Nawat authority, deterministic gates, review, or Trusted Completion.
+Slash commands are user-intent surfaces. They normalize intent into WePLD capabilities and never bypass qualification, containment, Nawat authority, deterministic gates, review, security policy, or Trusted Completion.
 
 ## Planned stable commands
 
@@ -24,6 +24,8 @@ Slash commands are user-intent surfaces. They normalize intent into WePLD capabi
 /build
 /debug
 /review
+/security
+/fulltest
 /prototype
 /research
 /wayfinder
@@ -85,7 +87,65 @@ Creates a tight reproduction/feedback loop, records falsifiable hypotheses, diag
 
 ### `/review`
 
-Runs or coordinates independent review with distinct standards/correctness and spec-conformance axes where applicable. Review never grants completion authority.
+Runs or coordinates an exact-target assurance profile focused on independent correctness/engineering review, architecture and maintainability risk, spec/contract conformance, regression risk, test quality, performance risk, and security-relevant engineering concerns. When review is acceptance-critical, implementer and qualified reviewer remain independent. Review findings are evidence and never grant completion or repair authority.
+
+Planned forms include:
+
+```text
+/review
+/review --diff
+/review --pr <ref>
+/review --workspace
+/review --architecture
+/review --spec
+/review --correctness
+/review --performance
+/review --security
+/review --full
+```
+
+### `/security`
+
+Builds the minimum-sufficient exact-target security assurance plan and, only where current authority permits, runs qualified security engines. It may combine deterministic SAST/structural checks, secrets, dependency/SCA evidence, SBOM, supply-chain checks, IaC/configuration, CI/workflow security, graph/taint/resource reachability, threat-model-driven checks, security regressions, and later dynamic/adversarial checks.
+
+Planned forms include:
+
+```text
+/security --quick
+/security --diff
+/security --workspace
+/security --sast
+/security --secrets
+/security --dependencies
+/security --supply-chain
+/security --sbom
+/security --iac
+/security --ci
+/security --reachability
+/security --threat-model
+/security --dynamic
+/security --deep
+```
+
+`/security --dynamic` does not imply unrestricted scanning. Network/target/credential/template/plugin/rate/budget/containment authority remains separately qualified and authorized. `LOCAL_PROJECT_OPEN`, `BROWSER_LOGGED_IN`, or a discovered target never imply permission to attack or scan it.
+
+### `/fulltest`
+
+Builds and, only when authorized, executes the minimum-sufficient assurance test plan needed to support the requested confidence claim. It does not mean blindly executing every command in a repository.
+
+Planned forms include:
+
+```text
+/fulltest --quick
+/fulltest --changed
+/fulltest --standard
+/fulltest --workspace
+/fulltest --deep
+/fulltest --release
+/fulltest --adversarial
+```
+
+The plan may select format/style, compile/build, type checking, lint/static checks, unit, integration, contract/schema, snapshot/golden, property-based, coverage, mutation, fuzz, API/schema-driven, browser/E2E, security regression, platform, formal/model-checking, and performance/regression checks. Omitted classes remain visible with reasons such as `NOT_APPLICABLE`, `NOT_QUALIFIED`, `NOT_AUTHORIZED`, `BUDGET_EXCEEDED`, or `INSUFFICIENT_EVIDENCE_TO_SELECT`.
 
 ### `/prototype`
 
@@ -131,6 +191,31 @@ Assigns bounded work to a qualified worker through Edara/Mirefa/Nawat/Mission Ru
 
 Shows worker catalog, capability, availability, containment evidence, cost/metering, qualification, and expiry where available.
 
+## Assurance command convergence
+
+`/review`, `/security`, and `/fulltest` are not three independent engines. They are user-intent profiles over the shared future `Assurance Fabric` defined by:
+
+- `../assurance-fabric-plan.md`
+- `assurance-fabric.md`
+- `../assurance-fabric-spec-addendum.md`
+- `../assurance-fabric-tasks.md`
+- `../research/native-assurance-source-acquisition-2026-09-02.md`
+
+They share exact target identity, plan construction, engine qualification, Fehrest context, AMAN security evidence where applicable, normalized findings/evidence, coverage/freshness semantics, IDE presentation, and S9 history/passport integration.
+
+Controlling invariants include:
+
+```text
+ASSURANCE_COMMAND != EFFECT_AUTHORITY
+REVIEW_OUTCOME != COMPLETION_DECISION
+SECURITY_FINDING != WRITE_AUTHORITY
+TEST_PASS != TRUSTED_COMPLETION
+NEW_EXACT_HEAD -> PRIOR_ACCEPTANCE_CRITICAL_EVIDENCE_STALE
+ENGINE_ERROR != NO_FINDINGS
+UNKNOWN_REACHABILITY != UNREACHABLE
+FLAKY != CLEAN_PASS
+```
+
 ## Optional aliases
 
 User-friendly aliases such as `/fix <case-or-url>` may later normalize into `/issues` + `/build` workflow intent. An alias must not create a new authority path.
@@ -150,4 +235,4 @@ All composed inputs preserve source/provenance identity.
 
 ## Error semantics
 
-Unknown, unsupported, stale, unqualified, unauthorized, or cost-blocked states must be explicit. Commands must not hide these conditions behind automatic fallback.
+Unknown, unsupported, stale, unqualified, unauthorized, cost-blocked, coverage-limited, or inconclusive states must be explicit. Commands must not hide these conditions behind automatic fallback or a generic green result.

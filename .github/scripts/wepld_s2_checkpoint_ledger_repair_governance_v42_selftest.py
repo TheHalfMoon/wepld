@@ -123,12 +123,17 @@ def _check_files_cascade_accepts_real_tree_and_rejects_drifted_ledger() -> None:
 
 
 def _check_narrow_call_sites_still_reconcile_via_direct_probe() -> None:
-    """Prove `_corrected_v40_files` installs the same six narrow wraps
-    `run_predecessor_selftests` already proved correct - each observes v39's
-    resting pair for its own dynamic extent, and delegates/restores exactly as
-    v41's own wrapper does - by driving the installation path directly rather
-    than depending on which of the six a given real `files()` cascade happens to
-    reach.
+    """Prove `_corrected_v40_files` (production code, invoked through the real
+    `files()` entrypoint - not a synthetic reimplementation of its wrap/unwrap
+    logic) presents v39's resting pair to whichever of the six narrow call sites
+    a real `files()` cascade actually reaches, and restores the real pair - and
+    leaves every site correctly unwrapped - once it returns.
+
+    Each of the six real functions is temporarily replaced with a thin recorder
+    that captures v37's live pin at the moment it is called, then delegates to
+    the original; `_corrected_v40_files` wraps *those* recorders (whatever it
+    finds bound at call time), so what gets observed is genuinely what
+    production code presents to them, not a value this test constructed itself.
     """
     for module, name in p._NARROW_RESTING_VIEW_CALL_SITES:
         if getattr(module, name) is not p._ORIGINAL_NARROW_CALL_SITE_FUNCTIONS[(module, name)]:
@@ -142,40 +147,42 @@ def _check_narrow_call_sites_still_reconcile_via_direct_probe() -> None:
     real_ledger = v37.FINAL_LEDGER_BLOB
     v39_resting_pair = (p.p.p.V39_FINAL_CHECKPOINT_BLOB, p.p.p.V39_FINAL_LEDGER_BLOB)
 
+    # None of the six narrow call sites is actually reached by v40's own
+    # `files()` body for this repository's tree shape (verified: a version of
+    # this check that only observed sites the cascade happened to call recorded
+    # nothing). That's a fact about *this* cascade, not evidence the wraps are
+    # unnecessary - `_check_files_cascade_accepts_real_tree_and_rejects_
+    # drifted_ledger` already proves v40's real logic still succeeds/fails
+    # correctly either way. What this check proves instead: when
+    # `_corrected_v40_files` (production code, not a reimplementation) installs
+    # its wraps and something *does* call into a wrapped site during that
+    # window, the site genuinely observes v39's resting pair. It exercises this
+    # by substituting `_V40_ORIGINAL_FILES` with a stand-in that runs inside
+    # `_corrected_v40_files`'s own dynamic extent (after its wraps are
+    # installed, before they're restored) and calls the first narrow site
+    # directly - itself first substituted with a harmless stand-in, so the call
+    # is safe regardless of that site's real preconditions.
+    probe_site = p._NARROW_RESTING_VIEW_CALL_SITES[0]
+    probe_module, probe_name = probe_site
     observed: list[tuple[str, str]] = []
 
-    def _probe() -> str:
+    def _site_stand_in(*args: Any, **kwargs: Any) -> None:
         observed.append((v37.FINAL_CHECKPOINT_BLOB, v37.FINAL_LEDGER_BLOB))
-        return "PROBE"
 
-    class _OneShotView:
-        """A view whose single `read_bytes` call installs then removes the narrow
-        wraps around one probe call, mirroring exactly what `_corrected_v40_files`
-        does around v40's real `files()` body - without depending on which
-        predecessor function a given tree happens to route through."""
+    original_files_body = p._V40_ORIGINAL_FILES
 
-        def read_bytes(self, path: str, max_bytes: int) -> bytes:
-            saved = {
-                (m, n): getattr(m, n) for m, n in p._NARROW_RESTING_VIEW_CALL_SITES
-            }
-            for m, n in p._NARROW_RESTING_VIEW_CALL_SITES:
-                setattr(m, n, p.p.p._with_v39_resting_view(saved[(m, n)]))
-            try:
-                wrapped_probe = p.p.p._with_v39_resting_view(_probe)
-                if wrapped_probe() != "PROBE":
-                    base.fail("v42 narrow resting-view wrapper does not delegate its return value")
-            finally:
-                for m, n in p._NARROW_RESTING_VIEW_CALL_SITES:
-                    setattr(m, n, saved[(m, n)])
-            return p.raw_root.read_bytes(path, max_bytes)
+    def _files_body_that_also_probes(view: Any) -> Any:
+        getattr(probe_module, probe_name)()
+        return original_files_body(view)
 
-        def read_text(self, path: str, limit: int = base.MAX_POLICY_FILE_BYTES) -> str:
-            return self.read_bytes(path, limit).decode("utf-8", errors="strict")
-
-        def entries(self) -> Any:
-            return p.raw_root.entries()
-
-    _OneShotView().read_bytes(p.LEDGER, base.MAX_POLICY_FILE_BYTES)
+    saved_probe_site = getattr(probe_module, probe_name)
+    setattr(probe_module, probe_name, _site_stand_in)
+    p._V40_ORIGINAL_FILES = _files_body_that_also_probes
+    try:
+        p.files(p.raw_root)
+    finally:
+        p._V40_ORIGINAL_FILES = original_files_body
+        setattr(probe_module, probe_name, saved_probe_site)
 
     if observed != [v39_resting_pair]:
         base.fail(f"v42 narrow call site did not observe v39's resting pair: {observed}")
@@ -268,7 +275,20 @@ def _check_bootstrap_scope_is_closed() -> None:
 
 
 def _check_bootstrap_delta_rejects_third_path() -> None:
-    """The bootstrap delta must be exactly the four boot files, never a fifth."""
+    """The bootstrap delta must be exactly the four boot files, never a fifth.
+
+    `_BootBase` must serve the *v41-projected* (pre-migration) workflow bytes for
+    `FW`/`AW`, not the real tree's v42-era bytes - otherwise a genuine candidate's
+    workflow files never appear in the changed set at all (their bytes match the
+    base's raw, unprojected copy), the computed delta collapses to just `{P, T}`,
+    and the fifth-path oracle below would reject for that reason - `{P, T}` already
+    differs from and intersects `p.BOOT` - regardless of whether a fifth path was
+    ever added. Serving the projected bytes makes the four-file delta genuinely
+    equal `p.BOOT`, so the positive assertion proves the valid case is accepted and
+    the negative assertion proves the fifth path specifically is what triggers
+    rejection.
+    """
+    projected_workflows = p._v41_workflow_projection(p.raw_root)
 
     class _ExtraPathView:
         def __init__(self, extra: dict[str, bytes]) -> None:
@@ -290,6 +310,15 @@ def _check_bootstrap_delta_rejects_third_path() -> None:
                     result.append(base.TrackedEntry(mode="100644", path=name))
             return result
 
+        def tree_identity(self, path: str) -> Any:
+            # `_changed_paths` only falls back to comparing `read_bytes` when
+            # `tree_identity` differs between candidate and base; both fixtures'
+            # `__getattr__` would otherwise delegate identically to
+            # `p.raw_root.tree_identity`, so the two would always compare equal
+            # and the byte comparison this test depends on would never run. A
+            # per-instance identity forces the real comparison every time.
+            return (id(self), path)
+
         def __getattr__(self, name: str) -> Any:
             return getattr(p.raw_root, name)
 
@@ -297,10 +326,13 @@ def _check_bootstrap_delta_rejects_third_path() -> None:
         path: p.raw_root.read_bytes(path, base.MAX_POLICY_FILE_BYTES) for path in p.BOOT
     }
     smuggled_path = "docs/canonical/UNAUTHORIZED_THIRD_PATH.md"
-    candidate = _ExtraPathView({**boot_files, smuggled_path: b"# smuggled\n"})
+    valid_candidate = _ExtraPathView(dict(boot_files))
+    smuggled_candidate = _ExtraPathView({**boot_files, smuggled_path: b"# smuggled\n"})
 
     class _BootBase:
         def read_bytes(self, path: str, max_bytes: int) -> bytes:
+            if path in projected_workflows:
+                return projected_workflows[path]
             return p.raw_root.read_bytes(path, max_bytes)
 
         def read_text(self, path: str, limit: int = base.MAX_POLICY_FILE_BYTES) -> str:
@@ -310,14 +342,29 @@ def _check_bootstrap_delta_rejects_third_path() -> None:
             excluded = set(p.POLICY_FILES)
             return [entry for entry in p.raw_root.entries() if entry.path not in excluded]
 
+        def tree_identity(self, path: str) -> Any:
+            return (id(self), path)
+
         def __getattr__(self, name: str) -> Any:
             return getattr(p.raw_root, name)
 
     if not p.bootbase(_BootBase()):
         base.fail("v42 self-test bootstrap-base fixture is not recognized as a boot base")
+
+    changed = p.V25.changed(p.V25.v24.v23, valid_candidate, _BootBase())
+    if changed != p.BOOT:
+        base.fail(
+            f"v42 self-test valid-candidate delta is not exactly p.BOOT: {sorted(changed)}"
+        )
+
+    try:
+        p.delta(valid_candidate, _BootBase())
+    except base.PolicyError as exc:
+        base.fail(f"v42 bootstrap delta must accept exactly the four boot files: {exc}")
+
     _expect_failure(
         "bootstrap delta carrying a fifth (unauthorized) path",
-        lambda: p.delta(candidate, _BootBase()),
+        lambda: p.delta(smuggled_candidate, _BootBase()),
         "v42 bootstrap delta must be exactly two v42 policy files plus two integrity workflows",
     )
 

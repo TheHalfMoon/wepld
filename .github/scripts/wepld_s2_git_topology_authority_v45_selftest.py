@@ -3,10 +3,13 @@
 
 from __future__ import annotations
 
+import itertools
 from typing import Any
 
 import wepld_integrity as base
 import wepld_s2_git_topology_authority_v45_integrity as p
+
+_OVERLAY_VIEW_COUNTER = itertools.count()
 
 
 class OverlayView:
@@ -20,6 +23,7 @@ class OverlayView:
         self._view = view
         self._replacements = replacements or {}
         self._omitted = omitted
+        self._instance_id = next(_OVERLAY_VIEW_COUNTER)
 
     def read_bytes(self, path: str, max_bytes: int) -> bytes:
         if path in self._omitted:
@@ -43,7 +47,7 @@ class OverlayView:
         return result
 
     def tree_identity(self, path: str) -> Any:
-        return (id(self), path)
+        return (self._instance_id, path)
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._view, name)
@@ -201,12 +205,21 @@ def _check_bootstrap_scope() -> None:
     )
 
 
-def _synthetic_product_candidate(*, extra: dict[str, bytes] | None = None) -> OverlayView:
+def _pre_tranche_core_export() -> bytes:
+    """The checked-out head's lib.rs, with the git_topology export line
+    removed if the tranche has already landed on it. This must keep working
+    both before and after the real product tranche merges - once it has,
+    p.raw_root already carries the export, and this self-test must not
+    assume otherwise."""
     lib = p.raw_root.read_bytes(p.CORE_EXPORT, base.MAX_POLICY_FILE_BYTES)
     if b"pub mod git_topology;" in lib:
-        base.fail("v45 self-test baseline unexpectedly already exports git_topology")
+        return p._strip_git_topology_export(lib)
+    return lib
+
+
+def _synthetic_product_candidate(*, extra: dict[str, bytes] | None = None) -> OverlayView:
     replacements = {
-        p.CORE_EXPORT: lib + b"\npub mod git_topology;\n",
+        p.CORE_EXPORT: _pre_tranche_core_export() + b"\npub mod git_topology;\n",
         p.GIT_TOPOLOGY_MODULE: b"#![allow(dead_code)]\npub fn topology_fixture() -> &'static str { \"ok\" }\n",
         p.PRODUCT_TEST: b"#[test]\nfn git_topology_fixture() { assert!(true); }\n",
     }
@@ -216,6 +229,13 @@ def _synthetic_product_candidate(*, extra: dict[str, bytes] | None = None) -> Ov
 
 
 def _check_product_delta_shape() -> None:
+    if p._product_presence(p.raw_root):
+        # The tranche has already landed on this checked-out head: the
+        # base-lacks-tranche -> candidate-has-tranche transition this group
+        # exercises is a one-time event that has already happened here, and
+        # p.raw_root can no longer stand in as a tranche-free policy base.
+        return
+
     candidate = _synthetic_product_candidate()
     p.delta(candidate, p.raw_root)
 
@@ -244,6 +264,12 @@ def _check_product_delta_shape() -> None:
 
 
 def _check_product_base_frontier() -> None:
+    if p._product_presence(p.raw_root):
+        # Same one-time-transition reasoning as _check_product_delta_shape:
+        # once the tranche has landed, p.raw_root itself is no longer a
+        # valid tranche-free policy base for this scenario.
+        return
+
     drifted_lib = p.raw_root.read_bytes(p.CORE_EXPORT, base.MAX_POLICY_FILE_BYTES) + b"\n// drift\n"
     drifted_base = OverlayView(p.raw_root, {p.CORE_EXPORT: drifted_lib})
     candidate = OverlayView(

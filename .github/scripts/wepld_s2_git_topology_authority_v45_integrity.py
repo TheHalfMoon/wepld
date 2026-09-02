@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import importlib
+import itertools
 from pathlib import Path
 import sys
 from typing import Any
@@ -46,7 +47,7 @@ import wepld_s2_identity_store_governance_v35_integrity as _v35
 
 P = ".github/scripts/wepld_s2_git_topology_authority_v45_integrity.py"
 T = ".github/scripts/wepld_s2_git_topology_authority_v45_selftest.py"
-T_BLOB = "a1c3787c5351fba0e4302459d37dd71f43e6bdb5"
+T_BLOB = "70673c5f1324c8a06e7f36c0f8412aa3d9f57880"
 
 V44_P_BLOB = "bc11c7f89ad383625e4ea65200494361070f27a1"
 V44_T_BLOB = "3d6c293804802a87a45ffdca4d106f293aec9fbd"
@@ -184,7 +185,6 @@ REQUIRED_PRODUCT_BASE_BLOBS = {
     CORE_MANIFEST: "9ff919ab5f05d6aa5b6c179f194eb4611e7b1bd8",
     ROOT_CARGO_LOCK: "d137e3f0c62637e402374880deb5355a878d4a91",
 }
-BASE_CORE_EXPORT = raw_root.read_bytes(CORE_EXPORT, base.MAX_POLICY_FILE_BYTES)
 
 POLICY_FILES = frozenset({P, T})
 CONTROLLED_FILES = POLICY_FILES
@@ -323,6 +323,9 @@ WF = {
 }
 
 
+_PROJECTION_VIEW_COUNTER = itertools.count()
+
+
 class _ProjectionView:
     def __init__(
         self,
@@ -333,6 +336,7 @@ class _ProjectionView:
         self._view = view
         self._replacements = replacements
         self._omitted = omitted
+        self._instance_id = next(_PROJECTION_VIEW_COUNTER)
 
     def read_bytes(self, path: str, max_bytes: int) -> bytes:
         if path in self._omitted:
@@ -351,7 +355,7 @@ class _ProjectionView:
         return [entry for entry in self._view.entries() if entry.path not in self._omitted]
 
     def tree_identity(self, path: str) -> Any:
-        return (id(self), path)
+        return (self._instance_id, path)
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._view, name)
@@ -377,6 +381,23 @@ def _product_presence(view: Any) -> frozenset[str]:
     return frozenset(PRODUCT_NEW_FILES & V25.ps(view))
 
 
+_GIT_TOPOLOGY_EXPORT_LINE = b"pub mod git_topology;"
+
+
+def _strip_git_topology_export(lib: bytes) -> bytes:
+    """Reverse the one-line git_topology export addition, from whatever
+    bytes are actually present, rather than a stale pre-tranche snapshot
+    captured once at import time. This must keep working correctly for
+    every future candidate after the tranche becomes canonical, since v36's
+    frozen frontier pin for this path never changes."""
+    with_newline = _GIT_TOPOLOGY_EXPORT_LINE + b"\n"
+    if lib.count(with_newline) == 1:
+        return lib.replace(with_newline, b"", 1)
+    if lib.count(_GIT_TOPOLOGY_EXPORT_LINE) == 1 and lib.endswith(_GIT_TOPOLOGY_EXPORT_LINE):
+        return lib[: -len(_GIT_TOPOLOGY_EXPORT_LINE)]
+    base.fail("v45 Git-topology tranche export line has an unexpected shape")
+
+
 def _product_projection(view: Any) -> tuple[dict[str, bytes], frozenset[str]]:
     present = _product_presence(view)
     if not present:
@@ -384,9 +405,9 @@ def _product_projection(view: Any) -> tuple[dict[str, bytes], frozenset[str]]:
     if present != PRODUCT_NEW_FILES:
         base.fail(f"v45 predecessor view contains partial Git-topology tranche: {sorted(present)}")
     lib = view.read_bytes(CORE_EXPORT, base.MAX_POLICY_FILE_BYTES)
-    if lib.count(b"pub mod git_topology;") != 1:
+    if lib.count(_GIT_TOPOLOGY_EXPORT_LINE) != 1:
         base.fail("v45 Git-topology tranche must export git_topology exactly once")
-    return {CORE_EXPORT: BASE_CORE_EXPORT}, PRODUCT_NEW_FILES
+    return {CORE_EXPORT: _strip_git_topology_export(lib)}, PRODUCT_NEW_FILES
 
 
 def _project_for_predecessor(view: Any) -> Any:

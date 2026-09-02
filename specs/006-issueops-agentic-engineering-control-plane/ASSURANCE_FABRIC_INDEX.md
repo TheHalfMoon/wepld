@@ -33,7 +33,9 @@ Read in this order:
 3. `assurance-fabric-spec-addendum.md` — functional requirements and acceptance constraints.
 4. `assurance-fabric-tasks.md` — dependency-ordered future task map from revalidation/source acquisition through S3/S4/S5/S6/S7/S8/S9.
 5. `research/native-assurance-source-acquisition-2026-09-02.md` — source families, behavior oracles, reusable machinery candidates, license/admission boundaries, negative oracles, and future exact-pin qualification work.
-6. `contracts/command-surface.md` — user-facing `/review`, `/security`, and `/fulltest` intent semantics.
+6. `research/openhands-qualified-mechanism-extraction-2026-09-02.md` — exact pinned OpenHands source quarries, nine extracted mechanisms, rejected semantics, clean-room adaptation decisions, and negative oracles.
+7. `openhands-assurance-integration-tasks.md` — dependency-ordered S3/S6/S7/S8/S9 implementation tasks and tracer bullets for the OpenHands-derived mechanisms.
+8. `contracts/command-surface.md` — user-facing `/review`, `/security`, and `/fulltest` intent semantics.
 
 ## Architectural placement
 
@@ -98,7 +100,9 @@ What remains unknown before release or Trusted Completion?
 
 ## Source-acquisition boundary
 
-The research package includes strong candidates and behavior oracles such as Continue, CodeRabbit Skills, Greptile, Qodo, Devin Review/Security, Aikido, tree-sitter, ast-grep, reviewdog, Semgrep, Trivy, OSV-Scanner, Syft, zizmor, OpenSSF Scorecard/Package Analysis, cargo-nextest, cargo-llvm-cov, cargo-mutants, Kani, Schemathesis, Playwright, Nuclei, and OWASP ZAP.
+The research package includes strong candidates and behavior oracles such as Continue, CodeRabbit Skills, Greptile, Qodo, Devin Review/Security, Aikido, OpenHands Agent Canvas / Software Agent SDK, tree-sitter, ast-grep, reviewdog, Semgrep, Trivy, OSV-Scanner, Syft, zizmor, OpenSSF Scorecard/Package Analysis, cargo-nextest, cargo-llvm-cov, cargo-mutants, Kani, Schemathesis, Playwright, Nuclei, and OWASP ZAP.
+
+OpenHands is treated as a path-level mechanism quarry rather than a runtime architecture authority. The default disposition for the extracted OpenHands mechanisms is clean-room WePLD-native adaptation; direct source import or dependency admission remains separately gated.
 
 No listed source is admitted merely by being named here. Exact future reuse requires current revision/license/provenance/rights verification and the owning Source Acquisition gate. Donor dependencies, workflows, hooks, scanners, templates, or package scripts must not be executed during reconnaissance merely because they are open source.
 

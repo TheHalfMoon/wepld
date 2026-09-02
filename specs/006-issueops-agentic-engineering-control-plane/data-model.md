@@ -8,6 +8,8 @@ STORAGE_REPRESENTATION = DEFERRED_TO_OWNING_SLICE
 
 This document defines semantic entities and invariants only. It does not select a database, serialization library, remote service, vector store, or provider SDK.
 
+For shared domain records, this file is the canonical field vocabulary unless a dedicated contract explicitly declares itself the canonical owner of that type. Other planning files should reference these shapes rather than create competing aliases.
+
 ## 1. Identity types
 
 Every durable entity uses a WePLD-owned stable identifier. Provider identifiers remain typed external references.
@@ -23,6 +25,7 @@ KnowledgeSourceId
 RetrievalEvidenceId
 WorkflowIntentId
 ContextPackageId
+WorkerRequirementId
 WorkerId
 RouteQualificationId
 AssignmentId
@@ -32,6 +35,7 @@ FindingId
 EffectProposalId
 NawatDecisionId
 EffectResultId
+EffectReconciliationId
 CompletionEvidenceId
 ```
 
@@ -66,7 +70,7 @@ Case {
 - `COMPLETED_TRUSTED` requires a `CompletionEvidence` record;
 - a Case may bind to multiple provider objects;
 - all derived summary state is reconstructable from durable evidence/events;
-- external object deletion or permission loss does not erase prior observations;
+- external object deletion or permission loss does not erase the observation identity, but protected content remains subject to current redaction/retention/access policy;
 - unresolved acceptance-critical provider conflicts prevent dependent writes/completion until abstained, resolved, or explicitly ruled irrelevant under the owning contract.
 
 ## 3. ProviderBinding
@@ -107,6 +111,8 @@ ProviderObservation {
   raw_or_hash_addressed_evidence_ref
   adapter_identity
   normalization_contract_version
+  observation_completeness
+  observation_authenticity
 }
 
 ProviderConflict {
@@ -122,7 +128,7 @@ ProviderConflict {
 }
 ```
 
-Provider observations are append-only evidence. Latest-write-wins is not a generic Case-resolution rule. Contradictory observations remain inspectable after resolution.
+Provider observations are append-only evidence. Latest-write-wins is not a generic Case-resolution rule. Contradictory observations remain inspectable after resolution. Partial or unauthenticated observations remain explicitly classified and cannot masquerade as complete current provider truth.
 
 ## 5. CaseRelation
 
@@ -170,6 +176,7 @@ InputArtifact {
   instruction_eligibility
   parser_qualification_state
   source_access_state
+  access_policy_ref?
   created_at
   provenance
 }
@@ -187,6 +194,7 @@ KnowledgeCollection {
   project_binding?
   members[]
   active_generation
+  access_policy_ref
   created_at
   updated_at
 }
@@ -201,7 +209,7 @@ WORKSPACE
 GLOBAL
 ```
 
-Scope controls visibility/lifetime expectations, not effect authority.
+Scope controls visibility/lifetime expectations, not effect authority. Collection membership does not override the narrower access policy of a member source.
 
 ## 8. KnowledgeSource
 
@@ -216,13 +224,17 @@ KnowledgeSource {
   parser_identity
   freshness_observation
   content_hash_or_equivalent?
-  index_views[]
+  projection_generation_refs[]
+  access_policy_ref
   trust_classification
+  retention_or_tombstone_state
   provenance
 }
 ```
 
-Indexes are replaceable projections over source identity/provenance.
+Indexes/chunks/embeddings/graph views are replaceable projections over source identity/provenance. They inherit the source access policy and generation; derived projections may narrow visibility but may not widen it.
+
+A refresh publishes one complete source generation atomically. Queries MUST NOT silently mix projections from two generations as one current source view.
 
 ## 9. RetrievalEvidence
 
@@ -233,18 +245,22 @@ RetrievalEvidence {
   query_or_intent_identity
   source_id
   source_generation
+  projection_generation?
   exact_location_or_citation?
   freshness_state
   retrieval_signals[]
   rank_or_score_observations[]
   rerank_observations[]
   excerpt_identity?
+  access_policy_ref
   trust_classification
   created_at
 }
 ```
 
 Scores are observations only. A missing required source generation or stale source state cannot be silently represented as current evidence. Retrieved instructions remain data and do not create WorkflowIntent.
+
+A source-access revocation, collection-visibility reduction, provider permission loss, or protected-content redaction invalidates downstream eligibility of affected derived projections and context packages even if their content hashes remain unchanged.
 
 ## 10. WorkflowIntent
 
@@ -274,8 +290,10 @@ ContextPackage {
   source_identity_by_item
   trust_class_by_item
   visibility_scope_by_item
+  access_policy_ref_by_item
   freshness_or_generation_by_item
   redaction_or_exclusion_evidence[]
+  policy_snapshot_ref
   egress_class
   created_at
 }
@@ -283,7 +301,31 @@ ContextPackage {
 
 A package is evidence of what a worker may be shown. It does not authorize worker effects. Minimum-sufficient packaging is preferred over repository/collection dumping.
 
-## 12. WorkerDescriptor
+Every included item's effective visibility is the intersection of source access, collection scope, assignment visibility, route/egress policy, and current revocation/redaction state. Package construction must fail closed if that intersection cannot be established.
+
+## 12. WorkerRequirement
+
+```text
+WorkerRequirement {
+  worker_requirement_id
+  assignment_id
+  required_capabilities[]
+  required_effect_classes[]
+  prohibited_effect_classes[]
+  required_containment_properties[]
+  required_platform_runtime?
+  egress_class
+  maximum_cost_class?
+  quota_constraints[]
+  independence_requirement?
+  session_requirements[]
+  created_at
+}
+```
+
+`WorkerRequirement` is a routing/qualification input, not a worker selection or authority grant.
+
+## 13. WorkerDescriptor
 
 ```text
 WorkerDescriptor {
@@ -292,14 +334,18 @@ WorkerDescriptor {
   provider_identity?
   model_identity?
   version_identity?
+  capability_vocabulary_version
   capabilities[]
   supported_effect_classes[]
+  provider_permission_claims[]
   containment_claims[]
   containment_evidence_refs[]
   session_semantics
+  cancellation_semantics
+  recovery_semantics
   cost_class
   quota_class
-  availability_state
+  availability
   qualification_state
   qualification_evidence_refs[]
   qualification_expiry?
@@ -308,7 +354,9 @@ WorkerDescriptor {
 
 Provider flags such as `read-only`, `sandbox`, `yolo`, or `full trust` are recorded as provider claims until independently qualified.
 
-## 13. RouteQualification
+Capabilities use a versioned WePLD vocabulary. Provider-native capability names are provenance/adapter inputs and cannot silently create new core effect classes.
+
+## 14. RouteQualification
 
 ```text
 RouteQualification {
@@ -332,7 +380,7 @@ RouteQualification {
 
 Qualification means the route may be considered. It never contains effect authority.
 
-## 14. Assignment
+## 15. Assignment
 
 ```text
 Assignment {
@@ -343,6 +391,7 @@ Assignment {
   acceptance_criteria[]
   dependency_assignment_ids[]
   context_package_refs[]
+  worker_requirement_refs[]
   required_capabilities[]
   proposed_effect_classes[]
   autonomy_ceiling
@@ -350,7 +399,7 @@ Assignment {
 }
 ```
 
-## 15. Attempt
+## 16. Attempt
 
 ```text
 Attempt {
@@ -365,13 +414,14 @@ Attempt {
   result_refs[]
   effect_refs[]
   check_refs[]
+  recovery_state?
   failure_or_cancel_reason?
 }
 ```
 
-Retry or reassignment creates a new Attempt. Prior attempts are immutable history.
+Retry or reassignment creates a new Attempt. Prior attempts are immutable history. Resuming an interrupted Attempt is permitted only when its owning runtime contract proves session/effect recovery semantics; otherwise create a new Attempt linked to the interrupted one.
 
-## 16. DecisionBoundary
+## 17. DecisionBoundary
 
 ```text
 DecisionBoundary {
@@ -391,7 +441,7 @@ DecisionBoundary {
 
 The system should not ask a human to rediscover facts that qualified agents can establish. Decision boundaries are for non-inferable choices or required approvals.
 
-## 17. ReviewFinding
+## 18. ReviewFinding
 
 ```text
 ReviewFinding {
@@ -408,9 +458,9 @@ ReviewFinding {
 }
 ```
 
-Valid findings remain live until fixed, rebutted with evidence, or proven obsolete by a later exact candidate.
+Valid findings remain live until fixed, rebutted with evidence, accepted under explicit authority/risk policy, or proven obsolete by a later exact candidate.
 
-## 18. EffectProposal / NawatDecision / EffectResult
+## 19. EffectProposal / NawatDecision / EffectResult / EffectReconciliation
 
 ```text
 EffectProposal {
@@ -419,6 +469,10 @@ EffectProposal {
   exact_target
   proposed_input_identity
   complete_precondition_snapshot
+  controlling_origin_kind
+  controlling_origin_ref
+  assignment_ref?
+  attempt_ref?
   worker_or_work_origin
   created_at
 }
@@ -441,15 +495,51 @@ EffectResult {
   effect_proposal_id
   nawat_decision_ref
   execution_identity
-  observed_result
-  postcondition_evidence
+  outcome_class
+  observed_result?
+  postcondition_evidence[]
+  recovery_ref?
+  created_at
+}
+
+EffectReconciliation {
+  effect_reconciliation_id
+  effect_proposal_id
+  execution_identity
+  unknown_outcome_evidence_refs[]
+  reconciliation_observation_refs[]
+  result
+  retry_safety_state
   created_at
 }
 ```
 
-External issue writes, Git operations, network fetches, process execution, parser expansion with side effects, and provider/model execution are distinct effect classes.
+Canonical effect outcomes include:
 
-## 19. CompletionEvidence
+```text
+CONFIRMED_APPLIED
+CONFIRMED_NOT_APPLIED
+EFFECT_OUTCOME_UNKNOWN
+FAILED_WITHOUT_EFFECT_PROVEN
+CANCELLED_WITHOUT_EFFECT_PROVEN
+```
+
+Recovery result candidates include:
+
+```text
+CONFIRMED_APPLIED
+CONFIRMED_NOT_APPLIED
+STILL_UNKNOWN
+```
+
+External issue writes, Git operations, network fetches, process execution, parser expansion with side effects, browser submissions/uploads/downloads, and provider/model execution are distinct effect classes.
+
+```text
+LOCAL_TIMEOUT != REMOTE_EFFECT_NOT_APPLIED
+UNKNOWN_EFFECT_OUTCOME != SAFE_TO_RETRY
+```
+
+## 20. CompletionEvidence
 
 ```text
 CompletionEvidence {
@@ -464,6 +554,7 @@ CompletionEvidence {
   security_review_not_applicable_basis?
   reconciliation_refs[]
   authority_refs[]
+  effect_reconciliation_refs[]
   provider_land_closeout_refs[]
   residual_limitations[]
   completion_decision
@@ -484,12 +575,13 @@ Before `COMPLETED_TRUSTED`:
 4. security review must either exist or carry a policy-qualified not-applicable basis;
 5. no material finding remains unresolved;
 6. material effects must have matching authority/effect records and postcondition evidence;
-7. stale/conflicting provider state relevant to acceptance must be resolved, explicitly abstained from, or proven irrelevant;
-8. residual limitations must be stated rather than silently omitted;
-9. merge/close/green-CI/model-review/provider state cannot itself set `completion_decision`.
+7. no acceptance-critical material effect may remain `EFFECT_OUTCOME_UNKNOWN`;
+8. stale/conflicting provider state relevant to acceptance must be resolved, explicitly abstained from, or proven irrelevant;
+9. residual limitations must be stated rather than silently omitted;
+10. merge/close/green-CI/model-review/provider state cannot itself set `completion_decision`.
 
-## 20. Event model
+## 21. Event model
 
-Prefer append-only events with deterministic derived state. Minimum event families are defined in `analyze.md`. Future storage design must support replay, interruption recovery, duplicate-event handling, audit export, schema/version evolution, and bounded evidence growth before autonomous multi-case operation is qualified.
+Prefer append-only events plus deterministic derived state over opaque mutable workflow state. Minimum event families are defined in `analyze.md`. Future storage design must support replay, interruption recovery, duplicate-event handling, audit export, schema/version evolution, bounded evidence growth, redaction/tombstone semantics, backup/restore, and migration validation before autonomous multi-case operation is qualified.
 
 Event sourcing is not required for ephemeral UI/cache state that can be recomputed and is not acceptance/security/recovery evidence. The owning slice should persist only durable facts/transitions needed for replay, audit, authority, recovery, or product memory.

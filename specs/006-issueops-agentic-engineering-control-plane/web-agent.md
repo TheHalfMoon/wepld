@@ -12,75 +12,36 @@ MODEL_PROVIDER_EXECUTION_AUTHORITY = NONE
 
 ## 1. Objective
 
-Make WePLD a first-class governed environment for engineering work on and through the web without making browser state, website-declared tools, MCP servers, cookies, logged-in sessions, browser automation frameworks, or model/provider permissions authoritative.
+Make WePLD a first-class governed environment for engineering work on and through the web without making browser state, website-declared tools, MCP servers, cookies, logged-in sessions, browser automation frameworks, downloaded files, or model/provider permissions authoritative.
 
-WePLD should support two distinct web-agent boundaries:
+WePLD should support two primary web-agent families:
 
 1. **WebMCP application tools** — structured tools exposed by a visited web application to a browser agent.
-2. **Browser diagnostics/control adapters** — DevTools-class inspection, debugging, performance, DOM/accessibility, screenshot, network, console, and controlled browser actuation capabilities.
+2. **Browser diagnostics/control adapters** — DevTools-class inspection/debugging/performance/DOM/accessibility/network/console plus explicitly classified actuation/artifact/context capabilities.
 
 These are complementary and MUST NOT be collapsed into one trust model.
+
+All normative browser/session/context/tool/proposal/qualification record shapes are owned by `contracts/web-agent-boundary.md`. This product plan intentionally does **not** redeclare `WebToolObservation` or other canonical browser contract shapes.
 
 ## 2. Current protocol observations
 
 As observed during planning research on 2026-08-31:
 
 - WebMCP is published by the W3C Web Machine Learning Community Group as a Community Group Draft Report, not a W3C Standard and not on the W3C Standards Track.
-- The current editor set includes Microsoft and Google representatives.
+- The observed editor set includes Microsoft and Google representatives.
 - WebMCP allows web applications to expose JavaScript-backed or declaratively described tools to agents.
-- Current Chrome documentation describes both imperative JavaScript tools and declarative HTML-form-based tools.
-- Current Chrome documentation describes origin-isolation and `tools` Permissions Policy requirements.
-- Current Microsoft Edge documentation documents use of `chrome-devtools-mcp` against Edge and WebView2 for agent-driven inspection/debugging/control.
+- Observed Chrome documentation describes imperative JavaScript and declarative HTML-form-oriented tools plus origin/permissions behavior.
+- Observed Microsoft Edge documentation describes `chrome-devtools-mcp` use with Edge/WebView2.
 
-These observations are research evidence only. They do not admit a protocol, browser dependency, MCP server, Puppeteer, Node.js package, or remote service.
+These observations are research evidence only. Exact protocol/browser/editor/support facts must be reverified during owning Source Acquisition. No protocol, browser dependency, MCP server, Puppeteer/Node package, or remote service is admitted here.
 
 ## 3. Product capabilities
 
 ### 3.1 Web tool discovery
 
-When a qualified browser/session route is active, WePLD should be able to discover WebMCP tools exposed by the current top-level application context and represent each tool as an untrusted capability claim.
+When a qualified browser/session/context route is active, WePLD should discover current WebMCP tools and normalize them into the canonical `WebToolObservation` record.
 
-Candidate normalized fields:
-
-```text
-WebToolObservation {
-  web_tool_observation_id
-  browser_session_id
-  page_context_id
-  origin_identity
-  page_identity
-  tool_name
-  tool_title?
-  description?
-  input_schema_identity?
-  declared_annotations[]
-  discovery_generation
-  observed_at
-  raw_protocol_evidence_ref
-  trust_class = UNTRUSTED_EXTERNAL_CAPABILITY_CLAIM
-}
-```
-
-Tool names, descriptions, schemas, annotations, and outputs are external content. They are evidence for routing and UX, not authority.
-
-### 3.2 Web tool invocation
-
-Invoking a WebMCP tool is an effect proposal.
-
-```text
-user/workflow intent
--> discovered WebToolObservation
--> normalized capability/effect classification
--> required data/context calculation
--> Mirefa route/tool qualification
--> Nawat exact effect-time decision/revalidation
--> browser/session containment precondition
--> invocation through qualified browser adapter
--> structured result + browser/page state observation
--> postcondition evidence
-```
-
-A site declaring a tool MUST NOT grant permission to invoke it.
+Tool names, descriptions, schemas, annotations, raw definitions, and outputs are external content. They are evidence for routing/UX and possible effect classification, not authority.
 
 ```text
 WEBMCP_TOOL_DISCOVERY != AUTHORIZATION
@@ -91,155 +52,166 @@ BROWSER_LOGIN_STATE != NAWAT_GRANT
 COOKIE_OR_SESSION_PRESENCE != USER_INTENT
 ```
 
+### 3.2 Web tool invocation
+
+Invoking a WebMCP tool is an effect proposal:
+
+```text
+explicit user/workflow intent
+-> canonical WebToolObservation
+-> normalized capability/effect classification
+-> minimum required context calculation
+-> Mirefa route/tool qualification
+-> Nawat exact effect-time decision/revalidation
+-> browser/session/context containment precondition
+-> invocation through qualified browser adapter
+-> structured result + browser/page state observation
+-> postcondition evidence
+```
+
+A site declaring a tool MUST NOT grant permission to invoke it.
+
 ### 3.3 Browser diagnostics
 
-WePLD should support a separately qualified DevTools-class capability surface for engineering workflows such as:
+A separately qualified DevTools-class surface may support:
 
-- inspect live DOM/accessibility state;
-- console and runtime diagnostics;
-- network request/response inspection where authorized;
+- DOM/accessibility inspection;
+- console/runtime diagnostics;
+- network metadata/content where authorized;
 - screenshots and visual evidence;
 - performance traces;
 - page/application state inspection;
-- WebView2 inspection on Windows where qualified;
-- bounded browser navigation and actuation;
-- reproduction evidence for web issues;
+- WebView2/Edge inspection where separately qualified;
+- bounded navigation/actuation;
+- reproduction evidence;
 - automated UI/regression verification.
 
-Diagnostics/control adapters are worker/tool edges behind UWC and are independently qualified from WebMCP application tools.
+Diagnostics/control adapters are UWC/tool edges independently qualified from WebMCP application tools.
 
-### 3.4 IssueOps integration
+### 3.4 Browser artifact transfer
+
+Downloads/uploads are explicit governed artifact flows, not incidental browser convenience.
+
+```text
+DOWNLOAD
+  -> authorized browser effect
+  -> bounded staging destination
+  -> DownloadObservation
+  -> inert InputArtifact
+  -> classification/quarantine
+  -> separately qualified follow-on use
+
+UPLOAD
+  -> explicit authorized InputArtifact
+  -> current access-policy check
+  -> exact browser context/origin
+  -> Nawat grant
+  -> transfer
+  -> postcondition evidence
+```
+
+A browser-created file never automatically executes, parses, enters RAG, or becomes worker-visible.
+
+### 3.5 Multi-context browser behavior
+
+Popups, new tabs, frames, target switches, service/background contexts, clipboard use, file chooser interaction, native dialogs, and permission prompts are separately represented/classified when material.
+
+A new context identity cannot silently inherit the exact target authorization of the previous page merely because one browser session owns both.
+
+## 4. IssueOps integration
 
 A web-related Case may use the web boundary for:
 
 ```text
-GitHub/Sentry/provider issue
+provider issue / synthetic report
 -> Case
--> launch/connect qualified browser context
--> reproduce reported behavior
+-> qualified browser context
+-> reproduce
 -> inspect console/network/DOM/performance
 -> discover WebMCP tools when present
--> invoke only explicitly authorized tools/effects
--> capture evidence
+-> invoke only explicitly authorized effects
+-> capture governed evidence/artifacts
 -> diagnose
--> implement/repair through ordinary governed repository workflow
+-> implement/repair through ordinary repository workflow
 -> rerun browser verification
 -> independent review
--> Trusted Completion
+-> Trusted Completion decision
 ```
 
-This should enable high-value IssueOps workflows such as "reproduce this UI issue," "verify this form," "inspect this production-safe diagnostic page," and "prove this regression is fixed" without making browser automation a bypass around repository or provider authority.
+This enables workflows such as “reproduce this UI issue”, “verify this form”, “inspect this diagnostic page”, and “prove this regression is fixed” without making browser automation a bypass around repository/provider authority.
 
-## 4. Security boundary
+## 5. Security boundary
 
-### 4.1 Untrusted website content
+### 5.1 Untrusted website content
 
-All page text, DOM content, accessibility text, tool descriptions, tool schemas, tool outputs, console output, network content, screenshots, and browser-observed application data are untrusted external evidence unless independently classified otherwise.
+All page text, DOM/accessibility text, tool descriptions/schemas/outputs, console/network content, screenshots-derived text, clipboard content, downloaded artifacts, and browser-observed data remain untrusted external evidence unless independently classified otherwise.
 
 They MUST NOT by themselves:
 
 - create or alter WorkflowIntent;
-- widen filesystem/network/provider/model access;
-- reveal secrets or credentials;
-- select a paid remote worker;
+- widen filesystem/network/provider/model/artifact access;
+- reveal secrets/credentials;
+- select paid/remote workers;
 - weaken containment;
-- authorize a tool invocation;
-- authorize navigation to a new origin;
-- approve a purchase/submission/delete/publish/merge/close effect;
+- authorize tool invocation/navigation/submission/upload/download;
+- approve purchase/delete/publish/merge/close effects;
 - satisfy independent review;
 - produce Trusted Completion.
 
-### 4.2 Authentication and ambient authority
+### 5.2 Authentication and ambient authority
 
-A logged-in browser can contain substantial ambient authority. WePLD MUST model this explicitly.
+A logged-in browser may hold significant ambient authority. WePLD models browser/profile/authentication state as observation only.
 
-Candidate state:
+Credential material access is denied by default. Cookies, tokens, autofill, password managers, SSO, clipboard, browser permissions, or an authenticated page do not become WePLD user intent or Nawat authority.
 
-```text
-BrowserAuthorityContext {
-  browser_session_id
-  profile_identity
-  origin_identity
-  authentication_observed
-  credential_material_access = DENIED_BY_DEFAULT
-  session_capability_claims[]
-  approved_effect_classes[]
-  containment_evidence[]
-  expiry/revalidation
-}
-```
+### 5.3 Tool poisoning and output injection
 
-The existence of cookies, authentication tokens, browser autofill, password managers, enterprise SSO, or an already authenticated page is not authorization for WePLD to use those capabilities.
+Qualification includes negative oracles for:
 
-### 4.3 Tool poisoning and output injection
-
-WebMCP metadata and outputs must pass the same untrusted-content boundary planned for IssueOps/RAG. Tool descriptions and structured outputs may contain prompt injection or misleading intent descriptions.
-
-Qualification MUST include negative oracles for:
-
-- malicious tool descriptions;
-- schema tricks and oversized fields;
-- misleading `read-only`/annotation claims;
-- output injection;
-- tool name collisions;
-- tool-set changes after qualification;
-- navigation/origin changes between discovery and invocation;
-- stale page/tool generation;
-- hidden side effects behind apparently read-only tools;
+- malicious tool descriptions/output;
+- schema tricks/oversized fields;
+- misleading `read-only` claims;
+- tool name collision/re-registration;
+- tool-set mutation after qualification;
+- origin/navigation/authentication/context changes;
+- hidden side effects;
 - cross-origin frame/tool confusion;
 - replay/duplicate invocation;
 - accidental submission/finalization;
 - sensitive form-field overcollection;
-- browser-profile/session mix-ups.
+- browser-profile/session/context mix-ups;
+- popup/new-tab target confusion;
+- downloaded artifact active-content/parser attack;
+- upload path overreach;
+- clipboard credential/instruction leakage.
 
-### 4.4 Exact-context revalidation
+### 5.4 Exact-context revalidation
 
-Before an effectful web invocation, the implementation must revalidate at least:
+Before an effectful web/browser action, revalidate all exact fields required by `contracts/web-agent-boundary.md`, including browser session/context/page/origin/tool generation, input/artifact identity, effect class, controlling intent, Mirefa qualification, Nawat grant, containment/access state, expected postcondition, and retry/idempotency identity.
 
-```text
-browser_session_id
-page_context_id
-current origin
-current page/document identity or qualified freshness observation
-current WebMCP tool generation/definition identity
-exact tool name
-input identity
-classified effect class
-user/workflow intent
-Mirefa qualification freshness
-Nawat grant
-containment state
-expected postcondition
-idempotency/retry identity where applicable
-```
+Material navigation, origin, target/frame/context, tool, authentication, profile, containment, access-policy, or grant changes invalidate prior assumptions.
 
-Navigation, reload, origin changes, tool registration changes, authentication changes, or stale context invalidate acceptance-critical prior assumptions.
-
-## 5. WebMCP consumer mode
-
-WePLD should eventually consume website-exposed WebMCP tools through a replaceable browser adapter.
+## 6. WebMCP consumer mode
 
 Desired behavior:
 
-- list/discover current tools;
-- inspect schemas and annotations;
-- classify likely read/write/external/financial/destructive effects independently of website labels;
-- preview proposed call and required arguments;
-- require DecisionBoundary when user intent is materially ambiguous;
-- invoke only after exact effect authorization;
+- discover/list current tools;
+- inspect schemas/annotation claims;
+- independently classify likely effects;
+- preview exact proposed call/arguments;
+- require DecisionBoundary when intent is materially ambiguous;
+- invoke only after exact qualification/authority;
 - retain structured request/result evidence;
-- surface tool-set changes and stale observations;
-- fail closed when the browser/runtime does not support the qualified protocol version.
+- surface stale tool/origin/context state;
+- fail closed on unsupported protocol/browser state.
 
-No automatic call should occur simply because a tool is available.
+No automatic invocation occurs merely because a tool is available.
 
-## 6. WePLD publisher mode
+## 7. WePLD publisher mode
 
-A later WePLD web/Desktop surface MAY expose selected WePLD capabilities through WebMCP so browser agents can collaborate with WePLD.
+A later WePLD surface MAY expose selected WebMCP tools to external browser agents.
 
-This is a separate capability and MUST expose only safe intent/proposal surfaces rather than direct authority.
-
-Candidate examples:
+Default publisher-mode tools should be safe read/intent/proposal surfaces, for example:
 
 ```text
 inspect_case
@@ -249,17 +221,15 @@ request_review
 prepare_workflow
 ```
 
-High-impact operations such as merge, close, delete, provider write, shell/process execution, filesystem mutation, credential use, or paid worker execution SHOULD NOT be exposed as direct browser-owned authority surfaces. If ever exposed, the tool creates a WePLD effect proposal and still passes the complete native authority pipeline.
+High-impact operations still create native WePLD effect proposals and traverse normal qualification/Nawat/execution/evidence boundaries.
 
 ```text
 WEBMCP_CALL_TO_WEPLD != DIRECT_NAWAT_GRANT
 ```
 
-## 7. Browser diagnostics adapter
+## 8. Browser diagnostics adapter capability classes
 
-A future DevTools-class adapter should normalize browser inspection/control into UWC capabilities rather than making `chrome-devtools-mcp`, Chrome, Edge, WebView2, Puppeteer, or another implementation the architecture.
-
-Candidate normalized capability classes:
+A future UWC adapter may normalize capability classes such as:
 
 ```text
 BROWSER_OBSERVE_PAGE
@@ -274,16 +244,21 @@ BROWSER_INTERACT
 BROWSER_SUBMIT
 BROWSER_DOWNLOAD
 BROWSER_UPLOAD
+BROWSER_CLIPBOARD_READ
+BROWSER_CLIPBOARD_WRITE
+BROWSER_FILE_CHOOSER
+BROWSER_PERMISSION_PROMPT
+BROWSER_CONTEXT_CREATE_OR_SELECT
 BROWSER_OPEN_DEVTOOLS_TARGET
 ```
 
-Read/observe classes and effectful navigation/interaction/upload/download/submit classes MUST be independently classified.
+Observation, actuation, artifact transfer, and context-control classes remain independently qualified.
 
-## 8. UX
+## 9. UX
 
-The user-facing product should not require protocol knowledge.
+Users should not need protocol knowledge.
 
-Candidate surfaces:
+Canonical planned web surfaces:
 
 ```text
 /web inspect
@@ -292,160 +267,155 @@ Candidate surfaces:
 /web verify <Case>
 ```
 
-`/askme`, `/issues`, `/debug`, `/review`, and `/build` may route into these capabilities automatically when qualified and within the current autonomy ceiling.
+`/askme`, `/issues`, `/debug`, `/review`, `/security`, `/fulltest`, and `/build` may route into web capabilities only when qualified and within the governing autonomy/effect policy.
 
-The default UI should show intent and risk, for example:
+The UI should show intent/risk/context, for example:
 
 ```text
 Web tools discovered: 4
-Read-only candidates: 2
-Effectful candidates: 2
-Current origin: example.com
+Effect classification pending/known
+Current origin/context: exact
 Authenticated session: observed
 No web effect authorized yet
 ```
 
 Protocol/provider detail belongs in expandable evidence.
 
-## 9. Roadmap placement
+## 10. Roadmap placement
 
-### S3 — browser/process containment prerequisite
+### S3
 
-- browser process/session identity;
-- local browser-target discovery seam;
+- browser process/session/context identity;
 - containment/effect envelopes;
-- inert screenshot/page evidence intake;
+- inert screenshot/page/download evidence intake;
+- artifact transfer boundary;
 - no WebMCP invocation authority.
 
-### S4 — browser evidence into Project Brain
+### S4
 
-- page/source identity and freshness;
-- cited browser observations where useful;
-- web evidence provenance;
-- no website tool authority.
+- browser/page/source identity/freshness;
+- cited browser observations;
+- governed browser artifact/RAG provenance;
+- no website-tool authority.
 
-### S5 — workflow integration / dry run
+### S5
 
-- `/web` intent surface and `/askme` routing;
-- WebMCP tool observations against synthetic/local fixtures;
-- tool classification and invocation preview only;
-- prompt-injection/tool-poisoning adversarial corpus;
-- no live effectful browser invocation required.
+- `/web` intent surface and routing;
+- synthetic/local WebMCP observation/classification/preview;
+- prompt-injection/tool-poisoning corpus;
+- no live effect required.
 
-### S6 — browser/UWC interoperability
+### S6
 
 - qualify one browser diagnostics adapter;
-- qualify WebMCP consumer protocol candidate;
-- WebMCP discovery on a controlled local test page;
-- Mirefa/Nawat/Mission Runtime contracts for browser effects;
-- explicit browser session/profile/origin identity.
+- qualify one WebMCP consumer path;
+- controlled local discovery;
+- Mirefa/Nawat/Mission Runtime contracts;
+- exact browser/profile/context/origin identity.
 
-### S7 — assurance
+### S7
 
-- browser-based reproduction/verification evidence;
-- independent UI/web regression review;
-- tool poisoning/output injection findings;
-- exact browser/page/tool generation binding.
+- browser reproduction/verification evidence;
+- web/UI review/security/test evidence;
+- tool poisoning/output-injection findings;
+- exact target/context/tool-generation binding.
 
-### S8 — controlled actuation
+### S8
 
-- bounded authorized WebMCP invocation;
-- controlled navigation/input/submit flows;
-- duplicate/retry/idempotency protection;
-- IssueOps repair-and-verify loop;
-- no provider/browser state automatically establishes Trusted Completion.
+- bounded authorized WebMCP/navigation/input/submit/artifact/context effects;
+- duplicate/retry/unknown-outcome reconciliation;
+- IssueOps repair/verify loop;
+- browser/provider success still not Trusted Completion.
 
-### S9/S10 — evidence and scale
+### S9/S10
 
 - browser evidence timeline/recovery;
 - cross-browser qualification matrix;
-- organization policy for browser profiles/origins/actions;
-- recurring web regression and issue intelligence only after lower slices qualify.
+- organization policies for profiles/origins/effect/artifact classes;
+- recurring web intelligence only after lower-slice qualification.
 
-## 10. First tracer bullets
+## 11. First tracer bullets
 
 ### WEB-TB0 — offline tool semantics
 
 ```text
-local static WebMCP fixture
--> tool discovery observation
--> classify untrusted metadata
--> preview proposed invocation
--> Nawat = no live grant
+local static fixture
+-> canonical WebToolObservation
+-> untrusted metadata classification
+-> invocation preview
+-> no live grant/effect
 -> evidence report
 ```
-
-No network and no browser effect required.
 
 ### WEB-TB1 — controlled local browser discovery
 
 ```text
 controlled local origin
--> qualified browser target
--> discover WebMCP tools
--> detect tool-set generation change
+-> qualified exact browser context
+-> discover tools
+-> detect tool/context generation changes
 -> preserve provenance
--> no effectful tool invocation
+-> zero effectful invocation
 ```
 
-### WEB-TB2 — browser diagnostics for one synthetic IssueOps Case
+### WEB-TB2 — synthetic IssueOps browser reproduction
 
 ```text
 synthetic web Case
--> controlled browser reproduction
--> console/DOM/screenshot evidence
--> diagnosis evidence
--> deterministic local verification
+-> controlled reproduction
+-> DOM/console/screenshot/performance evidence as needed
+-> diagnosis
+-> deterministic verification
 -> no production credentials/provider writes
 ```
 
 ### WEB-TB3 — one bounded WebMCP effect
 
-Only after Source Acquisition, protocol/runtime qualification, browser containment, Nawat integration, and applicable security review:
+Only after owning gates:
 
 ```text
-explicit user intent
--> exact local test-page tool
+explicit intent
+-> exact controlled tool/context
 -> effect preview
+-> Mirefa qualification
 -> exact Nawat grant
 -> invoke once
 -> verify postcondition
--> prove duplicate/retry protection
+-> prove retry/unknown-outcome semantics
 -> evidence
 ```
 
-## 11. Candidate qualification criteria
+A later artifact-transfer tracer bullet should separately prove download -> inert InputArtifact -> quarantine and upload from one exact authorized InputArtifact.
+
+## 12. Qualification criteria
 
 Before live browser/WebMCP activation:
 
-- exact protocol/runtime version is pinned and qualified;
-- current browser support is verified rather than assumed;
-- secure-origin/origin-isolation/permissions behavior is tested where applicable;
-- browser profile/session identity is explicit;
-- cookies/login state never become implicit authority;
-- tool metadata/output is treated as untrusted content;
-- tool generation/origin changes invalidate stale qualification;
-- effect classes are independently derived rather than copied from website hints;
-- prompt injection/tool poisoning/output injection corpus passes structural negative oracles;
-- browser diagnostics and WebMCP tool invocation remain distinct capability paths;
+- exact protocol/runtime/browser identities are pinned and qualified;
+- browser support is verified rather than assumed;
+- browser/profile/session/context/origin identity is explicit;
+- cookies/login/password-manager/autofill/clipboard state never become implicit authority;
+- tool/page/output/download content remains untrusted;
+- tool/context/origin/access changes invalidate stale qualification;
+- effect classes are independently derived;
+- prompt-injection/tool-poisoning/artifact/multi-context corpus passes structural oracles;
+- diagnostics/WebMCP/artifact/context capability paths remain distinct;
 - offline/local failure behavior is defined;
-- provider/browser fallback is explicit and never silent;
-- unsupported protocol/browser states fail closed;
-- final security review is independently qualified for any effectful tranche.
+- no silent browser/provider/profile/context fallback;
+- unsupported states fail closed;
+- effectful tranches receive applicable independent security review.
 
-## 12. Source-acquisition candidates
+## 13. Source-acquisition candidates
 
-Research candidates for later governed acquisition include:
+Research candidates include:
 
 ```text
 WebMCP Community Group specification / webmachinelearning/webmcp
-Chrome WebMCP documentation and implementation/test fixtures
+Chrome WebMCP documentation/implementation/test fixtures
 Chrome DevTools for agents / chrome-devtools-mcp
-Microsoft Edge/WebView2 compatibility guidance for chrome-devtools-mcp
+Microsoft Edge/WebView2 compatibility guidance
 Web Platform Tests for WebMCP
-browser security/tool-poisoning adversarial corpora
+browser security/tool-poisoning/adversarial corpora
 ```
 
-Reuse mode is intentionally undecided. Each source may become a specification oracle, behavior oracle, test/fixture source, protocol adapter candidate, bounded source donor, or rejection after the owning Source Acquisition Check.
-
-No source is admitted by this document.
+Reuse mode remains undecided until owning Source Acquisition. No source is admitted by this document.

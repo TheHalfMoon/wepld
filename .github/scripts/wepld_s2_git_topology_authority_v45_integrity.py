@@ -22,11 +22,21 @@ product candidate must change exactly:
 
 and must be based on the exact frozen S2 frontier. Once that tranche lands, v45
 freezes it until a later authority successor.
+
+Package-load note: v36 reads workflow bytes while its Python module is imported.
+A simple v45->v44 projected import is therefore insufficient across the deep
+v44..v36 successor chain: nested module-load projections can expose the wrong
+resting workflow image to v36 before v45 itself gets control. v45 preloads each
+workflow-reading successor from v36 through v44 under the exact workflow image
+for that version, oldest to newest. This is an import-time fixture/projection
+repair only; repository workflow bytes remain the candidate v45 bytes and all
+runtime/admission checks still bind exact v45/v44 identities.
 """
 
 from __future__ import annotations
 
 import argparse
+import importlib
 import sys
 from typing import Any
 
@@ -50,9 +60,48 @@ _WORKFLOW_ENTRYPOINT_COUNTS = {FW: 3, AW: 2}
 
 raw_root = _v35.root
 
+_PRELOAD_CHAIN: tuple[tuple[str, bytes], ...] = (
+    (
+        "wepld_s2_git_route_governance_v36_integrity",
+        b"wepld_s2_git_route_governance_v36_integrity.py",
+    ),
+    (
+        "wepld_s2_checkpoint_transition_governance_v37_integrity",
+        b"wepld_s2_checkpoint_transition_governance_v37_integrity.py",
+    ),
+    (
+        "wepld_s2_checkpoint_ledger_repair_governance_v38_integrity",
+        b"wepld_s2_checkpoint_ledger_repair_governance_v38_integrity.py",
+    ),
+    (
+        "wepld_s2_checkpoint_ledger_repair_governance_v39_integrity",
+        b"wepld_s2_checkpoint_ledger_repair_governance_v39_integrity.py",
+    ),
+    (
+        "wepld_s2_checkpoint_ledger_repair_governance_v40_integrity",
+        b"wepld_s2_checkpoint_ledger_repair_governance_v40_integrity.py",
+    ),
+    (
+        "wepld_s2_checkpoint_ledger_repair_governance_v41_integrity",
+        b"wepld_s2_checkpoint_ledger_repair_governance_v41_integrity.py",
+    ),
+    (
+        "wepld_s2_checkpoint_ledger_repair_governance_v42_integrity",
+        b"wepld_s2_checkpoint_ledger_repair_governance_v42_integrity.py",
+    ),
+    (
+        "wepld_s2_checkpoint_ledger_repair_governance_v43_integrity",
+        b"wepld_s2_checkpoint_ledger_repair_governance_v43_integrity.py",
+    ),
+    (
+        "wepld_s2_checkpoint_ledger_repair_governance_v44_integrity",
+        _V44_ENTRYPOINT,
+    ),
+)
 
-def _v44_workflow_projection(view: Any) -> dict[str, bytes]:
-    """Reverse only the v45 workflow entrypoint migration to exact v44 bytes."""
+
+def _workflow_projection_to(view: Any, entrypoint: bytes) -> dict[str, bytes]:
+    """Project exact v45 workflow bytes directly to one predecessor entrypoint."""
     replacements: dict[str, bytes] = {}
     for path in (FW, AW):
         data = view.read_bytes(path, base.MAX_POLICY_FILE_BYTES)
@@ -62,18 +111,35 @@ def _v44_workflow_projection(view: Any) -> dict[str, bytes]:
                 "v45 workflow entrypoint count drifted: "
                 f"{path} expected={_WORKFLOW_ENTRYPOINT_COUNTS[path]} actual={count}"
             )
-        replacements[path] = data.replace(_V45_ENTRYPOINT, _V44_ENTRYPOINT)
+        replacements[path] = data.replace(_V45_ENTRYPOINT, entrypoint)
     return replacements
 
 
-# Import v44 under the exact workflow projection it expects. Candidate v45
-# workflows are data; predecessor code must see canonical v44 workflow bytes.
-_ORIGINAL_V35_ROOT = _v35.root
-_v35.root = _v35._ProjectionView(raw_root, _v44_workflow_projection(raw_root))
-try:
-    import wepld_s2_checkpoint_ledger_repair_governance_v44_integrity as p
-finally:
-    _v35.root = _ORIGINAL_V35_ROOT
+def _v44_workflow_projection(view: Any) -> dict[str, bytes]:
+    return _workflow_projection_to(view, _V44_ENTRYPOINT)
+
+
+def _preload_predecessor_chain() -> Any:
+    """Load v36..v44 oldest-first under each version's exact workflow image."""
+    original_root = _v35.root
+    loaded: Any = None
+    try:
+        for module_name, entrypoint in _PRELOAD_CHAIN:
+            _v35.root = _v35._ProjectionView(
+                raw_root,
+                _workflow_projection_to(raw_root, entrypoint),
+            )
+            loaded = importlib.import_module(module_name)
+    finally:
+        _v35.root = original_root
+    if loaded is None:
+        base.fail("v45 predecessor preload produced no v44 module")
+    return loaded
+
+
+# v36 is an import-time workflow reader. Preload the whole workflow-sensitive
+# chain against exact per-version projections before binding v44 as predecessor.
+p = _preload_predecessor_chain()
 
 V25 = p.V25
 P_WF = dict(p.WF)
@@ -334,16 +400,7 @@ def _predecessor_view(view: Any, policy_base: Any) -> tuple[Any, Any]:
 
 
 def run_predecessor_selftests() -> None:
-    original_root = p.root
-    original_raw = p.raw_root
-    projected = _workflow_predecessor_projection(raw_root)
-    p.root = projected
-    p.raw_root = projected
-    try:
-        p.selftest()
-    finally:
-        p.root = original_root
-        p.raw_root = original_raw
+    p.selftest()
 
 
 def _workflow_predecessor_projection(view: Any) -> Any:
@@ -357,7 +414,8 @@ def _require_product_base(view: Any) -> None:
     for path, expected in REQUIRED_PRODUCT_BASE_BLOBS.items():
         if path not in paths:
             base.fail(f"v45 product base frontier missing: {path}")
-        actual = V25.blob(view.read_bytes(path, base.MAX_POLICY_FILE_BYTES if path != ROOT_CARGO_LOCK else 2_000_000))
+        limit = 2_000_000 if path == ROOT_CARGO_LOCK else base.MAX_POLICY_FILE_BYTES
+        actual = V25.blob(view.read_bytes(path, limit))
         if actual != expected:
             base.fail(
                 f"v45 product base frontier drifted: {path}: expected={expected} actual={actual}"
@@ -388,8 +446,8 @@ def _verify_product_candidate(candidate: Any, policy_base: Any) -> None:
     if lib.count(b"pub mod git_topology;") != 1:
         base.fail("v45 Core export must register git_topology exactly once")
     for path in (CORE_MANIFEST, ROOT_CARGO_LOCK, PROJECT_MODULE):
-        candidate_limit = 2_000_000 if path == ROOT_CARGO_LOCK else base.MAX_POLICY_FILE_BYTES
-        if candidate.read_bytes(path, candidate_limit) != policy_base.read_bytes(path, candidate_limit):
+        limit = 2_000_000 if path == ROOT_CARGO_LOCK else base.MAX_POLICY_FILE_BYTES
+        if candidate.read_bytes(path, limit) != policy_base.read_bytes(path, limit):
             base.fail(f"v45 Git-topology tranche must not change frozen frontier path: {path}")
 
 
@@ -497,7 +555,8 @@ def files(view: Any) -> None:
             base.fail("v45 canonical view contains partial Git-topology product tranche")
         for path in sorted(PRODUCT_FILES):
             _verify_text_product_file(view, path)
-        if view.read_bytes(CORE_EXPORT, base.MAX_POLICY_FILE_BYTES).count(b"pub mod git_topology;") != 1:
+        lib = view.read_bytes(CORE_EXPORT, base.MAX_POLICY_FILE_BYTES)
+        if lib.count(b"pub mod git_topology;") != 1:
             base.fail("v45 canonical Core export must register git_topology exactly once")
 
 

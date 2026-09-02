@@ -16,6 +16,7 @@ Slash commands are user-intent surfaces. They normalize intent into WePLD capabi
 /btw
 /issues
 /rag
+/web
 /triage
 /grill
 /architect
@@ -39,6 +40,8 @@ Slash commands are user-intent surfaces. They normalize intent into WePLD capabi
 /workers
 ```
 
+This list is the canonical planned stable-command catalog for Spec 006. Other planning artifacts should reference it rather than maintain incompatible subsets.
+
 ## Command semantics
 
 ### `/askme`
@@ -55,7 +58,20 @@ Entry point for provider-neutral Case operations. Planned subcommands include in
 
 ### `/rag`
 
-Creates/uses/manages named knowledge collections and performs provenance-first retrieval. Source access or refresh that requires filesystem/network effects remains separately governed.
+Creates/uses/manages named knowledge collections and performs provenance-first retrieval. Source access or refresh that requires filesystem/network effects remains separately governed. Derived retrieval/context visibility remains subject to current source access and egress policy.
+
+### `/web`
+
+Entry point for governed browser/WebMCP engineering workflows. Initial planned forms are:
+
+```text
+/web inspect
+/web tools
+/web reproduce <Case>
+/web verify <Case>
+```
+
+Browser/WebMCP discovery, diagnostics, actuation, artifact transfer, clipboard/native-dialog/context effects, network access, credentials, and provider state remain separately classified/qualified/authorized. `/web` never implies browser authority merely because a browser is running or authenticated.
 
 ### `/triage`
 
@@ -145,7 +161,9 @@ Planned forms include:
 /fulltest --adversarial
 ```
 
-The plan may select format/style, compile/build, type checking, lint/static checks, unit, integration, contract/schema, snapshot/golden, property-based, coverage, mutation, fuzz, API/schema-driven, browser/E2E, security regression, platform, formal/model-checking, and performance/regression checks. Omitted classes remain visible with reasons such as `NOT_APPLICABLE`, `NOT_QUALIFIED`, `NOT_AUTHORIZED`, `BUDGET_EXCEEDED`, or `INSUFFICIENT_EVIDENCE_TO_SELECT`.
+The plan may select format/style, compile/build, type checking, lint/static checks, unit, integration, contract/schema, snapshot/golden, property-based, coverage, mutation, fuzz, API/schema-driven, browser/E2E, security regression, platform, formal/model-checking, and performance/regression checks.
+
+Every selected/omitted check has `REQUIRED`, `CONDITIONAL`, or `OPTIONAL` semantics under the exact `AssurancePolicySnapshot`. Omitted classes remain visible with explicit reasons. A required check blocked by budget, authority, availability, unsupported scope, or evidence gap prevents a `SUPPORTED` claim; it is not silently downgraded away.
 
 ### `/prototype`
 
@@ -199,9 +217,10 @@ Shows worker catalog, capability, availability, containment evidence, cost/meter
 - `assurance-fabric.md`
 - `../assurance-fabric-spec-addendum.md`
 - `../assurance-fabric-tasks.md`
+- `../professional-plan-hardening-tasks.md`
 - `../research/native-assurance-source-acquisition-2026-09-02.md`
 
-They share exact target identity, plan construction, engine qualification, Fehrest context, AMAN security evidence where applicable, normalized findings/evidence, coverage/freshness semantics, IDE presentation, and S9 history/passport integration.
+They share exact target identity, versioned policy snapshots, plan construction, engine qualification, Fehrest context, AMAN security evidence where applicable, normalized findings/evidence, typed claim assessment, coverage/freshness semantics, IDE presentation, and S9 history/passport integration.
 
 Controlling invariants include:
 
@@ -210,6 +229,7 @@ ASSURANCE_COMMAND != EFFECT_AUTHORITY
 REVIEW_OUTCOME != COMPLETION_DECISION
 SECURITY_FINDING != WRITE_AUTHORITY
 TEST_PASS != TRUSTED_COMPLETION
+CLAIM_SUPPORTED != TRUSTED_COMPLETION
 NEW_EXACT_HEAD -> PRIOR_ACCEPTANCE_CRITICAL_EVIDENCE_STALE
 ENGINE_ERROR != NO_FINDINGS
 UNKNOWN_REACHABILITY != UNREACHABLE
@@ -218,7 +238,7 @@ FLAKY != CLEAN_PASS
 
 ## Optional aliases
 
-User-friendly aliases such as `/fix <case-or-url>` may later normalize into `/issues` + `/build` workflow intent. An alias must not create a new authority path.
+User-friendly aliases such as `/fix <case-or-url>` may later normalize into `/issues` + `/build` workflow intent. An alias must not create a new authority path and is not part of the stable catalog until separately promoted.
 
 ## Input composition
 
@@ -231,8 +251,8 @@ Commands may consume:
 - provider object URLs/references;
 - explicit worker requests.
 
-All composed inputs preserve source/provenance identity.
+All composed inputs preserve source/provenance/access identity.
 
 ## Error semantics
 
-Unknown, unsupported, stale, unqualified, unauthorized, cost-blocked, coverage-limited, or inconclusive states must be explicit. Commands must not hide these conditions behind automatic fallback or a generic green result.
+Unknown, unsupported, stale, unqualified, unauthorized, cost-blocked, coverage-limited, access-blocked, or inconclusive states must be explicit. Commands must not hide these conditions behind automatic fallback or a generic green result.

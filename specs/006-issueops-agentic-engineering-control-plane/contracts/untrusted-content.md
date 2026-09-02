@@ -9,7 +9,7 @@ MODEL_PROVIDER_EXECUTION_AUTHORITY = NONE
 
 ## Purpose
 
-Define how WePLD consumes issue bodies, PR descriptions, comments, logs, repositories, files, documents, URLs, RAG passages, provider attachments, worker output, and model output without allowing data-plane text to become instruction authority.
+Define how WePLD consumes issue bodies, PR descriptions, comments, logs, repositories, files, documents, URLs, RAG passages, provider attachments, browser content, worker output, and model output without allowing data-plane text to become instruction authority.
 
 This contract is defense-in-depth around the canonical authority model. It does not assume prompt sanitization can make arbitrary content trusted.
 
@@ -37,6 +37,7 @@ QUALIFIED_INTERNAL_EVIDENCE
 EXTERNAL_PROVIDER_CONTENT
 RETRIEVED_EXTERNAL_CONTENT
 REPOSITORY_CONTENT
+BROWSER_CONTENT
 WORKER_OUTPUT
 MODEL_OUTPUT
 UNKNOWN_UNTRUSTED
@@ -46,19 +47,25 @@ Only controlling channels explicitly defined by canonical policy may create cont
 
 ## Context package manifest
 
-Before a worker receives context, the package manifest records at least:
+The canonical `ContextPackage` shape is defined in `../data-model.md`. This contract MUST NOT define a competing manifest schema.
+
+For every included item, the canonical package preserves:
 
 ```text
-context_package_id
-assignment_id
-included_item_refs[]
-source_identity_per_item
-trust_class_per_item
-visibility_scope_per_item
-freshness_or_generation_per_item
+source_identity_by_item
+trust_class_by_item
+visibility_scope_by_item
+access_policy_ref_by_item
+freshness_or_generation_by_item
+```
+
+and package-level:
+
+```text
 redaction_or_exclusion_evidence[]
+policy_snapshot_ref
 egress_class
-constructed_at
+created_at
 ```
 
 The manifest is evidence of what was shown; it does not authorize effects.
@@ -77,7 +84,14 @@ Candidate mechanisms include typed message channels, tagged envelopes, separate 
 
 ## Effect proposal origin
 
-A material effect proposal must reference an explicit `WorkflowIntent`, Assignment, or controlling policy path. If the only provenance for the requested action is an instruction embedded in untrusted content, the effect proposal is invalid.
+A material effect proposal must use the canonical typed origin fields in `EffectProposal`:
+
+```text
+controlling_origin_kind
+controlling_origin_ref
+```
+
+The referenced origin must be an allowed explicit `WorkflowIntent`, Assignment, or controlling policy path. If the only provenance for the requested action is an instruction embedded in untrusted content, the effect proposal is invalid.
 
 Example:
 
@@ -101,9 +115,22 @@ network destinations
 paid providers
 higher-autonomy profiles
 broader filesystem roots
+browser profiles/sessions
 ```
 
 Any such access must be justified by the explicit Assignment/workflow and separately qualified/authorized.
+
+## Access revocation and derived context
+
+Visibility is evaluated at use time, not only when content was first ingested. Source access, collection scope, provider permission, project visibility, redaction, and egress policy propagate to derived retrieval/index/context records.
+
+```text
+SOURCE_ACCESS_REVOKED -> DERIVED_CONTEXT_ELIGIBILITY_REVOKED
+COLLECTION_VISIBILITY_NARROWED -> OLD_BROAD_CONTEXT_STALE
+REDACTED_SOURCE_CONTENT != SAFE_TO_REUSE_FROM_OLD_CONTEXT_CACHE
+```
+
+A durable content hash does not override current authorization to expose the content.
 
 ## Parser / active-content boundary
 
@@ -121,7 +148,7 @@ Review findings are evidence. Text such as "approved", "merge now", or "ignore p
 
 ## Egress boundary
 
-Local ingestion does not imply remote visibility. Before untrusted/local content is sent to a remote worker, model, embedding service, provider, or retrieval service, the owning route must evaluate content classification, destination, minimum necessary payload, policy, cost, and authority.
+Local ingestion does not imply remote visibility. Before untrusted/local content is sent to a remote worker, model, embedding service, provider, reviewer, or retrieval service, the owning route must evaluate content classification, destination, minimum necessary payload, current access policy, redaction, egress policy, cost, and authority.
 
 ## Prompt-injection / malicious-content corpus
 
@@ -141,6 +168,7 @@ instruction hidden in code/log/document metadata
 conflicting instructions across multiple sources
 worker output requesting broader authority
 model output requesting silent fallback
+revoked source retained in old retrieval/context cache
 ```
 
 ## Required negative oracles
@@ -155,8 +183,10 @@ CONTENT_CANNOT_DISABLE_CONTAINMENT_OR_REVIEW
 CONTENT_CANNOT_SELF_MARK_TRUSTED_COMPLETION
 PARSER_CANNOT_EXECUTE_ACTIVE_CONTENT_BY_DEFAULT
 PROMPT_FILTER_BYPASS_STILL_BLOCKED_AT_EFFECT_BOUNDARY
+REVOKED_SOURCE_CANNOT_REMAIN_VISIBLE_THROUGH_DERIVED_CACHE
+OLD_CONTEXT_PACKAGE_CANNOT_BYPASS_CURRENT_ACCESS_POLICY
 ```
 
 ## Acceptance rule
 
-No IssueOps/RAG/delegation tracer bullet may progress from read-only analysis to effect-capable execution until the owning slice has deterministic negative evidence for the relevant untrusted-content classes and proves that a successful prompt-injection attack on model reasoning still cannot bypass the external effect boundary.
+No IssueOps/RAG/delegation/browser tracer bullet may progress from read-only analysis to effect-capable execution until the owning slice has deterministic negative evidence for the relevant untrusted-content classes and proves that a successful prompt-injection attack on model reasoning still cannot bypass the external effect boundary.

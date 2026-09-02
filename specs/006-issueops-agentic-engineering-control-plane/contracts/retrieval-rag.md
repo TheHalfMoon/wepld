@@ -11,6 +11,8 @@ VECTOR_DEPENDENCY_ADMISSION = NONE
 
 Define a universal, provenance-first retrieval boundary for user-selected knowledge without making any retrieval engine, vector database, embedding model, parser, or remote service the Project Brain.
 
+The canonical `KnowledgeCollection`, `KnowledgeSource`, `RetrievalEvidence`, and `ContextPackage` field vocabulary is defined in `../data-model.md`.
+
 ## Collection operations
 
 Planned logical operations:
@@ -48,7 +50,62 @@ documentation_site
 provider_attachment
 ```
 
-The product intent is broad user choice; the implementation must fail closed on unsupported, unsafe, over-limit, or unqualified source classes.
+The product intent is broad user choice; the implementation must fail closed on unsupported, unsafe, over-limit, unauthorized, or unqualified source classes.
+
+## Source access and visibility propagation
+
+Every source and derived projection carries a current access-policy reference. Collection scope is not sufficient by itself.
+
+Access propagation is monotonic toward narrower visibility:
+
+```text
+SOURCE_ACCESS
+  -> SOURCE_GENERATION
+  -> CHUNK/LEXICAL/VECTOR/GRAPH_PROJECTION
+  -> RetrievalEvidence
+  -> ContextPackage
+  -> WORKER/PROVIDER/REVIEWER EGRESS ELIGIBILITY
+```
+
+A derived projection may narrow visibility but MUST NOT broaden it.
+
+```text
+COLLECTION_MEMBERSHIP != VISIBILITY_AUTHORITY
+INDEX_ENTRY_PRESENT != CURRENT_ACCESS_PERMISSION
+CONTENT_HASH_STABLE != ACCESS_STILL_ALLOWED
+```
+
+If source permission is revoked, collection visibility narrows, provider authorization is lost, or content is redacted/tombstoned, affected derived projections become ineligible for new retrieval/context/egress until the current access state is reconciled.
+
+Old historical evidence may retain non-sensitive identity/provenance where policy permits, but protected content cannot remain exposed through stale caches.
+
+## Generation and publication model
+
+Source refresh uses immutable complete generations and atomic publication of the selected current generation.
+
+```text
+SOURCE_GENERATION = IMMUTABLE_COMPLETE_VIEW
+PROJECTION_GENERATION = BOUND_TO_ONE_SOURCE_GENERATION
+ACTIVE_GENERATION_SWITCH = ATOMIC_AFTER_VALIDATION
+```
+
+A query must not silently combine old and new chunks/index rows as if they were one current source generation.
+
+Each derived chunk/projection must retain at least:
+
+```text
+source_id
+source_generation
+projection_kind
+projection_generation
+source_location_or_range?
+content_identity
+parser_or_index_identity
+access_policy_ref
+trust_classification
+```
+
+Removal/redaction produces explicit tombstone/revocation state and must propagate to derived indexes. Deletion of an index row is not sufficient audit evidence by itself.
 
 ## Retrieval signals and minimum-sufficient selection
 
@@ -78,7 +135,7 @@ Baseline rules:
 4. semantic/vector retrieval may be selected early for conceptual/paraphrastic natural-language queries, low lexical recall, vocabulary mismatch, or qualified cross-document similarity tasks;
 5. semantic/vector retrieval is not mandatory merely because the query is natural language;
 6. reranking is optional and must not hide source-level signals/provenance;
-7. freshness filters may exclude or downgrade stale evidence before context packing.
+7. freshness/access filters may exclude or downgrade stale or no-longer-visible evidence before context packing.
 
 No signal is mandatory unless required by the owning slice/task. Exact/lexical/structured retrieval must remain usable without semantic/vector machinery.
 
@@ -93,10 +150,12 @@ natural-language question answered by lexical evidence
 symbol/reference question answered by Fehrest.Maemar facts
 cross-source citation lookup
 stale-source detection
+access-revoked-source exclusion
+atomic-refresh generation transition
 no-answer / abstention case
 ```
 
-For every query the benchmark records whether the system retrieved a source containing the required evidence, whether the citation/location is inspectable, whether stale/conflicting evidence was surfaced, and whether it abstained when qualified evidence was absent.
+For every query the benchmark records whether the system retrieved a source containing the required evidence, whether the citation/location is inspectable, whether stale/conflicting/inaccessible evidence was surfaced, and whether it abstained when qualified evidence was absent.
 
 Semantic/vector machinery is justified only if an owning-slice benchmark shows a material retrieval-quality improvement for identified query classes that cannot be met by query decomposition, lexical, metadata, or Fehrest.Maemar structured signals at acceptable cost/latency/privacy. Exact promotion thresholds are declared **before** the benchmark run under the owning slice; post-hoc threshold selection is not qualification.
 
@@ -120,19 +179,21 @@ A natural-language retrieval result that cites a symbol/call relation must retai
 
 ## Retrieval response
 
-Every material result must include or reference:
+Every material result must include or reference the canonical `RetrievalEvidence` fields, including:
 
 ```text
 source_id
 source_generation
-source_kind
-source_identity
+projection_generation?
+source_kind/source identity via source ref
 exact_location_or_citation?
 freshness_state
 retrieval_signals[]
 rank_or_score_observations[]
-parser_or_index_identity
-retrieved_at
+parser_or_index identity
+access_policy_ref
+trust_classification
+retrieved_at/created_at
 ```
 
 Scores are evidence only:
@@ -146,21 +207,54 @@ CITATION != AUTHORITY
 
 ## Freshness
 
-A source/index generation must make freshness inspectable. Missing, stale, inaccessible, or conflicting source state must be surfaced explicitly. A retrieval path that requires current evidence cannot silently substitute a stale generation.
+A source/index generation must make freshness inspectable. Missing, stale, inaccessible, revoked, tombstoned, or conflicting source state must be surfaced explicitly. A retrieval path that requires current evidence cannot silently substitute a stale generation.
 
 ## Context packaging and untrusted content
 
-Downstream workflows/workers receive bounded `RetrievalEvidence` references or a derived minimum-sufficient context package. The package must preserve citations/provenance and should avoid dumping entire collections when smaller evidence is sufficient.
+Downstream workflows/workers receive bounded `RetrievalEvidence` references or a derived minimum-sufficient canonical `ContextPackage`. The package must preserve citations/provenance/access/trust labels and should avoid dumping entire collections when smaller evidence is sufficient.
 
-Retrieved content remains untrusted data unless its origin is a controlling WePLD/user policy channel. Embedded instructions, tool requests, fake policy text, or workflow commands inside sources do not become `WorkflowIntent` and cannot expand worker access/effects. Context-package manifests must preserve source/trust labels so the effect boundary can distinguish evidence from instruction authority.
+Retrieved content remains untrusted data unless its origin is a controlling WePLD/user policy channel. Embedded instructions, tool requests, fake policy text, or workflow commands inside sources do not become `WorkflowIntent` and cannot expand worker access/effects.
+
+Context eligibility is rechecked at package use/egress time. A package built before access revocation is stale for future transmission.
+
+## Remote URL/documentation source boundary
+
+`url` and `documentation_site` are source kinds, not implicit network grants. Before live remote ingestion is authorized, the owning network/source gate must define and test at least:
+
+```text
+exact requested URL/origin scope
+scheme allowlist
+redirect count and redirect-origin policy
+DNS resolution and rebinding handling
+loopback/link-local/private/metadata-service address policy
+proxy policy
+credential/header forwarding policy
+cookie/auth isolation
+response size/time/content-type bounds
+archive/decompression/parser bounds
+TLS/certificate policy where applicable
+robots/legal/product policy where applicable
+cache/freshness identity
+```
+
+The fetcher must fail closed on redirects or resolution changes that leave the authorized target scope.
+
+```text
+URL_TEXT_PRESENT != NETWORK_AUTHORITY
+REDIRECT_TARGET != AUTHORIZED_TARGET
+PUBLIC_HOSTNAME != PUBLIC_IP_PROVEN
+AUTH_HEADER_FOR_SOURCE_A != AUTHORIZED_FOR_REDIRECT_B
+```
 
 ## Privacy / egress
 
 Adding content to a local collection does not authorize sending it to a remote embedding/model/retrieval provider. External egress remains independently classified, screened, qualified, and authorized under canonical policy.
 
+Derived embeddings/index rows are also governed content and inherit current access/handling policy; they are not automatically safe to export merely because they are not plain text.
+
 ## Vector/embedding seam
 
-Semantic/vector retrieval is optional. Before activation the owning slice must prove incremental value, perform Source Acquisition, define model/index privacy and determinism limits, qualify local/offline behavior where required, and preserve an exit path back to non-vector retrieval.
+Semantic/vector retrieval is optional. Before activation the owning slice must prove incremental value, perform Source Acquisition, define model/index privacy and determinism limits, qualify local/offline behavior where required, preserve source/access/generation provenance, and preserve an exit path back to non-vector retrieval.
 
 ## RAG + delegation
 
@@ -176,4 +270,12 @@ VECTOR_SIGNAL_CANNOT_OVERRIDE_EXACT_SOURCE_CONFLICT
 RAG_INSTRUCTION_TEXT_CANNOT_CREATE_WORKFLOW_INTENT_OR_EFFECT
 REMOTE_EMBEDDING_NOT_USED_WITHOUT_EGRESS_AUTHORITY
 NO_QUALIFIED_EVIDENCE_RETURNS_ABSTENTION_NOT_CONFIDENT_NOISE
+SOURCE_ACCESS_REVOCATION_EXCLUDES_DERIVED_RETRIEVAL
+OLD_CONTEXT_PACKAGE_CANNOT_BYPASS_CURRENT_ACCESS_POLICY
+MIXED_REFRESH_GENERATIONS_CANNOT_MASQUERADE_AS_CURRENT
+TOMBSTONED_SOURCE_CONTENT_CANNOT_SURVIVE_IN_SEARCHABLE_CACHE
+REMOTE_URL_CANNOT_REACH_UNAUTHORIZED_PRIVATE_TARGET
+REDIRECT_CANNOT_ESCAPE_AUTHORIZED_ORIGIN_SCOPE
+DNS_REBINDING_CANNOT_EXPAND_TARGET_SCOPE
+SOURCE_CREDENTIALS_CANNOT_LEAK_TO_REDIRECTED_OR_UNRELATED_TARGET
 ```

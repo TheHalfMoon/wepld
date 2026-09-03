@@ -31,7 +31,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python .github/scripts/wepld_s2_doctor_cli_authority_v49_integrity.py selftest
+          python .github/scripts/wepld_s2_v49_doctor_cli_selftest_projection_repair_v50_integrity.py selftest
 
       - name: Inspect candidate Git objects as data only
         shell: bash
@@ -42,4 +42,4 @@ jobs:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
-          python .github/scripts/wepld_s2_doctor_cli_authority_v49_integrity.py verify-remote             --repository "$CANDIDATE_REPOSITORY"             --sha "$CANDIDATE_SHA"             --policy-root .             --pr-base-sha "$PR_BASE_SHA"
+          python .github/scripts/wepld_s2_v49_doctor_cli_selftest_projection_repair_v50_integrity.py verify-remote             --repository "$CANDIDATE_REPOSITORY"             --sha "$CANDIDATE_SHA"             --policy-root .             --pr-base-sha "$PR_BASE_SHA"

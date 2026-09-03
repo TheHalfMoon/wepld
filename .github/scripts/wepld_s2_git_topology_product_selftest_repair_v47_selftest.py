@@ -134,7 +134,7 @@ def _check_inventory_is_not_desynced() -> None:
     read_bytes_sentinel = base.LocalRepositoryView.read_bytes
     probe_path = ".github/scripts/wepld_integrity.py"
     omitted = frozenset({probe_path})
-    root = base.LocalRepositoryView(str(p.Path(__file__).resolve().parents[2]))
+    root = p.raw_root
 
     observations: dict[str, Any] = {}
 

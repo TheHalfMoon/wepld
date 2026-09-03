@@ -37,7 +37,7 @@ import wepld_integrity as base
 
 P = ".github/scripts/wepld_s2_git_topology_product_selftest_repair_v47_integrity.py"
 T = ".github/scripts/wepld_s2_git_topology_product_selftest_repair_v47_selftest.py"
-T_BLOB = "85b2c56a0653aee8b288238e7ed251fbea2c33b8"
+T_BLOB = "0508165f3baef0953f940feb4ed7f340e0d90b88"
 
 V46_P_BLOB = "6362667fb13e9e783f859eb5f133dab2e829b0c9"
 V46_T_BLOB = "6ee7cd6f9ef8862d38a0ced5d2a163053284b72c"

@@ -36,9 +36,8 @@ const GIT_GLOBAL_FLAGS: [&str; 3] = ["--no-pager", "--no-optional-locks", "--no-
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GitVersionEvidence {
-    /// v45 does not authorize a semantic-version command such as `git --version`.
-    /// The adapter therefore records executable filesystem identity but does not
-    /// execute an extra argv family merely to obtain a version string.
+    /// v45 does not authorize a semantic-version argv family such as
+    /// `git --version`. Do not widen authority merely to obtain a version string.
     NotObservedUnderCurrentAuthority,
 }
 
@@ -96,10 +95,10 @@ impl fmt::Display for GitTopologyError {
             Self::SearchPathUnavailable => write!(formatter, "system executable search path is unavailable"),
             Self::UnsafeSearchPathEntry => write!(formatter, "system executable search path contains a relative entry"),
             Self::ExecutableUnavailable => write!(formatter, "qualified system Git executable is unavailable"),
-            Self::ExecutableCandidateInvalid => write!(formatter, "first discovered Git executable candidate is not a qualified executable"),
-            Self::ExecutableInsideOpenedProject => write!(formatter, "Git executable candidate resolves inside the opened project"),
-            Self::ExecutableInsideEvidenceRoot => write!(formatter, "Git executable candidate resolves inside the WePLD evidence root"),
-            Self::BoundaryPathUnavailable => write!(formatter, "project/evidence boundary could not be resolved for executable qualification"),
+            Self::ExecutableCandidateInvalid => write!(formatter, "first discovered Git executable candidate is not qualified"),
+            Self::ExecutableInsideOpenedProject => write!(formatter, "Git executable resolves inside the opened project"),
+            Self::ExecutableInsideEvidenceRoot => write!(formatter, "Git executable resolves inside the WePLD evidence root"),
+            Self::BoundaryPathUnavailable => write!(formatter, "project/evidence boundary cannot be resolved for executable qualification"),
             Self::NotGitRepository => write!(formatter, "path is not inside a Git repository"),
             Self::UntrustedRepositoryRefusedByGit => write!(formatter, "Git refused repository access at its protected trust boundary"),
             Self::UnsupportedGitCapability => write!(formatter, "installed Git lacks a required closed topology capability"),
@@ -260,8 +259,7 @@ where
 }
 
 fn environment_key_is_removed(key: &OsStr) -> bool {
-    let key = key.to_string_lossy();
-    let upper = key.to_ascii_uppercase();
+    let upper = key.to_string_lossy().to_ascii_uppercase();
     upper.starts_with("GIT_")
         || upper == "LC_ALL"
         || upper == "LANG"
@@ -297,20 +295,18 @@ where
     let is_inside_worktree = rev_parse_bool(git, locator, RevParseQuery::IsInsideWorktree, cancelled)?;
     let absolute_git_dir = rev_parse_path(git, locator, RevParseQuery::AbsoluteGitDir, cancelled)?;
     let git_common_dir = rev_parse_path(git, locator, RevParseQuery::GitCommonDir, cancelled)?;
+
     let worktree_root = if is_bare {
         Observation::Unavailable {
             error: ObservationErrorClass::NotApplicable,
         }
     } else {
+        let path = rev_parse_path(git, locator, RevParseQuery::WorktreeRoot, cancelled)?;
         Observation::Available {
-            value: machine_path_from_path(&rev_parse_path(
-                git,
-                locator,
-                RevParseQuery::WorktreeRoot,
-                cancelled,
-            )?)?,
+            value: machine_path_from_path(&path)?,
         }
     };
+
     let superproject_bytes = run_rev_parse(git, locator, RevParseQuery::SuperprojectWorktree, cancelled)?;
     let superproject_worktree = if superproject_bytes.is_empty() {
         OptionalObservation::None
@@ -353,18 +349,21 @@ where
     Ok(topology)
 }
 
-fn refused_topology() -> RepositoryTopology {
-    let unavailable = || Observation::Unavailable {
+fn unavailable_trust<T>() -> Observation<T> {
+    Observation::Unavailable {
         error: ObservationErrorClass::TrustRefused,
-    };
+    }
+}
+
+fn refused_topology() -> RepositoryTopology {
     RepositoryTopology {
         schema_version: ProjectContractVersion::V1,
         vcs_kind: VcsKind::Git,
-        worktree_root: unavailable(),
-        absolute_git_dir: unavailable(),
-        git_common_dir: unavailable(),
-        is_bare: unavailable(),
-        is_inside_worktree: unavailable(),
+        worktree_root: unavailable_trust(),
+        absolute_git_dir: unavailable_trust(),
+        git_common_dir: unavailable_trust(),
+        is_bare: unavailable_trust(),
+        is_inside_worktree: unavailable_trust(),
         superproject_worktree: OptionalObservation::Unavailable {
             error: ObservationErrorClass::TrustRefused,
         },
@@ -447,8 +446,8 @@ where
     let mut args = Vec::with_capacity(1 + query.argv().len());
     args.push(OsString::from("rev-parse"));
     args.extend(query.argv().iter().map(OsString::from));
-    let output = run_git(git, locator, &args, cancelled)?;
-    ensure_success(output)
+    let output = ensure_success(run_git(git, locator, &args, cancelled)?)?;
+    strip_terminal_line_ending(output)
 }
 
 fn run_worktree_list<F>(
@@ -465,13 +464,12 @@ where
         OsString::from("--porcelain"),
         OsString::from("-z"),
     ];
-    let output = run_git(git, locator, &args, cancelled)?;
-    ensure_success(output)
+    ensure_success(run_git(git, locator, &args, cancelled)?)
 }
 
 fn ensure_success(output: GitRunOutput) -> Result<Vec<u8>, GitTopologyError> {
     if output.status.success() {
-        return strip_terminal_line_ending(output.stdout);
+        return Ok(output.stdout);
     }
     Err(classify_git_failure(&output.stderr, output.status.code()))
 }
@@ -558,6 +556,10 @@ where
 
     let stdout = join_reader(stdout_reader)?;
     let stderr = join_reader(stderr_reader)?;
+    let overflow_bits = overflow.load(Ordering::Acquire);
+    if forced.is_none() && overflow_bits != 0 {
+        forced = Some(ForcedTermination::OutputOverflow(overflow_bits));
+    }
 
     match forced {
         Some(ForcedTermination::Timeout) => return Err(GitTopologyError::GitTimeout),
@@ -697,29 +699,19 @@ pub fn validate_worktree_porcelain_z(output: &[u8]) -> Result<usize, GitTopology
 
     let mut record_count = 0usize;
     let mut has_worktree_path = false;
-    let mut saw_any_attribute = false;
+    let mut saw_attribute = false;
 
     for field in output.split(|byte| *byte == 0) {
         if field.is_empty() {
-            if saw_any_attribute {
-                if !has_worktree_path {
-                    return Err(GitTopologyError::GitOutputMalformed {
-                        field: "worktree record without worktree path",
-                    });
-                }
-                record_count += 1;
-                if record_count > MAX_WORKTREE_RECORDS {
-                    return Err(GitTopologyError::GitOutputMalformed {
-                        field: "too many worktree records",
-                    });
-                }
+            if saw_attribute {
+                finish_worktree_record(has_worktree_path, &mut record_count)?;
                 has_worktree_path = false;
-                saw_any_attribute = false;
+                saw_attribute = false;
             }
             continue;
         }
 
-        saw_any_attribute = true;
+        saw_attribute = true;
         if let Some(path_bytes) = field.strip_prefix(b"worktree ") {
             if has_worktree_path {
                 return Err(GitTopologyError::GitOutputMalformed {
@@ -738,10 +730,9 @@ pub fn validate_worktree_porcelain_z(output: &[u8]) -> Result<usize, GitTopology
             }
             continue;
         }
-        if field == b"bare" || field == b"detached" {
-            continue;
-        }
-        if field.starts_with(b"branch ")
+        if field == b"bare"
+            || field == b"detached"
+            || field.starts_with(b"branch ")
             || field == b"locked"
             || field.starts_with(b"locked ")
             || field == b"prunable"
@@ -749,35 +740,41 @@ pub fn validate_worktree_porcelain_z(output: &[u8]) -> Result<usize, GitTopology
         {
             continue;
         }
-        // Porcelain output is a machine interface. Unknown future attributes are
-        // tolerated but not persisted; the record remains bounded by stdout and
-        // record-count limits, avoiding silent reinterpretation as a known field.
+        // Unknown future porcelain attributes remain bounded and are ignored;
+        // they are never reinterpreted as a known field or persisted as prose.
     }
 
-    if saw_any_attribute {
-        if !has_worktree_path {
-            return Err(GitTopologyError::GitOutputMalformed {
-                field: "final worktree record without worktree path",
-            });
-        }
-        record_count += 1;
+    if saw_attribute {
+        finish_worktree_record(has_worktree_path, &mut record_count)?;
     }
-
     if record_count == 0 {
         return Err(GitTopologyError::GitOutputMalformed {
             field: "empty worktree record set",
         });
     }
-    if record_count > MAX_WORKTREE_RECORDS {
+    Ok(record_count)
+}
+
+fn finish_worktree_record(
+    has_worktree_path: bool,
+    record_count: &mut usize,
+) -> Result<(), GitTopologyError> {
+    if !has_worktree_path {
+        return Err(GitTopologyError::GitOutputMalformed {
+            field: "worktree record without worktree path",
+        });
+    }
+    *record_count += 1;
+    if *record_count > MAX_WORKTREE_RECORDS {
         return Err(GitTopologyError::GitOutputMalformed {
             field: "too many worktree records",
         });
     }
-    Ok(record_count)
+    Ok(())
 }
 
 fn valid_object_id(value: &[u8]) -> bool {
-    matches!(value.len(), 40 | 64) && value.iter().all(u8::is_ascii_hexdigit)
+    matches!(value.len(), 40 | 64) && value.iter().all(|byte| byte.is_ascii_hexdigit())
 }
 
 fn classify_git_failure(stderr: &[u8], code: Option<i32>) -> GitTopologyError {
@@ -826,7 +823,7 @@ mod tests {
     }
 
     #[test]
-    fn bounded_reader_stops_at_exact_limit_and_signals_overflow() {
+    fn bounded_reader_stops_at_limit_and_signals_overflow() {
         let overflow = Arc::new(AtomicU8::new(0));
         let reader = spawn_bounded_reader(
             Cursor::new(vec![b'x'; 33]),
@@ -840,7 +837,7 @@ mod tests {
     }
 
     #[test]
-    fn failure_classifier_never_requires_persisting_raw_stderr() {
+    fn failure_classifier_maps_only_safe_closed_classes() {
         assert_eq!(
             classify_git_failure(b"fatal: not a git repository (or any parent)", Some(128)),
             GitTopologyError::NotGitRepository
@@ -859,7 +856,7 @@ mod tests {
     }
 
     #[test]
-    fn worktree_porcelain_parser_requires_absolute_machine_paths_and_valid_head() {
+    fn worktree_porcelain_parser_requires_absolute_paths_and_valid_head() {
         #[cfg(windows)]
         let output = b"worktree C:\\repo\0HEAD 0123456789012345678901234567890123456789\0branch refs/heads/main\0\0";
         #[cfg(not(windows))]

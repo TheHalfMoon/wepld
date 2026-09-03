@@ -209,6 +209,22 @@ def _project_for_v45(view: Any) -> Any:
     return _ProjectionView(view, _workflow_replacements(view), POLICY_FILES)
 
 
+def _v45_views(candidate: Any, policy_base: Any) -> tuple[Any, Any]:
+    """Project the candidate to v45's view always; project the policy base only
+    when it is a real post-v46 base.
+
+    A pre-v46 (bootstrap) policy base predates the v45->v46 workflow entrypoint
+    migration and does not carry v46's policy files, so ``_project_for_v45``
+    cannot reverse a migration that is not there. It must reach v45's frozen
+    hooks unprojected, exactly as v45's own ``_predecessor_view`` passes a
+    pre-v45 bootstrap base straight through.
+    """
+    projected_candidate = _project_for_v45(candidate)
+    if bootbase(policy_base):
+        return projected_candidate, policy_base
+    return projected_candidate, _project_for_v45(policy_base)
+
+
 def _boot_base_for_selftest() -> Any:
     return _project_for_v45(raw_root)
 
@@ -393,7 +409,8 @@ def ext(candidate: Any, policy_base: Any, safe: Any) -> None:
             base.fail(f"v46 steady-state controlled file drifted: {path}")
     rest = frozenset(safe_paths - CONTROLLED_FILES)
     if rest:
-        q.ext(_project_for_v45(candidate), _project_for_v45(policy_base), rest)
+        projected_candidate, projected_base = _v45_views(candidate, policy_base)
+        q.ext(projected_candidate, projected_base, rest)
 
 
 def dext(candidate: Any, policy_base: Any) -> None:
@@ -445,11 +462,12 @@ def verify_component_base(
 def freeze_s1_007_state(candidate: Any, policy_base: Any) -> None:
     if _PREDECESSOR_FREEZE_S1 is None:
         base.fail("v46 predecessor S1 freeze hook unavailable")
+    projected_candidate, projected_base = _v45_views(candidate, policy_base)
     _call(
         "v46 predecessor S1 state freeze",
         _PREDECESSOR_FREEZE_S1,
-        _project_for_v45(candidate),
-        _project_for_v45(policy_base),
+        projected_candidate,
+        projected_base,
     )
 
 

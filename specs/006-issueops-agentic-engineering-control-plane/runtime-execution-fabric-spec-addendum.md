@@ -121,3 +121,76 @@ RUNNER_RECONNECTED != EFFECT_RECONCILED
 Durable evidence SHOULD record credential-capability identities, policy/target scope, broker/use receipts, environment policy identity, containment posture, and runtime lineage without persisting reusable secret values or raw ambient environment content.
 
 Security investigations requiring protected secret-derived identity evidence must use a separately qualified handling policy.
+
+## FR-057 — Authenticated host enrollment
+
+A host MUST NOT become trusted execution infrastructure solely by presenting a self-asserted host identifier or connecting to a server endpoint.
+
+Future distributed-host execution MUST bind an authenticated principal/installation identity, transport-security identity, enrollment decision, and current revocation/expiry state sufficient for route qualification.
+
+```text
+HOST_ID_CLAIM != AUTHENTICATED_HOST
+AUTHENTICATED_HOST != QUALIFIED_RUNNER
+```
+
+## FR-058 — Runner ownership lease / fencing
+
+When runners are distributed or restartable, effectful execution MUST use a lease/epoch/fencing mechanism sufficient to prevent a stale runner process from continuing acceptance-critical effects after ownership changes.
+
+```text
+STALE_FENCING_TOKEN -> EFFECT_REFUSED
+RUNNER_RUNTIME_REPLACED -> NEW_OWNER_EPOCH
+```
+
+The exact lease technology is deferred; split-brain prevention is not.
+
+## FR-059 — Runtime event identity and causal replay
+
+Runtime events crossing server/host/runner boundaries MUST have stable event identity and sufficient producer/runtime/Attempt/causal/dedupe information to handle duplicate delivery, reconnect replay, and out-of-order arrival deterministically.
+
+```text
+MESSAGE_ARRIVAL_ORDER != CAUSAL_ORDER
+DUPLICATE_DELIVERY != SECOND_EFFECT
+REPLAYED_EVENT != NEW_AUTHORITY
+```
+
+Conflicting/impossible event histories MUST surface as explicit recovery/evidence conflict rather than generic latest-write-wins state.
+
+## FR-060 — Exact harness execution identity
+
+Acceptance-critical Attempts MUST record the actual harness/adapter executable or runtime identity used, including material artifact/config/protocol/capability-handshake identity where applicable.
+
+A `WorkerDescriptor` version label or executable discovered on PATH is insufficient by itself.
+
+Silent harness auto-update/replacement MUST stale prior qualification when material.
+
+## FR-061 — Behavior policy trust boundary
+
+A future behavior-policy layer for cost/workflow/safety/model/session constraints MUST remain an additional narrowing/approval layer, not a second effect-authority system.
+
+```text
+BEHAVIOR_POLICY_NO_OBJECTION != NAWAT_GRANT
+BEHAVIOR_POLICY_DENY MAY_BLOCK
+```
+
+Mandatory pre-effect policies fail closed when unavailable.
+
+Untrusted repository/agent/downloaded executable policy modules MUST NOT auto-load as trusted policy. Executable policy mechanisms require appropriate source/dependency/runtime/security qualification.
+
+A lower-trust session/agent policy MUST NOT weaken stronger server/project restrictions.
+
+## FR-062 — Runtime resource admission
+
+When an Assignment/route requires bounded CPU/memory/disk/process/concurrency guarantees, Mission Runtime MUST distinguish route qualification from actual resource admission/reservation at start time.
+
+```text
+RESOURCE_REQUIREMENT_NOT_ADMITTED -> ATTEMPT_NOT_STARTED
+```
+
+Resource exhaustion MUST remain distinguishable from provider/model/tool failure.
+
+## FR-063 — Runtime protocol/version compatibility
+
+Server, host, runner, harness adapter/dialect, and native bridge capabilities MUST negotiate or observe compatible contract versions before privileged/effectful use.
+
+Unknown required versions or material schema mismatches fail closed rather than silently downgrading effectful semantics.

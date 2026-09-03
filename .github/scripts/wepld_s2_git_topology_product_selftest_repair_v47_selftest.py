@@ -40,7 +40,12 @@ class OverlayView:
         return self.read_bytes(path, limit).decode("utf-8", errors="strict")
 
     def entries(self) -> Any:
-        return [entry for entry in self._view.entries() if entry.path not in self._omitted]
+        result = [entry for entry in self._view.entries() if entry.path not in self._omitted]
+        known = {entry.path for entry in result}
+        for path in self._replacements:
+            if path not in known and path not in self._omitted:
+                result.append(base.TrackedEntry(mode="100644", path=path))
+        return result
 
     def tree_identity(self, path: str) -> Any:
         return (self._instance_id, path)

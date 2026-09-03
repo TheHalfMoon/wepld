@@ -55,11 +55,11 @@ fn current_checkout_is_observed_through_the_closed_read_only_adapter() {
     let index_before = read_if_file(&root.join(".git").join("index"));
 
     let git = discover_system_git(&root, &evidence_root).expect("system Git must qualify on CI");
-    assert!(git.lexical_path.is_absolute());
-    assert!(git.resolved_path.is_absolute());
-    assert!(git.file_len > 0);
+    assert!(git.lexical_path().is_absolute());
+    assert!(git.resolved_path().is_absolute());
+    assert!(git.file_len() > 0);
     assert_eq!(
-        git.version_evidence,
+        git.version_evidence(),
         GitVersionEvidence::NotObservedUnderCurrentAuthority
     );
 
@@ -163,4 +163,9 @@ fn malformed_worktree_machine_output_fails_closed() {
             .is_err()
     );
     assert!(validate_worktree_porcelain_z(b"worktree /repo\0HEAD bad\0\0").is_err());
+    assert!(
+        validate_worktree_porcelain_z(b"worktree /repo\0detached\0\0worktree /repo\0detached\0\0")
+            .is_err(),
+        "a worktree path repeated across records is malformed"
+    );
 }

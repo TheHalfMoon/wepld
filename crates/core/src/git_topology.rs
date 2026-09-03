@@ -41,13 +41,60 @@ pub enum GitVersionEvidence {
     NotObservedUnderCurrentAuthority,
 }
 
+/// An opaque proof that one absolute system Git executable passed the closed
+/// discovery contract (`discover_system_git` / `qualify_git_executable`): PATH
+/// entries only, first qualified match with no silent fallback, symlink
+/// resolution, regular-executable check, and refusal of a candidate resolving
+/// inside the opened project or the WePLD evidence root.
+///
+/// The fields are private and there is no public constructor, so a caller
+/// cannot forge one to hand `observe_git_topology` an unqualified path:
+///
+/// ```compile_fail
+/// use std::path::PathBuf;
+/// use wepld_core::git_topology::QualifiedGitExecutable;
+/// let _forged = QualifiedGitExecutable {
+///     resolved_path: PathBuf::from("/tmp/attacker/git"),
+/// };
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QualifiedGitExecutable {
-    pub lexical_path: PathBuf,
-    pub resolved_path: PathBuf,
-    pub file_len: u64,
-    pub modified_at: Option<SystemTime>,
-    pub version_evidence: GitVersionEvidence,
+    lexical_path: PathBuf,
+    resolved_path: PathBuf,
+    file_len: u64,
+    modified_at: Option<SystemTime>,
+    version_evidence: GitVersionEvidence,
+}
+
+impl QualifiedGitExecutable {
+    /// The PATH entry joined with the platform Git filename, before symlink
+    /// resolution.
+    pub fn lexical_path(&self) -> &Path {
+        &self.lexical_path
+    }
+
+    /// The canonicalized (symlink-resolved) absolute executable path actually
+    /// spawned.
+    pub fn resolved_path(&self) -> &Path {
+        &self.resolved_path
+    }
+
+    /// Byte length of the resolved executable at qualification time.
+    pub fn file_len(&self) -> u64 {
+        self.file_len
+    }
+
+    /// Modification time of the resolved executable at qualification time, when
+    /// the platform reports one.
+    pub fn modified_at(&self) -> Option<SystemTime> {
+        self.modified_at
+    }
+
+    /// Always [`GitVersionEvidence::NotObservedUnderCurrentAuthority`]; v45 does
+    /// not authorize a `git --version` argv family.
+    pub fn version_evidence(&self) -> GitVersionEvidence {
+        self.version_evidence
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -746,6 +793,11 @@ pub fn validate_worktree_porcelain_z(output: &[u8]) -> Result<usize, GitTopology
     let mut record_count = 0usize;
     let mut has_worktree_path = false;
     let mut saw_attribute = false;
+    // Every validated worktree path for the whole parse. `git worktree list`
+    // never repeats a path; a repeat - within one record or across records -
+    // is malformed. Bounded: at most one insert per record, and the record
+    // count is capped at MAX_WORKTREE_RECORDS.
+    let mut seen_paths: std::collections::BTreeSet<Vec<u8>> = std::collections::BTreeSet::new();
 
     for field in output.split(|byte| *byte == 0) {
         if field.is_empty() {
@@ -765,6 +817,11 @@ pub fn validate_worktree_porcelain_z(output: &[u8]) -> Result<usize, GitTopology
                 });
             }
             absolute_path_from_git_bytes(path_bytes, "worktree path")?;
+            if !seen_paths.insert(path_bytes.to_vec()) {
+                return Err(GitTopologyError::GitOutputMalformed {
+                    field: "repeated worktree path across records",
+                });
+            }
             has_worktree_path = true;
             continue;
         }
@@ -928,5 +985,25 @@ mod tests {
         assert_eq!(validate_worktree_porcelain_z(output), Ok(1));
         assert!(validate_worktree_porcelain_z(b"worktree relative\0\0").is_err());
         assert!(validate_worktree_porcelain_z(b"worktree /repo\0HEAD nope\0\0").is_err());
+    }
+
+    #[test]
+    fn worktree_porcelain_parser_rejects_a_path_repeated_across_records() {
+        #[cfg(windows)]
+        let twice = b"worktree C:\\repo\0detached\0\0worktree C:\\repo\0detached\0\0".as_slice();
+        #[cfg(not(windows))]
+        let twice = b"worktree /repo\0detached\0\0worktree /repo\0detached\0\0".as_slice();
+        assert_eq!(
+            validate_worktree_porcelain_z(twice),
+            Err(GitTopologyError::GitOutputMalformed {
+                field: "repeated worktree path across records",
+            })
+        );
+
+        #[cfg(windows)]
+        let distinct = b"worktree C:\\a\0detached\0\0worktree C:\\b\0detached\0\0".as_slice();
+        #[cfg(not(windows))]
+        let distinct = b"worktree /a\0detached\0\0worktree /b\0detached\0\0".as_slice();
+        assert_eq!(validate_worktree_porcelain_z(distinct), Ok(2));
     }
 }

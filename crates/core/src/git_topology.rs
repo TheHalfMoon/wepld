@@ -92,25 +92,69 @@ pub enum GitTopologyError {
 impl fmt::Display for GitTopologyError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::SearchPathUnavailable => write!(formatter, "system executable search path is unavailable"),
-            Self::UnsafeSearchPathEntry => write!(formatter, "system executable search path contains a relative entry"),
-            Self::ExecutableUnavailable => write!(formatter, "qualified system Git executable is unavailable"),
-            Self::ExecutableCandidateInvalid => write!(formatter, "first discovered Git executable candidate is not qualified"),
-            Self::ExecutableInsideOpenedProject => write!(formatter, "Git executable resolves inside the opened project"),
-            Self::ExecutableInsideEvidenceRoot => write!(formatter, "Git executable resolves inside the WePLD evidence root"),
-            Self::BoundaryPathUnavailable => write!(formatter, "project/evidence boundary cannot be resolved for executable qualification"),
+            Self::SearchPathUnavailable => {
+                write!(formatter, "system executable search path is unavailable")
+            }
+            Self::UnsafeSearchPathEntry => write!(
+                formatter,
+                "system executable search path contains a relative entry"
+            ),
+            Self::ExecutableUnavailable => {
+                write!(formatter, "qualified system Git executable is unavailable")
+            }
+            Self::ExecutableCandidateInvalid => write!(
+                formatter,
+                "first discovered Git executable candidate is not qualified"
+            ),
+            Self::ExecutableInsideOpenedProject => write!(
+                formatter,
+                "Git executable resolves inside the opened project"
+            ),
+            Self::ExecutableInsideEvidenceRoot => write!(
+                formatter,
+                "Git executable resolves inside the WePLD evidence root"
+            ),
+            Self::BoundaryPathUnavailable => write!(
+                formatter,
+                "project/evidence boundary cannot be resolved for executable qualification"
+            ),
             Self::NotGitRepository => write!(formatter, "path is not inside a Git repository"),
-            Self::UntrustedRepositoryRefusedByGit => write!(formatter, "Git refused repository access at its protected trust boundary"),
-            Self::UnsupportedGitCapability => write!(formatter, "installed Git lacks a required closed topology capability"),
-            Self::GitTimeout => write!(formatter, "Git topology observation exceeded the hard timeout"),
+            Self::UntrustedRepositoryRefusedByGit => write!(
+                formatter,
+                "Git refused repository access at its protected trust boundary"
+            ),
+            Self::UnsupportedGitCapability => write!(
+                formatter,
+                "installed Git lacks a required closed topology capability"
+            ),
+            Self::GitTimeout => write!(
+                formatter,
+                "Git topology observation exceeded the hard timeout"
+            ),
             Self::GitCancelled => write!(formatter, "Git topology observation was cancelled"),
-            Self::GitOutputTooLarge { stream, max_bytes } => write!(formatter, "Git {stream:?} exceeded the {max_bytes}-byte capture bound"),
-            Self::GitOutputMalformed { field } => write!(formatter, "Git topology output is malformed: {field}"),
-            Self::GitProcessFailed { code } => write!(formatter, "Git topology process failed with exit code {code:?}"),
-            Self::ChangedUnderObservation => write!(formatter, "Git topology changed during one bounded observation"),
-            Self::Io { operation, kind } => write!(formatter, "Git topology I/O failure during {operation}: {kind:?}"),
+            Self::GitOutputTooLarge { stream, max_bytes } => write!(
+                formatter,
+                "Git {stream:?} exceeded the {max_bytes}-byte capture bound"
+            ),
+            Self::GitOutputMalformed { field } => {
+                write!(formatter, "Git topology output is malformed: {field}")
+            }
+            Self::GitProcessFailed { code } => write!(
+                formatter,
+                "Git topology process failed with exit code {code:?}"
+            ),
+            Self::ChangedUnderObservation => write!(
+                formatter,
+                "Git topology changed during one bounded observation"
+            ),
+            Self::Io { operation, kind } => write!(
+                formatter,
+                "Git topology I/O failure during {operation}: {kind:?}"
+            ),
             Self::Project(error) => write!(formatter, "project-path conversion failed: {error}"),
-            Self::ReaderThreadPanicked => write!(formatter, "bounded Git output reader thread panicked"),
+            Self::ReaderThreadPanicked => {
+                write!(formatter, "bounded Git output reader thread panicked")
+            }
         }
     }
 }
@@ -210,10 +254,10 @@ pub fn qualify_git_executable(
         return Err(GitTopologyError::ExecutableCandidateInvalid);
     }
 
-    let project_boundary = fs::canonicalize(opened_project)
-        .map_err(|_| GitTopologyError::BoundaryPathUnavailable)?;
-    let evidence_boundary = fs::canonicalize(evidence_root)
-        .map_err(|_| GitTopologyError::BoundaryPathUnavailable)?;
+    let project_boundary =
+        fs::canonicalize(opened_project).map_err(|_| GitTopologyError::BoundaryPathUnavailable)?;
+    let evidence_boundary =
+        fs::canonicalize(evidence_root).map_err(|_| GitTopologyError::BoundaryPathUnavailable)?;
 
     if resolved_path.starts_with(&project_boundary) {
         return Err(GitTopologyError::ExecutableInsideOpenedProject);
@@ -292,7 +336,8 @@ where
         Err(GitTopologyError::UntrustedRepositoryRefusedByGit) => return Ok(refused_topology()),
         Err(error) => return Err(error),
     };
-    let is_inside_worktree = rev_parse_bool(git, locator, RevParseQuery::IsInsideWorktree, cancelled)?;
+    let is_inside_worktree =
+        rev_parse_bool(git, locator, RevParseQuery::IsInsideWorktree, cancelled)?;
     let absolute_git_dir = rev_parse_path(git, locator, RevParseQuery::AbsoluteGitDir, cancelled)?;
     let git_common_dir = rev_parse_path(git, locator, RevParseQuery::GitCommonDir, cancelled)?;
 
@@ -307,7 +352,8 @@ where
         }
     };
 
-    let superproject_bytes = run_rev_parse(git, locator, RevParseQuery::SuperprojectWorktree, cancelled)?;
+    let superproject_bytes =
+        run_rev_parse(git, locator, RevParseQuery::SuperprojectWorktree, cancelled)?;
     let superproject_worktree = if superproject_bytes.is_empty() {
         OptionalObservation::None
     } else {
@@ -808,18 +854,36 @@ mod tests {
             (OsString::from("HOME"), OsString::from("/home/user")),
             (OsString::from("GIT_DIR"), OsString::from("/attacker")),
             (OsString::from("GIT_CONFIG_COUNT"), OsString::from("1")),
-            (OsString::from("GIT_TRACE2_EVENT"), OsString::from("/tmp/trace")),
-            (OsString::from("LD_PRELOAD"), OsString::from("/tmp/inject.so")),
+            (
+                OsString::from("GIT_TRACE2_EVENT"),
+                OsString::from("/tmp/trace"),
+            ),
+            (
+                OsString::from("LD_PRELOAD"),
+                OsString::from("/tmp/inject.so"),
+            ),
             (OsString::from("LC_ALL"), OsString::from("ar_SA.UTF-8")),
         ];
         let sanitized = sanitized_git_environment_from(input);
-        assert!(sanitized.iter().any(|(key, value)| key == "HOME" && value == "/home/user"));
+        assert!(
+            sanitized
+                .iter()
+                .any(|(key, value)| key == "HOME" && value == "/home/user")
+        );
         assert!(!sanitized.iter().any(|(key, _)| key == "GIT_DIR"));
         assert!(!sanitized.iter().any(|(key, _)| key == "GIT_CONFIG_COUNT"));
         assert!(!sanitized.iter().any(|(key, _)| key == "GIT_TRACE2_EVENT"));
         assert!(!sanitized.iter().any(|(key, _)| key == "LD_PRELOAD"));
-        assert!(sanitized.iter().any(|(key, value)| key == "GIT_TERMINAL_PROMPT" && value == "0"));
-        assert!(sanitized.iter().any(|(key, value)| key == "LC_ALL" && value == "C"));
+        assert!(
+            sanitized
+                .iter()
+                .any(|(key, value)| key == "GIT_TERMINAL_PROMPT" && value == "0")
+        );
+        assert!(
+            sanitized
+                .iter()
+                .any(|(key, value)| key == "LC_ALL" && value == "C")
+        );
     }
 
     #[test]

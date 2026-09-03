@@ -34,13 +34,17 @@ fn repository_root() -> PathBuf {
 fn temp_root(label: &str) -> PathBuf {
     let counter = TEMP_COUNTER.fetch_add(1, Ordering::Relaxed);
     let mut root = PathBuf::from(env!("CARGO_TARGET_TMPDIR"));
-    root.push(format!("wepld-git-topology-{label}-{}-{counter}", std::process::id()));
+    root.push(format!(
+        "wepld-git-topology-{label}-{}-{counter}",
+        std::process::id()
+    ));
     fs::create_dir_all(&root).expect("temporary qualification root must be creatable");
     root
 }
 
 fn read_if_file(path: &Path) -> Option<Vec<u8>> {
-    path.is_file().then(|| fs::read(path).expect("qualification snapshot must be readable"))
+    path.is_file()
+        .then(|| fs::read(path).expect("qualification snapshot must be readable"))
 }
 
 #[test]
@@ -59,12 +63,22 @@ fn current_checkout_is_observed_through_the_closed_read_only_adapter() {
         GitVersionEvidence::NotObservedUnderCurrentAuthority
     );
 
-    let topology = observe_git_topology(&git, &root).expect("current checkout topology must resolve");
+    let topology =
+        observe_git_topology(&git, &root).expect("current checkout topology must resolve");
     assert_eq!(topology.vcs_kind, VcsKind::Git);
     assert_eq!(topology.trust_state, RepositoryTrustState::Trusted);
-    assert!(matches!(topology.worktree_root, Observation::Available { .. }));
-    assert!(matches!(topology.absolute_git_dir, Observation::Available { .. }));
-    assert!(matches!(topology.git_common_dir, Observation::Available { .. }));
+    assert!(matches!(
+        topology.worktree_root,
+        Observation::Available { .. }
+    ));
+    assert!(matches!(
+        topology.absolute_git_dir,
+        Observation::Available { .. }
+    ));
+    assert!(matches!(
+        topology.git_common_dir,
+        Observation::Available { .. }
+    ));
     assert_eq!(topology.is_bare, Observation::Available { value: false });
     assert_eq!(
         topology.is_inside_worktree,
@@ -89,7 +103,8 @@ fn project_local_git_candidate_is_rejected_without_fallback() {
     let project = temp_root("spoof-project");
     let evidence = temp_root("spoof-evidence");
     let executable = project.join(if cfg!(windows) { "git.exe" } else { "git" });
-    fs::write(&executable, b"not a real git executable\n").expect("fake executable must be writable");
+    fs::write(&executable, b"not a real git executable\n")
+        .expect("fake executable must be writable");
 
     #[cfg(unix)]
     {
@@ -143,6 +158,9 @@ fn worktree_porcelain_z_accepts_sha1_and_sha256_object_ids() {
 fn malformed_worktree_machine_output_fails_closed() {
     assert!(validate_worktree_porcelain_z(b"").is_err());
     assert!(validate_worktree_porcelain_z(b"worktree relative\0\0").is_err());
-    assert!(validate_worktree_porcelain_z(b"HEAD 0123456789012345678901234567890123456789\0\0").is_err());
+    assert!(
+        validate_worktree_porcelain_z(b"HEAD 0123456789012345678901234567890123456789\0\0")
+            .is_err()
+    );
     assert!(validate_worktree_porcelain_z(b"worktree /repo\0HEAD bad\0\0").is_err());
 }

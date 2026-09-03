@@ -12,13 +12,6 @@ pub use evidence_store::{
     StoreDefect, StoreError, StoreLock, build_manifest, busy_error_code, content_digest,
     now_unix_millis, redacted_summary, safe_path_segment,
 };
-pub use git_topology::{
-    GIT_PROCESS_POLL_INTERVAL_MS, GIT_STDERR_MAX_BYTES, GIT_STDOUT_MAX_BYTES,
-    GIT_TOPOLOGY_TIMEOUT_MS, GitOutputStream, GitTopologyError, GitVersionEvidence,
-    MAX_WORKTREE_RECORDS, QualifiedGitExecutable, discover_system_git, observe_git_topology,
-    observe_git_topology_with_cancel, qualify_git_executable, sanitized_git_environment_from,
-    validate_worktree_porcelain_z,
-};
 pub use identity::{
     IdentityCandidate, IdentityError, OPAQUE_ID_RANDOM_BYTES, ProjectMatchFacts,
     RESERVATION_KEY_VERSION, ReservationRecovery, allocate_generation_id, allocate_project_id,

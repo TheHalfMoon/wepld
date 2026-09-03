@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use wepld_contracts::{LinkedWorktreeState, Observation, RepositoryTrustState, VcsKind};
-use wepld_core::{
+use wepld_core::git_topology::{
     GitTopologyError, GitVersionEvidence, discover_system_git, observe_git_topology,
     observe_git_topology_with_cancel, qualify_git_executable, validate_worktree_porcelain_z,
 };

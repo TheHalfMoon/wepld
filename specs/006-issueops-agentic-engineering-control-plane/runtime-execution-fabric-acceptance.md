@@ -95,10 +95,36 @@ The planning candidate is not internally complete unless the execution-fabric ha
 - [ ] Default adaptation strategy is minimum-sufficient clean-room WePLD-native implementation unless owning Source Acquisition later admits exact source.
 - [ ] Credential/sandbox/TLS/native-bridge source reuse requires security-specific qualification.
 
-## L. Planning package discoverability
+## L. Distributed host / runner safety
+
+- [ ] A self-asserted host identifier cannot establish host trust; enrollment binds authenticated principal/installation and transport-security evidence.
+- [ ] Host credential revocation/expiry removes future eligibility without erasing historical audit evidence.
+- [ ] Distributed/restartable runners use ownership epoch/lease/fencing semantics sufficient to reject stale runner effects after ownership changes.
+- [ ] Expired/stale runner fencing state cannot continue acceptance-critical effects.
+- [ ] Runtime event envelopes have stable IDs and enough producer/runtime/Attempt/causal/dedupe data to tolerate duplicate, replayed, and out-of-order transport delivery.
+- [ ] Duplicate runtime event delivery cannot duplicate a derived effect or state transition.
+- [ ] Conflicting/impossible runtime event histories become explicit recovery/evidence conflicts rather than latest-write-wins.
+- [ ] Actual harness executable/runtime/artifact/config/protocol identity is recorded for acceptance-critical Attempts; descriptor labels alone are insufficient.
+- [ ] Material harness auto-update/replacement stales prior qualification.
+- [ ] Resource admission/reservation is distinguished from route qualification where resource guarantees are material.
+- [ ] Server/host/runner/adapter/native-bridge version incompatibility cannot silently downgrade effectful semantics.
+
+## M. Behavior policy trust
+
+- [ ] Behavior-policy `NO_OBJECTION/ALLOW` cannot become Nawat effect authority.
+- [ ] Mandatory pre-effect policy evaluation fails closed when unavailable.
+- [ ] Lower-trust session/agent policy cannot weaken stronger server/project restrictions.
+- [ ] Untrusted repository/agent/downloaded executable policy modules cannot auto-load as trusted policy.
+- [ ] Executable policy mechanisms are separately source/dependency/runtime/security qualified.
+- [ ] Agent policy proposal is not automatic policy activation.
+- [ ] Cost/model policy cannot silently substitute a different provider/model/worker route.
+
+## N. Planning package discoverability
 
 - [ ] `ASSURANCE_FABRIC_INDEX.md` links the Omnigent research, runtime contract, review-independence contract, and integration task map.
 - [ ] `omnigent-plan-hardening-addendum.md` maps the changes into S3/S5/S6/S7/S8/S9 without roadmap renumbering.
 - [ ] `runtime-execution-fabric-spec-addendum.md` turns the design into functional requirements.
+- [ ] `contracts/runtime-distributed-safety-addendum.md` closes host-auth/fencing/event/harness-identity/version safety gaps.
+- [ ] `contracts/behavior-policy-boundary.md` prevents policy mechanisms from becoming a second authority path.
 - [ ] `omnigent-execution-fabric-integration-tasks.md` supplies dependency-ordered tasks and negative oracles.
 - [ ] Whole-plan review records all material remaining gaps and closure/defer status accurately.

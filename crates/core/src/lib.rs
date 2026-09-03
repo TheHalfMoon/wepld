@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
 pub mod evidence_store;
+pub mod git_topology;
 pub mod identity;
 pub mod project;
 pub mod state;

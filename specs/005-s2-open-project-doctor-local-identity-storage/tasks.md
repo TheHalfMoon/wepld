@@ -8,10 +8,22 @@ NAME = Open Project + Project Doctor + local identity/storage
 PLANNING_BASE = 46b1fc423f3fc5175d79acaf0f134747bf0d90f0
 INITIAL_REVIEWED_HEAD = 4a9b3566c74818c6b53a4ac4026b3a4937678d2e
 SECOND_REVIEWED_HEAD = 63270002470a32d8ffef34be9c75e0befc30e7a9
-PLANNING_STATE = SECOND_REPAIR_CANDIDATE_PENDING_FRESH_EXACT_HEAD_QUALIFICATION
-S2_IMPLEMENTATION_AUTHORITY = NOT_GRANTED
+PLANNING_STATE = MERGED_TO_CANONICAL_MAIN
+S2_IMPLEMENTATION_AUTHORITY = STAGED_EXACT_DEPENDENCY_REGISTER_THEN_IDENTITY_STORE_PATHS_ONLY
 ACTIVE_IMPLEMENTATION_TASK = NONE
-NEXT_IMPLEMENTATION_TASK = S2-AUTH-001_NOT_AUTHORIZED_UNTIL_PLANNING_CANONICAL
+NEXT_IMPLEMENTATION_TASK = NOT_AUTHORIZED_UNTIL_A_SUCCESSOR_GRANTS_ITS_EXACT_PATHS
+NEXT_AUTHORITY_GATE = S2-AUTH-014
+
+LAST_MERGED_TRANCHE = S2 identity and local evidence store
+LAST_MERGED_TRANCHE_PR = 240
+LAST_MERGED_TRANCHE_BASE = 573670eca575a5972e52b623b01b3143d036d281
+LAST_MERGED_TRANCHE_HEAD = bdebfbaa8f146115321e6d204da9e49d367047e2
+LAST_MERGED_TRANCHE_MERGE = a6edc3af9e0435ed6283b2bf42ab0aff240b10db
+LAST_MERGED_TRANCHE_TREE = c1b7f68992211f28aac8b4ad4dff54db1b18939f
+LAST_MERGED_TRANCHE_REVIEW_ROUNDS = 17_BY_PROJECT_DEFINITION_NOT_A_GITHUB_CONCEPT
+LAST_MERGED_TRANCHE_UNRESOLVED_FINDINGS_AT_MERGE = 0_ASSERTED_BY_THE_MERGING_SESSION
+LAST_MERGED_TRANCHE_UNRESOLVED_THREADS_NOW = 0_INDEPENDENTLY_CHECKABLE
+LAST_MERGED_TRANCHE_ACCEPTANCE_RECORD = PR 240 comment 5483115585, EDITED AFTER THE MERGE
 ```
 
 ## Planning gates
@@ -47,7 +59,17 @@ NEXT_IMPLEMENTATION_TASK = S2-AUTH-001_NOT_AUTHORIZED_UNTIL_PLANNING_CANONICAL
 - [ ] **S2-P020** Guarded merge with current founder/canonical authorization evidence plus expected-head protection.
 - [ ] **S2-P021** Prove post-merge canonical planning activation/Foundation on exact `main`.
 
+Two of the markers above name things GitHub does not expose, and they are qualified rather than left to look like platform facts.
+
+A review round is a project concept. GitHub reports reviews, comments and timeline events and has no notion of a round, so that count is narrative and cannot be reproduced from the API.
+
+The merge-instant finding count is weaker than it first appears, and the weakness is disclosed rather than papered over. The acceptance record was created at `19:03:35Z` and the merge completed at `19:03:58Z`, so it was written first; but the comment was then edited at `19:04:03Z`, after the merge, to repair code blocks a shell-quoting error had emptied. GitHub serves no earlier revision of a comment body, so its current text cannot establish what it said at the merge instant. GitHub also exposes no resolution timestamp for a review thread and no historical snapshot of thread state, so the platform cannot answer the question either way.
+
+What is therefore true: the count is an assertion by the session that performed the merge, and it is labelled as one. What is independently checkable is the present state, that PR 240 has four review threads and none unresolved.
+
 Historical checks/reviews on a superseded head are evidence of the review process, not acceptance evidence for the current repaired head. Tracked checkboxes are coordination only; live GitHub exact-head/post-merge evidence is authority for qualification claims.
+
+The `S2-P014` through `S2-P021` rows above are left exactly as they were by the update that recorded the merged implementation tranche. That update had direct live evidence for the tranche it merged and none for those planning steps, and flipping a checkbox without evidence is the defect class this slice spent seventeen review rounds removing. Anyone with that evidence should record it here with the run and merge identities attached.
 
 ## Independent-review finding reconciliation
 
@@ -93,12 +115,67 @@ The successor strategy is now staged so the plan in the repository is directly e
 - [ ] **S2-AUTH-010** After contracts are canonical, authorize bounded locator/identity/evidence Core paths only.
 - [ ] **S2-AUTH-011** Freeze per-platform data-root, lossless OS-path, opaque-ID, digest, catalog, generation, and locking machinery before corresponding Core mutation.
 - [ ] **S2-AUTH-012** Decide any direct `uuid`/`sha2` Core dependency edge under a focused exact dependency-admission gate; transitive presence is not admission.
-- [ ] **S2-AUTH-013** Decide external Git route separately: `NONE` or exact bounded Git adapter.
-- [ ] **S2-AUTH-014** If Git adapter is selected, qualify executable/environment/argv/timeout/output/trust/no-hook/no-network boundaries before code.
+- [x] **S2-AUTH-013** Decide external Git route separately: `NONE` or exact bounded Git adapter. Decided `SELECT_NARROW_QUALIFIED_SYSTEM_GIT_ADAPTER`; evidence below.
+- [ ] **S2-AUTH-014** If Git adapter is selected, qualify executable/environment/argv/timeout/output/trust/no-hook/no-network boundaries before code. Now the next authority gate. Not started; no qualification evidence exists yet.
 - [ ] **S2-AUTH-015** Authorize Doctor + CLI projections only after underlying observations/contracts exist.
 - [ ] **S2-AUTH-016** Keep network/model/S3/S4 authority denied throughout S2.
 
 No S2 implementation task below becomes eligible until the canonical successor for that task explicitly grants its paths/effects.
+
+### S2-AUTH-013 evidence
+
+```text
+DECISION = SELECT_NARROW_QUALIFIED_SYSTEM_GIT_ADAPTER
+PR = 254
+BASE = 0bdddf875a8ac8b53404f28d2be2e24dba520599
+ACCEPTED_HEAD = 58f313acbb0b9f23ebe0944c0fdb43c3c3cbc803
+ACCEPTED_TREE = 0e50014ad9030118318f8c749de759e081ee7072
+CHANGED_FILES = 4
+PRODUCT_PATHS = 0
+SPEC_PATHS = 0
+MERGE = 0b8259f3c448adeecacb3cde04efe52c09dbf2d4
+MERGE_TREE = 0e50014ad9030118318f8c749de759e081ee7072
+EXACT_HEAD_FOUNDATION = SUCCESS, run 33443112504 / 943
+TRUSTED_BASE_RUN = 33443112545 / 765, expected successor bootstrap negative oracle
+POST_MERGE_FOUNDATION = SUCCESS, run 33486599768 / 944
+ACTIVATION_MARKER = git_route_decision_v36=SELECT_NARROW_QUALIFIED_SYSTEM_GIT_ADAPTER
+INDEPENDENT_REVIEW = SATISFIED, CodeRabbit, PR 254 comment 5491029654
+CODEX_SECURITY = NOT_RUN_NON_BLOCKING, provider usage-limit refusal, PR 254 comment 5491014720
+SECURITY_PASS = NOT_CLAIMED
+```
+
+Every identity above is a GitHub or Actions fact rather than a project determination, except
+`INDEPENDENT_REVIEW`, which is the project's qualification of the reviewer output cited beside it.
+
+The merge tree equals the accepted tree, so nothing outside the reviewed range entered canonical
+`main`.
+
+What the decision grants is narrower than its name suggests. The canonical policy emitted, on the
+post-merge run:
+
+```text
+GIT_PROCESS_ADMISSION = NONE
+GIT_EXECUTION_AUTHORITY = NONE
+EXTERNAL_PROCESS_AUTHORITY = NONE
+NETWORK_AUTHORITY = NONE
+SOURCE_ADMISSION = NONE
+```
+
+The two candidate command families stay specification-only:
+
+```text
+rev-parse:closed_allowlisted_topology_query
+worktree:list:porcelain-z
+```
+
+`S2-I005`, `S2-I006` and `S2-I007` therefore remain ineligible. `S2-AUTH-014` must grant their
+authority first, and it has not run.
+
+`S2-AUTH-010`, `S2-AUTH-011` and `S2-AUTH-012` are left unchecked on purpose. The merged S2
+identity/evidence-store tranche and the recorded `getrandom`/`sha2` dependency admission suggest
+their substance was performed, but this update carries no assembled run and merge identities for
+them. Flipping them on that inference is the defect class this ledger already refuses elsewhere.
+Anyone holding that evidence should record it here the way `S2-AUTH-013` is recorded above.
 
 ## Contract tasks — first implementation tranche candidate
 
@@ -121,33 +198,33 @@ No S2 implementation task below becomes eligible until the canonical successor f
 - [ ] **S2-I005** Implement selected Git topology route only under exact later process/filesystem authority.
 - [ ] **S2-I006** Implement worktree/common-repository distinction.
 - [ ] **S2-I007** Implement superproject/submodule/nested-repository diagnostics.
-- [ ] **S2-I008** Implement deterministic identity match strength ordering.
-- [ ] **S2-I009** Implement conservative move/rename reassociation.
-- [ ] **S2-I010** Implement collision/conflict/ambiguity handling.
-- [ ] **S2-I011** Implement store-wide catalog reservation with `reserved|initialized` state and fixed catalog-before-project lock order.
-- [ ] **S2-I012** Implement reservation crash recovery that reuses/revalidates the same project ID rather than allocating a second ID.
-- [ ] **S2-I013** Add adversarial identity fixtures for copies/clones/worktrees/moves.
-- [ ] **S2-I014** Add concurrent first-open fixture proving one identity or stable busy/conflict result, never silent duplicate identities.
+- [x] **S2-I008** Implement deterministic identity match strength ordering.
+- [x] **S2-I009** Implement conservative move/rename reassociation.
+- [x] **S2-I010** Implement collision/conflict/ambiguity handling.
+- [x] **S2-I011** Implement store-wide catalog reservation with `reserved|initialized` state and fixed catalog-before-project lock order.
+- [x] **S2-I012** Implement reservation crash recovery that reuses/revalidates the same project ID rather than allocating a second ID.
+- [x] **S2-I013** Add adversarial identity fixtures for copies/clones/worktrees/moves.
+- [x] **S2-I014** Add concurrent first-open fixture proving one identity or stable busy/conflict result, never silent duplicate identities.
 
 ## Local evidence-store tasks
 
 - [ ] **S2-E001** Freeze per-platform WePLD local data-root contract.
 - [ ] **S2-E002** Freeze lossless Unix/Windows machine path representation and safe display projection.
-- [ ] **S2-E003** Implement safe opaque store/project/generation/record ID path derivation under admitted machinery.
-- [ ] **S2-E004** Implement bounded record reads/version/digest/reference validation.
-- [ ] **S2-E005** Implement bounded catalog/project `try_lock` protocol with 2000ms deadline, 25ms polling, cancellation, and stable busy errors.
-- [ ] **S2-E006** Implement catalog temp-write/replace and reservation-state recovery.
-- [ ] **S2-E007** Implement immutable project generation construction with manifest.
-- [ ] **S2-E008** Implement small same-filesystem `CURRENT` temp-write/qualified-sync/atomic-replace commit point.
-- [ ] **S2-E009** Implement read-once `CURRENT` generation selection; prohibit mixed-generation reads.
-- [ ] **S2-E010** Implement crash/torn-write/orphan-generation/corrupt-current states.
-- [ ] **S2-E011** Implement freshness state calculation/invalidation seams.
-- [ ] **S2-E012** Implement privacy redaction/allowlisted persisted fields.
-- [ ] **S2-E013** Add concurrent ordinary writer tests.
-- [ ] **S2-E014** Add failure injection at every catalog reservation, generation-file, manifest, and `CURRENT` commit boundary.
-- [ ] **S2-E015** Prove process-crash lock release on claimed platforms/filesystem classes; lock-file existence alone never blocks ownership recovery.
-- [ ] **S2-E016** Add platform durability evidence; do not overclaim unsupported directory-entry/power-loss semantics.
-- [ ] **S2-E017** Preserve the explicit S2 authenticity limitation: structurally valid unkeyed generations are not authenticated against an actor with writer access to the complete store; any future authenticated trust anchor requires separate planning/authority.
+- [x] **S2-E003** Implement safe opaque store/project/generation/record ID path derivation under admitted machinery.
+- [x] **S2-E004** Implement bounded record reads/version/digest/reference validation.
+- [x] **S2-E005** Implement bounded catalog/project `try_lock` protocol with 2000ms deadline, 25ms polling, cancellation, and stable busy errors.
+- [x] **S2-E006** Implement catalog temp-write/replace and reservation-state recovery.
+- [x] **S2-E007** Implement immutable project generation construction with manifest.
+- [x] **S2-E008** Implement small same-filesystem `CURRENT` temp-write/qualified-sync/atomic-replace commit point.
+- [x] **S2-E009** Implement read-once `CURRENT` generation selection; prohibit mixed-generation reads.
+- [x] **S2-E010** Implement crash/torn-write/orphan-generation/corrupt-current states.
+- [x] **S2-E011** Implement freshness state calculation/invalidation seams.
+- [x] **S2-E012** Implement privacy redaction/allowlisted persisted fields.
+- [x] **S2-E013** Add concurrent ordinary writer tests.
+- [x] **S2-E014** Add failure injection at every catalog reservation, generation-file, manifest, and `CURRENT` commit boundary.
+- [~] **S2-E015** Prove process-crash lock release on claimed platforms/filesystem classes; lock-file existence alone never blocks ownership recovery. PARTIAL: the lock-file half is demonstrated, the process-crash half is reasoned from handle-close semantics and not observed, because spawning a process is outside the merged tranche.
+- [x] **S2-E016** Add platform durability evidence; do not overclaim unsupported directory-entry/power-loss semantics.
+- [x] **S2-E017** Preserve the explicit S2 authenticity limitation: structurally valid unkeyed generations are not authenticated against an actor with writer access to the complete store; any future authenticated trust anchor requires separate planning/authority.
 
 ## Project Doctor tasks
 

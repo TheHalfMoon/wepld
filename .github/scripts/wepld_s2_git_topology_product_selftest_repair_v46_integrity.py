@@ -31,7 +31,7 @@ import wepld_integrity as base
 
 P = ".github/scripts/wepld_s2_git_topology_product_selftest_repair_v46_integrity.py"
 T = ".github/scripts/wepld_s2_git_topology_product_selftest_repair_v46_selftest.py"
-T_BLOB = "bd4262fe2745d96e14bdb88395d7385805eac778"
+T_BLOB = "6ee7cd6f9ef8862d38a0ced5d2a163053284b72c"
 
 V45_P_BLOB = "a9b77d8d981871730a7de4c1f5f2f0661176f9a7"
 V45_T_BLOB = "70673c5f1324c8a06e7f36c0f8412aa3d9f57880"
@@ -43,7 +43,6 @@ _V45_ENTRYPOINT = b"wepld_s2_git_topology_authority_v45_integrity.py"
 _WORKFLOW_ENTRYPOINT_COUNTS = {FW: 3, AW: 2}
 
 raw_root = base.LocalRepositoryView(Path(__file__).resolve().parents[2])
-_ORIGINAL_LOCAL_REPOSITORY_VIEW = base.LocalRepositoryView
 
 
 def _v45_workflow_bytes(data: bytes, path: str) -> bytes:
@@ -56,23 +55,37 @@ def _v45_workflow_bytes(data: bytes, path: str) -> bytes:
     return data.replace(_V46_ENTRYPOINT, _V45_ENTRYPOINT)
 
 
-class _V45ImportView(_ORIGINAL_LOCAL_REPOSITORY_VIEW):
-    """Make v45's fresh exact-head view observe exact v45 workflow bytes at import."""
+def _import_v45_under_workflow_projection() -> Any:
+    """Import frozen v45 while it observes exact v45 workflow bytes.
 
-    def read_bytes(self, relative: str, limit: int) -> bytes:
-        data = super().read_bytes(relative, limit)
+    v45 reads workflow bytes while its module is imported, and the v45->v46
+    entrypoint migration ships in this same candidate, so v45 must not observe
+    its own successor's bytes. Only ``LocalRepositoryView.read_bytes`` is wrapped
+    for the duration of the import and then restored in ``finally`` - the class
+    object itself is never rebound, so v20's frozen constructor/class-identity
+    guard still captures and later sees the exact canonical
+    ``base.LocalRepositoryView``.
+    """
+    original_read_bytes = base.LocalRepositoryView.read_bytes
+
+    def _v45_import_read_bytes(local_view: Any, relative: str, limit: int) -> bytes:
+        data = original_read_bytes(local_view, relative, limit)
         if relative in (FW, AW):
             data = _v45_workflow_bytes(data, relative)
             if len(data) > limit:
-                base.fail(f"v46 v45-import workflow projection exceeds read bound: {relative}")
+                base.fail(
+                    f"v46 v45-import workflow projection exceeds read bound: {relative}"
+                )
         return data
 
+    base.LocalRepositoryView.read_bytes = _v45_import_read_bytes
+    try:
+        return importlib.import_module("wepld_s2_git_topology_authority_v45_integrity")
+    finally:
+        base.LocalRepositoryView.read_bytes = original_read_bytes
 
-base.LocalRepositoryView = _V45ImportView
-try:
-    q = importlib.import_module("wepld_s2_git_topology_authority_v45_integrity")
-finally:
-    base.LocalRepositoryView = _ORIGINAL_LOCAL_REPOSITORY_VIEW
+
+q = _import_v45_under_workflow_projection()
 
 V25 = q.V25
 CW = q.CW
@@ -200,69 +213,139 @@ def _boot_base_for_selftest() -> Any:
     return _project_for_v45(raw_root)
 
 
-def _fresh_v44_projection_replacements(view: Any) -> tuple[dict[str, bytes], frozenset[str]]:
-    """Build the product+workflow predecessor image required by v44 self-tests."""
-    v45_view = _ProjectionView(view, {}, POLICY_FILES)
-    workflow = q._workflow_replacements(v45_view)
+def _v45_predecessor_projection(
+    view: Any, workflow_reversal: dict[str, bytes] | None = None
+) -> tuple[dict[str, bytes], frozenset[str]]:
+    """v46->v45 workflow reversal plus v45's own Git-topology product projection.
+
+    ``view`` MUST expose the true on-disk (migrated) bytes; ``_workflow_replacements``
+    re-verifies the exact v46 entrypoint counts and would reject an already
+    reversed view. Pass ``workflow_reversal`` to reuse an already-derived,
+    already-verified map instead of deriving it again.
+
+    Fail-closed: ``q._product_projection`` rejects a partial tranche product set
+    (including the incoherent authorized-export-with-no-product state) rather
+    than hiding it, so a malformed post-tranche candidate stops here instead of
+    reaching the predecessor cascade.
+    """
+    if workflow_reversal is None:
+        workflow_reversal = _workflow_replacements(view)
+    v45_view = _ProjectionView(view, workflow_reversal, POLICY_FILES)
     product_replacements, product_omitted = q._product_projection(v45_view)
-    workflow.update(product_replacements)
-    return workflow, product_omitted | POLICY_FILES
+    replacements = dict(workflow_reversal)
+    replacements.update(product_replacements)
+    # Only the Git-topology product paths are hidden. v46's own policy files are
+    # left visible: they exist identically in the working tree and at HEAD, and
+    # hiding them from the class-wide entries wrap would desync a fresh
+    # LocalRepositoryView inventory from the exact-HEAD commit view that some
+    # predecessor self-tests cross-check.
+    omitted = frozenset(product_omitted)
+    return replacements, omitted
 
 
-def _run_v45_predecessor_selftests_under(view: Any) -> None:
-    """Run v44's frozen self-test cascade under v45's exact predecessor image."""
-    v45_view = _ProjectionView(view, {}, POLICY_FILES)
-    projected = q._project_for_predecessor(v45_view)
-    projected = _ProjectionView(projected, {}, POLICY_FILES)
+def _method_patch(
+    replacements: dict[str, bytes],
+    omitted: frozenset[str],
+    label: str,
+    run: Any,
+) -> None:
+    """Run ``run`` with only ``base.LocalRepositoryView.read_bytes`` /
+    ``entries`` temporarily wrapped to serve ``replacements`` and hide
+    ``omitted`` from every view - fresh or projected.
 
-    patched: list[tuple[Any, str, Any]] = []
-    for module in q._chain():
-        for name in ("root", "raw_root"):
-            if hasattr(module, name):
-                patched.append((module, name, getattr(module, name)))
-                setattr(module, name, projected)
+    This is the sanctioned method-level wrap already used by v31..v35: the
+    ``base.LocalRepositoryView`` class object is never replaced or subclassed,
+    so v20's frozen constructor/class-identity guard keeps passing. Module
+    roots are left untouched - v45's import already gave each predecessor its
+    exact per-version workflow projection over the true root. Nesting composes:
+    the fallthrough and the ``finally`` both route through whatever wrap an
+    outer call already installed.
+    """
+    outer_read_bytes = base.LocalRepositoryView.read_bytes
+    outer_entries = base.LocalRepositoryView.entries
 
-    original_local = base.LocalRepositoryView
-    replacements, omitted = _fresh_v44_projection_replacements(view)
+    def _read_bytes(local_view: Any, relative: str, limit: int) -> bytes:
+        if relative in omitted:
+            base.fail(
+                "v46 predecessor projection forbids reading an omitted path from "
+                f"a fresh local view: {relative}"
+            )
+        if relative in replacements:
+            data = replacements[relative]
+            if len(data) > limit:
+                base.fail(
+                    f"v46 predecessor projection exceeds read bound: {relative}"
+                )
+            return data
+        return outer_read_bytes(local_view, relative, limit)
 
-    class _ProjectedFreshLocalRepositoryView(original_local):
-        def read_bytes(self, relative: str, limit: int) -> bytes:
-            if relative in omitted:
-                raise FileNotFoundError(relative)
-            if relative in replacements:
-                data = replacements[relative]
-                if len(data) > limit:
-                    base.fail(f"v46 fresh predecessor projection exceeds read bound: {relative}")
-                return data
-            return super().read_bytes(relative, limit)
+    def _entries(local_view: Any) -> Any:
+        return [
+            entry
+            for entry in outer_entries(local_view)
+            if entry.path not in omitted
+        ]
 
-        def entries(self) -> Any:
-            return [entry for entry in super().entries() if entry.path not in omitted]
-
-    base.LocalRepositoryView = _ProjectedFreshLocalRepositoryView
+    base.LocalRepositoryView.read_bytes = _read_bytes
+    base.LocalRepositoryView.entries = _entries
     try:
-        q.p.selftest()
+        _call(label, run)
     finally:
-        base.LocalRepositoryView = original_local
-        for module, name, original in reversed(patched):
-            setattr(module, name, original)
+        base.LocalRepositoryView.entries = outer_entries
+        base.LocalRepositoryView.read_bytes = outer_read_bytes
 
 
-def _corrected_v45_run_predecessor_selftests() -> None:
-    _run_v45_predecessor_selftests_under(q.raw_root)
+def predecessor_view_for(view: Any) -> Any:
+    """The exact pre-Git-topology-tranche, exact-v45-workflow view a frozen
+    predecessor self-test must observe, derived from ``view`` (true on-disk
+    bytes). The v46 self-test uses this to prove the exact Foundation #1017
+    seam: v33's frozen Core-export check rejects a raw post-tranche ``lib.rs``
+    and accepts the projected one.
+    """
+    replacements, omitted = _v45_predecessor_projection(view)
+    return _ProjectionView(view, replacements, omitted)
 
 
 def run_predecessor_selftests() -> None:
-    """Run frozen v45 self-tests with only its defective predecessor seam replaced."""
+    """Run frozen v45's own self-tests once, with (a) the v45->v46 entrypoint
+    migration reversed for every workflow read, since that migration ships in
+    this same candidate, and (b) only v45's defective predecessor-cascade seam
+    replaced so the frozen v44 cascade also observes v45's Git-topology product
+    projection.
+
+    Both projection sets are derived once, from the true unpatched ``raw_root``,
+    before anything is wrapped. Only ``LocalRepositoryView`` methods are wrapped
+    and every wrap is restored in ``finally``. Like every vN self-test this runs
+    the cascade exactly once and ends with a normal install; the v46 self-test
+    does not re-enter it.
+    """
+    workflow_reversal = _workflow_replacements(raw_root)
+    cascade_replacements, cascade_omitted = _v45_predecessor_projection(
+        raw_root, workflow_reversal
+    )
+
+    def _corrected_v45_run_predecessor_selftests() -> None:
+        """Replacement for frozen ``v45.run_predecessor_selftests``: layer v45's
+        Git-topology product projection on top of the active workflow reversal
+        for the frozen v44 cascade only."""
+        _method_patch(
+            cascade_replacements,
+            cascade_omitted,
+            "v45 predecessor self-test cascade",
+            q.p.selftest,
+        )
+
     original_run = q.run_predecessor_selftests
-    original_raw = q.raw_root
-    q.raw_root = _ProjectionView(q.raw_root, {}, POLICY_FILES)
     q.run_predecessor_selftests = _corrected_v45_run_predecessor_selftests
     try:
-        q.selftest()
+        _method_patch(
+            workflow_reversal,
+            frozenset(),
+            "v45 self-tests under v46->v45 workflow reversal",
+            q.selftest,
+        )
     finally:
         q.run_predecessor_selftests = original_run
-        q.raw_root = original_raw
 
 
 def delta(candidate: Any, policy_base: Any) -> None:

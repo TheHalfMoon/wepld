@@ -8,6 +8,7 @@ from typing import Any
 
 import wepld_integrity as base
 import wepld_s2_git_topology_product_selftest_repair_v46_integrity as p
+import wepld_s2_identity_store_governance_v33_integrity as v33
 
 _OVERLAY_COUNTER = itertools.count()
 
@@ -133,18 +134,28 @@ def _check_exact_regression_is_repaired() -> None:
     if p.q._product_presence(candidate) != p.q.PRODUCT_NEW_FILES:
         base.fail("v46 regression fixture does not represent the complete v45 product tranche")
 
-    # This is the exact shape Foundation #1017 exposed: predecessor self-tests
-    # execute while the checked-out head already contains the authorized product
-    # module/test and the one-line Core export. The corrected helper must project
-    # that state away only for the predecessor self-test cascade.
-    p._run_v45_predecessor_selftests_under(candidate)
+    # Foundation run #1017 failed inside v33's frozen Core-export self-test:
+    # `_core_export_baseline` rejects a `lib.rs` that carries `pub mod
+    # git_topology;` because it is neither v33's canonical baseline nor v33's
+    # authorized identity-store tranche export. Reproduce that exact rejection
+    # against the raw post-tranche candidate...
+    _expect_failure(
+        "v46 reproduces the Foundation #1017 v33 Core-export rejection",
+        lambda: v33._core_export_baseline(candidate),
+        "neither the exact canonical baseline nor the exact authorized tranche export",
+    )
 
-    projected = p.q._project_for_predecessor(candidate)
+    # ...then prove v46's predecessor projection repairs it: the same frozen
+    # v33 check now sees the Git-topology export line reversed away and accepts
+    # the projected view, returning the canonical baseline rather than failing.
+    projected = p.predecessor_view_for(candidate)
     if p.q._product_presence(projected):
         base.fail("v46 predecessor projection left v45 product-only paths visible")
     lib = projected.read_bytes(p.q.CORE_EXPORT, base.MAX_POLICY_FILE_BYTES)
     if p.q._GIT_TOPOLOGY_EXPORT_LINE in lib:
         base.fail("v46 predecessor projection left the Git-topology Core export visible")
+    if v33._core_export_baseline(projected) != v33.BASE_CORE_EXPORT:
+        base.fail("v46 predecessor projection did not restore v33's canonical Core-export baseline")
 
 
 def run() -> None:

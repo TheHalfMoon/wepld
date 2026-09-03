@@ -133,6 +133,24 @@ fn cancellation_terminates_the_spawned_git_and_returns_a_stable_error() {
 }
 
 #[test]
+fn a_relative_locator_is_rejected_before_any_git_process_starts() {
+    let root = repository_root();
+    let evidence_root = temp_root("relative-locator-evidence");
+    let git = discover_system_git(&root, &evidence_root).expect("system Git must qualify on CI");
+
+    // `.` would otherwise resolve from the Git executable directory, not the
+    // caller working directory, because the child current directory is pinned.
+    assert_eq!(
+        observe_git_topology(&git, Path::new(".")),
+        Err(GitTopologyError::NonAbsoluteLocator)
+    );
+    assert_eq!(
+        observe_git_topology_with_cancel(&git, Path::new("relative/sub"), &|| false),
+        Err(GitTopologyError::NonAbsoluteLocator)
+    );
+}
+
+#[test]
 fn worktree_porcelain_z_accepts_sha1_and_sha256_object_ids() {
     #[cfg(windows)]
     let root = b"C:\\repo".as_slice();

@@ -128,6 +128,7 @@ pub enum GitTopologyError {
         code: Option<i32>,
     },
     ChangedUnderObservation,
+    NonAbsoluteLocator,
     Io {
         operation: &'static str,
         kind: io::ErrorKind,
@@ -194,6 +195,9 @@ impl fmt::Display for GitTopologyError {
                 formatter,
                 "Git topology changed during one bounded observation"
             ),
+            Self::NonAbsoluteLocator => {
+                write!(formatter, "repository locator must be an absolute path")
+            }
             Self::Io { operation, kind } => write!(
                 formatter,
                 "Git topology I/O failure during {operation}: {kind:?}"
@@ -378,6 +382,15 @@ pub fn observe_git_topology_with_cancel<F>(
 where
     F: Fn() -> bool,
 {
+    // The locator is passed to Git as `-C <locator>`, but the child runs with
+    // its current directory set to the Git executable's directory (so it never
+    // inherits a hostile working directory). Git would resolve a relative `-C`
+    // path from *that* directory, silently observing the wrong repository (or
+    // none). Require an absolute locator; the caller resolves it once.
+    if !locator.is_absolute() {
+        return Err(GitTopologyError::NonAbsoluteLocator);
+    }
+
     let is_bare = match rev_parse_bool(git, locator, RevParseQuery::IsBare, cancelled) {
         Ok(value) => value,
         Err(GitTopologyError::UntrustedRepositoryRefusedByGit) => return Ok(refused_topology()),
@@ -578,6 +591,12 @@ where
 {
     if !git.resolved_path.is_absolute() {
         return Err(GitTopologyError::ExecutableCandidateInvalid);
+    }
+    // Defence in depth: every caller path already rejects a relative locator,
+    // but `-C` with the child's current directory pinned to the Git binary
+    // directory makes a relative locator observe the wrong repository.
+    if !locator.is_absolute() {
+        return Err(GitTopologyError::NonAbsoluteLocator);
     }
 
     let mut command = Command::new(&git.resolved_path);

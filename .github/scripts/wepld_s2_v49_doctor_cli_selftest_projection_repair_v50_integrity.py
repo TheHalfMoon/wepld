@@ -15,13 +15,21 @@ integrity`` runs ``v49_integrity.py selftest`` unconditionally on
 red without this repair.
 
 v50 changes no product rule and grants no new authority. It supersedes only that
-one self-test seam: while frozen v49 runs its predecessor self-test cascade,
-v49's own Doctor/CLI product projection (the two ``lib.rs`` export lines stripped,
-the five new files hidden, failing closed on a partial tranche) is layered on
-top of the ordinary v49->v48 workflow reversal, exactly the projection every
-runtime/admission path already uses. All temporary roots/classes/functions are
-restored in ``finally`` blocks; the ``base.LocalRepositoryView`` class object is
-never rebound.
+one self-test seam: while frozen v49 runs its predecessor self-test cascade, the
+two authorized ``crates/core/src/lib.rs`` Doctor/CLI export lines (``pub mod
+cli;`` / ``pub mod doctor;``) are stripped from every ``lib.rs`` read, on top of
+the ordinary v49->v48 workflow reversal. The frozen v33 Core-export self-test
+then observes its expected canonical baseline. The five new module/bin/test
+files are deliberately left visible: no frozen predecessor self-test rejects an
+unknown ``crates/core`` path -- only the Core-export identity -- so the
+``lib.rs`` strip alone closes the gap, and a freshly constructed repository view
+still lists the tranche so v21's exact-HEAD inventory cross-check and v47's
+``_method_patch`` self-assertion keep passing. (``_doctor_cli_projection`` /
+``predecessor_view_for`` still compute the full strip-plus-hide projection with
+its partial-tranche fail-closed check; they back the v50 self-test's regression
+fixtures, not the cascade correction.) All temporary hooks are restored in
+``finally`` blocks; the ``base.LocalRepositoryView`` class object, its
+``entries``, and every ``wepld_*`` module root are never rebound.
 
 Every inherited v49 value -- the Doctor/CLI projection authority, the standing
 ``NONE`` denials for shell / arbitrary process / package install / project-native

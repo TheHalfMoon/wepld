@@ -1,5 +1,7 @@
 #![forbid(unsafe_code)]
 
+pub mod cli;
+pub mod doctor;
 pub mod evidence_store;
 pub mod git_topology;
 pub mod identity;

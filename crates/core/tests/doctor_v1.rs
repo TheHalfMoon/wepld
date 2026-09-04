@@ -12,7 +12,7 @@ use wepld_core::doctor::{
     self, DescriptorBound, DescriptorObservation, DoctorInputError, DoctorInputs,
     EvidenceStoreObservation, IdentityObservation, MAX_PARSED_DESCRIPTOR_AGGREGATE_BYTES,
     MAX_PARSED_DESCRIPTOR_BYTES, MAX_ROOT_DESCRIPTOR_CANDIDATES, MAX_STRUCTURED_NESTING_DEPTH,
-    RepositoryObservation, SecuritySensitiveObservation,
+    RepositoryObservation, SecuritySensitiveConfigAvailability, SecuritySensitiveObservation,
 };
 
 fn project_id() -> ProjectId {
@@ -46,7 +46,11 @@ fn healthy_inputs() -> DoctorInputs {
             package_manager_ambiguous: false,
             descriptor_budget_rejected: false,
         },
-        security_sensitive: SecuritySensitiveObservation::default(),
+        security_sensitive: SecuritySensitiveObservation {
+            availability: SecuritySensitiveConfigAvailability::Observed,
+            credential_bearing_entry_count: 0,
+            redacted_remote_url_count: 0,
+        },
     }
 }
 
@@ -231,9 +235,87 @@ fn multiple_lockfiles_and_ambiguous_package_manager_are_reported_not_resolved() 
 }
 
 #[test]
+fn unavailable_security_observation_is_distinct_from_a_clean_one() {
+    // A Git-present repository whose config observation could not complete
+    // (bounded/malformed/trust-refused/capability-unavailable) must not be
+    // silently indistinguishable from a repository that was actually observed
+    // and found clean.
+    let mut inputs = healthy_inputs();
+    inputs.security_sensitive = SecuritySensitiveObservation::default();
+    let report = doctor::evaluate(&inputs, at()).expect("evaluate");
+    let finding = report
+        .findings
+        .as_slice()
+        .iter()
+        .find(|finding| finding.finding_code.as_str() == "D-SEC-OBSERVATION-UNAVAILABLE")
+        .expect("observation-unavailable finding present when repository is Some and unobserved");
+    assert_eq!(finding.severity, DoctorSeverity::Info);
+    assert!(finding.safe_parameters.as_slice().is_empty());
+    assert!(
+        !report
+            .findings
+            .as_slice()
+            .iter()
+            .any(|finding| finding.finding_code.as_str() == "D-SEC-CREDENTIAL-BEARING-CONFIG"),
+        "an unavailable observation must never also claim a credential-bearing finding"
+    );
+}
+
+#[test]
+fn unavailable_security_observation_is_not_reported_for_a_non_git_project() {
+    let mut inputs = healthy_inputs();
+    inputs.repository = None;
+    inputs.security_sensitive = SecuritySensitiveObservation::default();
+    let report = doctor::evaluate(&inputs, at()).expect("evaluate");
+    assert!(
+        !report
+            .findings
+            .as_slice()
+            .iter()
+            .any(|finding| finding.finding_code.as_str() == "D-SEC-OBSERVATION-UNAVAILABLE"),
+        "a non-Git project has no Git config to have failed observing"
+    );
+}
+
+#[test]
+fn unavailable_availability_with_nonzero_count_never_emits_credential_finding() {
+    // `DoctorInputs` fields are public, so a caller can in principle
+    // construct an inconsistent `SecuritySensitiveObservation` (an
+    // `Unavailable` observation carrying a nonzero count from a stale or
+    // hand-built value). Availability must gate the credential-bearing
+    // finding: a nonzero count on an observation that never completed is not
+    // evidence of a credential, and must not be reported as one.
+    let mut inputs = healthy_inputs();
+    inputs.security_sensitive = SecuritySensitiveObservation {
+        availability: SecuritySensitiveConfigAvailability::Unavailable,
+        credential_bearing_entry_count: 1,
+        redacted_remote_url_count: 0,
+    };
+    let report = doctor::evaluate(&inputs, at()).expect("evaluate");
+    assert!(
+        !report
+            .findings
+            .as_slice()
+            .iter()
+            .any(|finding| finding.finding_code.as_str() == "D-SEC-CREDENTIAL-BEARING-CONFIG"),
+        "an unavailable observation must never emit a credential-bearing finding, \
+         even with an inconsistent nonzero count"
+    );
+    assert!(
+        report
+            .findings
+            .as_slice()
+            .iter()
+            .any(|finding| finding.finding_code.as_str() == "D-SEC-OBSERVATION-UNAVAILABLE"),
+        "the unavailable finding must still be reported"
+    );
+}
+
+#[test]
 fn security_sensitive_config_reports_only_safe_counts_no_raw_values() {
     let mut inputs = healthy_inputs();
     inputs.security_sensitive = SecuritySensitiveObservation {
+        availability: SecuritySensitiveConfigAvailability::Observed,
         credential_bearing_entry_count: 2,
         redacted_remote_url_count: 1,
     };

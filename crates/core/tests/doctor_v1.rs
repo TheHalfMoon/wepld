@@ -278,6 +278,40 @@ fn unavailable_security_observation_is_not_reported_for_a_non_git_project() {
 }
 
 #[test]
+fn unavailable_availability_with_nonzero_count_never_emits_credential_finding() {
+    // `DoctorInputs` fields are public, so a caller can in principle
+    // construct an inconsistent `SecuritySensitiveObservation` (an
+    // `Unavailable` observation carrying a nonzero count from a stale or
+    // hand-built value). Availability must gate the credential-bearing
+    // finding: a nonzero count on an observation that never completed is not
+    // evidence of a credential, and must not be reported as one.
+    let mut inputs = healthy_inputs();
+    inputs.security_sensitive = SecuritySensitiveObservation {
+        availability: SecuritySensitiveConfigAvailability::Unavailable,
+        credential_bearing_entry_count: 1,
+        redacted_remote_url_count: 0,
+    };
+    let report = doctor::evaluate(&inputs, at()).expect("evaluate");
+    assert!(
+        !report
+            .findings
+            .as_slice()
+            .iter()
+            .any(|finding| finding.finding_code.as_str() == "D-SEC-CREDENTIAL-BEARING-CONFIG"),
+        "an unavailable observation must never emit a credential-bearing finding, \
+         even with an inconsistent nonzero count"
+    );
+    assert!(
+        report
+            .findings
+            .as_slice()
+            .iter()
+            .any(|finding| finding.finding_code.as_str() == "D-SEC-OBSERVATION-UNAVAILABLE"),
+        "the unavailable finding must still be reported"
+    );
+}
+
+#[test]
 fn security_sensitive_config_reports_only_safe_counts_no_raw_values() {
     let mut inputs = healthy_inputs();
     inputs.security_sensitive = SecuritySensitiveObservation {

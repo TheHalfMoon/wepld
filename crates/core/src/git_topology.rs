@@ -813,8 +813,12 @@ fn url_value_has_http_credential(value: &[u8]) -> bool {
         return false;
     }
     let rest = &text[scheme_end + 3..];
-    let authority_end = rest.find('/').unwrap_or(rest.len());
-    rest[..authority_end].contains('@')
+    let authority_end = rest.find(['/', '?', '#']).unwrap_or(rest.len());
+    let authority = &rest[..authority_end];
+    match authority.find('@') {
+        Some(at) => at > 0,
+        None => false,
+    }
 }
 
 fn ensure_success(output: GitRunOutput) -> Result<Vec<u8>, GitTopologyError> {
@@ -1344,6 +1348,27 @@ mod tests {
         ));
         assert!(!url_value_has_http_credential(b"file:///tmp/repo.git"));
         assert!(!url_value_has_http_credential(b"/local/path/repo.git"));
+    }
+
+    #[test]
+    fn http_url_query_or_fragment_at_sign_is_not_credential_bearing() {
+        // `@` after the authority (in a query string or fragment) is not
+        // userinfo and must not be misclassified as a credential.
+        assert!(!url_value_has_http_credential(
+            b"https://example.test?label=@value"
+        ));
+        assert!(!url_value_has_http_credential(
+            b"https://example.test/repo.git?label=@value"
+        ));
+        assert!(!url_value_has_http_credential(
+            b"https://example.test#section-@value"
+        ));
+        // Empty userinfo (nothing before `@`) carries no credential either.
+        assert!(!url_value_has_http_credential(b"https://@example.test/"));
+        // But a real credential before a query string is still flagged.
+        assert!(url_value_has_http_credential(
+            b"https://user:pass@example.test/repo?x=1"
+        ));
     }
 
     #[test]

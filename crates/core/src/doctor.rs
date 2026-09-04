@@ -852,7 +852,9 @@ pub fn evaluate(
         });
     }
 
-    if inputs.security_sensitive.credential_bearing_entry_count > 0 {
+    if inputs.security_sensitive.availability == SecuritySensitiveConfigAvailability::Observed
+        && inputs.security_sensitive.credential_bearing_entry_count > 0
+    {
         specs.push(FindingSpec {
             code: codes::SECURITY_CREDENTIAL_BEARING_CONFIG,
             severity: DoctorSeverity::Warning,

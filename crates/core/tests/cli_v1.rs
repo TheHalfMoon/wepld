@@ -252,3 +252,323 @@ fn cli_module_source_contains_no_effect_surface() {
         );
     }
 }
+
+// ==========================================================================
+// Orchestration integration tests — spawn the built `wepld` binary against
+// hermetic fixture directories. The store is redirected to a per-test temp
+// dir via XDG_STATE_HOME / HOME / LOCALAPPDATA so nothing touches the real
+// user profile and no test depends on another.
+// ==========================================================================
+
+mod orchestration {
+    use std::collections::BTreeMap;
+    use std::fs;
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn scratch(tag: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("wepld-cli-it-{tag}-{nanos}"));
+        fs::create_dir_all(&dir).expect("scratch dir");
+        dir
+    }
+
+    struct Run {
+        code: i32,
+        stdout: String,
+        stderr: String,
+    }
+
+    fn run_wepld(args: &[&str], cwd: &Path, store_home: &Path) -> Run {
+        let output = Command::new(env!("CARGO_BIN_EXE_wepld"))
+            .args(args)
+            .current_dir(cwd)
+            .env("XDG_STATE_HOME", store_home)
+            .env("HOME", store_home)
+            .env("LOCALAPPDATA", store_home)
+            .env_remove("XDG_CONFIG_HOME")
+            .output()
+            .expect("spawn wepld");
+        Run {
+            code: output.status.code().unwrap_or(-1),
+            stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
+            stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+        }
+    }
+
+    /// Recursive content snapshot: relative path -> bytes, for every regular file.
+    fn snapshot(root: &Path) -> BTreeMap<String, Vec<u8>> {
+        fn walk(base: &Path, dir: &Path, out: &mut BTreeMap<String, Vec<u8>>) {
+            let Ok(entries) = fs::read_dir(dir) else {
+                return;
+            };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let meta = match entry.metadata() {
+                    Ok(m) => m,
+                    Err(_) => continue,
+                };
+                if meta.is_dir() {
+                    walk(base, &path, out);
+                } else if meta.is_file() {
+                    let rel = path
+                        .strip_prefix(base)
+                        .unwrap_or(&path)
+                        .to_string_lossy()
+                        .replace('\\', "/");
+                    out.insert(rel, fs::read(&path).unwrap_or_default());
+                }
+            }
+        }
+        let mut out = BTreeMap::new();
+        walk(root, root, &mut out);
+        out
+    }
+
+    fn project_id_field(json: &str) -> Option<String> {
+        let key = "\"project_id\":\"";
+        let start = json.find(key)? + key.len();
+        let rest = &json[start..];
+        let end = rest.find('"')?;
+        Some(rest[..end].to_owned())
+    }
+
+    #[test]
+    fn open_on_a_plain_directory_succeeds_and_reuses_one_identity() {
+        let store = scratch("open-idem-store");
+        let project = scratch("open-idem-proj");
+        fs::write(project.join("README.md"), b"hi").unwrap();
+
+        let first = run_wepld(&["open", ".", "--json"], &project, &store);
+        assert_eq!(first.code, 0, "first open stderr: {}", first.stderr);
+        let id1 = project_id_field(&first.stdout).expect("first open reports a project id");
+
+        let second = run_wepld(&["open", ".", "--json"], &project, &store);
+        assert_eq!(second.code, 0, "second open stderr: {}", second.stderr);
+        let id2 = project_id_field(&second.stdout).expect("second open reports a project id");
+
+        assert_eq!(
+            id1, id2,
+            "reopening the same project must reuse its identity"
+        );
+    }
+
+    #[test]
+    fn empty_open_path_is_a_usage_error() {
+        let store = scratch("empty-path-store");
+        let project = scratch("empty-path-proj");
+        let run = run_wepld(&["open", ""], &project, &store);
+        assert_eq!(run.code, 2, "empty path must map to the usage/input class");
+    }
+
+    #[test]
+    fn unknown_command_exits_two_with_a_suggestion_and_never_prompts() {
+        let store = scratch("unknown-store");
+        let project = scratch("unknown-proj");
+        let run = run_wepld(&["opne"], &project, &store);
+        assert_eq!(run.code, 2);
+        let combined = format!("{}{}", run.stdout, run.stderr).to_lowercase();
+        assert!(combined.contains("open"), "expected an `open` suggestion");
+        assert!(
+            !combined.contains("did you mean to ask")
+                && !combined.contains("prompt")
+                && !combined.contains("assistant"),
+            "an unknown token must never be treated as a model prompt"
+        );
+    }
+
+    #[test]
+    fn status_reports_no_association_before_open_then_the_identity_after() {
+        let store = scratch("status-store");
+        let project = scratch("status-proj");
+
+        let before = run_wepld(&["status", "--json"], &project, &store);
+        assert!(
+            before.code == 0 || before.code == 3,
+            "status before open: code {} stderr {}",
+            before.code,
+            before.stderr
+        );
+        assert!(
+            before.stdout.contains("\"associated\":false") || before.code == 3,
+            "status before open must not claim an association: {}",
+            before.stdout
+        );
+
+        let opened = run_wepld(&["open", ".", "--json"], &project, &store);
+        assert_eq!(opened.code, 0, "open stderr: {}", opened.stderr);
+        let opened_id = project_id_field(&opened.stdout).expect("open reports an id");
+
+        let after = run_wepld(&["status", "--json"], &project, &store);
+        assert_eq!(after.code, 0, "status after open stderr: {}", after.stderr);
+        assert_eq!(
+            project_id_field(&after.stdout).as_deref(),
+            Some(opened_id.as_str()),
+            "status must report the same identity `open` established"
+        );
+    }
+
+    #[test]
+    fn doctor_completes_and_flags_package_manager_ambiguity() {
+        let store = scratch("doctor-amb-store");
+        let project = scratch("doctor-amb-proj");
+        fs::write(project.join("package.json"), b"{}").unwrap();
+        fs::write(project.join("pnpm-lock.yaml"), b"lockfileVersion: 9\n").unwrap();
+        fs::write(project.join("yarn.lock"), b"# yarn\n").unwrap();
+
+        let run = run_wepld(&["doctor", "--json"], &project, &store);
+        assert!(
+            run.code == 0 || run.code == 5,
+            "doctor exit: code {} stderr {}",
+            run.code,
+            run.stderr
+        );
+        assert!(run.stdout.starts_with('{') && run.stdout.ends_with("}\n"));
+        assert!(
+            run.stdout.contains("ambigu")
+                || run.stdout.contains("PM")
+                || run.stdout.contains("lock"),
+            "doctor should surface package-manager / lockfile ambiguity: {}",
+            run.stdout
+        );
+    }
+
+    #[test]
+    fn json_output_is_byte_deterministic_and_control_free() {
+        let store = scratch("json-det-store");
+        let project = scratch("json-det-proj");
+
+        let a = run_wepld(&["open", ".", "--json", "--no-input"], &project, &store);
+        let b = run_wepld(&["open", ".", "--json", "--no-input"], &project, &store);
+        assert_eq!(a.code, 0);
+        assert_eq!(
+            a.stdout, b.stdout,
+            "repeated --json open must be byte-identical"
+        );
+        assert!(!a.stdout.contains('\u{1b}'), "ESC leaked into --json");
+        assert!(!a.stdout.contains('\u{0}'), "NUL leaked into --json");
+        assert!(a.stdout.starts_with('{') && a.stdout.ends_with("}\n"));
+        assert!(a.stdout.contains("\"schema_version\":1"));
+    }
+
+    #[test]
+    fn open_doctor_status_do_not_mutate_the_project_tree() {
+        // S2-S013: the project tree is byte-identical before and after every command.
+        let store = scratch("s013-store");
+        let project = scratch("s013-proj");
+        fs::create_dir_all(project.join("src")).unwrap();
+        fs::write(project.join("src/lib.rs"), b"pub fn a() {}\n").unwrap();
+        fs::write(project.join("Cargo.toml"), b"[package]\nname=\"x\"\n").unwrap();
+        fs::write(project.join("Cargo.lock"), b"# lock\n").unwrap();
+
+        let before = snapshot(&project);
+        for args in [
+            vec!["open", ".", "--json"],
+            vec!["doctor", "--json"],
+            vec!["status", "--json"],
+        ] {
+            let run = run_wepld(&args, &project, &store);
+            assert!(
+                run.code == 0 || run.code == 5,
+                "{args:?} unexpected exit {}: {}",
+                run.code,
+                run.stderr
+            );
+        }
+        let after = snapshot(&project);
+        assert_eq!(
+            before, after,
+            "open/doctor/status must leave the project tree unchanged"
+        );
+        assert!(
+            !project.join(".wepld").exists(),
+            "S2 must not write .wepld/ into the project (clarify Q8)"
+        );
+    }
+
+    #[test]
+    fn no_secret_or_ansi_pattern_appears_in_any_surface() {
+        // S2-D015 / S2-S008: neither human nor JSON output carries a raw
+        // credential pattern or a terminal control sequence.
+        let store = scratch("s008-store");
+        let project = scratch("s008-proj");
+        fs::write(
+            project.join("config.txt"),
+            b"url=https://alice:supersecret@host/repo.git\ntoken=ghp_deadbeefdeadbeefdeadbeefdeadbeef0000\n",
+        )
+        .unwrap();
+
+        for mode in [
+            vec!["open", "."],
+            vec!["open", ".", "--json"],
+            vec!["doctor"],
+            vec!["doctor", "--json"],
+            vec!["status"],
+        ] {
+            let run = run_wepld(&mode, &project, &store);
+            let all = format!("{}{}", run.stdout, run.stderr);
+            assert!(!all.contains("supersecret"), "{mode:?} leaked a credential");
+            assert!(!all.contains("ghp_deadbeef"), "{mode:?} leaked a token");
+            assert!(
+                !all.contains("alice:supersecret"),
+                "{mode:?} leaked userinfo"
+            );
+            assert!(!all.contains('\u{1b}'), "{mode:?} leaked an ANSI escape");
+            assert!(!all.contains('\u{0}'), "{mode:?} leaked a NUL");
+        }
+    }
+
+    #[test]
+    fn bin_source_starts_no_project_task_and_opens_no_socket() {
+        // S2-D014 / S2-S014: bin/wepld.rs itself never spawns a process (Git
+        // topology observation lives behind the qualified S2-AUTH-014 adapter in
+        // git_topology.rs, not here) and never touches the network.
+        let source =
+            fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/bin/wepld.rs"))
+                .expect("bin/wepld.rs readable");
+        // Strip the module doc comment first: it legitimately *names* the
+        // effects it forbids ("never mutates ... `safe.directory`").
+        let code: String = source
+            .lines()
+            .filter(|line| !line.trim_start().starts_with("//!"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        for forbidden in [
+            "process::Command",
+            "std::net",
+            "TcpStream",
+            "UdpSocket",
+            "reqwest",
+            "safe.directory",
+            "config --add",
+        ] {
+            assert!(
+                !code.contains(forbidden),
+                "bin/wepld.rs must not reference `{forbidden}`"
+            );
+        }
+    }
+
+    #[test]
+    fn open_reports_the_documented_authenticity_limitation_not_a_false_pass() {
+        // S2-S015 / DIGEST_EQUALITY != AUTHENTICITY.
+        let store = scratch("s015-store");
+        let project = scratch("s015-proj");
+        let run = run_wepld(&["open", ".", "--json"], &project, &store);
+        assert_eq!(run.code, 0, "stderr: {}", run.stderr);
+        let lower = run.stdout.to_lowercase();
+        assert!(
+            lower.contains("unauthenticated")
+                || lower.contains("not_authenticated")
+                || lower.contains("writer")
+                || lower.contains("limitation")
+                || lower.contains("unkeyed"),
+            "open must surface the store authenticity limitation, not a bare success: {}",
+            run.stdout
+        );
+    }
+}

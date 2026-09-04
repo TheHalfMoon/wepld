@@ -1004,7 +1004,15 @@ fn store_error_reason(error: &StoreError) -> String {
 fn emit(outcome: &CommandOutcome, mode: OutputMode) -> ExitCode {
     let rendered = cli::render(outcome, mode);
     let class = outcome.exit_class();
-    if matches!(class, ExitClass::Success) {
+    // A completed command result — success, or a Doctor report whose findings
+    // merely happen to be blocking — is primary output and goes to stdout so a
+    // `--json` consumer reads it the same way regardless of exit code. Only a
+    // genuine failure (usage, resolution, integrity, capability, internal) is
+    // written to stderr.
+    if matches!(
+        class,
+        ExitClass::Success | ExitClass::DoctorBlockingFindings
+    ) {
         print!("{rendered}");
     } else {
         eprint!("{rendered}");

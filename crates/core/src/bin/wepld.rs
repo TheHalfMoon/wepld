@@ -57,12 +57,20 @@ fn main() -> ExitCode {
         Ok(invocation) => invocation,
         Err(error) => {
             let command = failed_command(string_args.first().map(String::as_str));
+            // A parse failure has no parsed `Invocation`, so recover the output
+            // mode straight from the raw vector: a caller that asked for `--json`
+            // still gets the documented machine payload, not prose.
+            let mode = if string_args.iter().any(|argument| argument == "--json") {
+                OutputMode::Json
+            } else {
+                OutputMode::Human
+            };
             let outcome = CommandOutcome::Failure {
                 command,
                 class: ExitClass::UsageInput,
                 reason: format!("usage: {error}"),
             };
-            return emit(&outcome, OutputMode::Human);
+            return emit(&outcome, mode);
         }
     };
 
@@ -305,7 +313,7 @@ const PARSED_DESCRIPTORS: &[(
         ("settings.gradle.kts", T::Gradle, None),
         ("build.gradle", T::Gradle, None),
         ("build.gradle.kts", T::Gradle, None),
-        ("pom.xml", T::Maven, Some(P::Yarn)),
+        ("pom.xml", T::Maven, None),
         ("go.mod", T::Go, Some(P::Go)),
         ("go.work", T::Go, Some(P::Go)),
         ("nx.json", T::Nx, None),

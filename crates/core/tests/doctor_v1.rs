@@ -161,6 +161,28 @@ fn partial_store_is_not_complete() {
 }
 
 #[test]
+fn unavailable_status_store_is_distinct_from_partial() {
+    let mut inputs = healthy_inputs();
+    inputs.evidence_store = Some(EvidenceStoreObservation {
+        status: EvidenceStatus::Unavailable,
+        integrity_defect: false,
+        stale_required_record: false,
+        authenticity: StoreAuthenticity::UnauthenticatedStructuralCoherenceOnly,
+    });
+    let report = doctor::evaluate(&inputs, at()).expect("evaluate");
+    let observed = codes(&report);
+    assert!(
+        observed.contains(&"D-EV-STORE-UNAVAILABLE".to_owned()),
+        "unavailable evidence must carry the unavailable finding code: {observed:?}"
+    );
+    assert!(
+        !observed.contains(&"D-EV-STORE-PARTIAL".to_owned()),
+        "unavailable evidence must not be reported as partial: {observed:?}"
+    );
+    assert!(doctor::has_blocking_findings(&report));
+}
+
+#[test]
 fn corrupt_store_is_blocking_integrity_defect() {
     let mut inputs = healthy_inputs();
     inputs.evidence_store = Some(EvidenceStoreObservation {

@@ -429,10 +429,14 @@ mod orchestration {
         );
         assert!(run.stdout.starts_with('{') && run.stdout.ends_with("}\n"));
         assert!(
-            run.stdout.contains("ambigu")
-                || run.stdout.contains("PM")
-                || run.stdout.contains("lock"),
-            "doctor should surface package-manager / lockfile ambiguity: {}",
+            run.stdout.contains("D-PM-AMBIGUOUS"),
+            "the filesystem->CLI path must surface package-manager ambiguity, not only \
+             the lockfile marker finding: {}",
+            run.stdout
+        );
+        assert!(
+            run.stdout.contains("D-LOCK-MULTIPLE-MARKERS"),
+            "doctor should also surface the multiple-lockfile-marker finding: {}",
             run.stdout
         );
     }

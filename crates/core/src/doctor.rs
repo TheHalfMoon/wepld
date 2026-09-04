@@ -739,10 +739,21 @@ pub fn evaluate(
                         value: store.status,
                     }],
                 });
-            } else if matches!(
-                store.status,
-                EvidenceStatus::Partial | EvidenceStatus::Unavailable
-            ) {
+            } else if matches!(store.status, EvidenceStatus::Unavailable) {
+                specs.push(FindingSpec {
+                    code: codes::EVIDENCE_STORE_UNAVAILABLE,
+                    severity: DoctorSeverity::Blocking,
+                    category: DoctorCategory::EvidenceStore,
+                    summary: templates::SUMMARY_EVIDENCE_UNAVAILABLE,
+                    explanation: templates::EXPLAIN_EVIDENCE_UNAVAILABLE,
+                    remediation_kind: RemediationKind::CapabilityRequired,
+                    remediation: templates::REMEDY_EVIDENCE_UNAVAILABLE,
+                    hint: Some(MachineActionHint::InspectEvidenceStore),
+                    params: vec![SafeParameter::EvidenceStatus {
+                        value: store.status,
+                    }],
+                });
+            } else if matches!(store.status, EvidenceStatus::Partial) {
                 specs.push(FindingSpec {
                     code: codes::EVIDENCE_STORE_PARTIAL,
                     severity: DoctorSeverity::Blocking,

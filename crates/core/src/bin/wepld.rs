@@ -30,7 +30,7 @@ use wepld_core::cli::{
 };
 use wepld_core::doctor::{
     self, DescriptorObservation, DoctorInputs, EvidenceStoreObservation, IdentityObservation,
-    RepositoryObservation, SecuritySensitiveObservation,
+    RepositoryObservation, SecuritySensitiveConfigAvailability, SecuritySensitiveObservation,
 };
 use wepld_core::evidence_store::{self, EvidenceStore, StoreError};
 use wepld_core::git_topology::{self, GitTopologyError, QualifiedGitExecutable};
@@ -243,6 +243,55 @@ fn nearest_existing_ancestor(path: &Path) -> Option<PathBuf> {
 }
 
 /// Project the topology into the redacted [`RepositoryObservation`] Doctor consumes.
+/// Outcome of the bounded security-sensitive Git-config observation. Mirrors
+/// `RepositoryOutcome`'s shape: a non-Git project has nothing to observe, a
+/// Git-present-but-unqualified/trust-refused/failed-observation repository is
+/// `Unavailable` (never silently treated as "clean"), and only a completed
+/// observation carries counts.
+enum SecurityConfigOutcome {
+    NotApplicable,
+    Unavailable,
+    Observed(git_topology::SecuritySensitiveConfigTopology),
+}
+
+fn observe_security_sensitive_config(
+    project_path: &Path,
+    store_root: &Path,
+    repository: &RepositoryOutcome,
+) -> SecurityConfigOutcome {
+    match repository {
+        RepositoryOutcome::NonGit => SecurityConfigOutcome::NotApplicable,
+        RepositoryOutcome::RefusedByGit | RepositoryOutcome::CapabilityUnavailable => {
+            SecurityConfigOutcome::Unavailable
+        }
+        RepositoryOutcome::Git(_) => {
+            let boundary_root =
+                nearest_existing_ancestor(store_root).unwrap_or_else(|| store_root.to_path_buf());
+            let git = match git_topology::discover_system_git(project_path, &boundary_root) {
+                Ok(git) => git,
+                Err(_) => return SecurityConfigOutcome::Unavailable,
+            };
+            match git_topology::observe_security_sensitive_config(&git, project_path) {
+                Ok(topology) => SecurityConfigOutcome::Observed(topology),
+                Err(_) => SecurityConfigOutcome::Unavailable,
+            }
+        }
+    }
+}
+
+fn security_sensitive_observation(outcome: &SecurityConfigOutcome) -> SecuritySensitiveObservation {
+    match outcome {
+        SecurityConfigOutcome::NotApplicable | SecurityConfigOutcome::Unavailable => {
+            SecuritySensitiveObservation::default()
+        }
+        SecurityConfigOutcome::Observed(topology) => SecuritySensitiveObservation {
+            availability: SecuritySensitiveConfigAvailability::Observed,
+            credential_bearing_entry_count: topology.credential_bearing_entry_count,
+            redacted_remote_url_count: topology.redacted_remote_url_count,
+        },
+    }
+}
+
 fn repository_observation(outcome: &RepositoryOutcome) -> Option<RepositoryObservation> {
     match outcome {
         RepositoryOutcome::NonGit => None,
@@ -763,6 +812,9 @@ fn run_doctor() -> CommandOutcome {
 
     let repository = observe_repository(&context.project_path, &context.store_root);
     let repository_obs = repository_observation(&repository);
+    let security_config =
+        observe_security_sensitive_config(&context.project_path, &context.store_root, &repository);
+    let security_sensitive_obs = security_sensitive_observation(&security_config);
 
     let (identity_obs, project_id, generation_id) = doctor_identity(
         &context,
@@ -783,7 +835,7 @@ fn run_doctor() -> CommandOutcome {
         repository: repository_obs,
         evidence_store: evidence_obs,
         descriptors,
-        security_sensitive: SecuritySensitiveObservation::default(),
+        security_sensitive: security_sensitive_obs,
     };
 
     match doctor::evaluate(&inputs, now) {

@@ -198,15 +198,38 @@ pub struct DescriptorObservation {
     pub descriptor_budget_rejected: bool,
 }
 
+/// Whether a bounded security-sensitive Git-config observation actually ran
+/// to completion. `Unavailable` covers a non-Git project, a Git trust
+/// refusal, an unavailable Git capability, and a bounded/malformed
+/// observation failure alike; in every `Unavailable` case the zero counts
+/// below are an absence of evidence, never evidence of absence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SecuritySensitiveConfigAvailability {
+    Unavailable,
+    Observed,
+}
+
 /// Security-sensitive configuration observed as safe classes/counts only. Raw
 /// secret-bearing values never enter this struct.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SecuritySensitiveObservation {
+    /// Whether the counts below reflect a completed observation.
+    pub availability: SecuritySensitiveConfigAvailability,
     /// Count of config entries classified as credential-bearing (value never
     /// captured).
     pub credential_bearing_entry_count: u64,
     /// Count of remote URLs whose userinfo was redacted on observation.
     pub redacted_remote_url_count: u64,
+}
+
+impl Default for SecuritySensitiveObservation {
+    fn default() -> Self {
+        Self {
+            availability: SecuritySensitiveConfigAvailability::Unavailable,
+            credential_bearing_entry_count: 0,
+            redacted_remote_url_count: 0,
+        }
+    }
 }
 
 /// The complete typed input set for one Doctor evaluation.
@@ -251,6 +274,7 @@ mod codes {
     pub const EVIDENCE_STORE_AUTHENTICITY_LIMITATION: &str = "D-EV-AUTHENTICITY-LIMITATION";
     pub const FRESHNESS_STALE_REQUIRED_RECORD: &str = "D-FRESH-STALE-REQUIRED-RECORD";
     pub const SECURITY_CREDENTIAL_BEARING_CONFIG: &str = "D-SEC-CREDENTIAL-BEARING-CONFIG";
+    pub const SECURITY_OBSERVATION_UNAVAILABLE: &str = "D-SEC-OBSERVATION-UNAVAILABLE";
 }
 
 /// Stable template-id strings. All are WePLD-owned; none interpolate external
@@ -310,6 +334,10 @@ mod templates {
     pub const SUMMARY_SECURITY_CREDENTIAL: &str = "tpl.doctor.security.credential.summary";
     pub const EXPLAIN_SECURITY_CREDENTIAL: &str = "tpl.doctor.security.credential.explain";
     pub const REMEDY_SECURITY_CREDENTIAL: &str = "tpl.doctor.security.credential.remedy";
+    pub const SUMMARY_SECURITY_OBSERVATION_UNAVAILABLE: &str =
+        "tpl.doctor.security.observation_unavailable.summary";
+    pub const EXPLAIN_SECURITY_OBSERVATION_UNAVAILABLE: &str =
+        "tpl.doctor.security.observation_unavailable.explain";
 }
 
 /// Map a WePLD-owned template id to its English prose. Returns `None` for any id
@@ -452,6 +480,14 @@ pub fn render_template(template_id: &TemplateId) -> Option<&'static str> {
         }
         templates::REMEDY_SECURITY_CREDENTIAL => {
             "Review how those credentials are supplied; WePLD reports only safe counts and classes."
+        }
+        templates::SUMMARY_SECURITY_OBSERVATION_UNAVAILABLE => {
+            "Security-sensitive configuration could not be observed."
+        }
+        templates::EXPLAIN_SECURITY_OBSERVATION_UNAVAILABLE => {
+            "The bounded Git-config classification did not complete for this repository. The \
+             absence of a credential-bearing-configuration finding here is not evidence that none \
+             exists."
         }
         _ => return None,
     };
@@ -795,6 +831,25 @@ pub fn evaluate(
                 });
             }
         }
+    }
+
+    if inputs.repository.is_some()
+        && matches!(
+            inputs.security_sensitive.availability,
+            SecuritySensitiveConfigAvailability::Unavailable
+        )
+    {
+        specs.push(FindingSpec {
+            code: codes::SECURITY_OBSERVATION_UNAVAILABLE,
+            severity: DoctorSeverity::Info,
+            category: DoctorCategory::SecuritySensitiveConfig,
+            summary: templates::SUMMARY_SECURITY_OBSERVATION_UNAVAILABLE,
+            explanation: templates::EXPLAIN_SECURITY_OBSERVATION_UNAVAILABLE,
+            remediation_kind: RemediationKind::None,
+            remediation: templates::REMEDY_NONE,
+            hint: None,
+            params: Vec::new(),
+        });
     }
 
     if inputs.security_sensitive.credential_bearing_entry_count > 0 {

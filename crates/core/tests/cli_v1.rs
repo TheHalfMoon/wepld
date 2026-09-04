@@ -527,6 +527,75 @@ mod orchestration {
     }
 
     #[test]
+    fn no_secret_appears_when_the_source_is_real_git_config_not_a_descriptor_file() {
+        // S2-S008 requalification for S2-D012: the prior secret-redaction proof
+        // only exercised a descriptor file Doctor's workspace scan reads. This
+        // exercises the actual Git-config observation route: a fake credential
+        // embedded in a real `.git/config` remote URL and a real
+        // `credential.helper` entry, through the same human/JSON/stderr
+        // surfaces, and additionally confirms the safe finding is genuinely
+        // emitted (not merely absent).
+        let store = scratch("s008-git-store");
+        let project = scratch("s008-git-proj");
+        let init = Command::new("git")
+            .args(["init", "--quiet"])
+            .current_dir(&project)
+            .status()
+            .expect("spawn git init");
+        assert!(init.success(), "git init must succeed");
+        for args in [
+            vec![
+                "config".to_owned(),
+                "remote.origin.url".to_owned(),
+                "https://alice:supersecret@example.test/repo.git".to_owned(),
+            ],
+            vec![
+                "config".to_owned(),
+                "credential.helper".to_owned(),
+                "!f() { echo password=hunter2verysecret; }; f".to_owned(),
+            ],
+        ] {
+            let status = Command::new("git")
+                .args(&args)
+                .current_dir(&project)
+                .status()
+                .expect("spawn git config");
+            assert!(status.success(), "git {args:?} must succeed");
+        }
+
+        for mode in [vec!["doctor"], vec!["doctor", "--json"], vec!["status"]] {
+            let run = run_wepld(&mode, &project, &store);
+            let all = format!("{}{}", run.stdout, run.stderr);
+            assert!(
+                !all.contains("supersecret"),
+                "{mode:?} leaked the URL credential"
+            );
+            assert!(
+                !all.contains("alice:supersecret"),
+                "{mode:?} leaked userinfo"
+            );
+            assert!(
+                !all.contains("hunter2verysecret"),
+                "{mode:?} leaked the helper secret"
+            );
+            assert!(!all.contains('\u{1b}'), "{mode:?} leaked an ANSI escape");
+            assert!(!all.contains('\u{0}'), "{mode:?} leaked a NUL");
+        }
+
+        let json = run_wepld(&["doctor", "--json"], &project, &store);
+        assert!(
+            json.stdout.contains("D-SEC-CREDENTIAL-BEARING-CONFIG"),
+            "doctor --json must genuinely report the safe finding, not merely omit the secret: {}",
+            json.stdout
+        );
+        assert!(
+            !json.stdout.contains("D-SEC-OBSERVATION-UNAVAILABLE"),
+            "the observation must have completed for this fixture: {}",
+            json.stdout
+        );
+    }
+
+    #[test]
     fn bin_source_starts_no_project_task_and_opens_no_socket() {
         // S2-D014 / S2-S014: bin/wepld.rs itself never spawns a process (Git
         // topology observation lives behind the qualified S2-AUTH-014 adapter in

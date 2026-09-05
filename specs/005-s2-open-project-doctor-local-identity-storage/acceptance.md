@@ -164,7 +164,7 @@ Evidence must prove:
 
 ### H.1 Windows native `wepld-core` runtime — bounded coverage limitation
 
-Windows acceptance requires all Windows-backed tests applicable to the current S2 execution surface to pass. Native Windows `wepld-core` S2 runtime execution is not currently covered and MAY be recorded only as an explicit bounded coverage limitation. Compile coverage and cross-platform Windows-shaped semantic fixtures MUST NOT be represented as native Windows runtime evidence. This limitation MUST NOT satisfy any claim requiring real Windows junction/reparse behavior; that native-platform obligation MUST be carried forward to the owning later slice.
+Windows acceptance requires all Windows-backed tests applicable to the current S2 execution surface to pass. Native Windows `wepld-core` S2 runtime execution is not currently covered and MAY be recorded only as an explicit bounded coverage limitation. Compile coverage and cross-platform Windows-shaped semantic fixtures MUST NOT be represented as native Windows runtime evidence. This limitation MUST NOT satisfy any claim requiring real Windows junction/reparse behavior; that native-platform obligation is not discharged by S2 and MUST be assigned to the owning later slice at that slice's planning time (see the `S2-S003` bullet below).
 
 The Windows CI surface builds `wepld-core` and runs the `desktop-windows` (`wepld-desktop`) adversarial suite; it does not execute the `wepld-core` S2 test suite. Three coverage classes are kept distinct and MUST NOT be conflated in any acceptance claim:
 
@@ -180,7 +180,7 @@ S2_WINDOWS_CORE_RUNTIME = NOT_COVERED
 - The `desktop-windows` job is runtime evidence only for the code paths that job actually executes.
 - Linux/macOS tests built from Windows-shaped or injected inputs are semantic/path-shape evidence only; they are not native Windows `wepld-core` runtime proof.
 - S2 closure MAY tolerate this specific missing native-runtime coverage only as this explicit bounded limitation. It MUST NOT satisfy any acceptance item that requires observed native Windows runtime behavior, and in particular MUST NOT satisfy any claim requiring real Windows junction/reparse behavior.
-- The real Windows junction/reparse obligation (`S2-S003`) remains unproven and is carried forward explicitly to S3 as an owning-slice obligation.
+- The real Windows junction/reparse obligation (`S2-S003`) remains unproven and is not yet owned by a later slice: no S3 planning artifact or task currently accepts it, and S3 scope is presently denied. This S2 acceptance limitation does not discharge that obligation. `S2-S003` stays an open S2 task; when the owning later slice (expected S3) is planned it MUST record `S2-S003` native Windows junction/reparse coverage as an explicit obligation, and that slice MUST NOT close without either satisfying it or explicitly re-recording it as a still-open carried obligation. Until then it is tracked as an open cross-slice item in the S2 acceptance matrix and is surfaced at the `S2-A006` decision.
 - This limitation is bounded to Windows-native `wepld-core` runtime execution. It does not weaken any other S2 acceptance requirement and does not establish a general route for recording missing evidence as satisfied. Absence of evidence remains absence of evidence.
 
 ## I. Performance and bounded-discovery acceptance

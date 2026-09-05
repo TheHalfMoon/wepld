@@ -155,12 +155,33 @@ Evidence must prove:
 
 ## H. Platform acceptance
 
-- [ ] Windows gate passes applicable path/worktree/store tests.
+- [ ] Windows gate passes all Windows-backed tests applicable to the current S2 execution surface; native Windows `wepld-core` S2 runtime execution is not currently covered and is recorded in H.1 as an explicit bounded coverage limitation.
 - [ ] Linux gate passes applicable path/worktree/store tests.
 - [ ] macOS gate passes or an explicit unsatisfied coverage limitation blocks any claim requiring macOS qualification.
 - [ ] non-UTF8/Unicode path representation contract is proven on applicable platforms.
 - [ ] case/path separator/extended-length path behavior has targeted fixtures.
 - [ ] lock deadline/crash-release semantics are tested on each claimed platform/filesystem class or retained as an explicit limitation.
+
+### H.1 Windows native `wepld-core` runtime — bounded coverage limitation
+
+Windows acceptance requires all Windows-backed tests applicable to the current S2 execution surface to pass. Native Windows `wepld-core` S2 runtime execution is not currently covered and MAY be recorded only as an explicit bounded coverage limitation. Compile coverage and cross-platform Windows-shaped semantic fixtures MUST NOT be represented as native Windows runtime evidence. This limitation MUST NOT satisfy any claim requiring real Windows junction/reparse behavior; that native-platform obligation MUST be carried forward to the owning later slice.
+
+The Windows CI surface builds `wepld-core` and runs the `desktop-windows` (`wepld-desktop`) adversarial suite; it does not execute the `wepld-core` S2 test suite. Three coverage classes are kept distinct and MUST NOT be conflated in any acceptance claim:
+
+```text
+WINDOWS_COMPILE_COVERAGE                  = PRESENT   wepld-core builds on windows-latest
+WINDOWS_SHAPED_INJECTED_SEMANTIC_COVERAGE = PRESENT   Windows-form path/root/link cases
+                                                      exercised on Linux/macOS with injected inputs
+WINDOWS_NATIVE_CORE_RUNTIME_COVERAGE      = ABSENT
+S2_WINDOWS_CORE_RUNTIME = NOT_COVERED
+```
+
+- Compile coverage is compile evidence only.
+- The `desktop-windows` job is runtime evidence only for the code paths that job actually executes.
+- Linux/macOS tests built from Windows-shaped or injected inputs are semantic/path-shape evidence only; they are not native Windows `wepld-core` runtime proof.
+- S2 closure MAY tolerate this specific missing native-runtime coverage only as this explicit bounded limitation. It MUST NOT satisfy any acceptance item that requires observed native Windows runtime behavior, and in particular MUST NOT satisfy any claim requiring real Windows junction/reparse behavior.
+- The real Windows junction/reparse obligation (`S2-S003`) remains unproven and is carried forward explicitly to S3 as an owning-slice obligation.
+- This limitation is bounded to Windows-native `wepld-core` runtime execution. It does not weaken any other S2 acceptance requirement and does not establish a general route for recording missing evidence as satisfied. Absence of evidence remains absence of evidence.
 
 ## I. Performance and bounded-discovery acceptance
 

@@ -61,6 +61,27 @@ fn git(repo: &Path, args: &[&str]) {
     assert!(status.success(), "git {args:?} in {repo:?} must succeed");
 }
 
+/// Runs `git` in `repo` and returns trimmed stdout, used as an independent
+/// oracle (a second, separate Git invocation) for exact-path assertions,
+/// rather than trusting the adapter under test to grade its own output.
+fn git_output(repo: &Path, args: &[&str]) -> String {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(args)
+        .output()
+        .expect("spawn git");
+    assert!(
+        output.status.success(),
+        "git {args:?} in {repo:?} must succeed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8(output.stdout)
+        .expect("git output must be UTF-8 in this fixture")
+        .trim()
+        .to_owned()
+}
+
 fn init_committed_repo(label: &str) -> PathBuf {
     let repo = temp_root(label);
     git(&repo, &["init", "--quiet"]);
@@ -270,13 +291,59 @@ fn linked_worktree_observes_distinct_root_and_shared_common_dir() {
         other => panic!("expected an available absolute_git_dir, got {other:?}"),
     };
 
-    assert!(
-        worktree_root.contains("linked"),
-        "worktree_root must be the linked worktree, not the main checkout: {worktree_root}"
+    // Independent ground truth: a second, separate `git` invocation from
+    // inside the linked worktree, not the adapter under test grading its
+    // own output. Exact canonicalized-path equality, not substring matching.
+    let expected_own_git_dir = PathBuf::from(git_output(
+        &linked_worktree,
+        &["rev-parse", "--absolute-git-dir"],
+    ));
+    let expected_common_dir_raw = git_output(&linked_worktree, &["rev-parse", "--git-common-dir"]);
+    let expected_common_dir = if Path::new(&expected_common_dir_raw).is_absolute() {
+        PathBuf::from(expected_common_dir_raw)
+    } else {
+        PathBuf::from(&expected_own_git_dir)
+            .parent()
+            .expect("absolute-git-dir must have a parent")
+            .join(&expected_common_dir_raw)
+    };
+
+    assert_eq!(
+        PathBuf::from(&worktree_root)
+            .canonicalize()
+            .expect("observed worktree_root must canonicalize"),
+        linked_worktree
+            .canonicalize()
+            .expect("the linked worktree path must canonicalize"),
+        "worktree_root must be exactly the linked worktree, not the main checkout: {worktree_root}"
     );
-    assert!(
-        common_dir.contains("main-repo"),
-        "git_common_dir must still resolve to the main repository's shared .git: {common_dir}"
+    assert_eq!(
+        PathBuf::from(&common_dir)
+            .canonicalize()
+            .expect("observed git_common_dir must canonicalize"),
+        main_repo
+            .join(".git")
+            .canonicalize()
+            .expect("the main repository .git directory must canonicalize"),
+        "git_common_dir must be exactly the main repository's shared .git: {common_dir}"
+    );
+    assert_eq!(
+        PathBuf::from(&common_dir)
+            .canonicalize()
+            .expect("observed git_common_dir must canonicalize"),
+        expected_common_dir
+            .canonicalize()
+            .expect("git rev-parse --git-common-dir must canonicalize"),
+        "git_common_dir must match git's own --git-common-dir for the linked worktree"
+    );
+    assert_eq!(
+        PathBuf::from(&own_git_dir)
+            .canonicalize()
+            .expect("observed absolute_git_dir must canonicalize"),
+        expected_own_git_dir
+            .canonicalize()
+            .expect("git rev-parse --absolute-git-dir must canonicalize"),
+        "absolute_git_dir must match git's own --absolute-git-dir for the linked worktree"
     );
     assert_ne!(
         own_git_dir, common_dir,
@@ -314,12 +381,37 @@ fn submodule_worktree_observes_its_superproject() {
     let topology = observe_git_topology(&git_exe, &submodule_worktree)
         .expect("submodule topology must resolve");
 
+    // Independent ground truth: git's own dedicated command for exactly this
+    // relationship, run separately from the adapter under test.
+    let expected_superproject_root = PathBuf::from(git_output(
+        &submodule_worktree,
+        &["rev-parse", "--show-superproject-working-tree"],
+    ));
+    assert!(
+        !expected_superproject_root.as_os_str().is_empty(),
+        "git rev-parse --show-superproject-working-tree must report the superproject from inside the submodule"
+    );
+
     match &topology.superproject_worktree {
         OptionalObservation::Value { value } => {
             let superproject_root = value.safe_display().as_str().to_owned();
-            assert!(
-                superproject_root.contains("superproject"),
-                "superproject_worktree must resolve to the superproject root: {superproject_root}"
+            assert_eq!(
+                PathBuf::from(&superproject_root)
+                    .canonicalize()
+                    .expect("observed superproject_worktree must canonicalize"),
+                superproject
+                    .canonicalize()
+                    .expect("the superproject path must canonicalize"),
+                "superproject_worktree must be exactly the superproject root: {superproject_root}"
+            );
+            assert_eq!(
+                PathBuf::from(&superproject_root)
+                    .canonicalize()
+                    .expect("observed superproject_worktree must canonicalize"),
+                expected_superproject_root
+                    .canonicalize()
+                    .expect("git rev-parse --show-superproject-working-tree must canonicalize"),
+                "superproject_worktree must match git's own --show-superproject-working-tree"
             );
         }
         other => panic!(

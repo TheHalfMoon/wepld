@@ -3,18 +3,22 @@
 //! S2 Git-topology qualification suite for the v45-authorized product tranche.
 //!
 //! This suite exercises the actual current checkout through the closed adapter,
-//! executable-spoof refusal, cancellation/reaping, machine-output parsing, and
-//! repository non-mutation. It does not pretend to prove unavailable platform
-//! evidence: ownership-based `safe.directory` refusal, linked-worktree,
-//! submodule/superproject, bare-repository, and hard-timeout fixtures require
-//! separately available platform fixtures and remain explicit qualification
-//! obligations rather than fabricated PASS results.
+//! executable-spoof refusal, cancellation/reaping, machine-output parsing,
+//! repository non-mutation, a real linked worktree (S2-I006), and a real
+//! submodule/superproject (S2-I007). It does not pretend to prove unavailable
+//! platform evidence: ownership-based `safe.directory` refusal,
+//! bare-repository, and hard-timeout fixtures require separately available
+//! platform fixtures and remain explicit qualification obligations rather
+//! than fabricated PASS results.
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use wepld_contracts::{LinkedWorktreeState, Observation, RepositoryTrustState, VcsKind};
+use wepld_contracts::{
+    LinkedWorktreeState, Observation, OptionalObservation, RepositoryTrustState, VcsKind,
+};
 use wepld_core::git_topology::{
     GitTopologyError, GitVersionEvidence, discover_system_git, observe_git_topology,
     observe_git_topology_with_cancel, qualify_git_executable, validate_worktree_porcelain_z,
@@ -45,6 +49,36 @@ fn temp_root(label: &str) -> PathBuf {
 fn read_if_file(path: &Path) -> Option<Vec<u8>> {
     path.is_file()
         .then(|| fs::read(path).expect("qualification snapshot must be readable"))
+}
+
+fn git(repo: &Path, args: &[&str]) {
+    let status = Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(args)
+        .status()
+        .expect("spawn git");
+    assert!(status.success(), "git {args:?} in {repo:?} must succeed");
+}
+
+fn init_committed_repo(label: &str) -> PathBuf {
+    let repo = temp_root(label);
+    git(&repo, &["init", "--quiet"]);
+    git(
+        &repo,
+        &[
+            "-c",
+            "user.email=wepld-test@example.test",
+            "-c",
+            "user.name=wepld-test",
+            "commit",
+            "--allow-empty",
+            "--quiet",
+            "-m",
+            "init",
+        ],
+    );
+    repo
 }
 
 #[test]
@@ -186,4 +220,110 @@ fn malformed_worktree_machine_output_fails_closed() {
             .is_err(),
         "a worktree path repeated across records is malformed"
     );
+}
+
+/// S2-I006 adversarial fixture: a real linked worktree, not the current
+/// checkout. Proves `worktree_root` (the linked worktree) is distinct from
+/// `git_common_dir` (still the main repository's shared `.git`), and that
+/// `absolute_git_dir` (this worktree's own private gitdir under
+/// `.git/worktrees/<name>`) differs from `git_common_dir` too.
+#[test]
+fn linked_worktree_observes_distinct_root_and_shared_common_dir() {
+    let evidence_root = temp_root("evidence");
+    let main_repo = init_committed_repo("main-repo");
+
+    let worktrees_parent = temp_root("linked-worktree-parent");
+    let linked_worktree = worktrees_parent.join("linked");
+    git(
+        &main_repo,
+        &[
+            "worktree",
+            "add",
+            "--quiet",
+            linked_worktree
+                .to_str()
+                .expect("temp worktree path must be valid UTF-8"),
+            "-b",
+            "feature",
+        ],
+    );
+
+    let git_exe =
+        discover_system_git(&linked_worktree, &evidence_root).expect("system Git must qualify");
+    let topology = observe_git_topology(&git_exe, &linked_worktree)
+        .expect("linked worktree topology must resolve");
+
+    assert_eq!(topology.trust_state, RepositoryTrustState::Trusted);
+    assert_eq!(topology.is_bare, Observation::Available { value: false });
+    assert_eq!(topology.linked_worktree_state, LinkedWorktreeState::Known);
+
+    let worktree_root = match &topology.worktree_root {
+        Observation::Available { value } => value.safe_display().as_str().to_owned(),
+        other => panic!("expected an available worktree_root, got {other:?}"),
+    };
+    let common_dir = match &topology.git_common_dir {
+        Observation::Available { value } => value.safe_display().as_str().to_owned(),
+        other => panic!("expected an available git_common_dir, got {other:?}"),
+    };
+    let own_git_dir = match &topology.absolute_git_dir {
+        Observation::Available { value } => value.safe_display().as_str().to_owned(),
+        other => panic!("expected an available absolute_git_dir, got {other:?}"),
+    };
+
+    assert!(
+        worktree_root.contains("linked"),
+        "worktree_root must be the linked worktree, not the main checkout: {worktree_root}"
+    );
+    assert!(
+        common_dir.contains("main-repo"),
+        "git_common_dir must still resolve to the main repository's shared .git: {common_dir}"
+    );
+    assert_ne!(
+        own_git_dir, common_dir,
+        "a linked worktree's own gitdir must differ from the shared common dir"
+    );
+}
+
+/// S2-I007 adversarial fixture: a real submodule, not a synthetic value.
+/// Proves `superproject_worktree` is populated with the superproject's root
+/// when the observation locator is the submodule's own worktree.
+#[test]
+fn submodule_worktree_observes_its_superproject() {
+    let evidence_root = temp_root("evidence");
+    let submodule_source = init_committed_repo("submodule-source");
+    let superproject = init_committed_repo("superproject");
+
+    git(
+        &superproject,
+        &[
+            "-c",
+            "protocol.file.allow=always",
+            "submodule",
+            "--quiet",
+            "add",
+            submodule_source
+                .to_str()
+                .expect("temp submodule source path must be valid UTF-8"),
+            "sub",
+        ],
+    );
+
+    let submodule_worktree = superproject.join("sub");
+    let git_exe =
+        discover_system_git(&submodule_worktree, &evidence_root).expect("system Git must qualify");
+    let topology = observe_git_topology(&git_exe, &submodule_worktree)
+        .expect("submodule topology must resolve");
+
+    match &topology.superproject_worktree {
+        OptionalObservation::Value { value } => {
+            let superproject_root = value.safe_display().as_str().to_owned();
+            assert!(
+                superproject_root.contains("superproject"),
+                "superproject_worktree must resolve to the superproject root: {superproject_root}"
+            );
+        }
+        other => panic!(
+            "expected superproject_worktree to be populated from inside a submodule, got {other:?}"
+        ),
+    }
 }

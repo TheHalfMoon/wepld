@@ -9,21 +9,60 @@ PLANNING_BASE = 46b1fc423f3fc5175d79acaf0f134747bf0d90f0
 INITIAL_REVIEWED_HEAD = 4a9b3566c74818c6b53a4ac4026b3a4937678d2e
 SECOND_REVIEWED_HEAD = 63270002470a32d8ffef34be9c75e0befc30e7a9
 PLANNING_STATE = MERGED_TO_CANONICAL_MAIN
-S2_IMPLEMENTATION_AUTHORITY = STAGED_EXACT_DEPENDENCY_REGISTER_THEN_IDENTITY_STORE_PATHS_ONLY
+S2_IMPLEMENTATION_AUTHORITY = EXACT_DOCTOR_CLI_PROJECTION_TRANCHE_ONLY_AFTER_V49_ACTIVATION
 ACTIVE_IMPLEMENTATION_TASK = NONE
 NEXT_IMPLEMENTATION_TASK = NOT_AUTHORIZED_UNTIL_A_SUCCESSOR_GRANTS_ITS_EXACT_PATHS
-NEXT_AUTHORITY_GATE = S2-AUTH-014
+NEXT_AUTHORITY_GATE = S2-ACCEPTANCE
+```
 
-LAST_MERGED_TRANCHE = S2 identity and local evidence store
-LAST_MERGED_TRANCHE_PR = 240
-LAST_MERGED_TRANCHE_BASE = 573670eca575a5972e52b623b01b3143d036d281
-LAST_MERGED_TRANCHE_HEAD = bdebfbaa8f146115321e6d204da9e49d367047e2
-LAST_MERGED_TRANCHE_MERGE = a6edc3af9e0435ed6283b2bf42ab0aff240b10db
-LAST_MERGED_TRANCHE_TREE = c1b7f68992211f28aac8b4ad4dff54db1b18939f
-LAST_MERGED_TRANCHE_REVIEW_ROUNDS = 17_BY_PROJECT_DEFINITION_NOT_A_GITHUB_CONCEPT
-LAST_MERGED_TRANCHE_UNRESOLVED_FINDINGS_AT_MERGE = 0_ASSERTED_BY_THE_MERGING_SESSION
+This update was made by the session that merged PR 280. It has direct live evidence for
+the three tranches recorded below (PR 274, PR 280, and the S2-AUTH-014/015 policy
+activations) and none beyond that. `S2-I006`/`S2-I007` are recorded partial rather than
+done because no dedicated adversarial fixture for either was found in the merged test
+suite; the underlying fields exist and are wired, but that is not the same evidence as a
+fixture proving the distinction. `S2-A001..S2-A009` (the acceptance gate) are left
+unchecked on purpose: `Builder != Acceptance Authority for acceptance-critical work`
+(`AGENTS.md`), and the S2 acceptance decision (`S2-A006`) has not been made.
+
+```text
+LAST_MERGED_TRANCHE = S2-AUTH-015 Doctor + CLI projection tranche
+LAST_MERGED_TRANCHE_PR = 280
+LAST_MERGED_TRANCHE_BASE = 5fbf068fa618beb9d61d8d5281925055944d3736
+LAST_MERGED_TRANCHE_HEAD = 9b78232622d10538ef163592da662b7617b2b189
+LAST_MERGED_TRANCHE_MERGE = dae6115c4cec88e7c2151b3e4b7e86946a5644de
+LAST_MERGED_TRANCHE_REVIEW = SATISFIED, CodeRabbit, exact-head 9b78232, 4/4 findings
+  independently re-verified fixed and threads resolved by the reviewer itself
+LAST_MERGED_TRANCHE_UNRESOLVED_FINDINGS_AT_MERGE = 0, INDEPENDENTLY CHECKABLE
+  (CodeRabbit's own resolution replies, not merely asserted by the merging session)
 LAST_MERGED_TRANCHE_UNRESOLVED_THREADS_NOW = 0_INDEPENDENTLY_CHECKABLE
-LAST_MERGED_TRANCHE_ACCEPTANCE_RECORD = PR 240 comment 5483115585, EDITED AFTER THE MERGE
+LAST_MERGED_TRANCHE_POST_MERGE_FOUNDATION = SUCCESS, run 33868781922, activation markers
+  wepld_policy_successor_v50=S2_V49_DOCTOR_CLI_SELFTEST_PROJECTION_REPAIR_ONLY /
+  doctor_cli_authority_v50=DETERMINISTIC_LOCAL_PROJECTION_ORCHESTRATION_ONLY /
+  next_authority_gate_v49=S2-ACCEPTANCE / every dangerous authority (shell, arbitrary
+  process, package install, project-native command, Git mutation, safe.directory
+  mutation, remediation exec, network, model/provider, S3+) reads NONE
+LAST_MERGED_TRANCHE_ACCEPTANCE_RECORD = NONE_YET; slice acceptance is a separate
+  founder-reserved decision (S2-A006), not implied by this merge
+
+PRIOR_TRANCHE = S2 identity and local evidence store
+PRIOR_TRANCHE_PR = 240
+PRIOR_TRANCHE_BASE = 573670eca575a5972e52b623b01b3143d036d281
+PRIOR_TRANCHE_HEAD = bdebfbaa8f146115321e6d204da9e49d367047e2
+PRIOR_TRANCHE_MERGE = a6edc3af9e0435ed6283b2bf42ab0aff240b10db
+PRIOR_TRANCHE_TREE = c1b7f68992211f28aac8b4ad4dff54db1b18939f
+PRIOR_TRANCHE_REVIEW_ROUNDS = 17_BY_PROJECT_DEFINITION_NOT_A_GITHUB_CONCEPT
+PRIOR_TRANCHE_UNRESOLVED_FINDINGS_AT_MERGE = 0_ASSERTED_BY_THE_MERGING_SESSION
+PRIOR_TRANCHE_UNRESOLVED_THREADS_NOW = 0_INDEPENDENTLY_CHECKABLE
+PRIOR_TRANCHE_ACCEPTANCE_RECORD = PR 240 comment 5483115585, EDITED AFTER THE MERGE
+
+INTERMEDIATE_TRANCHE = bounded Git topology adapter (S2-AUTH-014 product side)
+INTERMEDIATE_TRANCHE_PR = 274
+INTERMEDIATE_TRANCHE_BASE = 75ef1bcd91584b1c3f98b0efc2ba22b4f53038f4
+INTERMEDIATE_TRANCHE_HEAD = 7aac2147f507ee2530293c761b4185bb9b5fd41a
+INTERMEDIATE_TRANCHE_MERGE = 24791b11196106f0440ca01aa5344a5168e650f8
+INTERMEDIATE_TRANCHE_REVIEW = SATISFIED, CodeRabbit, exact-head 7aac214, 0 unresolved
+  threads (three findings reconciled across the review, final head 7aac214)
+INTERMEDIATE_TRANCHE_POST_MERGE_FOUNDATION = SUCCESS, run 33784207241
 ```
 
 ## Planning gates
@@ -116,9 +155,9 @@ The successor strategy is now staged so the plan in the repository is directly e
 - [ ] **S2-AUTH-011** Freeze per-platform data-root, lossless OS-path, opaque-ID, digest, catalog, generation, and locking machinery before corresponding Core mutation.
 - [ ] **S2-AUTH-012** Decide any direct `uuid`/`sha2` Core dependency edge under a focused exact dependency-admission gate; transitive presence is not admission.
 - [x] **S2-AUTH-013** Decide external Git route separately: `NONE` or exact bounded Git adapter. Decided `SELECT_NARROW_QUALIFIED_SYSTEM_GIT_ADAPTER`; evidence below.
-- [ ] **S2-AUTH-014** If Git adapter is selected, qualify executable/environment/argv/timeout/output/trust/no-hook/no-network boundaries before code. Now the next authority gate. Not started; no qualification evidence exists yet.
-- [ ] **S2-AUTH-015** Authorize Doctor + CLI projections only after underlying observations/contracts exist.
-- [ ] **S2-AUTH-016** Keep network/model/S3/S4 authority denied throughout S2.
+- [x] **S2-AUTH-014** If Git adapter is selected, qualify executable/environment/argv/timeout/output/trust/no-hook/no-network boundaries before code. Qualified `READ_ONLY_TOPOLOGY_OBSERVATION_ONLY` via v45; evidence below.
+- [x] **S2-AUTH-015** Authorize Doctor + CLI projections only after underlying observations/contracts exist. Authorized `DETERMINISTIC_LOCAL_PROJECTION_ORCHESTRATION_ONLY` via v49/v50; evidence below.
+- [ ] **S2-AUTH-016** Keep network/model/S3/S4 authority denied throughout S2. Verified NONE on every activation marker through v50 (see evidence blocks below); left unchecked because it is a standing invariant for the whole slice, not a one-time task, and S2 is not yet closed.
 
 No S2 implementation task below becomes eligible until the canonical successor for that task explicitly grants its paths/effects.
 
@@ -168,8 +207,62 @@ rev-parse:closed_allowlisted_topology_query
 worktree:list:porcelain-z
 ```
 
-`S2-I005`, `S2-I006` and `S2-I007` therefore remain ineligible. `S2-AUTH-014` must grant their
-authority first, and it has not run.
+`S2-I005`, `S2-I006` and `S2-I007` therefore remained ineligible until `S2-AUTH-014` granted
+their authority (below); they are recorded separately under their own task rows.
+
+### S2-AUTH-014 evidence
+
+```text
+DECISION = READ_ONLY_TOPOLOGY_OBSERVATION_ONLY
+POLICY_PR = 273
+POLICY_BASE = 53d8883418d9c9ab1c2081de8d7c9436aacdeba3
+POLICY_HEAD = 14d5d985eb1a66bf0730eb4aa1ac768abe9e8205  (post-repair; superseded pre-repair
+  head 3b109077097f4c68e778861617834e1758559ae2 does not qualify)
+POLICY_MERGE = f059f11b325630cd32746cf49d24f6395abcc06f
+EXACT_HEAD_FOUNDATION = SUCCESS, run 33690549308
+TRUSTED_BASE_RUN = 33690547233, expected successor bootstrap negative oracle
+POST_MERGE_FOUNDATION = SUCCESS, run 33691476822
+ACTIVATION_MARKER = wepld_policy_successor_v45=S2_AUTH_014_EXACT_GIT_TOPOLOGY_PROCESS_TRANCHE /
+  git_execution_authority_v45=READ_ONLY_TOPOLOGY_OBSERVATION_ONLY /
+  external_process_authority_v45=EXACT_QUALIFIED_GIT_EXECUTABLE_CLOSED_TOPOLOGY_ARGV_ONLY /
+  doctor_cli_authority_v45=NONE / next_authority_gate_v45=S2-AUTH-015
+INDEPENDENT_REVIEW = SATISFIED, CodeRabbit, PR 273, 0 unresolved threads
+CODEX_SECURITY = NOT_RUN_NON_BLOCKING (no reachable surface); security-review accounting
+  recorded on PR 273 per docs/canonical/SECURITY_REVIEW_POLICY.md
+SECURITY_PASS = NOT_CLAIMED
+PRODUCT_TRANCHE = PR 274 (git_topology.rs); see S2-I005..S2-I007 below
+```
+
+v46 (PR 275), v47 (PR 276) and v48 (PR 277) are predecessor-selftest-projection repairs
+over v45 — they widen nothing, grant no new authority, and are not separately recorded
+as authority gates.
+
+### S2-AUTH-015 evidence
+
+```text
+DECISION = DETERMINISTIC_LOCAL_PROJECTION_ORCHESTRATION_ONLY
+POLICY_PR = 278
+POLICY_BASE = 24791b11196106f0440ca01aa5344a5168e650f8
+POLICY_HEAD = d23a38e6fda4d48f8a53fe360c9aa58e39371ca2
+POLICY_MERGE = 705d9b529791a97c27ccfd955b2b4e08e189cac3
+EXACT_HEAD_FOUNDATION = SUCCESS, run 33810560705
+TRUSTED_BASE_RUN = 33810560707, expected successor bootstrap negative oracle
+POST_MERGE_FOUNDATION = SUCCESS, run 33816696689
+ACTIVATION_MARKER = wepld_policy_successor_v49=S2_AUTH_015_EXACT_DOCTOR_CLI_PROJECTION_TRANCHE /
+  doctor_cli_authority_v49=DETERMINISTIC_LOCAL_PROJECTION_ORCHESTRATION_ONLY /
+  general_shell_authority_v49=NONE / arbitrary_process_authority_v49=NONE /
+  package_install_authority_v49=NONE / git_mutation_authority_v49=NONE /
+  safe_directory_mutation_authority_v49=NONE / remediation_execution_authority_v49=NONE /
+  next_authority_gate_v49=S2-ACCEPTANCE
+INDEPENDENT_REVIEW = SATISFIED, CodeRabbit, PR 278, 0 unresolved threads
+CODEX_SECURITY = NOT_RUN_NON_BLOCKING (no reachable surface)
+SECURITY_PASS = NOT_CLAIMED
+PRODUCT_TRANCHE = PR 280 (doctor.rs / cli.rs / bin/wepld.rs); see S2-D*/S2-CLI*/S2-S* below
+```
+
+v50 (PR 279) is a predecessor-selftest-projection repair over v49 — same class as v46-v48,
+widens nothing, not separately recorded as an authority gate. Its own activation marker
+confirms `next_authority_gate_v49=S2-ACCEPTANCE` unchanged.
 
 `S2-AUTH-010`, `S2-AUTH-011` and `S2-AUTH-012` are left unchecked on purpose. The merged S2
 identity/evidence-store tranche and the recorded `getrandom`/`sha2` dependency admission suggest
@@ -195,9 +288,9 @@ Anyone holding that evidence should record it here the way `S2-AUTH-013` is reco
 - [ ] **S2-I002** Implement resolved-path observation with explicit errors.
 - [ ] **S2-I003** Implement bounded symlink/reparse metadata observation.
 - [ ] **S2-I004** Implement non-Git project root semantics.
-- [ ] **S2-I005** Implement selected Git topology route only under exact later process/filesystem authority.
-- [ ] **S2-I006** Implement worktree/common-repository distinction.
-- [ ] **S2-I007** Implement superproject/submodule/nested-repository diagnostics.
+- [x] **S2-I005** Implement selected Git topology route only under exact later process/filesystem authority. `git_topology.rs` (PR 274) under S2-AUTH-014; 5 tests in `git_topology_v1.rs` (current checkout, project-local candidate rejection, cancellation, relative-locator rejection, malformed-worktree-output fail-closed).
+- [x] **S2-I006** Implement worktree/common-repository distinction. DONE: `worktree_root` / `git_common_dir` / `is_bare` / `linked_worktree_state` fields exist and are typed (`git_topology.rs`, PR 274 under S2-AUTH-014). The dedicated adversarial fixture landed under the bounded, single-use v52 Git-topology evidence-reopen authority (policy PR #286, merged `9340874c398e19169e8898161d2934c5c9e8f2ba`, activation markers `wepld_policy_successor_v52=S2_GIT_TOPOLOGY_EVIDENCE_REOPEN_ONLY` / `git_topology_evidence_reopen_authority_v52=SINGLE_USE_TEST_ONLY_REOPEN_OF_GIT_TOPOLOGY_V1_RS`; product PR #287, merged `fee75a9bce1596a69cae83b3fa4aca60e8a2b310`), which reopened exactly `crates/core/tests/git_topology_v1.rs` after v45's own product-tranche freeze blocked the originally-proposed fixture PR #285 (`v45 Git-topology product tranche is frozen after first canonical landing`). `git_topology_v1.rs::linked_worktree_observes_distinct_root_and_shared_common_dir` creates a real `git worktree add` linked worktree and proves `worktree_root` (the linked worktree) is distinct from `git_common_dir` (still the main repository's shared `.git`) and from the worktree's own `absolute_git_dir`, each checked by exact canonicalized-path equality against an independent second `git rev-parse --absolute-git-dir` / `--git-common-dir` invocation (not the adapter under test grading its own output). Independent review (chronological, exactly as GitHub records it): (1) CodeRabbit manual review of PR #287 at head `1464f025fc177ad5d8b53dbea7d02c0b257453ea` (2026-09-05T11:44:52Z, COMMENTED) raised one Minor / Functional Correctness finding - the fixtures originally asserted on path-label substrings (`.contains(...)`), which could pass for the wrong reason (a wrong path that happens to contain the label, or any unrelated `absolute_git_dir` distinct from `git_common_dir`). (2) Fix commit `3bbb070b59d9b7e9053a0b80aed345ac0d68be8f` replaced every substring assertion with exact canonicalized-path equality cross-checked against independent `git rev-parse --absolute-git-dir` / `--git-common-dir` / `--show-superproject-working-tree` oracle invocations. (3) PR #287 was merged 2026-09-05T12:08:45Z on head `3bbb070b` - i.e. BEFORE any independent review terminating at that fixed head existed; this merge-before-final-review ordering is a recorded process deviation. (4) The independent re-review of the merged head was obtained afterward: CodeRabbit manual re-trigger on the merged PR (comment https://github.com/TheHalfMoon/wepld/pull/287#issuecomment-5552787325, 2026-09-05T15:22:16Z) - verdict "I found no issues in the final assertion changes", with CodeRabbit independently reconstructing a fresh linked-worktree topology and confirming Git returns distinct absolute paths for `--absolute-git-dir` vs `--git-common-dir`. It is an issue comment rather than a second formal review object because CodeRabbit's incremental engine does not open a new formal review on an already-reviewed PR; GitHub's `pulls/287/reviews` therefore still lists only the head-`1464f025` COMMENTED review. Net: the landed content (`3bbb070b`) now has a clean exact-head independent correctness review; the only residual is the disclosed ordering deviation. CI on the exact merged head `3bbb070b`: `foundation-integrity` and `s1-admission-integrity` both PASS (v52's reopen makes this delta an authorized candidate, not the `EXPECTED_SUCCESSOR_BOOTSTRAP_REJECTION` a policy-only PR draws), plus `desktop-windows`, `secondary-platform` macOS + Ubuntu, and `windows-performance` green; post-merge `foundation-integrity` green against merge commit `fee75a9bce1596a69cae83b3fa4aca60e8a2b310` with activation marker `reopen_available_v52=False` confirming the single-use grant is now permanently consumed. Test evidence: `cargo test -p wepld-core` 197 tests (195 -> 197, +2 new), `cargo fmt --check -p wepld-core` and `cargo clippy -p wepld-core --all-targets -- -D warnings` both clean.
+- [x] **S2-I007** Implement superproject/submodule/nested-repository diagnostics. DONE: `superproject_worktree` is observed and wired into `nested_candidate_ambiguity` (`doctor.rs` via PR 280's `bin/wepld.rs`). The dedicated adversarial fixture landed in the same PR #287 under the same single-use v52 reopen as S2-I006 above - same policy/product merge commits, same independent review chain (head-`1464f025` COMMENTED review + head-`3bbb070b` clean re-review comment https://github.com/TheHalfMoon/wepld/pull/287#issuecomment-5552787325), same CI evidence, and the same disclosed merge-before-final-review ordering deviation. `git_topology_v1.rs::submodule_worktree_observes_its_superproject` creates a real `git submodule add` submodule and proves `superproject_worktree` resolves to the exact superproject root from inside the submodule, checked by exact canonicalized-path equality against an independent `git rev-parse --show-superproject-working-tree` invocation rather than a path-substring match. Scope note: this fixture covers the submodule -> superproject observation; the broader nested-repository / ambiguous-candidate distinctions remain exercised only by the pre-existing `nested_candidate_ambiguity` wiring and its `doctor_v1.rs` coverage, not by a new dedicated topology fixture.
 - [x] **S2-I008** Implement deterministic identity match strength ordering.
 - [x] **S2-I009** Implement conservative move/rename reassociation.
 - [x] **S2-I010** Implement collision/conflict/ambiguity handling.
@@ -228,34 +321,34 @@ Anyone holding that evidence should record it here the way `S2-AUTH-013` is reco
 
 ## Project Doctor tasks
 
-- [ ] **S2-D001** Establish stable finding-code registry and WePLD-owned text-template registry.
-- [ ] **S2-D002** Identity/reservation/reassociation Doctor rules.
-- [ ] **S2-D003** Repository/worktree/trust Doctor rules.
-- [ ] **S2-D004** Implement exact root descriptor allowlist detection only.
-- [ ] **S2-D005** Enforce `MAX_ROOT_DESCRIPTOR_CANDIDATES=32`.
-- [ ] **S2-D006** Enforce parsed descriptor max 1 MiB, aggregate 4 MiB, structured nesting depth 64 before/while parsing.
-- [ ] **S2-D007** Keep lock/package-manager markers presence-only in baseline S2 unless a later parser contract is explicitly authorized.
-- [ ] **S2-D008** Toolchain descriptor facts remain descriptive; no command execution/eval.
-- [ ] **S2-D009** Lockfile/package-manager ambiguity rules.
-- [ ] **S2-D010** Evidence catalog/current-generation corruption rules.
-- [ ] **S2-D011** Freshness/staleness rules.
-- [ ] **S2-D012** Security-sensitive configuration observations report safe classes/counts without raw values.
-- [ ] **S2-D013** Stable finding ordering/explanations/remediation hints using template IDs and safe parameters only.
-- [ ] **S2-D014** Negative test proving Doctor executes no repository task/installer/remediation.
-- [ ] **S2-D015** Negative TTY/JSON tests for credential URLs, environment tokens, manifest command strings, and ANSI/control injection.
+- [x] **S2-D001** Establish stable finding-code registry and WePLD-owned text-template registry. `doctor.rs::codes` / `doctor.rs::templates` (PR 280).
+- [x] **S2-D002** Identity/reservation/reassociation Doctor rules. `doctor.rs::evaluate` identity branch; `doctor_v1.rs` (`unavailable_identity_is_not_healthy`, `ambiguous_identity_is_blocking_and_carries_only_a_safe_count`).
+- [x] **S2-D003** Repository/worktree/trust Doctor rules. `doctor_v1.rs` (`git_trust_refusal_is_blocking_and_never_proposes_editing_safe_directory`, `non_git_project_is_valid_with_repository_facts_absent`).
+- [x] **S2-D004** Implement exact root descriptor allowlist detection only. `bin/wepld.rs::PARSED_DESCRIPTORS` / `PRESENCE_MARKERS` (closed lists).
+- [x] **S2-D005** Enforce `MAX_ROOT_DESCRIPTOR_CANDIDATES=32`. `doctor.rs::MAX_ROOT_DESCRIPTOR_CANDIDATES`; `doctor_v1.rs::descriptor_budget_bounds_fail_closed_at_each_limit`.
+- [x] **S2-D006** Enforce parsed descriptor max 1 MiB, aggregate 4 MiB, structured nesting depth 64 before/while parsing. Same budget test; no structured parse occurs (nesting depth is 0 by construction, FR-022).
+- [x] **S2-D007** Keep lock/package-manager markers presence-only in baseline S2 unless a later parser contract is explicitly authorized. `bin/wepld.rs::PRESENCE_MARKERS` never reads file contents.
+- [x] **S2-D008** Toolchain descriptor facts remain descriptive; no command execution/eval. `bin_source_starts_no_project_task_and_opens_no_socket` (`cli_v1.rs`).
+- [x] **S2-D009** Lockfile/package-manager ambiguity rules. `doctor_v1.rs::multiple_lockfiles_and_ambiguous_package_manager_are_reported_not_resolved`; `cli_v1.rs::doctor_completes_and_flags_package_manager_ambiguity`.
+- [x] **S2-D010** Evidence catalog/current-generation corruption rules. `doctor_v1.rs` (`unavailable_store_is_blocking`, `partial_store_is_not_complete`, `unavailable_status_store_is_distinct_from_partial`, `corrupt_store_is_blocking_integrity_defect`).
+- [x] **S2-D011** Freshness/staleness rules. `doctor_v1.rs::stale_required_record_is_not_fresh`.
+- [x] **S2-D012** Security-sensitive configuration observations report safe classes/counts without raw values. DONE: authorized under policy v51 (PR 282, merged as `1e4ed3ee072d90573476616203b338acce40296e`), which granted the bounded closed `ConfigQuery` vocabulary (`--local --no-includes --null --get-regexp` reads only) as a successor to S2-AUTH-014's topology-only authority. Implemented and merged in PR 283 (`git_topology.rs::observe_security_sensitive_config[_with_cancel]`, `ConfigQuery`, `url_value_has_http_credential`; `doctor.rs` availability-gated `D-SEC-CREDENTIAL-BEARING-CONFIG`/`D-SEC-OBSERVATION-UNAVAILABLE` rules; `bin/wepld.rs::run_doctor` now populates `SecuritySensitiveObservation` from a real observation instead of `::default()`). Test evidence: `security_sensitive_config_v1.rs` (11 tests: clean config, credential-bearing remote/pushurl/proxy/helper/extraHeader/insteadOf/sshCommand, non-credential SSH/file/local forms, `--no-includes` scope, no mutation, cancellation), `doctor_v1.rs` (`security_sensitive_config_reports_only_safe_counts_no_raw_values`, `unavailable_security_observation_is_distinct_from_a_clean_one`, `unavailable_availability_with_nonzero_count_never_emits_credential_finding`), `cli_v1.rs`. Independent review: CodeRabbit (manual trigger, PR 283) found two correctness defects on head `86805665` (URL-classifier authority boundary misclassifying `@` in a query/fragment and empty userinfo as credential-bearing; the credential finding emittable on an `Unavailable`-availability observation) — both fixed and regression-tested on head `fe9873a9230626a313200f7946b7b105de4a9f19`, re-reviewed by CodeRabbit against the exact fixed head with 0 further findings. CI green pre-merge (`foundation-integrity`, `s1-admission-integrity`, `s1-contracts`, `s1-performance`, all platforms) and post-merge on `main` (`foundation-integrity`, `s1-contracts`, `s1-performance` against merge commit `c7b43b5b4c772b67cc6b12169675627717da4983`, parents `[1e4ed3ee072d90573476616203b338acce40296e, fe9873a9230626a313200f7946b7b105de4a9f19]`; `s1-admission-integrity` is `pull_request_target`-triggered and pre-merge-only, so it does not run on a push to `main`). `OBSERVATION_SCOPE` note: `--no-includes` means the observation is honestly bounded to the qualified repository-local no-includes scope, not repository-owned `include`/`includeIf` directives — a clean result means no security-sensitive entry in that qualified scope, not a claim about the full effective configuration. No leak risk: only safe enums/counts cross into `DoctorFinding`/CLI output; raw values are transient locals dropped inside the observer and never enter an error variant, `Debug` impl, or output surface.
+- [x] **S2-D013** Stable finding ordering/explanations/remediation hints using template IDs and safe parameters only. `doctor_v1.rs::evaluation_is_deterministic_and_sorted_by_category_then_severity_then_code`, `every_finding_uses_wepld_owned_templates_and_d_prefixed_codes`.
+- [x] **S2-D014** Negative test proving Doctor executes no repository task/installer/remediation. `cli_v1.rs::bin_source_starts_no_project_task_and_opens_no_socket`; `doctor_v1.rs::doctor_module_source_contains_no_process_or_network_effect`.
+- [x] **S2-D015** Negative TTY/JSON tests for credential URLs, environment tokens, manifest command strings, and ANSI/control injection. `cli_v1.rs::no_secret_or_ansi_pattern_appears_in_any_surface`, `terminal_control_sequences_never_reach_human_or_json_output`, `safe_display_path_redacts_credential_bearing_remote_urls`.
 
 ## CLI / command-plane tasks
 
-- [ ] **S2-CLI001** Reconcile exact exit-code values with existing CLI conventions.
-- [ ] **S2-CLI002** Freeze stable machine error classes for identity conflict, catalog/store busy, capability unavailable, evidence corruption, and blocking Doctor findings.
-- [ ] **S2-CLI003** Implement `open` command contract and human projection.
-- [ ] **S2-CLI004** Implement `doctor` command contract and human projection.
-- [ ] **S2-CLI005** Implement `status` command contract and human projection.
-- [ ] **S2-CLI006** Implement stable `--json` projection from the same redacted semantic model as TTY.
-- [ ] **S2-CLI007** Implement/verify `--no-input` behavior.
-- [ ] **S2-CLI008** Verify unknown commands stay errors with suggestions.
-- [ ] **S2-CLI009** Preserve explicit future JSONL/event interface without overbuilding streaming.
-- [ ] **S2-CLI010** Shell-completion surface for new commands only if existing CLI architecture admits it.
+- [x] **S2-CLI001** Reconcile exact exit-code values with existing CLI conventions. `cli.rs::ExitClass` frozen 0/1/2/3/4/5/6; `cli_v1.rs::exit_class_codes_are_frozen`.
+- [x] **S2-CLI002** Freeze stable machine error classes for identity conflict, catalog/store busy, capability unavailable, evidence corruption, and blocking Doctor findings. `bin/wepld.rs::store_failure` maps every `StoreError` variant to one frozen `ExitClass`.
+- [x] **S2-CLI003** Implement `open` command contract and human projection. `bin/wepld.rs::run_open`; `cli_v1.rs::open_on_a_plain_directory_succeeds_and_reuses_one_identity`.
+- [x] **S2-CLI004** Implement `doctor` command contract and human projection. `bin/wepld.rs::run_doctor`; `cli_v1.rs::doctor_completes_and_flags_package_manager_ambiguity`.
+- [x] **S2-CLI005** Implement `status` command contract and human projection. `bin/wepld.rs::run_status`; `cli_v1.rs::status_reports_no_association_before_open_then_the_identity_after`.
+- [x] **S2-CLI006** Implement stable `--json` projection from the same redacted semantic model as TTY. `cli.rs::render` dispatches human/json from one `CommandOutcome`; `cli_v1.rs::human_and_json_come_from_one_model_and_are_deterministic`, `json_output_is_byte_deterministic_and_control_free`.
+- [x] **S2-CLI007** Implement/verify `--no-input` behavior. `cli.rs::Invocation::no_input`; exercised in `cli_v1.rs::json_output_is_byte_deterministic_and_control_free`.
+- [x] **S2-CLI008** Verify unknown commands stay errors with suggestions. `cli_v1.rs::unknown_command_is_an_error_with_a_suggestion_never_a_prompt`, `unknown_command_exits_two_with_a_suggestion_and_never_prompts`.
+- [x] **S2-CLI009** Preserve explicit future JSONL/event interface without overbuilding streaming. No streaming/event machinery was added; the JSON projection stays one deterministic object per invocation.
+- [ ] **S2-CLI010** Shell-completion surface for new commands only if existing CLI architecture admits it. Not attempted: no existing WePLD CLI shell-completion generator is admitted for this binary to extend.
 
 ## Security / adversarial tasks
 
@@ -266,14 +359,14 @@ Anyone holding that evidence should record it here the way `S2-AUTH-013` is reco
 - [ ] **S2-S005** Git `safe.directory` refusal test; prove no auto-bypass.
 - [ ] **S2-S006** Malicious `.git`/gitfile/topology parsing tests.
 - [ ] **S2-S007** External Git output/environment/parser/timeout/no-hook/no-network tests if Git adapter admitted.
-- [ ] **S2-S008** Secret-bearing remote/config/environment/output redaction tests across store, TTY, JSON, logs, diagnostics.
+- [x] **S2-S008** Secret-bearing remote/config/environment/output redaction tests across store, TTY, JSON, logs, diagnostics. `cli_v1.rs::no_secret_or_ansi_pattern_appears_in_any_surface` (fake `ghp_...` token + userinfo-bearing URL fixture, asserted absent from stdout+stderr across `open`/`doctor`/`status`, human and `--json`), covering the descriptor-scan/CLI-output surface. As of S2-D012 (PR 283) this coverage now also includes a real git-config/remote-URL source: `security_sensitive_config_v1.rs::credential_bearing_remote_url_is_counted_and_never_echoed` and siblings prove a genuine `.git/config` credential-bearing entry is classified into a safe count and never echoed, and `doctor_v1.rs::security_sensitive_config_reports_only_safe_counts_no_raw_values` proves the resulting Doctor finding carries only `SafeParameter::Count` values.
 - [ ] **S2-S009** Corrupt/oversized/unsupported/mixed-generation evidence record tests.
 - [ ] **S2-S010** First-open identity split race test.
 - [ ] **S2-S011** Lock contention denial test proves bounded completion.
 - [ ] **S2-S012** Descriptor amplification tests for count/per-file/aggregate/depth limits.
-- [ ] **S2-S013** Repository mutation negative oracle: open/doctor/status leave project tree unchanged.
-- [ ] **S2-S014** Network negative oracle: S2 command path has no required network effect.
-- [ ] **S2-S015** Writer-level tampering fixture proves an internally self-consistent forged unkeyed store cannot be labeled cryptographically authenticated/tamper-evident; the implementation reports the documented authenticity limitation rather than a false PASS.
+- [x] **S2-S013** Repository mutation negative oracle: open/doctor/status leave project tree unchanged. `cli_v1.rs::open_doctor_status_do_not_mutate_the_project_tree` (byte-identical directory snapshot before/after; also proves no `.wepld/` is written into the project).
+- [x] **S2-S014** Network negative oracle: S2 command path has no required network effect. `cli_v1.rs::bin_source_starts_no_project_task_and_opens_no_socket` (source-level negative oracle: no `std::net`/`TcpStream`/`UdpSocket`/`reqwest` reference in `bin/wepld.rs`).
+- [x] **S2-S015** Writer-level tampering fixture proves an internally self-consistent forged unkeyed store cannot be labeled cryptographically authenticated/tamper-evident; the implementation reports the documented authenticity limitation rather than a false PASS. `doctor_v1.rs::store_authenticity_is_structural_coherence_only_never_a_pass`; `cli_v1.rs::open_reports_the_documented_authenticity_limitation_not_a_false_pass`.
 
 ## Platform / performance tasks
 

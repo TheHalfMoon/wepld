@@ -27,7 +27,7 @@ External issue/ticket/error sources     Drag/drop / paste / URL / repo / files
                   +--------------+---------------+
                   |                              |
                   v                              v
-             Fehrest / RAG                 Workflow Engine
+             Fehrest / RAG                 Intent / Plan Compiler
                   |                              |
                   +--------------+---------------+
                                  v
@@ -573,6 +573,8 @@ This proves the intake/RAG seam before worker complexity enters.
 S7 remains distinct from S8 because independent evaluation must not be owned by the same repair/completion boundary that consumes findings. Implementations may create a tight feedback loop, but `ReviewOutcome != CompletionDecision` remains structural.
 
 ### S8 — autonomous repair and landing
+
+Before any consequential S8 dispatch, the S6 execution path must already provide durable operation/dispatch identity, enforcing ownership/authority checks, cancellation uncertainty and effect reconciliation. S9 extends durable continuation and audit; it does not defer these safety prerequisites until after effects have been enabled.
 
 - bounded repair/retry/reassignment;
 - dynamic teams;

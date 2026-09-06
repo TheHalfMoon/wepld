@@ -239,6 +239,8 @@ cache/freshness identity
 
 The fetcher must fail closed on redirects or resolution changes that leave the authorized target scope.
 
+HTTP(S) source support does not make both schemes credential eligible. Authenticated HTTP API traffic requires HTTPS with qualified peer verification before attaching any secret/cookie/header. Plaintext HTTP may be used only for separately authorized non-secret retrieval. Redirect handling must revalidate scheme, origin, resolved address and credential scope before any resend; no credential forwarding based solely on the original URL's grant.
+
 ```text
 URL_TEXT_PRESENT != NETWORK_AUTHORITY
 REDIRECT_TARGET != AUTHORIZED_TARGET

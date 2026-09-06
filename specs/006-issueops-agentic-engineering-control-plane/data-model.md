@@ -245,6 +245,7 @@ RetrievalEvidence {
   query_or_intent_identity
   source_id
   source_generation
+  retrieval_mode
   projection_generation?
   exact_location_or_citation?
   freshness_state
@@ -259,6 +260,8 @@ RetrievalEvidence {
 ```
 
 Scores are observations only. A missing required source generation or stale source state cannot be silently represented as current evidence. Retrieved instructions remain data and do not create WorkflowIntent.
+
+`retrieval_mode` is `DIRECT_SOURCE` or `DERIVED_PROJECTION`. The latter requires `projection_generation`; the former requires an exact source location/content identity and must not claim to have queried a projection. Missing generation is never an implicit direct-read fallback.
 
 A source-access revocation, collection-visibility reduction, provider permission loss, or protected-content redaction invalidates downstream eligibility of affected derived projections and context packages even if their content hashes remain unchanged.
 
@@ -286,6 +289,8 @@ The intent is input to routing and authorization; it is not authority. `controll
 ContextPackage {
   context_package_id
   assignment_id
+  project_scope_ref
+  workspace_scope_ref
   included_item_refs[]
   source_identity_by_item
   trust_class_by_item
@@ -301,7 +306,7 @@ ContextPackage {
 
 A package is evidence of what a worker may be shown. It does not authorize worker effects. Minimum-sufficient packaging is preferred over repository/collection dumping.
 
-Every included item's effective visibility is the intersection of source access, collection scope, assignment visibility, route/egress policy, and current revocation/redaction state. Package construction must fail closed if that intersection cannot be established.
+Every included item's effective visibility is the intersection of source access, collection scope, project scope, workspace scope, assignment visibility, route/egress policy, and current revocation/redaction state. An explicitly qualified projectless/workspace-less scope is a recorded value, never an omitted check. Package construction and subsequent consumption must fail closed if that intersection cannot be established.
 
 ## 12. WorkerRequirement
 
@@ -382,9 +387,39 @@ Qualification means the route may be considered. It never contains effect author
 
 ## 15. Assignment
 
+### WorkSession and Mission ownership
+
+```text
+WorkSession {
+  work_session_id
+  project_scope_ref
+  participant_access_policy_ref
+  mission_refs[]
+  timeline_cursor
+  lifecycle_state
+  created_at
+}
+
+Mission {
+  mission_id
+  work_session_ref
+  controlling_intent_ref
+  objective_revision
+  acceptance_contract_ref
+  assignment_refs[]
+  runtime_state
+  completion_decision_ref?
+}
+```
+
+WorkSession is the durable user-work association under Mission Runtime with a UI projection; it has zero or more Missions. Each Mission belongs to one WorkSession and may have multiple Assignments and Attempts. A Case is an optional engineering concern linked to that work, not a prerequisite for generic work. Session lifecycle is `OPEN`, `ARCHIVED`, or `DELETION_PENDING`; archiving only changes presentation. Deletion follows evidence retention/access policy and cannot silently cancel or erase running work.
+
+Mission runtime state is `PLANNED`, `READY`, `RUNNING`, `WAITING`, `RECOVERING`, or `TERMINAL`, with typed reason/effect evidence. Terminal execution is not successful completion: only a current Trusted Completion decision can establish the accepted outcome. An objective change creates a new objective revision, invalidates affected plans/acceptance evidence and requires renewed qualification/authority; it cannot rewrite prior attempts. Client reconnect uses an authorized timeline cursor; a client disconnect does not transfer execution ownership. Mission Runtime owns durable continuation, Edara owns assignment topology, and the UI owns neither.
+
 ```text
 Assignment {
   assignment_id
+  mission_ref
   case_id?
   task_identity
   objective
@@ -443,6 +478,8 @@ The system should not ask a human to rediscover facts that qualified agents can 
 
 ## 18. ReviewFinding
 
+`ReviewFinding` is the review-facing projection of the canonical `Finding` in `contracts/assurance-fabric.md`. It retains that finding's identity, provenance, evidence and reconciliation history; it is not a second finding store or independent closure authority. The fields below describe the projection, not an alternative canonical lifecycle.
+
 ```text
 ReviewFinding {
   finding_id
@@ -465,14 +502,23 @@ Valid findings remain live until fixed, rebutted with evidence, accepted under e
 ```text
 EffectProposal {
   effect_proposal_id
+  logical_operation_id
+  proposal_state
+  workflow_intent_ref
+  mission_ref
   effect_class
   exact_target
   proposed_input_identity
   complete_precondition_snapshot
   controlling_origin_kind
   controlling_origin_ref
-  assignment_ref?
-  attempt_ref?
+  assignment_ref
+  attempt_ref
+  proposing_principal_ref
+  route_qualification_ref
+  credential_capability_refs[]
+  risk_evidence_refs[]
+  execution_envelope_ref
   worker_or_work_origin
   created_at
 }
@@ -480,7 +526,7 @@ EffectProposal {
 NawatDecision {
   nawat_decision_id
   effect_proposal_id
-  route_qualification_ref?
+  route_qualification_ref
   decision
   exact_scope_or_target
   conditions[]
@@ -495,6 +541,8 @@ EffectResult {
   effect_proposal_id
   nawat_decision_ref
   execution_identity
+  logical_operation_id
+  dispatch_event_ref
   outcome_class
   observed_result?
   postcondition_evidence[]
@@ -506,6 +554,8 @@ EffectReconciliation {
   effect_reconciliation_id
   effect_proposal_id
   execution_identity
+  logical_operation_id
+  visibility_or_consistency_proof_refs[]
   unknown_outcome_evidence_refs[]
   reconciliation_observation_refs[]
   result
@@ -531,6 +581,20 @@ CONFIRMED_APPLIED
 CONFIRMED_NOT_APPLIED
 STILL_UNKNOWN
 ```
+
+`proposal_state` is `DRAFT` or `EXECUTABLE`. Only an explicitly non-executable draft may leave execution bindings unresolved; missing bindings on an executable proposal cause refusal. Direct user work is normalized to Mission/Assignment/Attempt before execution, without requiring a Case. Empty credential/risk lists must carry a qualified not-required determination in the precondition snapshot; they cannot silently omit applicable checks. The snapshot binds exact account/tenant, target, argument digest, observations and their generations, applicable policy and authority scope. A changed material binding requires a new proposal and decision.
+
+`retry_safety_state` is one of `NOT_RETRYABLE`, `RECONCILIATION_REQUIRED`, `SAFE_WITH_PROVIDER_IDEMPOTENCY`, `SAFE_AFTER_CONFIRMED_NO_EFFECT`, or `NO_RETRY_NEEDED`. Safety is evidence bound to the same logical operation, arguments, account, target and provider key retention window; it is not permission to execute. `STILL_UNKNOWN` requires reconciliation or a proven provider dedupe contract, never an ordinary blind retry. Conflicting or incomplete reconciliation remains unknown. Provider not-found results require the declared visibility bound/watermark or equivalent proof before establishing no effect.
+
+One `logical_operation_id` survives delivery/transport retries of the same intended effect. Every dispatch has a distinct `execution_identity`. An intentional repeat creates a new operation only through fresh controlling intent and authority. Reusing an operation/provider key with changed arguments is a conflict. Provider key expiry, scope or route change invalidates any prior retry-safety conclusion.
+
+`AuthorityGrant` denotes the granting outcome of `NawatDecision`; `EffectReceipt` denotes the execution evidence in `EffectResult`. These are semantic aliases, not additional authority or evidence records.
+
+### Dispatch and cancellation boundary
+
+Mission Runtime durably records an ordinary RuntimeEvent with operation, execution, proposal, decision and fencing identities before releasing a consequential request to an enforcing effect adapter/broker. The dispatch record and state transition are one atomic local commit; if this cannot be established, dispatch is refused. This is not an atomic transaction with an arbitrary external provider. A crash after that commit and before receipt leaves a possibly sent effect, even if the request may never have left the host.
+
+The enforcing adapter checks current qualification, authority, credential revocation and ownership at dispatch. A timeout, cancellation request, worker death or lost acknowledgement after possible send becomes `EFFECT_OUTCOME_UNKNOWN` until reconciled. Cancellation does not prove cessation. Irreversible dependent effects remain blocked while a prerequisite is unknown. Compensation is a separately proposed/authorized logical operation whose result cannot erase the original effect. Use existing events and effects; no separate dispatch ledger or receipt authority is introduced.
 
 External issue writes, Git operations, network fetches, process execution, parser expansion with side effects, browser submissions/uploads/downloads, and provider/model execution are distinct effect classes.
 

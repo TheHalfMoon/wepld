@@ -73,7 +73,7 @@ This task map binds the material findings from the 2026-09-02 whole-plan profess
 - [ ] `006-HARD-WEB-001` Route browser uploads/downloads through explicit `InputArtifact`/artifact-transfer identity and access/handling policy rather than ambient filesystem paths.
 - [ ] `006-HARD-WEB-002` Add separate browser effect classes for clipboard read/write, permission prompts, native file chooser, popup/new-tab/frame target creation, and download acceptance where applicable.
 - [ ] `006-HARD-WEB-003` Preserve browser target/frame/opener/session/origin identities across multi-context navigation and fail closed on ambiguous target selection.
-- [ ] `006-HARD-WEB-004` Quarantine or explicitly classify downloaded artifacts before any parser/execution follow-on action.
+- [ ] `006-HARD-WEB-004` Keep downloaded artifacts inert in bounded quarantine, classify them, and require separately qualified/authorized release before any parser/execution follow-on action; classification alone is not release authority.
 - [ ] `006-HARD-WEB-005` Prove an authenticated browser/profile/password-manager/autofill/clipboard state cannot expand artifact visibility or action authority.
 
 ## S9 — durable evidence evolution and recovery

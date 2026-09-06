@@ -176,11 +176,15 @@ SECURITY_REVIEW = NOT_APPLICABLE only if the final diff remains documentation/sp
 UNRESOLVED_MATERIAL_FINDINGS = 0
 UNRESOLVED_REVIEW_THREADS = 0
 FINAL_RACE_RECHECK = REQUIRED
+LIVE_PR_BASE_HEAD_TREE_CHECKS_REVIEWS_RECORD = REQUIRED
+QUALIFIED_REVIEW_UNAVAILABLE_OR_INCOMPLETE = REVIEW_BLOCKED
 MERGE = AUTHORIZED_ONLY_AFTER_ALL_APPLICABLE_GATES
 ```
 
 The internal professional review in `reviews/professional-whole-plan-review-2026-09-02.md` is repair input and MUST NOT be counted as the independent acceptance review.
 
 A review that explicitly samples only part of the requested whole-repository scope or whose finding table/counts are internally inconsistent may provide useful review evidence, but it does not satisfy the final qualified review gate until a fresh exact-head review closes those coverage/accounting gaps.
+
+For this planning candidate, declare all final Spec 006 delta files and necessary canonical owner context. The reviewer must cover that complete package at the exact final base/head and reconcile criteria across the parent and addenda. Historical review-file anchors and finding counts remain historical; corrections are appended in the September 6 review record. The current repair author's report and the partial source-security scan are not independent acceptance of these planning changes.
 
 Even after merge, future implementation remains separately gated by the owning slices.

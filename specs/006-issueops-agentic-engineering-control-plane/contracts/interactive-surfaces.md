@@ -103,6 +103,8 @@ If focus, navigation/origin, modal state, document/tool declaration, window geom
 
 ## 5. Browser modes
 
+Lifecycle ownership and execution location are orthogonal axes. Record `lifecycle_mode = MANAGED | ATTACHED_USER` and `location_mode = LOCAL | REMOTE` with host/session/profile identities. `ManagedBrowser`, `AttachedUserBrowser`, and `RemoteBrowser` remain user-facing route labels; RemoteBrowser is not a mutually exclusive third lifecycle. A remote route may be managed or attached and must satisfy both dimensions' qualification. No combination inherits another combination's credential, containment or recovery evidence.
+
 ```text
 ManagedBrowser
 AttachedUserBrowser
@@ -173,6 +175,7 @@ A candidate WebMCP identity should bind enough state to detect page/tool drift:
 
 ```text
 WebToolIdentity {
+  web_tool_observation_ref
   origin
   browsing_context_id
   navigation_epoch
@@ -182,6 +185,8 @@ WebToolIdentity {
   declaration_digest
 }
 ```
+
+This is an identity projection of `WebToolObservation` in `web-agent-boundary.md`, not another canonical observation. The observation records browser session, page/frame context, origin, navigation epoch, document identity, schema and declaration digests plus tool generation; the projection uses those exact values. Missing required context identity prevents invocation. A same-origin navigation or re-declaration may still invalidate the prior tool.
 
 Rules:
 
@@ -269,6 +274,10 @@ InputLease {
 A stale/fenced/expired lease cannot actuate. Worker/host ownership transition fences prior leases before replacement actuation begins.
 
 `InputLease` does not replace Nawat: it is an execution/ownership precondition created under valid authority.
+
+A qualified host actuator owns a serialized input queue and validates the lease, current ownership epoch, surface/session incarnation, focus, target and Nawat decision immediately before emitting each input action. It must reject queued actions from fenced epochs, stop/release held buttons and keys where the platform permits, and report any uncertain residual input state. Worker-held raw OS input access that bypasses this actuator is incompatible with a fencing claim.
+
+OS/GUI routes may lack an atomic compare-and-act operation. Fresh observation, a stable locator or a generation counter does not remove the race between validation and an external UI change. The route must declare its enforceable guarantees and residual race; consequential effects requiring stronger target guarantees must use a qualified semantic/API path, obtain the required human decision, or refuse. Merely asking for approval does not repair an unenforceable target binding. Focus theft/user intervention fences queued work and requires re-observation; an action already emitted may still have an unknown business outcome.
 
 ## 13. User intervention
 

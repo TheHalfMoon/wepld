@@ -12,7 +12,7 @@ This plan integrates Project Experience, Work, Automations/Connections, Browser/
 
 ## 1. Architectural clarification
 
-The parent `plan.md` diagram contains a `Workflow Engine` box. For this capability track, that phrase MUST be interpreted as workflow intent/planning/definition mechanics feeding the existing Edara/Mirefa/Nawat/Mission Runtime chain. It MUST NOT be interpreted as a second durable execution/orchestration engine.
+The parent `plan.md` diagram now names the `Intent / Plan Compiler`. Its earlier `Workflow Engine` label meant workflow intent/planning/definition mechanics feeding the existing Edara/Mirefa/Nawat/Mission Runtime chain. Neither label defines a second durable execution/orchestration engine.
 
 ```text
 WORKFLOW_DEFINITION != ORCHESTRATION_RUNTIME
@@ -20,7 +20,7 @@ AUTOMATION != SECOND_MISSION_RUNTIME
 AUTOMATION_RUN_UI = MISSION + ASSIGNMENT/ATTEMPT + EVIDENCE
 ```
 
-If future parent-plan wording is revised, it should prefer `Workflow Intent / Planning` over `Workflow Engine` unless a separately justified primitive is actually required.
+Keep this owner terminology consistent across parent and addenda; a new execution primitive requires separate justification and cannot be introduced by a label change.
 
 ## 2. Product information architecture
 
@@ -395,3 +395,11 @@ A track may move from future planning into implementation planning only after:
 4. failure/security/distributed semantics are defined before happy-path implementation;
 5. deterministic test/negative-oracle strategy is ready;
 6. no new authority or runtime subsystem is introduced implicitly.
+
+The Spec 006 planning package itself also requires the whole-scope exact-head independent review and explicit criteria disposition defined in `product-capability-tracks-acceptance.md` section J. A per-track exit cannot bypass that package gate. Minimum durable dispatch/reconciliation and enforced ownership precede the first consequential S8 effect; S9 remains the owner of extended recovery/audit work.
+
+### User-visible failure handling
+
+Work presents an actionable primary state with evidence-backed secondary reasons. `Outcome uncertain` suppresses blind retry even if transport is reconnecting. `Needs permission` identifies the exact account, target, proposed action/argument change, expiry and scope. `Cancel requested` stays distinct from proven cessation; an already sent action may still require reconciliation. `Completed` requires the Trusted Completion decision. Connection health is a separate fact and cannot overwrite work outcome.
+
+Projects show source kind, provenance, current/historical status, scope and freshness as separate dimensions over Fehrest records. An external observation can also be stale or model-summarized; these are not mutually exclusive authority classes. Work timelines and supporting Browser/Computer panels use existing records. Automations become prominent when useful to the user's repeat work, without forcing a separate execution engine or ambient autonomy into the initial experience.

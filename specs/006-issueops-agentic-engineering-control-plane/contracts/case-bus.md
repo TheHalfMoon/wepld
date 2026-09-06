@@ -12,6 +12,8 @@ MODEL_PROVIDER_EXECUTION = NONE
 
 Define the Case-scoped durable coordination substrate referenced by the IssueOps plan so workers do not communicate through ad hoc provider-to-provider chat or treat arbitrary received text as workflow authority.
 
+Case messages are the IssueOps profile of the existing Mission Runtime coordination transport. Generic Work/Mission events and TriggerEnvelope payloads use that same transport with an explicit tenant/work namespace; they do not require creating an artificial Case. `CaseMessage.case_id` remains mandatory for the Case profile only. The enclosing RuntimeEventEnvelope supplies event identity, producer incarnation and causality; the message/payload never creates a second durable event log.
+
 The Case Bus carries bounded typed coordination messages and references to durable artifacts/evidence. It is not an authority system, secret store, free-form shared memory, or provider session bus.
 
 ## Core invariants

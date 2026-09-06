@@ -73,7 +73,7 @@ Unknown dialect data MUST remain opaque/unsupported rather than silently interpr
 
 ## FR-051 — Browser snapshot-bound action freshness
 
-Ref-based browser actions MUST bind the exact browser document/snapshot identity and element reference that produced the target.
+Ref-based browser actions MUST bind the exact browser session, page/target and frame context, origin, navigation/document incarnation, snapshot identity/generation and element reference that produced the target. The owning `contracts/web-agent-boundary.md` and `contracts/interactive-surfaces.md` define the shared fields; this requirement does not introduce another browser identity schema. A missing/ambiguous binding refuses invocation.
 
 Navigation, reload, context/frame/origin change, document replacement, or snapshot supersession MUST stale the action proposal when material.
 
@@ -88,6 +88,8 @@ When an assurance policy requires independent review, acceptance MUST include a 
 Different-vendor identity MAY be evidence but MUST NOT alone prove independence.
 
 A policy may require separation of worker/Attempt, provider/model/harness, mutable workspace/process state, context, and effect/write authority.
+
+Distinct builder/reviewer Attempt and worker identities plus no self-certification after reviewer repair are mandatory for acceptance-critical review; other dimensions are selected by risk policy as specified in `contracts/review-independence.md`.
 
 ## FR-053 — Effect prerequisite ordering
 

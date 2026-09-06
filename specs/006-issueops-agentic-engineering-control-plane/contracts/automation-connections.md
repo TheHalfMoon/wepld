@@ -64,6 +64,9 @@ TriggerDefinition {
   trigger_definition_id
   trigger_kind
   source_or_schedule_identity
+  schedule_timezone_and_rule_version?
+  misfire_catchup_and_coalescing_policy
+  backlog_and_concurrency_limits
   schema_version
   matching_constraints[]
   authenticity_requirements[]
@@ -72,8 +75,10 @@ TriggerDefinition {
 }
 
 TriggerEnvelope {
-  trigger_envelope_id
+  runtime_event_ref
   trigger_definition_ref
+  automation_definition_revision_ref
+  tenant_and_project_scope
   source_identity
   source_event_identity?
   observed_at
@@ -99,6 +104,8 @@ MANUAL
 
 Receiving a valid trigger means only that a qualifying event was observed. It does not prove user/workflow intent or effect authority.
 
+`TriggerEnvelope` is a typed payload of `RuntimeEventEnvelope` from the distributed runtime contract, carried by Case Bus. Its stable identity is the containing event identity; it does not create another ingress transport, event store or execution owner. Provider delivery identity and logical occurrence identity remain separate. CapabilityPresence likewise uses an ordinary typed Observation with host/runtime identity, observed/expiry times and evidence; it is not qualification or authority.
+
 ## 4. Trigger ingress rules
 
 Effectful or remote triggers require, where applicable:
@@ -119,6 +126,12 @@ Duplicate trigger delivery must not silently create duplicate irreversible effec
 DUPLICATE_EVENT != DUPLICATE_INTENT
 DELIVERY_RETRY != EFFECT_RETRY
 ```
+
+Ingress must durably capture the accepted event and its scoped dedupe identity before acknowledging durable acceptance to the source. Dedupe scope includes tenant, source/subscription identity, trigger definition and automation revision. An identical key with a different payload digest is a conflict, not a duplicate success. A contract without a stable event/occurrence identity must explicitly qualify a bounded alternative or refuse consequential automatic compilation.
+
+The transition from accepted trigger to qualified WorkflowIntent and Mission association must be atomic in the existing runtime persistence boundary, or use its durable transactional outbox and idempotent consumer. Crash/replay between those stages cannot create a second intent. Dedupe retention must cover the source replay window; after expiry, old deliveries are quarantined/reconciled rather than assumed new. An intentional manual rerun receives a new controlling intent and operation identity. These are minimum prerequisites before effectful automation, not deferred optional S9 work.
+
+Schedule contracts record timezone, timezone-data/rule version, occurrence identity, DST skipped/repeated-time behavior, missed-run policy (`SKIP`, bounded `CATCH_UP`, or `COALESCE`), and backlog/concurrency limits. Disabled definitions stop new matching; already accepted occurrences retain their pinned revision and require explicit cancellation/requalification policy. Polling records cursor/checkpoint and source ordering assumptions. Stream/webhook acknowledgement and backpressure must never silently discard accepted work. Define overflow as visible refusal or a recorded policy-governed loss, never successful execution.
 
 ## 5. IntegrationDescriptor
 
@@ -185,9 +198,13 @@ Schema validation is necessary but not sufficient for safe execution. Functional
 ConnectionBinding {
   connection_binding_id
   integration_id
+  integration_version
+  binding_revision
   binding_scope
   account_or_tenant_identity
-  credential_capability_ref
+  credential_broker_binding_ref
+  credential_request_policy_ref
+  revocation_generation
   allowed_capability_subset[]
   connection_state
   observed_at
@@ -196,6 +213,8 @@ ConnectionBinding {
 ```
 
 Binding scopes may include Project, Automation, Work, or another qualified WePLD scope. Binding never copies a raw secret into the AutomationDefinition or Project context.
+
+A ConnectionBinding is a durable account/broker association, not an expiring execution credential. At dispatch, the broker derives the per-attempt CredentialCapability defined in `runtime-execution-fabric.md` from the current binding revision, account/tenant, authorized operation, target and grants. Token refresh is serialized per credential binding to prevent refresh-token rotation races; failed refresh/revocation becomes a visible sign-in requirement. Rotation/revocation advances the binding generation and invalidates outstanding eligibility where required. Updating integration versions requires compatibility/schema qualification and cannot silently alter pending runs.
 
 ```text
 PROJECT_CONNECTION_BINDING != PROJECT_AUTHORITY
@@ -268,7 +287,7 @@ The capability contract should identify provider idempotency keys, read-after-wr
 
 ## 12. Long-lived waits
 
-Scheduled, delayed, approval-gated, webhook-waiting, or provider-waiting Automations must eventually use Mission Runtime/S9 recovery semantics rather than holding an in-memory callback as durable truth.
+Scheduled, delayed, approval-gated, webhook-waiting, or provider-waiting Automations must use Mission Runtime persistence and recovery semantics before consequential execution. S9 extends continuation/audit capability; it cannot postpone the minimum safe dispatch and reconciliation required by S6/S8. An in-memory callback is never durable truth.
 
 A resumed run must identify:
 
@@ -296,6 +315,8 @@ risk metadata
 ```
 
 Code-first ergonomics are allowed behind these contracts. Community integration code remains an untrusted supply-chain boundary and must not gain filesystem/process/network/secret capabilities beyond the admitted runtime contract.
+
+Conformance separates schema/sample simulation from live authentication and behavioral qualification. Fixtures cover pagination/cursor stability, duplicate delivery, rate-limit retry-after, refresh races, revoked accounts, incompatible schema upgrades and conflicting idempotency keys. Dry-run planning has no credential read, network or provider effects unless those effects are independently authorized and explicitly identified. Connector metadata never supplies its own authority policy.
 
 ## 14. Security/failure negative oracles
 

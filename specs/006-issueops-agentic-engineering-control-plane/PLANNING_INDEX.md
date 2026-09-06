@@ -72,7 +72,11 @@ These extend the parent `spec.md` / `plan.md` / `acceptance.md` without changing
 
 If an addendum and parent document appear to conflict, treat the planning package as **not internally coherent** until reconciled; do not silently choose one.
 
-Specific clarification: the parent `plan.md` phrase `Workflow Engine` is constrained by `product-capability-tracks-plan.md` to mean workflow intent/planning/definition mechanics feeding Edara/Mirefa/Nawat/Mission Runtime. It does not authorize or define a second durable orchestration runtime.
+The parent `plan.md` diagram names the Intent / Plan Compiler. Earlier `Workflow Engine` wording denotes those same planning/definition mechanics feeding Edara/Mirefa/Nawat/Mission Runtime, never a second durable orchestration runtime.
+
+The September 6 contract repairs define WorkSession/Mission cardinality in `data-model.md`, make TriggerEnvelope a RuntimeEvent payload, CapabilityPresence/SurfaceObservation ordinary Observation payloads, ReviewFinding a canonical Finding projection, and AuthorityGrant/EffectReceipt semantic aliases of NawatDecision/EffectResult. Dedicated contracts own their fields; these names do not create duplicate stores or authorities.
+
+Read `reviews/adversarial-pre-change-review-2026-09-06.md` for the pre-repair findings and explicit coverage limitations, and `research/adversarial-mechanism-recheck-2026-09-06.md` for fresh pinned source/documentation evidence. Both are review/research input, not independent acceptance of their author's patch. Historical September 2/4 review anchors remain historical; their `CURRENT_*` labels are not live references. The September 2 list contains 16 findings (7 high, 8 medium, 1 low), despite its summary count of 15. This accounting correction does not rewrite the old artifact.
 
 ## 4. Task maps
 

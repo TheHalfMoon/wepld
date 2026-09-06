@@ -247,6 +247,8 @@ EngineRun {
 }
 ```
 
+For an EngineRun that executes a process, contacts a provider, reads protected resources or performs any other effectful action, `authority_record` is mandatory and binds the applicable execution/effect authority. It may be absent only for an explicitly classified inert/imported evidence record that performed no such action; missing authority cannot be treated as that classification.
+
 The resource envelope may include, where applicable:
 
 ```text
@@ -735,7 +737,7 @@ MAJORITY_CLEAN != VALIDATED_FINDING_FALSE
 
 ## 22. Configuration trust and precedence
 
-Configuration sources carry trust provenance and deterministic precedence:
+Configuration sources carry trust provenance. The following order is highest to lowest precedence; it does not itself grant a field override:
 
 ```text
 CANONICAL_POLICY
@@ -747,6 +749,8 @@ USER_SESSION_OVERRIDE
 ```
 
 The owning policy snapshot defines which lower layer may specialize which field. A lower-precedence source may narrow optional behavior only where permitted and cannot weaken canonical authority/security/acceptance/evidence requirements.
+
+`USER_SESSION_OVERRIDE` is therefore lowest in this configuration ordering, even when recent. Separately authenticated user/founder authority decisions use the controlling authority path and immutable policy snapshot; they are not smuggled in as configuration. Repository status alone does not make candidate-branch text trusted repository configuration.
 
 Conflicting configuration without a defined precedence/merge rule produces `CONFIG_CONFLICT` / `PLAN_INCOMPLETE`; it is not resolved by last-write-wins.
 

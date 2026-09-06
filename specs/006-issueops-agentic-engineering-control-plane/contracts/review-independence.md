@@ -67,6 +67,8 @@ STALE
 
 An `IndependencePolicy` may require any combination of:
 
+For acceptance-critical review, `DISTINCT_ATTEMPT_IDENTITY`, `DISTINCT_WORKER_IDENTITY`, and `NO_SELF_REVIEW_OF_REPAIR` are mandatory minimums. The following list supplies additional policy dimensions; it cannot make those minimums optional.
+
 ```text
 DISTINCT_WORKER_IDENTITY
 DISTINCT_ATTEMPT_IDENTITY
@@ -119,7 +121,7 @@ REVIEWER_FINDING != REPAIR_AUTHORITY
 REVIEWER_APPROVAL != TRUSTED_COMPLETION
 ```
 
-If a reviewer also performs a repair, the repaired target requires a new independent review according to the owning policy unless a narrowly defined policy explicitly permits otherwise.
+If a reviewer also performs a repair, the repaired target requires a new independent reviewer Attempt. No policy exception permits that repairer to self-certify an acceptance-critical repair. The original review remains historical evidence only.
 
 ## Exact-target freshness
 

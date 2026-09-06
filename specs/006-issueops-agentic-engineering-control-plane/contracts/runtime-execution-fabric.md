@@ -316,6 +316,11 @@ The preferred credential model is capability/broker based: when technically feas
 ```text
 CredentialCapability {
   credential_capability_id
+  capability_state
+  originating_scope_ref?
+  connection_binding_revision_ref?
+  account_or_tenant_identity
+  revocation_generation
   secret_owner_ref
   credential_class
   broker_identity
@@ -323,10 +328,12 @@ CredentialCapability {
   target_resource_or_path_scope[]
   method_or_protocol_scope[]
   assignment_ref
-  attempt_ref?
+  attempt_ref
+  logical_operation_scope
+  usage_limit
   route_qualification_ref
   egress_grant_ref
-  nawat_grant_ref
+  nawat_grant_ref?
   placeholder_identity?
   credential_refresh_policy_ref?
   usage_receipt_policy
@@ -359,6 +366,12 @@ EGRESS_ALLOWED != AUTHENTICATED_REQUEST_AUTHORIZED
 ```
 
 The broker must bind credential use to current target/route/attempt authority. Credential injection after Nawat grant expiry or route staleness is prohibited.
+
+All use constraints are mandatory and deny by default. A capability may authorize one use or a bounded operation set; replay beyond its explicit use limit is refused. Omitting host/resource/method/account/attempt scope never means wildcard access. Authenticated network credentials require a qualified confidential transport (HTTPS with current peer validation for HTTP APIs); plaintext HTTP must not receive them. Redirects require fresh destination/resource qualification before forwarding or reinjecting credentials. Broker bindings pin account and revocation generation, not merely a hostname. Refresh does not widen scope or reset usage limits.
+
+To avoid circular authorization, `capability_state` is `PROPOSED_SCOPE` or `ACTIVE`. A proposal may reference a broker-validated, non-secret scope record before Nawat decides; that record cannot obtain credentials or perform egress. After Nawat grants the exact scope, an immutable successor capability records the grant, originating scope reference and identical or narrower constraints. `ACTIVE` requires `nawat_grant_ref`; dispatch records the original proposal and its approved activation mapping in the execution envelope. A broader/different capability requires a new effect proposal. Absence of a grant never means active or ambient access.
+
+`originating_scope_ref` is required for `ACTIVE` and must resolve to the exact `PROPOSED_SCOPE` evaluated by the granting decision. A scope proposal's egress grant is an independently obtained transport prerequisite; it cannot authorize credential release. The execution-envelope activation mapping must be uniquely bound to the approved operation and cannot substitute another scope record.
 
 ## Credential broker security requirements
 
@@ -400,6 +413,9 @@ ExecutionEnvelope {
   credential_capability_refs[]
   route_qualification_ref
   nawat_grant_refs[]
+  harness_execution_identity_ref
+  runner_ownership_lease_ref
+  runtime_reservation_ref?
   context_package_ref
   policy_snapshot_refs[]
   created_at
@@ -408,6 +424,10 @@ ExecutionEnvelope {
 ```
 
 The envelope is evidence of the current allowed execution intersection. It cannot widen any constituent authority.
+
+Harness and ownership bindings are required before worker execution. `runtime_reservation_ref` is required whenever the route depends on resource admission; an explicit qualified no-reservation-required determination is otherwise recorded. Reusing an expired reservation cannot start an Attempt. The envelope freezes the evaluated inputs but is not an enduring grant: the effect adapter checks current revocation, lease, target and qualification at dispatch. Changed bindings create a successor envelope while preserving the previous one as history.
+
+The referenced reservation must match the envelope's Attempt, Host and Runner and cover `Attempt.start_event` under the qualified clock/expiry policy. Released, mismatched or ambiguously identified reservations cannot satisfy admission. A single reservation may be shared only where the resource contract explicitly accounts for all consumers; no implicit reuse is allowed.
 
 ## Revalidation triggers
 

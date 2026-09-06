@@ -116,6 +116,10 @@ WebToolObservation {
   page_context_id
   origin_identity
   tool_name
+  navigation_epoch
+  document_identity
+  schema_digest
+  declaration_digest
   tool_title?
   description?
   input_schema_identity?
@@ -167,6 +171,8 @@ browser context
 ```
 
 A downloaded file does not execute, parse, enter RAG, or become worker-visible merely because the browser created it.
+
+`DownloadObservation` is an ordinary Observation payload, not a new evidence store. It binds the download/execution identity, browser session/page/frame/origin, source URL identity, staging artifact identity and digest, actual byte count, completion/partial status, declared and observed media types, and quarantine/classification evidence. Provider filename and MIME hints remain untrusted. Partial downloads stay inert; redirects and destination changes require the applicable revalidation before credential use or transfer.
 
 ### Upload
 

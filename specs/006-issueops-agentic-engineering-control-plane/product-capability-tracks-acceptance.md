@@ -99,6 +99,8 @@ InputLease
 
 Before this planning package itself is merged:
 
+All criteria in sections A–I must first be checked with concrete planning evidence, or marked not applicable with a scoped rationale and supporting evidence accepted by the independent review. An unchecked criterion is incomplete; the presence of a contract or this procedural gate does not satisfy it. Drafting tasks and implementation qualification remain separate.
+
 1. reconcile PR #241 non-destructively with current canonical main;
 2. prove all changed paths remain under the Spec 006 planning package;
 3. run fresh exact-head deterministic qualification;
@@ -107,6 +109,19 @@ Before this planning package itself is merged:
 6. rerun freshness-dependent qualification after any head change;
 7. prove zero unresolved material review threads;
 8. perform final live base/head/tree/diff/check/review race verification.
+
+Whole-scope review covers every file in the final Spec 006 candidate delta against the current canonical base plus necessary owner contracts. A provider status, incremental review, older-head review, sampled source scan or repair author's report cannot substitute. The review must declare included/excluded scope, exact base/head, reviewer independence, findings and reconciliation. A required reviewer being unavailable is `REVIEW_BLOCKED`, never implicit acceptance.
+
+### Adversarial closure checks
+
+- [ ] Executable effects bind intent/Mission/Assignment/Attempt/principal/route/credentials/risk and preserve logical operation identity across dispatch attempts.
+- [ ] Crash after durable dispatch but before receipt is unknown; eventual-consistency not-found does not prove no effect without a qualified visibility bound.
+- [ ] Every fenced route names an enforcing sink; raw credential/input bypass and uncertain old-owner shutdown prevent automatic takeover.
+- [ ] Durable connection bindings derive bounded per-attempt credentials; revocation/refresh/version changes invalidate affected eligibility.
+- [ ] Trigger capture/intent association is durable and deduplicated across crash/replay, with scoped key-conflict, retention and schedule-misfire semantics.
+- [ ] WorkSession/Mission cardinality, objective revision and client-versus-controller continuity use existing owners.
+- [ ] Browser lifecycle ownership and host location are separately qualified; GUI check-to-act race limits remain explicit.
+- [ ] Review repair cannot self-certify, and all applicable criteria have evidence before planning acceptance.
 
 ```text
 PLANNING_ACCEPTANCE != IMPLEMENTATION_ACCEPTANCE

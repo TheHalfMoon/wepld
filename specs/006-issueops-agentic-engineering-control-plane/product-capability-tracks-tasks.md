@@ -15,7 +15,9 @@ These tasks describe future planning/qualification work only. They do not alter 
 - [x] **PCT-P003** Reject parallel Automation runtime/authority/evidence architecture.
 - [x] **PCT-P004** Define cross-slice tracks PX/WK/AU/IS without roadmap renumbering.
 - [x] **PCT-P005** Define minimum candidate primitive set and Ponytail rejections.
-- [ ] **PCT-P006** Obtain independent whole-scope exact-head review of the complete Spec 006 candidate after final reconciliation.
+- [ ] **PCT-P006** Obtain independent whole-scope exact-head review of every final Spec 006 delta file against current canonical main, with scope/exclusions/independence and findings declared; incremental reviews, old heads, sampled scans and the repair author's report do not satisfy this task.
+
+- [ ] **PCT-P007** Qualify the adversarial closure checks in planning acceptance section J: effect dispatch/reconciliation, enforcing fences, connection derivation, trigger transaction/schedules, WorkSession/Mission lifecycle and orthogonal browser mode semantics. Contract drafting is not qualification or implementation completion.
 
 ## PX — Project Experience
 

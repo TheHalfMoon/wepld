@@ -79,6 +79,12 @@ Acceptance-critical external/process effects must carry the current runner owner
 
 A stale runner must not be able to continue simply because it still possesses a historical Assignment, ContextPackage, or Nawat decision reference.
 
+The enforcing consumer must be named in each route qualification: either an independently enforced effect broker/host actuator mediates all relevant access, or the target atomically rejects stale fencing identities. Issuing a token without controlling the effect sink does not fence a worker. Raw credentials, direct sockets, inherited child processes or independent browser sessions that bypass the mediator invalidate the claim.
+
+If target-side fencing or complete mediation is unavailable, automatic replacement actuation is refused until the old actor is proven stopped or its relevant capability is revoked. A missed heartbeat, lease expiry at the server, or lost transport alone is not that proof. Provider idempotency may prevent a duplicate logical effect but does not authorize unrelated actions by a stale owner.
+
+Owner epochs are monotonically advanced in durable controller state by a serialized transition. Host lease enforcement uses a qualified monotonic-time/expiry policy; wall-clock timestamps are audit evidence, not proof of ordering. Controller/host restart or loss of epoch state fails closed until ownership is re-established. Persisted dispatch identities are reconciled before replacement activation. Qualification must record the residual check-to-act race for sinks lacking atomic precondition enforcement and refuse effects whose required guarantees cannot be met.
+
 ## Exact harness execution identity
 
 `WorkerDescriptor.version_identity` is not sufficient evidence that the executable/runtime actually launched for one Attempt matched the qualified artifact.
@@ -117,6 +123,7 @@ Server/runner transports may duplicate, reorder, reconnect, or replay messages. 
 ```text
 RuntimeEventEnvelope {
   runtime_event_id
+  tenant_and_work_namespace
   producer_kind
   producer_identity
   producer_runtime_identity
@@ -145,6 +152,8 @@ MISSING_SEQUENCE != PERMISSION_TO_INFER_ORDER
 ```
 
 Derived state must be deterministic under duplicate delivery and must detect impossible/conflicting event histories rather than silently choose one.
+
+Dedupe keys are scoped by producer identity/runtime incarnation and the owning tenant/work namespace. Reusing a key with a different payload is a conflict. Sequence gaps produce explicit incomplete state; they are not inferred away by a newer timestamp. Retention/compaction must retain the causal and dedupe boundary needed for admitted replay windows. Client cursor replay is an access-checked projection, not permission to re-emit effects.
 
 ## Capacity admission and reservation
 

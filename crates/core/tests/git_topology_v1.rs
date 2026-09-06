@@ -419,3 +419,128 @@ fn submodule_worktree_observes_its_superproject() {
         ),
     }
 }
+
+// PR B fixtures — append to crates/core/tests/git_topology_v1.rs (under v53 reopen).
+// Helpers already in file: temp_root, git, git_output, init_committed_repo,
+// discover_system_git, observe_git_topology. Imports already present:
+// Command, Observation, RepositoryTrustState, VcsKind.
+
+/// A `git config` read that tolerates the "key not set" exit code 1 so the
+/// before/after global-`safe.directory` comparison works whether or not any
+/// entry exists.
+#[cfg(target_os = "linux")]
+fn global_safe_directory_entries() -> String {
+    let out = Command::new("git")
+        .args(["config", "--global", "--get-all", "safe.directory"])
+        .output()
+        .expect("spawn git config");
+    // exit 1 == key absent; any other failure is unexpected
+    assert!(
+        out.status.success() || out.status.code() == Some(1),
+        "unexpected git config failure: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    String::from_utf8(out.stdout).expect("git config output utf8")
+}
+
+#[cfg(target_os = "linux")]
+fn command_ok(program: &str, args: &[&str]) -> bool {
+    Command::new(program)
+        .args(args)
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+/// S2-S005 real oracle: native Git refuses an ownership-mismatched repository
+/// ("detected dubious ownership"), the adapter surfaces that as a
+/// `RepositoryTrustState::RefusedByGit` topology rather than an error or a
+/// silent bypass, and it never writes a `safe.directory` entry to work around
+/// the refusal.
+///
+/// Linux + passwordless-sudo only: the refusal requires a real uid mismatch,
+/// which needs `chown`. Skips cleanly elsewhere (macOS `secondary-platform`,
+/// any runner without passwordless sudo).
+#[cfg(target_os = "linux")]
+#[test]
+fn ownership_dubious_repository_surfaces_trust_refusal_without_touching_safe_directory() {
+    if !command_ok("sudo", &["-n", "true"]) {
+        eprintln!("skipping: passwordless sudo unavailable on this runner");
+        return;
+    }
+
+    let repo = init_committed_repo("dubious-ownership");
+    let evidence = temp_root("dubious-ownership-evidence");
+    let before = global_safe_directory_entries();
+
+    let self_uid = String::from_utf8(
+        Command::new("id").arg("-u").output().expect("id -u").stdout,
+    )
+    .expect("uid utf8");
+    let self_gid = String::from_utf8(
+        Command::new("id").arg("-g").output().expect("id -g").stdout,
+    )
+    .expect("gid utf8");
+    let self_owner = format!("{}:{}", self_uid.trim(), self_gid.trim());
+
+    assert!(
+        command_ok("sudo", &["-n", "chown", "-R", "0:0", repo.to_str().unwrap()]),
+        "sudo chown to root must succeed"
+    );
+
+    // Restore ownership no matter how the assertions go, so `cargo` can clean
+    // the target tmpdir later.
+    struct Restore<'a>(&'a std::path::Path, String);
+    impl Drop for Restore<'_> {
+        fn drop(&mut self) {
+            let _ = Command::new("sudo")
+                .args(["-n", "chown", "-R", &self.1])
+                .arg(self.0)
+                .status();
+        }
+    }
+    let _restore = Restore(&repo, self_owner);
+
+    let git = discover_system_git(&repo, &evidence).expect("system Git must qualify on CI");
+    let topology = observe_git_topology(&git, &repo)
+        .expect("a trust refusal must be a topology observation, not an adapter error");
+
+    assert_eq!(topology.vcs_kind, VcsKind::Git);
+    assert_eq!(
+        topology.trust_state,
+        RepositoryTrustState::RefusedByGit,
+        "ownership-based dubious-ownership must surface as RefusedByGit"
+    );
+
+    assert_eq!(
+        global_safe_directory_entries(),
+        before,
+        "the adapter must not add or widen safe.directory to bypass the refusal"
+    );
+}
+
+/// acceptance.md section C "bare repository is explicit": a real `git init
+/// --bare` repository is observed with `is_bare` available and true, checked
+/// against an independent `git rev-parse --is-bare-repository` oracle.
+#[test]
+fn bare_repository_is_observed_as_explicitly_bare() {
+    let repo = temp_root("bare");
+    git(&repo, &["init", "--bare", "--quiet"]);
+    let evidence = temp_root("bare-evidence");
+
+    let git_exe = discover_system_git(&repo, &evidence).expect("system Git must qualify on CI");
+    let topology = observe_git_topology(&git_exe, &repo).expect("bare repo topology must resolve");
+
+    assert_eq!(topology.vcs_kind, VcsKind::Git);
+    assert_eq!(topology.trust_state, RepositoryTrustState::Trusted);
+    assert_eq!(
+        topology.is_bare,
+        Observation::Available { value: true },
+        "a bare repository must be observed as explicitly bare"
+    );
+    assert_eq!(
+        git_output(&repo, &["rev-parse", "--is-bare-repository"]),
+        "true",
+        "independent oracle must agree the fixture repo is bare"
+    );
+}

@@ -473,18 +473,17 @@ fn ownership_dubious_repository_surfaces_trust_refusal_without_touching_safe_dir
     let evidence = temp_root("dubious-ownership-evidence");
     let before = global_safe_directory_entries();
 
-    let self_uid = String::from_utf8(
-        Command::new("id").arg("-u").output().expect("id -u").stdout,
-    )
-    .expect("uid utf8");
-    let self_gid = String::from_utf8(
-        Command::new("id").arg("-g").output().expect("id -g").stdout,
-    )
-    .expect("gid utf8");
+    let self_uid = String::from_utf8(Command::new("id").arg("-u").output().expect("id -u").stdout)
+        .expect("uid utf8");
+    let self_gid = String::from_utf8(Command::new("id").arg("-g").output().expect("id -g").stdout)
+        .expect("gid utf8");
     let self_owner = format!("{}:{}", self_uid.trim(), self_gid.trim());
 
     assert!(
-        command_ok("sudo", &["-n", "chown", "-R", "0:0", repo.to_str().unwrap()]),
+        command_ok(
+            "sudo",
+            &["-n", "chown", "-R", "0:0", repo.to_str().unwrap()]
+        ),
         "sudo chown to root must succeed"
     );
 

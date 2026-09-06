@@ -166,13 +166,14 @@ def _check_live_transition_side() -> None:
 
 
 def _check_projection_is_one_path_and_gated() -> None:
-    """The historical projection touches exactly the one reopened path, restores
-    exactly the bytes v36 pins, and is presented only in the proven-authorized
-    POST state. Whatever the inherited frontier check does with every other
-    path is unchanged, because v56's wrapper passes every other read straight
-    through - which is what this asserts directly. The frozen predecessor
-    cascade run at the top of `run()` is the end-to-end proof that the
-    composed projection is accepted.
+    """The transition gate and the historical projection are exercised as one
+    unit through `_gated_selftest_read_bytes_wrapper` - exactly the call
+    `run_predecessor_selftests` makes - so a regression that skips or hardcodes
+    the gate cannot pass here. The projection touches exactly the one reopened
+    path, restores exactly the bytes v36 pins, is built only when the gate
+    proves the authorized POST state, and fails closed on any third blob before
+    a wrapper exists. The frozen predecessor cascade run at the top of `run()`
+    is the end-to-end proof for the real PRE tree.
     """
     original = base.LocalRepositoryView.read_bytes
     limit = base.MAX_POLICY_FILE_BYTES
@@ -183,47 +184,57 @@ def _check_projection_is_one_path_and_gated() -> None:
     real_export = p.raw_root.read_bytes(CORE_EXPORT, limit)
     real_fw = p.raw_root.read_bytes(p.FW, limit)
 
-    post_wrap = p._selftest_read_bytes_wrapper(original, {}, "POST")
-    pre_wrap = p._selftest_read_bytes_wrapper(original, {}, "PRE")
-
-    # POST state: the one reopened path is projected back to bytes that hash to
-    # exactly the blob v36's REQUIRED_CANONICAL_FRONTIER_BLOBS holds for it.
     import wepld_s2_git_route_governance_v36_integrity as v36
 
     if v36.REQUIRED_CANONICAL_FRONTIER_BLOBS[IDPATH] != p.PRE_REOPEN_BLOB:
         base.fail("v56 PRE_REOPEN_BLOB is not the live v36 frontier pin for the reopened path")
-    projected = post_wrap(p.raw_root, IDPATH, limit)
+
+    # Gate + wrapper together, authorized POST tree: the gate resolves POST and
+    # the wrapper it returns projects exactly the one reopened path back to the
+    # bytes v36 pins. A regression that stubs the gate to always-POST is caught
+    # separately by _check_live_transition_side; a regression that bypasses the
+    # gate in run_predecessor_selftests is caught here (this is the same
+    # _gated_selftest_read_bytes_wrapper call that function makes).
+    post_tree = OverlayView(p.raw_root, {IDPATH: p._POST_REOPEN_BYTES})
+    gated_post = p._gated_selftest_read_bytes_wrapper(post_tree, original)
+    projected = gated_post(p.raw_root, IDPATH, limit)
     if p.V25.blob(projected) != v36.REQUIRED_CANONICAL_FRONTIER_BLOBS[IDPATH]:
         base.fail("v56 POST projection did not restore exactly the v36-pinned pre-reopen bytes")
 
-    # Nothing else moves in the POST wrap: every other path reads straight
-    # through, so v56 conceals no other change from any predecessor.
-    if post_wrap(p.raw_root, IDENTITY_SRC, limit) != real_identity_src:
+    # Gate + wrapper together, third-blob tree: fails closed at the gate, before
+    # any wrapper is produced.
+    third_tree = OverlayView(p.raw_root, {IDPATH: b"// v56 self-test: a third state\n"})
+    _expect_failure(
+        "v56 gate rejects a third blob before a wrapper is built",
+        lambda: p._gated_selftest_read_bytes_wrapper(third_tree, original),
+        "neither pinned transition side",
+    )
+
+    # Gate + wrapper together, PRE tree (the real state): no projection at all.
+    gated_pre = p._gated_selftest_read_bytes_wrapper(p.raw_root, original)
+    if gated_pre(p.raw_root, IDPATH, limit) != real_id:
+        base.fail("v56 must not project the reopened path outside the authorized POST state")
+
+    # Nothing else moves under the POST gate+wrapper: every other path reads
+    # straight through, so v56 conceals no other change from any predecessor.
+    if gated_post(p.raw_root, IDENTITY_SRC, limit) != real_identity_src:
         base.fail("v56 projection altered crates/core/src/identity.rs")
-    if post_wrap(p.raw_root, STORE_SRC, limit) != real_store_src:
+    if gated_post(p.raw_root, STORE_SRC, limit) != real_store_src:
         base.fail("v56 projection altered crates/core/src/evidence_store.rs")
-    if post_wrap(p.raw_root, CORE_EXPORT, limit) != real_export:
+    if gated_post(p.raw_root, CORE_EXPORT, limit) != real_export:
         base.fail("v56 projection altered crates/core/src/lib.rs")
 
-    # Workflow reversal still applies when a reversal map is supplied.
-    wf_map = p._workflow_replacements(p.raw_root)
-    reversed_fw = p._selftest_read_bytes_wrapper(original, wf_map, "POST")(
-        p.raw_root, p.FW, limit
-    )
-    if reversed_fw != wf_map[p.FW] or p._V56_ENTRYPOINT in reversed_fw:
-        base.fail("v56 wrapper did not apply the workflow reversal map")
-    if reversed_fw == real_fw:
-        base.fail("v56 workflow reversal map was a no-op")
-
-    # PRE state: no projection at all - the reopened path reads straight through.
-    if pre_wrap(p.raw_root, IDPATH, limit) != real_id:
-        base.fail("v56 must not project the reopened path outside the authorized POST state")
+    # The v56->v55 workflow reversal is applied under the same gate+wrapper.
+    if gated_post(p.raw_root, p.FW, limit) == real_fw:
+        base.fail("v56 gate+wrapper did not apply the workflow reversal")
+    if p._V56_ENTRYPOINT in gated_post(p.raw_root, p.FW, limit):
+        base.fail("v56 gate+wrapper left the v56 workflow entrypoint")
 
     # Read-bound guard: an absurdly small limit on the projected path fails
     # closed rather than returning truncated bytes.
     _expect_failure(
         "v56 projection respects the read bound",
-        lambda: post_wrap(p.raw_root, IDPATH, 16),
+        lambda: gated_post(p.raw_root, IDPATH, 16),
         "exceeds read bound",
     )
 

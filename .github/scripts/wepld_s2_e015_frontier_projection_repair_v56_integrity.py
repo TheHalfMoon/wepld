@@ -88,7 +88,7 @@ import wepld_integrity as base
 
 P = ".github/scripts/wepld_s2_e015_frontier_projection_repair_v56_integrity.py"
 T = ".github/scripts/wepld_s2_e015_frontier_projection_repair_v56_selftest.py"
-T_BLOB = "aa19021f5a4f23ecc8730a1ca19b39cc237d1ae2"
+T_BLOB = "8a515287f6404ca61536a292c0dc755250e8d410"
 
 V55_P_BLOB = "deea05f7f8a487637b1166d8ea7b5b5607ea597e"
 V55_T_BLOB = "039f094549168357f6542537bcd6641c28f449e3"
@@ -1284,6 +1284,18 @@ def _selftest_read_bytes_wrapper(
     return _wrapped
 
 
+def _gated_selftest_read_bytes_wrapper(view: Any, original: Any) -> Any:
+    """Build the predecessor-cascade `read_bytes` replacement for `view`.
+
+    The transition gate and the wrapper are one unit: the historical projection
+    is only ever built after `_live_transition_side` has proven `view`'s
+    reopened path is exactly the pre- or post-reopen blob. A third blob fails
+    closed here, before any wrapper exists.
+    """
+    side = _live_transition_side(view)
+    return _selftest_read_bytes_wrapper(original, _workflow_replacements(view), side)
+
+
 def run_predecessor_selftests() -> None:
     """Run frozen v55's own self-tests once, under the v56->v55 workflow
     reversal plus the exact S2-E015 canonical-frontier historical projection.
@@ -1297,11 +1309,9 @@ def run_predecessor_selftests() -> None:
     byte-identical to what v55 already does. `read_bytes` is method-wrapped and
     restored in `finally`.
     """
-    side = _live_transition_side(raw_root)
-    workflow_reversal = _workflow_replacements(raw_root)
     original_read_bytes = base.LocalRepositoryView.read_bytes
-    base.LocalRepositoryView.read_bytes = _selftest_read_bytes_wrapper(
-        original_read_bytes, workflow_reversal, side
+    base.LocalRepositoryView.read_bytes = _gated_selftest_read_bytes_wrapper(
+        raw_root, original_read_bytes
     )
     try:
         _call(

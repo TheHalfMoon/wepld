@@ -427,16 +427,22 @@ fn machine_path_preserves_exact_case_and_never_lowercases() {
         );
     }
 
-    // A real mixed-case directory: the observed locator layers keep the exact
-    // caller spelling rather than a folded form.
+    // A real mixed-case directory: the caller-spelling locator layers (input
+    // and lexical absolute) keep the exact spelling rather than a folded form.
+    // The resolved layer is filesystem-derived and not asserted here.
     let dir = scratch_dir("MixedCaseObservation");
     let nested = dir.join("SubDir_MixedCase");
     std::fs::create_dir_all(&nested).expect("nested mixed-case dir");
     let locator = observe_project_locator(&nested, &dir, UnixMillis::new(13))
         .expect("mixed-case directory is observable");
     assert_eq!(
+        locator.input_path,
+        machine_path_from_path(&nested).unwrap(),
+        "the input layer must preserve the exact mixed-case spelling"
+    );
+    assert_eq!(
         locator.lexical_absolute_path,
         machine_path_from_path(&nested).unwrap(),
-        "the lexical layer must preserve the exact mixed-case spelling"
+        "the lexical absolute layer must preserve the exact mixed-case spelling"
     );
 }

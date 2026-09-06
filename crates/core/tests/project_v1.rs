@@ -313,3 +313,136 @@ fn windows_machine_path_preserves_wtf16_units_losslessly() {
         MachinePath::WindowsWtf16(units)
     );
 }
+
+/// Scratch directory under the cargo target tmpdir, auto-scoped per run.
+fn scratch_dir(label: &str) -> PathBuf {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    static COUNTER: AtomicUsize = AtomicUsize::new(0);
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let mut root = PathBuf::from(env!("CARGO_TARGET_TMPDIR"));
+    root.push(format!(
+        "wepld-project-obs-{label}-{}-{n}",
+        std::process::id()
+    ));
+    std::fs::create_dir_all(&root).expect("scratch dir must be creatable");
+    root
+}
+
+/// S2-S002: a real symlink cycle resolves to an explicit `SymlinkLoop`
+/// classification with bounded completion -- the standard resolution API
+/// returns `ELOOP`, no manual unbounded following occurs, and no resolved
+/// path is fabricated. Complements `*_eloop_maps_to_symlink_loop`, which only
+/// exercises the injected-error classifier.
+#[cfg(unix)]
+#[test]
+fn real_symlink_cycle_resolves_to_symlink_loop_without_hanging() {
+    use std::os::unix::fs::symlink;
+
+    let dir = scratch_dir("symlink-cycle");
+    let a = dir.join("a");
+    let b = dir.join("b");
+    symlink(&b, &a).expect("create symlink a -> b");
+    symlink(&a, &b).expect("create symlink b -> a");
+
+    let started = std::time::Instant::now();
+    let locator = observe_project_locator(&a, &dir, UnixMillis::new(11))
+        .expect("a cyclic symlink is still a valid locator observation");
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(5),
+        "resolution must be bounded, not a hang"
+    );
+    assert_eq!(
+        locator.resolved_path,
+        Observation::Unavailable {
+            error: ObservationErrorClass::SymlinkLoop
+        },
+        "a real symlink cycle must resolve to an explicit SymlinkLoop"
+    );
+}
+
+/// S2-S002: a symlink to a nonexistent target resolves to an explicit
+/// `NotFound` -- the broken link is not silently followed, guessed, or
+/// fabricated -- while path-component metadata still observes the link entry
+/// itself as a `Symlink`.
+#[cfg(unix)]
+#[test]
+fn broken_symlink_target_is_reported_not_fabricated() {
+    use std::os::unix::fs::symlink;
+
+    let dir = scratch_dir("broken-symlink");
+    let link = dir.join("dangling");
+    symlink(dir.join("does-not-exist-wepld-s2-fixture"), &link).expect("create dangling symlink");
+
+    let locator = observe_project_locator(&link, &dir, UnixMillis::new(12))
+        .expect("a broken symlink is still a valid locator observation");
+    assert_eq!(
+        locator.resolved_path,
+        Observation::Unavailable {
+            error: ObservationErrorClass::NotFound
+        },
+        "a broken symlink target must be reported as NotFound, never fabricated"
+    );
+
+    let trail = observe_path_metadata(&link).expect("link path metadata must be observable");
+    let last = trail
+        .components
+        .last()
+        .expect("the link path has normal components");
+    assert_eq!(
+        last.entry_kind,
+        Observation::Available {
+            value: PathEntryKind::Symlink
+        },
+        "the dangling link entry itself is observed as a Symlink"
+    );
+}
+
+/// S2-S004: machine-path representation preserves the caller's exact case; it
+/// is never generically lowercased (threat model T-003). The bytes/units of a
+/// mixed-case path round-trip unchanged, and the locator layers keep the same
+/// spelling.
+#[test]
+fn machine_path_preserves_exact_case_and_never_lowercases() {
+    #[cfg(unix)]
+    {
+        use std::ffi::OsString;
+        use std::os::unix::ffi::OsStringExt as _;
+        let bytes = b"/Tmp/MixedCase/FooBar".to_vec();
+        let path = PathBuf::from(OsString::from_vec(bytes.clone()));
+        assert_eq!(
+            machine_path_from_path(&path).unwrap(),
+            MachinePath::UnixBytes(bytes)
+        );
+    }
+    #[cfg(windows)]
+    {
+        use std::ffi::OsString;
+        use std::os::windows::ffi::OsStringExt as _;
+        let text = "C:\\Tmp\\MixedCase\\FooBar";
+        let units: Vec<u16> = text.encode_utf16().collect();
+        let path = PathBuf::from(OsString::from_wide(&units));
+        assert_eq!(
+            machine_path_from_path(&path).unwrap(),
+            MachinePath::WindowsWtf16(units)
+        );
+    }
+
+    // A real mixed-case directory: the caller-spelling locator layers (input
+    // and lexical absolute) keep the exact spelling rather than a folded form.
+    // The resolved layer is filesystem-derived and not asserted here.
+    let dir = scratch_dir("MixedCaseObservation");
+    let nested = dir.join("SubDir_MixedCase");
+    std::fs::create_dir_all(&nested).expect("nested mixed-case dir");
+    let locator = observe_project_locator(&nested, &dir, UnixMillis::new(13))
+        .expect("mixed-case directory is observable");
+    assert_eq!(
+        locator.input_path,
+        machine_path_from_path(&nested).unwrap(),
+        "the input layer must preserve the exact mixed-case spelling"
+    );
+    assert_eq!(
+        locator.lexical_absolute_path,
+        machine_path_from_path(&nested).unwrap(),
+        "the lexical absolute layer must preserve the exact mixed-case spelling"
+    );
+}

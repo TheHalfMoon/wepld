@@ -88,7 +88,7 @@ import wepld_integrity as base
 
 P = ".github/scripts/wepld_s2_e015_frontier_projection_repair_v56_integrity.py"
 T = ".github/scripts/wepld_s2_e015_frontier_projection_repair_v56_selftest.py"
-T_BLOB = "8a515287f6404ca61536a292c0dc755250e8d410"
+T_BLOB = "8a6d32d6bee55ea0b61bf97eebb497c27563bfaf"
 
 V55_P_BLOB = "deea05f7f8a487637b1166d8ea7b5b5607ea597e"
 V55_T_BLOB = "039f094549168357f6542537bcd6641c28f449e3"

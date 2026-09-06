@@ -182,7 +182,7 @@ def _check_projection_is_one_path_and_gated() -> None:
     real_identity_src = p.raw_root.read_bytes(IDENTITY_SRC, limit)
     real_store_src = p.raw_root.read_bytes(STORE_SRC, limit)
     real_export = p.raw_root.read_bytes(CORE_EXPORT, limit)
-    real_fw = p.raw_root.read_bytes(p.FW, limit)
+    real_workflows = {wf: p.raw_root.read_bytes(wf, limit) for wf in (p.FW, p.AW)}
 
     import wepld_s2_git_route_governance_v36_integrity as v36
 
@@ -224,11 +224,17 @@ def _check_projection_is_one_path_and_gated() -> None:
     if gated_post(p.raw_root, CORE_EXPORT, limit) != real_export:
         base.fail("v56 projection altered crates/core/src/lib.rs")
 
-    # The v56->v55 workflow reversal is applied under the same gate+wrapper.
-    if gated_post(p.raw_root, p.FW, limit) == real_fw:
-        base.fail("v56 gate+wrapper did not apply the workflow reversal")
-    if p._V56_ENTRYPOINT in gated_post(p.raw_root, p.FW, limit):
-        base.fail("v56 gate+wrapper left the v56 workflow entrypoint")
+    # The v56->v55 workflow reversal is applied under the same gate+wrapper, for
+    # both integrity workflows.
+    wf_replacements = p._workflow_replacements(p.raw_root)
+    for wf in (p.FW, p.AW):
+        gated_wf = gated_post(p.raw_root, wf, limit)
+        if gated_wf == real_workflows[wf]:
+            base.fail(f"v56 gate+wrapper did not apply the workflow reversal: {wf}")
+        if gated_wf != wf_replacements[wf]:
+            base.fail(f"v56 gate+wrapper workflow bytes are not the v55 reversal: {wf}")
+        if p._V56_ENTRYPOINT in gated_wf:
+            base.fail(f"v56 gate+wrapper left the v56 workflow entrypoint: {wf}")
 
     # Read-bound guard: an absurdly small limit on the projected path fails
     # closed rather than returning truncated bytes.

@@ -4,12 +4,15 @@
 //!
 //! This suite exercises the actual current checkout through the closed adapter,
 //! executable-spoof refusal, cancellation/reaping, machine-output parsing,
-//! repository non-mutation, a real linked worktree (S2-I006), and a real
-//! submodule/superproject (S2-I007). It does not pretend to prove unavailable
-//! platform evidence: ownership-based `safe.directory` refusal,
-//! bare-repository, and hard-timeout fixtures require separately available
-//! platform fixtures and remain explicit qualification obligations rather
-//! than fabricated PASS results.
+//! repository non-mutation, a real linked worktree (S2-I006), a real
+//! submodule/superproject (S2-I007), a real bare repository, and the
+//! `safe.directory` no-auto-bypass invariant. It does not pretend to prove
+//! unavailable evidence: a real end-to-end ownership-based dubious-ownership
+//! refusal is not exercisable on GitHub-hosted runners (their `/etc/gitconfig`
+//! sets `safe.directory = *` and the adapter scrubs `GIT_CONFIG_NOSYSTEM`), so
+//! that adversarial half of S2-S005 stays proven only by the synthetic-stderr
+//! classification unit test in `git_topology.rs` plus a recorded bounded
+//! limitation; a hard-timeout fixture likewise remains an explicit obligation.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -418,4 +421,76 @@ fn submodule_worktree_observes_its_superproject() {
             "expected superproject_worktree to be populated from inside a submodule, got {other:?}"
         ),
     }
+}
+
+/// Snapshot of the process-global Git `safe.directory` entries, tolerating the
+/// "key not set" exit code so the before/after comparison works whether or not
+/// any entry exists.
+fn global_safe_directory_entries() -> String {
+    let out = Command::new("git")
+        .args(["config", "--global", "--get-all", "safe.directory"])
+        .output()
+        .expect("spawn git config");
+    assert!(
+        out.status.success() || out.status.code() == Some(1),
+        "unexpected git config failure: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    String::from_utf8(out.stdout).expect("git config output must be UTF-8")
+}
+
+/// S2-S005 (no-auto-bypass half): observing repository topology must never add
+/// or widen a Git `safe.directory` trust entry. The adapter reads native trust
+/// state; it does not remediate it.
+///
+/// The adversarial half of S2-S005 -- a real ownership-based "dubious ownership"
+/// refusal surfacing as `RepositoryTrustState::RefusedByGit` -- is proven by the
+/// synthetic-stderr classification unit test in `git_topology.rs`. It is not
+/// exercisable end to end on GitHub-hosted runners, whose `/etc/gitconfig` sets
+/// `safe.directory = *` (so no ownership mismatch is ever dubious) and where the
+/// adapter deliberately scrubs `GIT_CONFIG_NOSYSTEM`. That real end-to-end
+/// oracle is a recorded bounded limitation carried to a slice with
+/// containerized / self-hosted CI.
+#[test]
+fn observing_topology_never_writes_safe_directory() {
+    let repo = init_committed_repo("safe-directory-nonmutation");
+    let evidence = temp_root("safe-directory-nonmutation-evidence");
+
+    let before = global_safe_directory_entries();
+
+    let git = discover_system_git(&repo, &evidence).expect("system Git must qualify on CI");
+    let topology = observe_git_topology(&git, &repo).expect("topology must resolve");
+    assert_eq!(topology.vcs_kind, VcsKind::Git);
+
+    assert_eq!(
+        global_safe_directory_entries(),
+        before,
+        "observing topology must not add or widen safe.directory"
+    );
+}
+
+/// acceptance.md section C "bare repository is explicit": a real `git init
+/// --bare` repository is observed with `is_bare` available and true, checked
+/// against an independent `git rev-parse --is-bare-repository` oracle.
+#[test]
+fn bare_repository_is_observed_as_explicitly_bare() {
+    let repo = temp_root("bare");
+    git(&repo, &["init", "--bare", "--quiet"]);
+    let evidence = temp_root("bare-evidence");
+
+    let git_exe = discover_system_git(&repo, &evidence).expect("system Git must qualify on CI");
+    let topology = observe_git_topology(&git_exe, &repo).expect("bare repo topology must resolve");
+
+    assert_eq!(topology.vcs_kind, VcsKind::Git);
+    assert_eq!(topology.trust_state, RepositoryTrustState::Trusted);
+    assert_eq!(
+        topology.is_bare,
+        Observation::Available { value: true },
+        "a bare repository must be observed as explicitly bare"
+    );
+    assert_eq!(
+        git_output(&repo, &["rev-parse", "--is-bare-repository"]),
+        "true",
+        "independent oracle must agree the fixture repo is bare"
+    );
 }

@@ -63,7 +63,7 @@ import wepld_integrity as base
 
 P = ".github/scripts/wepld_s2_git_topology_evidence_reopen_v55_integrity.py"
 T = ".github/scripts/wepld_s2_git_topology_evidence_reopen_v55_selftest.py"
-T_BLOB = "e5ea4b439c142887754873a02dbeeed0e40210d5"
+T_BLOB = "039f094549168357f6542537bcd6641c28f449e3"
 
 V54_P_BLOB = "112ca6fad544743d418789cfe73bd5a4102e57df"
 V54_T_BLOB = "4556d97c9a573b90437bcd37bee7fe473672500f"
@@ -451,26 +451,65 @@ def _verify_test_child_process_bounds(candidate: Any) -> None:
                 "must be bound from std::env::current_exe()"
             )
 
+    _all_new = _re.findall(r"std::process::Command::new\s*\(", text)
     _news = _re.findall(
         r"std::process::Command::new\s*\(\s*&?\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)", text
     )
-    _all_new = _re.findall(r"std::process::Command::new\s*\(", text)
-    if len(_news) != len(_all_new) or not _news:
+    if len(_all_new) != 1 or len(_news) != 1:
         base.fail(
-            "v55 TEST_CHILD_PROCESS_AUTHORITY: std::process::Command::new must "
-            "take exactly one bare identifier argument"
+            "v55 TEST_CHILD_PROCESS_AUTHORITY: exactly one "
+            "std::process::Command::new(<ident>) is permitted, taking a single "
+            "bare identifier bound from std::env::current_exe()"
         )
-    for _name in set(_news):
-        if not _re.search(
-            r"\blet\s+" + _re.escape(_name)
-            + r"\s*=\s*std::env::current_exe\s*\(\s*\)",
-            text,
-        ):
-            base.fail(
-                "v55 TEST_CHILD_PROCESS_AUTHORITY: "
-                f"std::process::Command::new({_name}) requires "
-                f"`let {_name} = std::env::current_exe()`"
-            )
+    _name = _news[0]
+
+    # The argument identifier must be bound exactly once, immutably, and only
+    # from std::env::current_exe(); never `let mut`, never a second `let` (no
+    # shadowing), never reassigned. This is not a full Rust parser: the
+    # authoritative guarantee is the single-file reopen scope, the fixture's own
+    # runtime assertions (it genuinely re-execs current_exe() or the test
+    # fails), exact-head CI execution, and independent review. This filter
+    # rejects the known static bypasses.
+    _binds = _re.findall(
+        r"\blet\s+(mut\s+)?" + _re.escape(_name) + r"\b\s*=", text
+    )
+    if len(_binds) != 1:
+        base.fail(
+            "v55 TEST_CHILD_PROCESS_AUTHORITY: the process-argument identifier "
+            f"`{_name}` must be bound exactly once (no shadowing / rebinding)"
+        )
+    if _binds[0].strip().startswith("mut"):
+        base.fail(
+            "v55 TEST_CHILD_PROCESS_AUTHORITY: the process-argument identifier "
+            f"`{_name}` must be an immutable binding"
+        )
+    _bind_m = _re.search(
+        r"\blet\s+" + _re.escape(_name)
+        + r"\s*=\s*std::env::current_exe\s*\(\s*\)",
+        text,
+    )
+    if _bind_m is None:
+        base.fail(
+            "v55 TEST_CHILD_PROCESS_AUTHORITY: "
+            f"std::process::Command::new({_name}) requires "
+            f"`let {_name} = std::env::current_exe()`"
+        )
+    _new_m = _re.search(
+        r"std::process::Command::new\s*\(\s*&?\s*" + _re.escape(_name), text
+    )
+    if _new_m.start() <= _bind_m.end():
+        base.fail(
+            "v55 TEST_CHILD_PROCESS_AUTHORITY: the Command::new must follow the "
+            f"`let {_name} = std::env::current_exe()` binding"
+        )
+    _between = text[_bind_m.end():_new_m.start()]
+    if _re.search(r"\blet\s+" + _re.escape(_name) + r"\b", _between) or _re.search(
+        r"(?<![=!<>])\b" + _re.escape(_name) + r"\s*=(?!=)", _between
+    ):
+        base.fail(
+            "v55 TEST_CHILD_PROCESS_AUTHORITY: the process-argument identifier "
+            f"`{_name}` must not be shadowed or reassigned before Command::new"
+        )
 
     if len(_re.findall(r"\.spawn\s*\(", text)) > 1:
         base.fail(

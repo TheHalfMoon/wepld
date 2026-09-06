@@ -333,6 +333,29 @@ def _check_test_child_process_static_bound() -> None:
         lambda: p.delta(OverlayView(p.raw_root, {p.REOPEN_TEST: aliased.encode("utf-8")}), p.raw_root),
         "use std::process",
     )
+    # Identifier shadowing: an outer current_exe() binding, then an inner
+    # rebinding of the same name to an arbitrary path before the spawn.
+    shadowed = base_text + (
+        "\nfn _sh() { let exe = std::env::current_exe().unwrap();"
+        " { let exe = std::path::PathBuf::from(\"sh\");"
+        " let _ = std::process::Command::new(exe).status(); } }\n"
+    )
+    _expect_failure(
+        "v55 rejects identifier shadowing of the current_exe() binding",
+        lambda: p.delta(OverlayView(p.raw_root, {p.REOPEN_TEST: shadowed.encode("utf-8")}), p.raw_root),
+        "shadowing",
+    )
+    # Post-binding mutation: a `mut` binding reassigned before the spawn.
+    mutated = base_text + (
+        "\nfn _mu() { let mut exe = std::env::current_exe().unwrap();"
+        " exe = std::path::PathBuf::from(\"sh\");"
+        " let _ = std::process::Command::new(exe).status(); }\n"
+    )
+    _expect_failure(
+        "v55 rejects a mutable / reassigned process-argument binding",
+        lambda: p.delta(OverlayView(p.raw_root, {p.REOPEN_TEST: mutated.encode("utf-8")}), p.raw_root),
+        "immutable",
+    )
     ok_src = base_text + (
         "\nfn _c() { let e = std::env::current_exe().unwrap();"
         " let _ = std::process::Command::new(e).status(); }\n"

@@ -3101,3 +3101,88 @@ fn identity_record_binds_the_revalidated_facts_digest() -> TestResult {
     assert_eq!(record.revalidated_match_facts_digest, facts.facts_digest()?);
     Ok(())
 }
+
+// ---------------------------------------------------------------------------
+// S2-E015 process-crash half: a crashed process's OS-owned lock releases, and
+// the stale lock file alone is not ownership.
+// ---------------------------------------------------------------------------
+
+/// The parent creates an isolated store, spawns a child that re-executes this
+/// test binary (`std::env::current_exe()`), the child acquires the store-wide
+/// catalog lock and crashes via `std::process::abort()` without any orderly
+/// unlock, and the parent then re-acquires the same lock promptly. The lock
+/// file remains on disk throughout, proving that file presence is never
+/// ownership; the operating system releases the advisory lock when the crashed
+/// child's file handle closes.
+///
+/// Child re-execution is bounded to `current_exe()` with a single test-name
+/// argument and one environment variable (the store root); the child touches
+/// nothing outside the parent-provided temporary store, is waited on (no orphan),
+/// and the temporary store is removed by the normal `CARGO_TARGET_TMPDIR`
+/// lifecycle. TEST_CHILD_PROCESS_AUTHORITY (v55) authorizes exactly this.
+#[test]
+fn process_crash_releases_the_os_owned_catalog_lock() -> TestResult {
+    const CHILD_STORE_ENV: &str = "WEPLD_S2_E015_CRASH_CHILD_STORE";
+
+    // Child mode: hold the catalog lock, announce readiness, then crash.
+    if let Ok(child_root) = std::env::var(CHILD_STORE_ENV) {
+        let root = PathBuf::from(&child_root);
+        let store = EvidenceStore::new(root.clone())
+            .expect("child: store from the parent-provided absolute root");
+        let _held = store
+            .lock_catalog(&never_cancelled())
+            .expect("child: acquire the store-wide catalog lock");
+        fs::write(root.join("child-holds-lock"), b"1").expect("child: write readiness marker");
+        // Crash while holding the lock: no Drop, no unlock.
+        std::process::abort();
+    }
+
+    // Parent mode.
+    let root = temp_root("e015-process-crash")?;
+    EvidenceStore::new(root.clone())?.initialize()?;
+
+    let exe = std::env::current_exe().map_err(|error| TestError(error.to_string()))?;
+    let mut child = std::process::Command::new(&exe)
+        .arg("process_crash_releases_the_os_owned_catalog_lock")
+        .arg("--exact")
+        .env(CHILD_STORE_ENV, &root)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .map_err(|error| TestError(error.to_string()))?;
+
+    // Bounded wait for the child to report it holds the lock, then for it to die.
+    let readiness = root.join("child-holds-lock");
+    let waited = std::time::Instant::now();
+    while !readiness.exists() {
+        if waited.elapsed() > std::time::Duration::from_secs(30) {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err("child never acquired the catalog lock".into());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    let status = child
+        .wait()
+        .map_err(|error| TestError(error.to_string()))?;
+    if status.success() {
+        return Err(unexpected("a crashed child (non-zero exit)", &status));
+    }
+
+    // File presence alone is not ownership: the lock file is still on disk.
+    let lock_file = root.join("catalog").join("catalog.lock");
+    if !lock_file.exists() {
+        return Err("the stale catalog.lock file must remain on disk".into());
+    }
+
+    // The OS-owned lock released when the crashed child's handle closed: the
+    // parent re-acquires it well within a full contention deadline.
+    let store = EvidenceStore::new(root.clone())?;
+    let acquire = std::time::Instant::now();
+    let recovered = store.lock_catalog(&never_cancelled())?;
+    if acquire.elapsed() >= std::time::Duration::from_millis(LOCK_ACQUIRE_DEADLINE_MS) {
+        return Err("recovery after a process crash must be prompt, not a full-deadline wait".into());
+    }
+    drop(recovered);
+    Ok(())
+}

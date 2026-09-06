@@ -494,4 +494,3 @@ fn bare_repository_is_observed_as_explicitly_bare() {
         "independent oracle must agree the fixture repo is bare"
     );
 }
-

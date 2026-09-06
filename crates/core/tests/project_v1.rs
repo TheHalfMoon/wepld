@@ -320,7 +320,10 @@ fn scratch_dir(label: &str) -> PathBuf {
     static COUNTER: AtomicUsize = AtomicUsize::new(0);
     let n = COUNTER.fetch_add(1, Ordering::Relaxed);
     let mut root = PathBuf::from(env!("CARGO_TARGET_TMPDIR"));
-    root.push(format!("wepld-project-obs-{label}-{}-{n}", std::process::id()));
+    root.push(format!(
+        "wepld-project-obs-{label}-{}-{n}",
+        std::process::id()
+    ));
     std::fs::create_dir_all(&root).expect("scratch dir must be creatable");
     root
 }

@@ -63,7 +63,7 @@ import wepld_integrity as base
 
 P = ".github/scripts/wepld_s2_git_topology_evidence_reopen_v55_integrity.py"
 T = ".github/scripts/wepld_s2_git_topology_evidence_reopen_v55_selftest.py"
-T_BLOB = "b694f3171a3ad57e5b78eb2779b2ef49c0e6fea4"
+T_BLOB = "e5ea4b439c142887754873a02dbeeed0e40210d5"
 
 V54_P_BLOB = "112ca6fad544743d418789cfe73bd5a4102e57df"
 V54_T_BLOB = "4556d97c9a573b90437bcd37bee7fe473672500f"
@@ -367,28 +367,116 @@ def _verify_text_reopen_file(view: Any, path: str) -> None:
 
 
 def _verify_test_child_process_bounds(candidate: Any) -> None:
-    """Static bound on TEST_CHILD_PROCESS_AUTHORITY: the reopened test file may
-    spawn a child ONLY by re-executing std::env::current_exe(); never a
-    string-literal executable, a shell, or a network capability."""
-    text = candidate.read_bytes(REOPEN_TEST, base.MAX_POLICY_FILE_BYTES).decode("utf-8")
+    """Static defense-in-depth bound on TEST_CHILD_PROCESS_AUTHORITY.
+
+    The authoritative enforcement of the eight runtime invariants
+    (`TEST_CHILD_PROCESS_CONTRACT`) is the single-file reopen scope, the
+    fixture's own assertions, exact-head CI execution, and independent review.
+    This static filter additionally rejects, in the one reopened test file, any
+    child-process construction that is not exactly `std::process::Command::new`
+    applied to an identifier bound directly from `std::env::current_exe()`:
+
+      * no `use std::process::...` import and no `Command`/`process` aliasing,
+        so every process construction must be fully qualified and greppable;
+      * every `Command` token must be immediately preceded by `std::process::`;
+      * `std::process::Command::new` must take a bare identifier (never a
+        string/byte/raw literal, never an arbitrary expression), and that
+        identifier must be bound by `let <id> = std::env::current_exe()`;
+      * at most one process spawn; no `Stdio::inherit`;
+      * no alternate constructor (`::from`), no `exec(`, no `CommandExt` /
+        `pre_exec` / `std::os::unix::process`, no network capability token.
+
+    `std::thread::spawn` and other non-process code are unaffected.
+    """
     import re as _re
-    for _m in _re.finditer(r"Command::new\s*\(", text):
-        _tail = text[_m.end():_m.end() + 96].lstrip()
-        if _tail[:1] in ('"', "'") or _tail[:2] in ('r"', "b\"") or _tail.startswith("r#"):
-            base.fail(
-                "v55 TEST_CHILD_PROCESS_AUTHORITY: Command::new must not take a "
-                "string-literal executable; re-exec std::env::current_exe() only"
-            )
-    if ("std::process::Command" in text or "process::Command" in text or "Command::new" in text):
-        if "current_exe" not in text:
-            base.fail(
-                "v55 TEST_CHILD_PROCESS_AUTHORITY: a process spawn in the reopened "
-                "test must re-exec std::env::current_exe() only"
-            )
-    for _tok in ("TcpStream", "TcpListener", "UdpSocket", "std::net", "reqwest",
-                 "std::os::unix::process", "CommandExt", "pre_exec"):
+
+    text = candidate.read_bytes(REOPEN_TEST, base.MAX_POLICY_FILE_BYTES).decode("utf-8")
+
+    for _tok in (
+        "TcpStream", "TcpListener", "UdpSocket", "std::net", "reqwest",
+        "CommandExt", "pre_exec", "std::os::unix::process", "Stdio::inherit",
+    ):
         if _tok in text:
             base.fail(f"v55 reopened test must not add capability token: {_tok}")
+
+    if _re.search(r"\buse\s+std::process\b", text):
+        base.fail(
+            "v55 TEST_CHILD_PROCESS_AUTHORITY: the reopened test must not "
+            "`use std::process`; fully-qualify std::process::Command::new"
+        )
+    if _re.search(r"\b(Command|process)\s+as\s+\w", text):
+        base.fail(
+            "v55 TEST_CHILD_PROCESS_AUTHORITY: import aliasing of process/Command "
+            "is not allowed in the reopened test"
+        )
+
+    # No child-process construction at all -> nothing more to bound here.
+    if "std::process::Command" not in text and not _re.search(r"\bprocess::Command\b", text):
+        # A bare `Command` mention without the process path is still rejected,
+        # so an aliased/re-exported form cannot slip through unqualified.
+        for _m in _re.finditer(r"\bCommand\b", text):
+            if not text[max(0, _m.start() - 14):_m.start()].endswith("std::process::"):
+                base.fail(
+                    "v55 TEST_CHILD_PROCESS_AUTHORITY: every Command reference must "
+                    "be the fully-qualified std::process::Command::new form"
+                )
+        if _re.search(r"Command\s*::\s*from\s*\(", text):
+            base.fail(
+                "v55 TEST_CHILD_PROCESS_AUTHORITY: no alternate process "
+                "constructor (Command::from) in the reopened test"
+            )
+        return
+
+    for _m in _re.finditer(r"\bCommand\b", text):
+        if not text[max(0, _m.start() - 14):_m.start()].endswith("std::process::"):
+            base.fail(
+                "v55 TEST_CHILD_PROCESS_AUTHORITY: every Command reference must be "
+                "the fully-qualified std::process::Command::new form"
+            )
+
+    if _re.search(r"std::process::Command::new\s*\(\s*(?:r#*|b)?[\"']", text):
+        base.fail(
+            "v55 TEST_CHILD_PROCESS_AUTHORITY: Command::new must not take a "
+            "string-literal executable; bind the argument from "
+            "std::env::current_exe()"
+        )
+    for _bad in (
+        r"std::process::Command::from\s*\(",
+        r"\.exec\s*\(",
+    ):
+        if _re.search(_bad, text):
+            base.fail(
+                "v55 TEST_CHILD_PROCESS_AUTHORITY: only "
+                "std::process::Command::new(<ident>) is permitted, and <ident> "
+                "must be bound from std::env::current_exe()"
+            )
+
+    _news = _re.findall(
+        r"std::process::Command::new\s*\(\s*&?\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)", text
+    )
+    _all_new = _re.findall(r"std::process::Command::new\s*\(", text)
+    if len(_news) != len(_all_new) or not _news:
+        base.fail(
+            "v55 TEST_CHILD_PROCESS_AUTHORITY: std::process::Command::new must "
+            "take exactly one bare identifier argument"
+        )
+    for _name in set(_news):
+        if not _re.search(
+            r"\blet\s+" + _re.escape(_name)
+            + r"\s*=\s*std::env::current_exe\s*\(\s*\)",
+            text,
+        ):
+            base.fail(
+                "v55 TEST_CHILD_PROCESS_AUTHORITY: "
+                f"std::process::Command::new({_name}) requires "
+                f"`let {_name} = std::env::current_exe()`"
+            )
+
+    if len(_re.findall(r"\.spawn\s*\(", text)) > 1:
+        base.fail(
+            "v55 TEST_CHILD_PROCESS_AUTHORITY: at most one child process spawn "
+            "is permitted in the reopened test"
+        )
 
 
 def _verify_reopen_candidate(candidate: Any, policy_base: Any) -> None:

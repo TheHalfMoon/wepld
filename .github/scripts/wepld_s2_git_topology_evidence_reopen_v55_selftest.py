@@ -312,6 +312,27 @@ def _check_test_child_process_static_bound() -> None:
         "capability token",
     )
 
+    # Nonliteral arbitrary executable: `current_exe` appears in the file but the
+    # spawn takes an unrelated variable. The tightened bound must still reject it.
+    sneaky = base_text + (
+        "\n// current_exe\nfn _s() { let evil = std::path::PathBuf::from(\"x\");"
+        " let _ = std::process::Command::new(evil).status(); }\n"
+    )
+    _expect_failure(
+        "v55 rejects Command::new(<non-current_exe ident>) even with a stray current_exe token",
+        lambda: p.delta(OverlayView(p.raw_root, {p.REOPEN_TEST: sneaky.encode("utf-8")}), p.raw_root),
+        "current_exe()",
+    )
+    # Aliased Command import must be rejected before it can bypass the matcher.
+    aliased = base_text + (
+        "\nuse std::process::Command as C;\n"
+        "fn _a() { let e = std::env::current_exe().unwrap(); let _ = C::new(e).status(); }\n"
+    )
+    _expect_failure(
+        "v55 rejects an aliased Command import in the reopened test",
+        lambda: p.delta(OverlayView(p.raw_root, {p.REOPEN_TEST: aliased.encode("utf-8")}), p.raw_root),
+        "use std::process",
+    )
     ok_src = base_text + (
         "\nfn _c() { let e = std::env::current_exe().unwrap();"
         " let _ = std::process::Command::new(e).status(); }\n"

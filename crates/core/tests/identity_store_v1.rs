@@ -7,14 +7,15 @@
 //! publication, freshness, redaction, and authenticity behaviours implemented
 //! for S2-I008..S2-I012 and S2-E003..S2-E012, S2-E017.
 //!
-//! S2-E015 is covered only in part, and the part is named rather than implied.
-//! The half stating that lock-file existence never blocks ownership recovery is
-//! demonstrated: the lock file is asserted to persist and the lock is
-//! immediately reacquired. The half requiring process-crash release is not
-//! demonstrated. Dropping the owning handle exercises the same operating-system
-//! path a crashed process takes when its handles close, but that is reasoning
-//! about the mechanism, not an observation of a crash. Spawning a process is
-//! outside this tranche.
+//! S2-E015 is covered in full. The half stating that lock-file existence never
+//! blocks ownership recovery is demonstrated in-process: the lock file is
+//! asserted to persist and the lock is immediately reacquired once the owning
+//! handle closes. The process-crash half is demonstrated directly by
+//! `process_crash_releases_the_os_owned_catalog_lock`, which re-executes this
+//! test binary as a child, has the child abort while holding the catalog lock,
+//! and observes the operating system release that lock so a fresh owner
+//! acquires it promptly. Child re-execution is bounded to the current test
+//! binary under TEST_CHILD_PROCESS_AUTHORITY (v55).
 //!
 //! Every test returns a result and propagates failures. The suite holds no
 //! deletion authority, so temporary stores are left in the Cargo target
@@ -3099,5 +3100,94 @@ fn identity_record_binds_the_revalidated_facts_digest() -> TestResult {
     assert_eq!(record.worktree_id, worktree);
     assert_eq!(record.state, IdentityRecordState::Active);
     assert_eq!(record.revalidated_match_facts_digest, facts.facts_digest()?);
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// S2-E015 process-crash half: a crashed owner's OS-held catalog lock releases,
+// and the lock file left on disk is never itself ownership.
+// ---------------------------------------------------------------------------
+
+/// Real crash-recovery oracle for the half the suite previously only reasoned
+/// about. The parent builds an isolated store, then re-executes this test
+/// binary (`std::env::current_exe()`) as a child with a single test-name
+/// argument and one environment variable naming the parent's temporary store
+/// root. The child opens that store, acquires the store-wide catalog lock,
+/// writes a readiness marker, and calls `std::process::abort()` while still
+/// holding the lock: no `Drop`, no orderly unlock. The parent waits for the
+/// child (so no orphan remains), confirms it died by a signal rather than a
+/// clean exit, checks that `catalog/catalog.lock` is still on disk, and then
+/// re-acquires the same lock. Recovery is prompt -- well inside a full
+/// contention deadline -- because the operating system dropped the crashed
+/// child's advisory lock when its file handle closed.
+///
+/// The child's authority is exactly what TEST_CHILD_PROCESS_AUTHORITY (v55)
+/// permits: re-execution of the current test binary only, one bounded argument,
+/// one bounded environment variable, a bounded lifetime the parent waits on,
+/// and no filesystem reach outside the parent-provided temporary store.
+#[test]
+fn process_crash_releases_the_os_owned_catalog_lock() -> TestResult {
+    const CHILD_STORE_ENV: &str = "WEPLD_S2_E015_CRASH_CHILD_STORE";
+
+    // Child role: adopt the parent's store, take the catalog lock, announce
+    // readiness, then crash while still holding it.
+    if let Some(child_root) = std::env::var_os(CHILD_STORE_ENV) {
+        let root = PathBuf::from(&child_root);
+        let store = EvidenceStore::new(&root).expect("child: store from the parent-provided root");
+        let _held = store
+            .lock_catalog(&never_cancelled())
+            .expect("child: acquire the store-wide catalog lock");
+        fs::write(root.join("child-holds-lock"), b"1").expect("child: write readiness marker");
+        std::process::abort();
+    }
+
+    // Parent role.
+    let root = temp_root("e015-process-crash")?;
+    EvidenceStore::new(&root)?.initialize()?;
+
+    let exe = std::env::current_exe().map_err(|error| TestError(error.to_string()))?;
+    let mut child = std::process::Command::new(&exe)
+        .arg("process_crash_releases_the_os_owned_catalog_lock")
+        .arg("--exact")
+        .env(CHILD_STORE_ENV, &root)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .map_err(|error| TestError(error.to_string()))?;
+
+    // Bounded wait for the child to report it holds the lock.
+    let readiness = root.join("child-holds-lock");
+    let waited = Instant::now();
+    while !readiness.exists() {
+        if waited.elapsed() > std::time::Duration::from_secs(30) {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err("child never acquired the catalog lock".into());
+        }
+        thread::sleep(std::time::Duration::from_millis(20));
+    }
+
+    let status = child.wait().map_err(|error| TestError(error.to_string()))?;
+    if status.success() {
+        return Err(unexpected("a crashed child exiting by signal", &status));
+    }
+
+    // File presence is not ownership: the crashed owner's lock file is still here.
+    let lock_file = root.join("catalog").join("catalog.lock");
+    if !lock_file.exists() {
+        return Err("the crashed owner's catalog.lock must remain on disk".into());
+    }
+
+    // The OS released the crashed child's advisory lock when its handle closed,
+    // so a fresh owner acquires promptly rather than waiting out the deadline.
+    let store = EvidenceStore::new(&root)?;
+    let acquire = Instant::now();
+    let recovered = store.lock_catalog(&never_cancelled())?;
+    if acquire.elapsed() >= std::time::Duration::from_millis(LOCK_ACQUIRE_DEADLINE_MS) {
+        return Err(
+            "recovery after a process crash must be prompt, not a full-deadline wait".into(),
+        );
+    }
+    drop(recovered);
     Ok(())
 }

@@ -49,7 +49,7 @@ No. Mirefa says whether a route is qualified for consideration. Nawat alone owns
 
 ### Q11 — Should delegation move into S5 to prove value sooner?
 
-Only as a dry-run planning contract. S5 may construct Assignment/WorkerRequirement/TopologyProposal against synthetic workers. Real worker/model/provider/process execution and the full Edara/Mirefa/Nawat/Mission Runtime path remain S6-owned.
+Only as a dry-run planning contract. S5 may construct Assignment/WorkerRequirement/TopologyProposal against synthetic workers, using the canonical transient WorkerRequirement and field mapping in [data-model.md](data-model.md), section 12. Real worker/model/provider/process execution and the full Edara/Mirefa/Nawat/Mission Runtime path remain S6-owned.
 
 ### Q12 — Should S7 and S8 be merged to tighten review/repair feedback?
 

@@ -133,6 +133,8 @@ NEW_EXACT_HEAD -> PRIOR_REVIEW_INDEPENDENCE_RECEIPT_STALE_FOR_ACCEPTANCE
 
 Historical receipts remain audit evidence.
 
+Acceptance requires a completed, independently qualified engineering/correctness review of the whole final scope at the exact head. The receipt and linked coverage evidence must identify the reviewer and distinct review Attempt, qualification basis, immutable target/base, every required delta file, necessary canonical owner context, cross-document coherence assessment, exclusions, and disposition of material findings. Selected or queued files are not proof of completed coverage. A partial, stale, author-produced, merely different-vendor, triggered, rate-limited, or unavailable review cannot satisfy this gate. If no qualified reviewer can complete the required scope, record `REVIEW_BLOCKED`; acceptance remains blocked and must never be converted to PASS. Egress classification, screening, provider handling and any required approval under the controlling external-review egress policy precede transmission.
+
 ## Required negative oracles
 
 ```text

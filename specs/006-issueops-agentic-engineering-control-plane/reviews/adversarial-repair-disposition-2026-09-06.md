@@ -10,6 +10,26 @@ INDEPENDENT_ACCEPTANCE = NOT_ESTABLISHED
 
 The [pre-change report](adversarial-pre-change-review-2026-09-06.md) was delivered before these contract edits. The [source recheck](../research/adversarial-mechanism-recheck-2026-09-06.md) separates code observations, documentation, inference and recommendations. Exact post-commit head/check/reviewer state belongs in the live PR evidence record, avoiding a self-referential commit identity in this file.
 
+## Owner-level reconciliation — 2026-09-07
+
+Rechecking the nine remaining review threads against the actual owners found that several earlier dispositions overstated closure: a canonical name or general reference did not always supply the requested field mapping or enforcement rule. The later repairs below supersede those closure descriptions. They remain author evidence pending independent verification.
+
+| Review comment | Exact owner repair / verification required |
+|---|---|
+| 3896901494 | DM §11 and UC Context package manifest now share `*_by_item` and `created_at`; the manifest owner is singular. |
+| 3896901502 | WD Nawat decision contract now explicitly resolves and matches the typed origin to the complete proposal before granting; syntactically present references cannot suffice. |
+| 3896901508 | DM §12 explicitly defines the transient Assignment/topology capability mapping; plan S5 and clarify both reference it. |
+| 3929875333 | RI Exact-target freshness now requires completed qualified whole-final-scope review and records missing/partial/unavailable coverage as REVIEW_BLOCKED. |
+| 3929875341 | WB owner list and Download section define one typed Observation payload with exact context, bounded staging, sealed artifact identity, media/classification/quarantine and handling-policy invariants; DM §6 references this owner. |
+| 3929875380 | Historical Omnigent OM-06 now locally distinguishes upstream HTTP(S) observation from mandatory WePLD HTTPS credential hops and superseded optional-field sketches. |
+| 3929875393 | September 2 review now contains its own linked dated accounting correction, preserving original findings/footer: 7 HIGH + 8 MEDIUM + 1 LOW = 16. |
+| 3929875407 | September 4 review now locally identifies every CURRENT_* field as its historical reviewed frontier and points to live acceptance procedure. |
+| 3944560972 | Omnigent plan §4 explicitly consumes the complete canonical credential contract, including scope/activation/revocation/use/HTTPS/redirect constraints; §12 also consumes the full fenced recovery sequence. |
+
+Runtime acceptance H now matches the unconditional acceptance-critical worker/Attempt separation and repair independence rules. Parent acceptance describes planned Assurance profiles without implying implemented runtime. No historical review is promoted to current acceptance, and no thread is closed by this author record.
+
+Build learning candidate: cross-document review findings must be verified at every named owning site. A reference to a type does not prove its mapping is defined, and a field's presence does not prove its consumer validates it. Preserve dated research facts while placing supersession/accounting annotations at the original point of use. Structural trace coverage remains necessary but does not establish semantic closure.
+
 ## Repairs submitted for review
 
 | Concern / prior thread location | Disposition and owning artifact |

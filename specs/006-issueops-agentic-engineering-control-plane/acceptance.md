@@ -111,7 +111,7 @@ This file defines what must be true for the planning candidate itself to be cons
 
 ## I. Native Assurance completeness
 
-- [ ] Implements `/review`, `/security`, and `/fulltest` as profiles over one shared Assurance Fabric.
+- [ ] Plans `/review`, `/security`, and `/fulltest` as profiles over one shared Assurance Fabric.
 - [ ] Defines exact `AssuranceTarget`, including material dirty-workspace identity when the requested claim covers uncommitted state.
 - [ ] Defines immutable/versioned `AssurancePolicySnapshot` for profile/claim meaning.
 - [ ] Classifies checks as `REQUIRED`, `CONDITIONAL`, or `OPTIONAL` and prohibits budget/availability/authority limitations from silently downgrading required evidence.

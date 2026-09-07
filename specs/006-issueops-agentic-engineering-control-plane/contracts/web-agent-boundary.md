@@ -12,7 +12,7 @@ BROWSER_EXECUTION_AUTHORITY = NONE
 
 Define a WePLD-owned boundary for browser-native web tools and browser diagnostics/control so that WebMCP, MCP servers, browser sessions, DevTools protocols, page content, and provider-native permissions remain replaceable external edges rather than authority.
 
-This file is the canonical owner of `BrowserSessionObservation`, `BrowserContextObservation`, `WebToolObservation`, `WebToolInvocationProposal`, and `WebRouteQualification` semantic shapes. Other planning files reference these shapes rather than redeclare incompatible variants.
+This file is the canonical owner of `BrowserSessionObservation`, `BrowserContextObservation`, `WebToolObservation`, `WebToolInvocationProposal`, `WebRouteQualification`, and `DownloadObservation` semantic shapes. Other planning files reference these shapes rather than redeclare incompatible variants.
 
 ## Boundary types
 
@@ -177,7 +177,49 @@ browser context
 
 A downloaded file does not execute, parse, enter RAG, or become worker-visible merely because the browser created it.
 
-`DownloadObservation` is an ordinary Observation payload, not a new evidence store. It binds the download/execution identity, browser session/page/frame/origin, source URL identity, staging artifact identity and digest, actual byte count, completion/partial status, declared and observed media types, and quarantine/classification evidence. Provider filename and MIME hints remain untrusted. Partial downloads stay inert; redirects and destination changes require the applicable revalidation before credential use or transfer.
+`DownloadObservation` is a typed payload of the existing Observation envelope, not a new durable record or evidence store. This is its single canonical shape; `data-model.md` section 6 owns the referenced InputArtifact.
+
+```text
+DownloadObservation {
+  download_identity
+  effect_proposal_ref
+  effect_result_ref
+  execution_identity
+  browser_session_id
+  browser_context_id
+  page_context_id
+  frame_id
+  exact_origin
+  document_generation
+  source_url_evidence_ref
+  redirect_chain_evidence_refs[]
+  staging_policy_snapshot_ref
+  handling_policy_snapshot_ref
+  byte_limit
+  deadline
+  actual_byte_count
+  transfer_state = COMPLETE | PARTIAL | FAILED | CANCELLED | UNKNOWN
+  staged_content = NONE | ARTIFACT {
+    input_artifact_ref
+    content_digest
+    digest_algorithm
+    staged_byte_count
+  }
+  declared_media_type?
+  observed_media_type_state = KNOWN | UNKNOWN
+  observed_media_type?
+  classification_state = PENDING | CLASSIFIED | FAILED
+  classification_evidence_refs[]
+  quarantine_state = HELD | RELEASED | DISCARDED
+  quarantine_evidence_refs[]
+}
+```
+
+The Observation envelope supplies observation identity, observer identity, timestamps and provenance. `download_identity` is assigned before dispatch and is stable for that transfer; a new dispatch has a new execution identity. The session/context/page/frame/origin/document tuple must resolve to the exact qualified browser target. Missing, changed or ambiguous bindings block transfer. Source and redirect evidence are access-controlled, credential-redacted references, never reusable tokens in ordinary evidence.
+
+Staging and handling snapshots bind the destination, finite positive byte/time limits, access, retention, classification and quarantine rules approved for this effect. Enforce bounds during streaming, before buffering or writing beyond the limit; a limit breach produces PARTIAL or FAILED evidence and retained bytes stay inert. `ARTIFACT` is mandatory when bytes are retained (including an empty completed file); its byte count and digest cover exactly the sealed staged bytes and match InputArtifact content identity. `NONE` is valid only when nothing is retained and never proves a completed artifact. COMPLETE requires ARTIFACT, an observed transfer end and matching byte counts; it does not prove a safe file or successful later use. Unknown completion maps to canonical `EFFECT_OUTCOME_UNKNOWN` in the associated EffectResult until reconciled.
+
+Observed media type is required exactly for KNOWN and absent for UNKNOWN; unknown or failed classification remains HELD. Nonempty evidence supports every classification or quarantine transition. RELEASED requires completed classification and separately qualified and authorized use/release evidence under the handling policy. Provider filename and MIME hints remain untrusted. Partial downloads stay inert; redirects and destination changes require applicable revalidation before credential use or transfer. Download completion never grants parser, execution, retrieval ingestion, or upload authority.
 
 ### Upload
 

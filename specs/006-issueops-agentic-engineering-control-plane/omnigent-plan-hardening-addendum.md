@@ -132,7 +132,9 @@ CredentialCapability != GeneralNetworkAuthority
 EgressAllowlist != CredentialAuthority
 ```
 
-Direct secret passthrough remains a weaker last-resort route whose limitation must be visible in route/containment/security evidence.
+Every route in this section MUST implement the complete canonical `CredentialCapability` contract in [runtime-execution-fabric.md](contracts/runtime-execution-fabric.md), including account/tenant, target host and resource/path, method/protocol, Assignment, Attempt, logical operation, usage limit, expiry, revocation generation, qualified route, network grant and effect-time Nawat activation. The diagram and delivery alternatives do not relax those requirements. The trusted broker validates encrypted HTTPS before attaching credentials to HTTP traffic and revalidates scope, transport, revocation and authority on every redirect; downgrade or out-of-scope forwarding is refused. Usage and revocation enforcement cannot be delegated to untrusted worker assertions.
+
+Direct secret passthrough remains a weaker last-resort route whose limitation must be visible in route/containment/security evidence. It requires separate qualification and explicit authority satisfying the canonical contract; if required limits cannot be enforced, refuse the route. A visible limitation alone cannot authorize it.
 
 ## 5. Harness/protocol architecture
 
@@ -280,7 +282,7 @@ SESSION_FOUND != RUNTIME_IDENTITY_SAME
 TRANSPORT_RECOVERED != AUTHORITY_REVALIDATED
 ```
 
-Before an interrupted Attempt resumes, Mission Runtime must reconcile any material unknown effects and revalidate every runtime/route/grant element declared stale by the owning contract.
+Before an interrupted Attempt resumes or a replacement starts, Mission Runtime MUST complete the canonical split-brain/recovery sequence in [runtime-distributed-safety-addendum.md](contracts/runtime-distributed-safety-addendum.md): establish current ownership epoch and enforcing fence consumer, reject old owners, deduplicate events and reconstruct causality, reconcile material unknown effects, establish capacity admission and protocol compatibility, and revalidate every runtime/route/grant element declared stale by its owner. Missing proof blocks resume/replacement; reconnect alone never permits it.
 
 ## 13. Roadmap placement refinement
 

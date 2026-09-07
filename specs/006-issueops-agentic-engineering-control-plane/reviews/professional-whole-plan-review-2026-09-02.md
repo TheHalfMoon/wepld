@@ -11,6 +11,10 @@ IMPLEMENTATION_AUTHORITY = NONE
 SOURCE_ADMISSION = NONE
 ```
 
+## Dated accounting and freshness clarification — 2026-09-07
+
+The original findings and footer below are preserved as historical evidence. The footer has a counting error: the sixteen enumerated findings are **7 HIGH + 8 MEDIUM + 1 LOW = 16**, not 15. This is an accounting correction, not an additional finding or an independent acceptance result. `CURRENT_ACTIVE_SLICE` below is the slice observed at this review's dated frontier. See [the repair disposition](adversarial-repair-disposition-2026-09-06.md) for reconciliation and [PLANNING_INDEX.md](../PLANNING_INDEX.md) for the live acceptance procedure.
+
 ## Review objective
 
 Review the complete Spec 006 planning package as a production-grade architecture/product/execution plan, not as prose. The review covers:

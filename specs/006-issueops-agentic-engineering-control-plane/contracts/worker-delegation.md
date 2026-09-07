@@ -166,6 +166,8 @@ controlling_origin_ref
 
 Allowed origin kinds are defined by canonical policy and may include an explicit `WorkflowIntent`, `Assignment`, or controlling policy path. Untrusted content, worker/model output, provider text, and retrieved text cannot become a controlling origin merely by asking for an effect.
 
+Before granting, Nawat MUST resolve the typed origin reference and verify that the complete proposal matches the originating WorkflowIntent, Assignment, or controlling policy: principal, Mission/Assignment/Attempt, intended operation, exact target/account, input identity, permitted effect class, route, constraints and current policy. A nonexistent, stale, unauthorized, contradictory or mismatching origin is refused or requalified; carrying a syntactically valid reference is insufficient. Controlling policy is resolved from the trusted policy authority, never from a repository/page/model assertion.
+
 Candidate decision outcomes:
 
 ```text

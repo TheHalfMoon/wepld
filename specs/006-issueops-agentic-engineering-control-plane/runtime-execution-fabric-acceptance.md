@@ -67,8 +67,8 @@ The planning candidate is not internally complete unless the execution-fabric ha
 
 - [ ] Independent review is represented by a typed `ReviewIndependenceReceipt` when required.
 - [ ] Different-vendor alone is not sufficient proof under a stricter policy.
-- [ ] Policy can require worker/Attempt/provider/model/harness/workspace/context/authority separation.
-- [ ] Reviewer repair cannot self-certify the repaired exact target when policy requires independent re-review.
+- [ ] Distinct worker and Attempt identities and no repair self-certification are mandatory for acceptance-critical review; policy may additionally require provider/model/harness/workspace/context/authority separation.
+- [ ] Reviewer repair cannot self-certify the repaired exact target; acceptance-critical repairs always require fresh independent re-review.
 - [ ] New exact head stales prior acceptance-critical review-independence receipt.
 
 ## I. Effect ordering and recovery

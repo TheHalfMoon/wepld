@@ -548,7 +548,7 @@ This proves the intake/RAG seam before worker complexity enters.
 - `/triage`, `/grill`, `/architect`, `/spec`, `/tickets`, `/debug`, `/prototype`, `/research`, `/wayfinder`;
 - internal Matt-derived primitives behind WePLD contracts;
 - plan qualification and context-pack construction;
-- **delegation dry-run contracts only**: construct Assignment/WorkerRequirement/TopologyProposal and evaluate synthetic route candidates without executing a worker/model/provider/process. This tests core IssueOps planning earlier without stealing S6 runtime/authority ownership.
+- **delegation dry-run contracts only**: construct Assignment/WorkerRequirement/TopologyProposal and evaluate synthetic route candidates without executing a worker/model/provider/process. Use the single typed transient WorkerRequirement and Assignment/topology mapping in [data-model.md](data-model.md), section 12. This tests core IssueOps planning earlier without stealing S6 runtime/authority ownership.
 
 ### S6 — agent host, delegation, and provider adapters
 

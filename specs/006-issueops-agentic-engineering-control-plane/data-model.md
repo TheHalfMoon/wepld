@@ -162,6 +162,8 @@ VERIFIED_BY
 
 ## 6. InputArtifact
 
+Browser downloads enter this model through the single canonical `DownloadObservation` payload defined in [web-agent-boundary.md](contracts/web-agent-boundary.md), Browser artifact transfer / Download. Its exact browser context, origin, sealed staging identity/digest and handling-policy evidence reference this InputArtifact; this section does not redeclare a competing download schema.
+
 ```text
 InputArtifact {
   artifact_id
@@ -343,7 +345,7 @@ WorkerRequirement {
 }
 ```
 
-`WorkerRequirement` is a routing/qualification input, not a worker selection or authority grant.
+`WorkerRequirement` is a typed transient S5/S6 routing/qualification input, not a worker selection, persistent worker catalog or authority grant. Its `assignment_id` identifies the proposed Assignment; `required_capabilities` preserves that Assignment's `required_capabilities` and forms the corresponding member of `TopologyProposal.required_capability_sets`. Edara may add explicit constraints but cannot silently drop a required capability. A missing or contradictory mapping blocks route qualification. The same schema is used for synthetic S5 delegation dry-runs and the S6 handoff; no second dry-run requirement type exists.
 
 ## 13. WorkerDescriptor
 

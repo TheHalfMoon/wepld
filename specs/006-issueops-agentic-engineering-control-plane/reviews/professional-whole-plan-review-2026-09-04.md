@@ -15,6 +15,10 @@ NETWORK_AUTHORITY = NONE
 MODEL_PROVIDER_EXECUTION = NONE
 ```
 
+## Historical identity labels — editorial clarification 2026-09-07
+
+Every identity, state and qualification value in this dated review describes its reviewed frontier; none is live PR evidence. The preserved labels `CURRENT_ACTIVE_SLICE`, `CURRENT_CANONICAL_MAIN_OBSERVED`, and `CURRENT_HEAD_DETERMINISTIC_QUALIFICATION` mean `REVIEWED_ACTIVE_SLICE`, `REVIEWED_CANONICAL_MAIN_OBSERVED`, and `REVIEWED_HEAD_DETERMINISTIC_QUALIFICATION`, respectively. Their original values are retained for audit history. Current acceptance must use the exact live base/head/tree/check/review procedure in [PLANNING_INDEX.md](../PLANNING_INDEX.md); see [the repair disposition](adversarial-repair-disposition-2026-09-06.md) for the later reconciliation.
+
 ## Objective
 
 Review the complete Spec 006 planning package after the Omnigent execution-fabric study and prior OpenHands/Assurance hardening. The review asks whether the future plan is professional, implementable in dependency order, authority-safe, recoverable, secure by construction, and sufficiently explicit that independent teams would not make incompatible reasonable interpretations.

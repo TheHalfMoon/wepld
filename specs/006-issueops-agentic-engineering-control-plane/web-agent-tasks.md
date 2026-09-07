@@ -77,7 +77,7 @@ These tasks are planning dependencies only. They require activation through the 
 
 ## S8 — controlled browser/WebMCP actuation
 
-- [ ] `006-WEB-S8-001` Implement WEB-TB3 on a controlled local test page: explicit intent -> exact tool -> preview -> exact Nawat grant -> invoke once -> verify postcondition -> evidence.
+- [ ] `006-WEB-S8-001` Implement WEB-TB3 on a controlled local test page: explicit intent -> complete EffectProposal -> exact tool/browser session/profile/context/origin/document/navigation/tool generation -> preview -> Mirefa WebRouteQualification -> exact Nawat grant -> dispatch revalidation -> invoke once -> verify postcondition -> evidence. A stale qualification or changed auth/profile/context blocks dispatch.
 - [ ] `006-WEB-S8-002` Implement duplicate/retry/idempotency protection for WebMCP actions.
 - [ ] `006-WEB-S8-003` Implement separate effect classes for navigation, interaction, submit, upload, and download.
 - [ ] `006-WEB-S8-004` Revalidate after material navigation, origin, authentication, profile, target, tool-set, definition, containment, or grant-expiry changes.
@@ -111,3 +111,7 @@ BROWSER_TEST_PASS != TRUSTED_COMPLETION
 WEBMCP_SUCCESS != TRUSTED_COMPLETION
 NO_SILENT_BROWSER_ROUTE_FALLBACK = REQUIRED
 ```
+
+## Requirement and acceptance lookup
+
+Every task in this file maps bidirectionally through `analyze.md` section Supporting-package bidirectional traceability to its requirements, canonical owner, acceptance family, evidence expectation and roadmap gate. Product refinements also consume `product-capability-tracks-plan.md` sections 14–17. The complete owning contract governs; local summaries never weaken it. Future task completion requires implementation qualification under then-current authority, not merely this planning text.

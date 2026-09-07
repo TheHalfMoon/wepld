@@ -153,10 +153,10 @@ Primary owning slice.
 
 - [ ] `006-AF-S7-T001` Build changed-file/symbol impact-based test selection.
 - [ ] `006-AF-S7-T002` Join code graph, package/build ownership, schema/API edges, historical failures, and test coverage into selection evidence.
-- [ ] `006-AF-S7-T003` Support normalized format/lint/build/type/unit/integration/contract/snapshot result classes.
+- [ ] `006-AF-S7-T003` Implement the canonical test-outcome enum from `contracts/assurance-fabric.md` section 13 for format/lint/build/type/unit/integration/contract/snapshot results, with each non-FIRST_PASS outcome preserved as non-clean.
 - [ ] `006-AF-S7-T004` Add JUnit/native test event ingestion with exact target/run identity.
 - [ ] `006-AF-S7-T005` Add source/branch/function/region coverage where meaningful while preserving `COVERAGE != BEHAVIORAL_PROOF`.
-- [ ] `006-AF-S7-T006` Add flaky/retry semantics where `RETRY_PASS != CLEAN_PASS`.
+- [ ] `006-AF-S7-T006` Qualify FIRST_PASS against every non-clean outcome: CONSISTENT_FAIL, RETRY_PASS_FLAKY, RETRY_FAIL, TIMEOUT, INFRA_FAILURE, CANCELLED, NOT_RUN and UNSUPPORTED. A later retry or cancellation must not erase failure evidence.
 - [ ] `006-AF-S7-T007` Add mutation testing and survived-mutant evidence for qualified ecosystems.
 - [ ] `006-AF-S7-T008` Add property-based and fuzz counterexample ingestion.
 - [ ] `006-AF-S7-T009` Add API/schema-driven tests for qualified OpenAPI/GraphQL surfaces.
@@ -317,3 +317,7 @@ ASSURANCE_FINDING_DOES_NOT_GRANT_REPAIR_AUTHORITY
 ASSURANCE_BUNDLE_DOES_NOT_GRANT_COMPLETION
 SOURCE_AVAILABLE_DOES_NOT_ADMIT_DEPENDENCY
 ```
+
+## Requirement and acceptance lookup
+
+Every task in this file maps bidirectionally through `analyze.md` section Supporting-package bidirectional traceability to its requirements, canonical owner, acceptance family, evidence expectation and roadmap gate. Product refinements also consume `product-capability-tracks-plan.md` sections 14–17. The complete owning contract governs; local summaries never weaken it. Future task completion requires implementation qualification under then-current authority, not merely this planning text.

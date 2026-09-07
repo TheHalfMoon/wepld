@@ -245,9 +245,7 @@ RetrievalEvidence {
   query_or_intent_identity
   source_id
   source_generation
-  retrieval_mode
-  projection_generation?
-  exact_location_or_citation?
+  retrieval_basis = DirectSource | DerivedProjection
   freshness_state
   retrieval_signals[]
   rank_or_score_observations[]
@@ -261,7 +259,24 @@ RetrievalEvidence {
 
 Scores are observations only. A missing required source generation or stale source state cannot be silently represented as current evidence. Retrieved instructions remain data and do not create WorkflowIntent.
 
-`retrieval_mode` is `DIRECT_SOURCE` or `DERIVED_PROJECTION`. The latter requires `projection_generation`; the former requires an exact source location/content identity and must not claim to have queried a projection. Missing generation is never an implicit direct-read fallback.
+`retrieval_basis` is a closed discriminated union:
+
+```text
+DirectSource {
+  kind = DIRECT_SOURCE
+  exact_location_or_citation
+  source_content_identity
+}
+DerivedProjection {
+  kind = DERIVED_PROJECTION
+  projection_generation
+  exact_location_or_citation
+  source_content_identity
+  projection_content_identity
+}
+```
+
+Every identity resolves to the exact bounded bytes/location used, with access and freshness inherited from the enclosing source generation. DirectSource prohibits projection fields; DerivedProjection requires all five fields. Unknown tags, mixed variants, absent/empty identities and an unresolved generation are invalid. Missing generation never selects a direct-read fallback. `excerpt_identity`, if present, identifies a further excerpt of this evidence, not a substitute for its required content identity.
 
 A source-access revocation, collection-visibility reduction, provider permission loss, or protected-content redaction invalidates downstream eligibility of affected derived projections and context packages even if their content hashes remain unchanged.
 
@@ -376,6 +391,8 @@ RouteQualification {
   cost_class
   quota_state
   availability_observation
+  reservation_requirement = REQUIRED | NOT_REQUIRED
+  reservation_determination_evidence_refs[]
   qualification_conditions[]
   qualification_evidence_refs[]
   qualified_at
@@ -527,7 +544,8 @@ NawatDecision {
   nawat_decision_id
   effect_proposal_id
   route_qualification_ref
-  decision
+  decision = ALLOW | DENY | APPROVAL_REQUIRED | TRANSFORM_TO_NARROWER_EFFECT | REQUALIFY_REQUIRED | STALE_TARGET | INSUFFICIENT_EVIDENCE
+  grant_id?
   exact_scope_or_target
   conditions[]
   containment_preconditions[]
@@ -587,6 +605,8 @@ STILL_UNKNOWN
 `retry_safety_state` is one of `NOT_RETRYABLE`, `RECONCILIATION_REQUIRED`, `SAFE_WITH_PROVIDER_IDEMPOTENCY`, `SAFE_AFTER_CONFIRMED_NO_EFFECT`, or `NO_RETRY_NEEDED`. Safety is evidence bound to the same logical operation, arguments, account, target and provider key retention window; it is not permission to execute. `STILL_UNKNOWN` requires reconciliation or a proven provider dedupe contract, never an ordinary blind retry. Conflicting or incomplete reconciliation remains unknown. Provider not-found results require the declared visibility bound/watermark or equivalent proof before establishing no effect.
 
 One `logical_operation_id` survives delivery/transport retries of the same intended effect. Every dispatch has a distinct `execution_identity`. An intentional repeat creates a new operation only through fresh controlling intent and authority. Reusing an operation/provider key with changed arguments is a conflict. Provider key expiry, scope or route change invalidates any prior retry-safety conclusion.
+
+`grant_id` is required and nonempty exactly when `decision = ALLOW`; it is prohibited otherwise. It identifies the granting outcome of this decision, not a second grant store. Approval-required and transform outcomes do not dispatch: approval evidence or a narrower proposal must return through Nawat. Every consumer uses this enum without adapter-specific aliases.
 
 `AuthorityGrant` denotes the granting outcome of `NawatDecision`; `EffectReceipt` denotes the execution evidence in `EffectResult`. These are semantic aliases, not additional authority or evidence records.
 
@@ -649,3 +669,64 @@ Before `COMPLETED_TRUSTED`:
 Prefer append-only events plus deterministic derived state over opaque mutable workflow state. Minimum event families are defined in `analyze.md`. Future storage design must support replay, interruption recovery, duplicate-event handling, audit export, schema/version evolution, bounded evidence growth, redaction/tombstone semantics, backup/restore, and migration validation before autonomous multi-case operation is qualified.
 
 Event sourcing is not required for ephemeral UI/cache state that can be recomputed and is not acceptance/security/recovery evidence. The owning slice should persist only durable facts/transitions needed for replay, audit, authority, recovery, or product memory.
+
+## 22. Project context projection
+
+Fehrest/Maemar owns this projection over existing S2 Project identity, KnowledgeCollection/KnowledgeSource, retrieval and Evidence Graph records. It is not a new Project database or another source of truth.
+
+```text
+ProjectContextProjection {
+  project_ref
+  context_generation
+  access_policy_ref
+  entries[] = {
+    source_ref
+    source_kind = REPOSITORY | FILE | DIRECTORY | KNOWLEDGE_COLLECTION | INSTRUCTION
+    exact_locator
+    source_generation
+    content_identity
+    repository_revision_and_worktree_ref?
+    provenance_evidence_refs[]
+    freshness = CURRENT | STALE | UNKNOWN | REVOKED | HISTORICAL
+    trust_class
+    access_policy_ref
+    instruction_provenance_and_precedence_ref?
+  }
+  work_session_refs[]
+  automation_refs[]
+  connection_binding_refs[]
+  artifact_and_completion_evidence_refs[]
+  observed_at
+}
+```
+
+Repository entries require repository revision and exact worktree identity when applicable; files/directories resolve within the qualified roots and generation, never by an unchecked path string. Instruction entries require the instruction provenance/precedence reference. Context generation binds membership and revisions, not a mutable label. The projection exposes additions/removals, changed content and freshness since a selected prior generation. Inaccessible entries are filtered on every read; counts, titles, snippets and history cannot disclose revoked content. Associations never enlarge access or transfer authority.
+
+User/project instructions express advisory preferences and task constraints. They cannot become canonical policy, override a higher-trust rule or mint WorkflowIntent/effect authority from retrieved text. Conflicting applicable instructions are surfaced with provenance; absent a defined canonical precedence, qualification stops for a material conflict. Revisions invalidate affected context and plan assumptions. Current canonical evidence prevails over stale/derived summaries, which retain their historical provenance.
+
+Project import/export is an inert, versioned context manifest: stable source references, allowed provenance and qualified portable content only, with classification/access checks. Export excludes reusable credentials, live broker capabilities, cookies, grants and active runtime tokens. Import remaps references through S2 identity/Fehrest reconciliation and current access checks; unavailable sources remain unavailable and no work executes. Generalized non-repository/multi-root membership is deferred until S4's core context qualification; S2 identity is unchanged.
+
+## 23. Work control payloads
+
+WorkSession groups zero or more Missions; each Mission belongs to exactly one WorkSession. Moving a visible session between clients changes a projection subscription, not Mission identity or execution ownership. MissionRuntime owns control transitions using typed RuntimeEventEnvelope payloads, not another Work runtime.
+
+```text
+WorkControlRequest {
+  runtime_event_ref
+  request_id
+  work_session_ref
+  mission_ref
+  requesting_principal_ref
+  expected_objective_revision
+  expected_control_revision
+  action = PAUSE | RESUME | CANCEL | HANDOFF
+  requested_target_route_ref?
+  current_access_evidence_ref
+}
+```
+
+Runtime persistence atomically deduplicates request_id within the tenant/Mission, compares the expected control revision, records the transition and increments that revision. Same key/different body conflicts; concurrent clients cannot both win incompatible transitions. PAUSE_REQUESTED stops new dispatch, then PAUSED requires evidence that admitted activity reached a safe quiescent point. Unsupported pause is visible and must not pretend to freeze an external operation. RESUME requires refreshed context, qualification, leases and authority. CANCEL_REQUESTED stops new work and requests cessation; CANCEL_CONFIRMED requires proven cessation/cleanup, while already-sent external effects retain their separate result/reconciliation state. Terminal execution and uncertain business outcome can coexist.
+
+HANDOFF requires a qualified target route, ownership fencing and reconciliation of in-flight operations before the successor dispatches. Host/worker/controller loss uses the distributed runtime recovery contract. A disconnected client does not terminate the Mission; an expired controller lease fences its effects. Cursor replay is access checked, bounded and read only; missing/compacted history produces an explicit gap with a safe snapshot reference.
+
+Human approvals use DecisionBoundary, bound to the exact proposal/input/target/account/route, requested authority scope, current policy and expiry. An approval is evidence for Nawat's decision, not a grant created by the UI. Changed inputs, objective, account or stale target invalidate affected approvals. Work shows Server, Host, Runner, Worker, Attempt and provider/account distinctly when useful, using friendly labels. Results are claims; review, AMAN evidence, controlled repair and Trusted Completion remain separate timeline events. A repair creates fresh target-specific qualification and review obligations.

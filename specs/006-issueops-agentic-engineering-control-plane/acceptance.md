@@ -188,3 +188,7 @@ A review that explicitly samples only part of the requested whole-repository sco
 For this planning candidate, declare all final Spec 006 delta files and necessary canonical owner context. The reviewer must cover that complete package at the exact final base/head and reconcile criteria across the parent and addenda. Historical review-file anchors and finding counts remain historical; corrections are appended in the September 6 review record. The current repair author's report and the partial source-security scan are not independent acceptance of these planning changes.
 
 Even after merge, future implementation remains separately gated by the owning slices.
+
+## Evidence and task lookup
+
+`analyze.md` section Supporting-package bidirectional traceability maps each acceptance section to requirements, contracts, dependency-ordered tasks and concrete future fixture evidence. Product completeness additionally requires `product-capability-tracks-acceptance.md` A–K and plan sections 14–17. Planning inspection is distinct from future runtime qualification. Every unchecked applicable planning criterion remains open until evidence-backed assessment and independent qualification; a task-map link alone is not a pass.

@@ -254,7 +254,7 @@ SCREEN_OBSERVATION != NETWORK_AUTHORITY
 
 ## 12. InputLease
 
-Raw or ownership-sensitive input actuation should require an expiring/fenced lease.
+Raw or ownership-sensitive input actuation MUST require an expiring/fenced lease.
 
 ```text
 InputLease {
@@ -378,3 +378,56 @@ security/finding refs
 ```
 
 Screenshots/visual traces are evidence artifacts where required, not automatically the canonical semantic state of every interaction.
+
+## 19. Browser operation contract
+
+The Browser adapter preserves distinct process/runtime, profile, browser session, browser_context_id, window, page/tab, frame, origin, document/navigation generation and snapshot/element identities. BrowserContextObservation in `web-agent-boundary.md` owns browser target identities; InteractiveSurface references them without flattening them into a generic desktop window. Every operation declares finite time, input/output, observation-node/pixel and artifact-byte bounds in its qualified envelope. A truncated observation is explicitly partial; omitted state cannot justify a consequential action.
+
+| Operation | Required target and preconditions | Observation/outcome |
+|---|---|---|
+| Navigate | exact context/profile, permitted destination/redirect network scope, expected current document | new navigation/document identity, final origin and readiness; timeout may leave navigation in progress |
+| Inspect DOM/accessibility/semantic snapshot | exact document/frame, access policy and bounded traversal | content identity, completeness, observed generation and stable protocol/semantic locators; page text remains untrusted |
+| Click/type/select | exact element and snapshot, role/value constraints, current document, visibility/enabled/focus and no conflicting overlay | before/after semantic state and canonical EffectResult; click acknowledgement alone cannot prove a business effect |
+| Scroll | exact frame/scroll container, bounded displacement and current geometry | resulting viewport/position plus changed observation generation |
+| Upload | exact InputArtifact digest/access, destination origin/frame/control, separate transfer grant | bounded transfer receipt/postcondition; no arbitrary filesystem selection |
+| Download | exact originating action/context, staging scope/size limit | DownloadObservation then inert quarantined InputArtifact; partial files cannot execute or enter retrieval |
+| Tab/popup/window create/select/close | exact opener/new target identity and lifecycle ownership, explicit target selection | new/closed context observation; no automatic target substitution |
+| Iframe | exact frame identity and origin, frame navigation generation | separate frame snapshot; cross-origin access only through a qualified permitted protocol |
+| Dialog/permission prompt | exact dialog kind/text identity, proposed response and current owning context | response observation; browser permission is not WePLD approval |
+| Clipboard | separate read/write capability, exact intended data identity and access class | bounded receipt without leaking prior clipboard contents; preserve only where policy permits |
+| Screenshot | exact context/viewport and capture time, privacy/size bounds | pixel/content identity plus capture geometry; pixels do not replace semantic state |
+| Authentication/session state | verified profile/account context and credential broker/handling policy | redacted auth-state observation, revocation generation; cookies/session material remain protected |
+
+Managed Browser creation qualifies executable/profile isolation, storage location, containment and cleanup before launch; closing its owned contexts/profile records cleanup outcome. Attached Browser attachment requires explicit scope/visibility and user takeover semantics; detaching revokes access and queued actions, without killing an unowned browser or clearing the user's profile. Local/remote host location is orthogonal to lifecycle ownership. Remote reconnect never restores cookie/profile authority from a session label alone. Session/profile export or migration is a separate credential-bearing action, excluded from initial automatic recovery.
+
+Locator retry may re-observe only within the exact qualified semantic target and operation. No forced click, arbitrary JavaScript evaluation or raw-coordinate fallback may bypass actionability, identity or authority. Read-only inspection code, if supported later, needs an explicitly bounded non-effectful route; a generic eval API is not that proof. Navigation, popup replacement, user input, account change and schema/surface drift invalidate affected proposals. UI preview shows action, account, target and route; takeover fences queued actions and resume re-observes and requalifies.
+
+## 20. Computer surface and actuation contract
+
+For DESKTOP_WINDOW/APPLICATION_SURFACE/REMOTE_DESKTOP_SURFACE, InteractiveSurface requires a typed identity payload (none of these fields is optional):
+
+```text
+ComputerSurfaceIdentity {
+  host_id
+  host_incarnation
+  desktop_session_id
+  application_identity
+  process_incarnation
+  window_identity
+  window_incarnation
+  monitor_ids[]
+  coordinate_space = LOGICAL | PHYSICAL
+  geometry_and_transform_identity
+  dpi_scale_per_monitor
+  capture_epoch
+  accessibility_tree_generation
+}
+```
+
+The payload is an extension of the existing surface record, not another identity service. Cross-platform adapters must prove their incarnation scheme detects handle/process reuse; platform handles alone are insufficient. Observation binds screenshot/accessibility identity, bounds, focus, visibility, active modal and geometry transform. Resize, DPI/monitor rearrangement, session switch, focus/modal change, accessibility drift and relevant user intervention invalidate affected targets and queued input. Coordinate conversion records the exact transform; primary-monitor or first-window fallback is prohibited.
+
+Pointer move/click, keyboard chord, text entry and drag/drop require independently declared input classes, target constraints and the enforcing InputLease queue. Drag/drop binds source and destination surfaces/artifact and bounds held-button duration. Clipboard read/write is separate from typing; an adapter may not silently paste through the clipboard or log typed secrets. Native file pickers consume an authorized InputArtifact, exact dialog/control and destination, never unrestricted path browsing. Key/button release and cleanup have bounded deadlines; uncertain held-input state blocks further actuation and becomes a visible intervention request.
+
+OS permission denial, secure desktop/protected UI and non-observable state are UNSUPPORTED/BLOCKED for unattended actuation. A user may finish that step manually; permission or approval does not qualify an unobservable target. After manual interaction, a fresh observation and qualification are required. High-consequence irreversible actions require enforceable semantic preconditions; if a route cannot provide them, it must refuse or hand the operation to the user outside autonomous actuation. Screenshots and a fresh timestamp cannot eliminate a check-to-act race.
+
+Local/remote host, worker or controller loss uses authenticated enrollment, lease epochs, enforcing fences and causal replay in `runtime-distributed-safety-addendum.md`; reconnect never replays pointer/keyboard events as recovery. Reconciliation determines whether an already emitted action took effect. All ownership-sensitive input MUST use the lease and qualified actuator; ambient OS input APIs are incompatible with the qualified route. Continuous camera/microphone, mobile and ambient multimodal presence remain deferred, with no implicit observation permission.

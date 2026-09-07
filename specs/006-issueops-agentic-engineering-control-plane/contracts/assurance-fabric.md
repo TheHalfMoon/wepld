@@ -283,7 +283,7 @@ RESOURCE_LIMIT
 CLEANUP_INCOMPLETE
 ```
 
-`ENGINE_ERROR`, `TIMEOUT`, `UNSUPPORTED`, `INFRA_FAILURE`, `RESOURCE_LIMIT`, or material `CLEANUP_INCOMPLETE` MUST NOT normalize to clean/no-findings.
+`ENGINE_ERROR`, `TIMEOUT`, `CANCELLED`, `UNSUPPORTED`, `INFRA_FAILURE`, `RESOURCE_LIMIT`, or material `CLEANUP_INCOMPLETE` MUST NOT normalize to clean/no-findings. Test normalization likewise preserves every non-FIRST_PASS outcome, including RETRY_FAIL and CONSISTENT_FAIL, as non-clean; RETRY_PASS_FLAKY cannot erase the original failure.
 
 ```text
 VERSION_STRING_MATCH != EXECUTABLE_IDENTITY_MATCH
@@ -840,3 +840,20 @@ REQUIRED_EVIDENCE_MISSING
 ```
 
 No generic success state may hide one of these when it is material to the requested claim.
+
+## 27. Significant product-operation evidence
+
+Each row feeds the existing AssuranceTarget/PolicySnapshot/EngineRun/EvidenceRef/ClaimAssessment/AssuranceBundle records, not a feature-specific acceptance database. All effectful rows also require the complete canonical EffectProposal, current Mirefa qualification, NawatDecision/grant, exact Attempt/dispatch, EffectResult and reconciliation when unknown. Policy selects required claims/checks before execution; unsupported or missing evidence is explicit, and changed targets/policy invalidate affected assessments.
+
+| Product operation | Target and required observation/evidence | Claim boundary |
+|---|---|---|
+| Project context/retrieval/import/export | exact project/source/context generations, location/content identities, access/instruction provenance, completeness, redaction/import mapping | retrieved/current/access-safe only within observed scope; no authority claim |
+| Work start/control/handoff/result | exact Mission/objective/control revision, participant access, request/transition receipt, host/runner/worker/Attempt and fences | request accepted, cessation proved and result supported are separate claims; completion requires TC |
+| Automation occurrence/branch/wait/run | stable occurrence key and pinned revisions, signature/window, durable intent association, branch inputs/wait decision and effect lineage | accepted once internally does not prove exactly-once external effect; simulation cannot prove live qualification |
+| Connection bind/refresh/provider operation | verified account/scopes/binding/revocation generation, OAuth/refresh evidence, capability derivation/use and bounded provider completeness/postcondition | connected/authenticated is separate from qualified and authorized; provider not-found requires visibility proof |
+| Browser operation/artifact transfer | exact profile/context/frame/origin/document/snapshot/target, route/actionability, bounded before/after state and artifact/quarantine receipts | GUI acknowledgement is not business-effect proof; stale or partial snapshot cannot prove target safety |
+| Computer observation/input/takeover | exact host/session/app/window incarnations, capture/geometry/focus/modal, lease/fence/grant, actuation and cleanup/postcondition | input emitted is distinct from effect confirmed; non-observable/protected targets remain unsupported |
+| WebMCP discovery/invocation | exact protocol/declaration/schema/context/input identities, untrusted provenance, equivalence qualification and bounded outcome | valid schema/tool success is not safe effect, authority or completion |
+| Assurance check/review/repair | exact target/head and immutable policy/required-claim set, engine artifact/config/environment/resource identity, coverage/failures/findings, independence receipt and reverification | clean producer status cannot erase missing/conflicting checks or become Trusted Completion |
+
+Unknown outcomes, unresolved material findings, stale-head review and missing required checks block the corresponding supported claim/Trusted Completion decision. Historical evidence may remain explainable but is labelled stale/historical and access filtered. Cache compatibility includes immutable policy identity and required claims/evidence; raw observations may be reused only after explicit freshness/coverage reassessment under the new policy. Required non-clean outcomes are never normalized to clean. ReviewIndependenceReceipt must satisfy the selected policy; different vendor alone is insufficient.

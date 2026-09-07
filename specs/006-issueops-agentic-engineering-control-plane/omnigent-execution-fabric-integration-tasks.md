@@ -307,3 +307,17 @@ OMNI_N_FOREIGN_DESKTOP_ORIGIN_CANNOT_USE_PRIVILEGED_BRIDGE
 ## Activation rule
 
 Every task remains planning-only until its owning slice grants exact implementation/source/dependency/process/network paths. Omnigent's source availability and Apache-2.0 license do not activate any task.
+
+## Final planning qualification gate
+
+Planning completion requires fresh live PR base/head/tree and full candidate-delta scope against current canonical main; fresh trusted-base deterministic checks; an independent, qualified, whole-scope exact-head correctness/engineering review with reviewer identity, independence, qualifications, included scope and exclusions; evidence-backed reconciliation; and zero unresolved material threads. Missing, unavailable, unqualified, stale or materially incomplete review is REVIEW_BLOCKED. Before any external sharing, apply canonical EXTERNAL_REVIEW_EGRESS_POLICY classification, exact-scope screening, required redaction/handling, provider/product eligibility and recorded authorization. Any head change requires freshness-dependent reruns. A provider status or this author's self-review does not qualify the package.
+
+## Mandatory contract dependencies
+
+OM-S6-006 must implement and negatively qualify every mandatory field and activation rule of `contracts/runtime-execution-fabric.md` CredentialCapability: account/tenant, revocation generation, host/resource/method, Assignment/Attempt/logical operation, expiry/use limit, route/egress/Nawat bindings, proposed-to-active mapping, use receipts, refresh serialization and authenticated HTTPS on every credential-bearing redirect hop. Its earlier bullet list is a summary, not a reduced contract.
+
+OM-S6-008 depends on all of `contracts/runtime-distributed-safety-addendum.md`: authenticated enrollment, monotonic ownership epochs and enforcing fences, exact harness identity, causal event sequencing/dedupe and replay gaps, live capacity reservation, negotiated protocol/schema compatibility and reconciliation before uncertain work resumes. Recovery tests include partitioned old-owner survival, stale reservations and incompatible reconnects; no recovery task may omit these because its local list is shorter.
+
+## Requirement and acceptance lookup
+
+Every task in this file maps bidirectionally through `analyze.md` section Supporting-package bidirectional traceability to its requirements, canonical owner, acceptance family, evidence expectation and roadmap gate. Product refinements also consume `product-capability-tracks-plan.md` sections 14–17. The complete owning contract governs; local summaries never weaken it. Future task completion requires implementation qualification under then-current authority, not merely this planning text.

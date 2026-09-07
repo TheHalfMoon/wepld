@@ -16,7 +16,7 @@ This index defines the recommended reading order and ownership map for the Spec 
 1. `spec.md` — parent product requirements.
 2. `plan.md` — parent product/roadmap/tracer-bullet architecture.
 3. `product-capability-tracks-spec-addendum.md` — Projects / Work / Automations / Connections / Browser / WebMCP / Computer Use product-shaping requirements.
-4. `product-capability-tracks-plan.md` — PX/WK/AU/IS cross-slice roadmap integration and explicit no-second-orchestrator clarification.
+4. `product-capability-tracks-plan.md` — PX/WK/AU/IS cross-slice integration; sections 14–17 own the eight-feature completeness matrix, all failure/UX obligations and product traceability. `analyze.md` owns supporting-package bidirectional traceability. Neither matrix nor internal assessment substitutes for independent acceptance.
 5. `acceptance.md` — parent planning-coherence acceptance criteria.
 6. `product-capability-tracks-acceptance.md` — added product-capability planning acceptance criteria.
 7. `data-model.md` — canonical shared domain field vocabulary except where a dedicated contract explicitly owns a type.

@@ -128,3 +128,11 @@ The planning candidate is not internally complete unless the execution-fabric ha
 - [ ] `contracts/behavior-policy-boundary.md` prevents policy mechanisms from becoming a second authority path.
 - [ ] `omnigent-execution-fabric-integration-tasks.md` supplies dependency-ordered tasks and negative oracles.
 - [ ] Whole-plan review records all material remaining gaps and closure/defer status accurately.
+
+## Completion-pass schema and task evidence
+
+- [ ] ExecutionEnvelope resource_admission is a closed Reserved/QualifiedNoReservation union matched to the exact RouteQualification reservation_requirement and evidence; missing or stale required reservation refuses start.
+- [ ] Canonical NawatDecision has one shared outcome enum and grant_id exactly for ALLOW; web/worker adapters cannot treat approval/transform as grants.
+- [ ] Runtime privacy excludes raw environment/reusable secrets before S6 persistence; S9 replay/export/restore fixtures preserve that exclusion.
+
+These criteria map respectively to FR-046/062 (OM-S5-002, OM-S6-005, 006-RT-S6-005), FR-022/053 (006-S6-D015..018, OM-S8-001 and WEB-S8-001), and FR-056 (006-RT-S6-PRIV001/006-RT-S9-PRIV001). `analyze.md` supplies the full bidirectional runtime map. Planning evidence is the named complete contract; future execution evidence remains required at the owning slice.

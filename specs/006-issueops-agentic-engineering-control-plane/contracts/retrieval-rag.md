@@ -184,9 +184,9 @@ Every material result must include or reference the canonical `RetrievalEvidence
 ```text
 source_id
 source_generation
-projection_generation?
+retrieval_basis (canonical DirectSource or DerivedProjection union)
 source_kind/source identity via source ref
-exact_location_or_citation?
+exact_location_or_citation and source_content_identity inside the selected variant
 freshness_state
 retrieval_signals[]
 rank_or_score_observations[]
@@ -195,6 +195,8 @@ access_policy_ref
 trust_classification
 retrieved_at/created_at
 ```
+
+The canonical variant rules in `../data-model.md` section 9 are mandatory: DerivedProjection also requires projection generation/content identity; DirectSource prohibits projection fields. Missing/mixed variants fail instead of silently becoming a direct read.
 
 Scores are evidence only:
 

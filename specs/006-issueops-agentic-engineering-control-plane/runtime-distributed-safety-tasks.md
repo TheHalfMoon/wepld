@@ -54,3 +54,12 @@ POLICY_NO_OBJECTION_CANNOT_EXECUTE_WITHOUT_NAWAT
 UNTRUSTED_POLICY_MODULE_CANNOT_AUTO_LOAD
 LOWER_TRUST_POLICY_CANNOT_WEAKEN_STRONGER_RESTRICTION
 ```
+
+## Privacy and retention prerequisites
+
+- [ ] `006-RT-S6-PRIV001` Before any S6 event persistence/egress, implement bounded payloads, access checks, classification and secret exclusion under Assurance EvidenceHandlingPolicy. Raw environment values, reusable secrets, bearer placeholders and private browser/session payloads must not enter ordinary runtime events, logs or replay records. Only safe names/classes and protected references are eligible.
+- [ ] `006-RT-S9-PRIV001` Depends on 006-RT-S6-PRIV001 and 006-RT-S9-001/002: qualify export, backup/restore, migration and tombstone propagation with seeded raw-environment/reusable-secret fixtures; prove exclusion at capture and after replay/export. A later redaction pass cannot excuse an earlier plaintext leak. Minimum privacy precedes S6 execution; S9 adds durable-history verification.
+
+## Requirement and acceptance lookup
+
+Every task in this file maps bidirectionally through `analyze.md` section Supporting-package bidirectional traceability to its requirements, canonical owner, acceptance family, evidence expectation and roadmap gate. Product refinements also consume `product-capability-tracks-plan.md` sections 14–17. The complete owning contract governs; local summaries never weaken it. Future task completion requires implementation qualification under then-current authority, not merely this planning text.

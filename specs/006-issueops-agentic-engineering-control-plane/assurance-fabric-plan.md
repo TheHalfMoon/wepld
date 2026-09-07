@@ -815,7 +815,7 @@ ADVERSARIAL: explicit target/effect/budget authorization
 RELEASE: deterministic completion-oriented plan, potentially composed of cached exact-target evidence plus fresh required checks
 ```
 
-Cache reuse requires exact compatibility across target, engine, rule/config, environment, graph/index generation, and evidence freshness requirements. Cache hit is not a license to reuse stale evidence.
+Cache reuse requires exact compatibility across target, engine, rule/config, environment, graph/index generation, immutable `AssurancePolicySnapshot` identity/digest, required claims, required evidence and freshness requirements. The cache key includes those identities. Any policy, claim-set or evidence-requirement change invalidates the previous acceptance decision; raw observations may only be reassessed under the new policy, with missing required checks run afresh. Cache hit is not a license to reuse stale evidence.
 
 ## 18. Quality and benchmark framework
 

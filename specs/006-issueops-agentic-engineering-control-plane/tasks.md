@@ -230,3 +230,7 @@ S3 InputArtifact
 ```
 
 GitHub read-only Case import may be developed only when its source/network/auth route is independently authorized; GitHub write effects MUST NOT be used to shortcut the dependency frontier.
+
+## Requirement and acceptance lookup
+
+Every task in this file maps bidirectionally through `analyze.md` section Supporting-package bidirectional traceability to its requirements, canonical owner, acceptance family, evidence expectation and roadmap gate. Product refinements also consume `product-capability-tracks-plan.md` sections 14–17. The complete owning contract governs; local summaries never weaken it. Future task completion requires implementation qualification under then-current authority, not merely this planning text.

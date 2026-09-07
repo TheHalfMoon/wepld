@@ -415,7 +415,7 @@ ExecutionEnvelope {
   nawat_grant_refs[]
   harness_execution_identity_ref
   runner_ownership_lease_ref
-  runtime_reservation_ref?
+  resource_admission = Reserved | QualifiedNoReservation
   context_package_ref
   policy_snapshot_refs[]
   created_at
@@ -425,7 +425,7 @@ ExecutionEnvelope {
 
 The envelope is evidence of the current allowed execution intersection. It cannot widen any constituent authority.
 
-Harness and ownership bindings are required before worker execution. `runtime_reservation_ref` is required whenever the route depends on resource admission; an explicit qualified no-reservation-required determination is otherwise recorded. Reusing an expired reservation cannot start an Attempt. The envelope freezes the evaluated inputs but is not an enduring grant: the effect adapter checks current revocation, lease, target and qualification at dispatch. Changed bindings create a successor envelope while preserving the previous one as history.
+Harness and ownership bindings are required before worker execution. `resource_admission` is a closed union: `Reserved { kind = RESERVED, runtime_reservation_ref }` or `QualifiedNoReservation { kind = NOT_REQUIRED, route_qualification_ref }`. The route's canonical `reservation_requirement` and nonempty `reservation_determination_evidence_refs` are mandatory. REQUIRED accepts only Reserved, whose live reservation binds this Assignment, Attempt, host/runner, resource scope and ownership epoch. NOT_REQUIRED accepts only QualifiedNoReservation referencing this envelope's exact qualification; the evidence must prove that route's constraints do not require a reserved guarantee. Missing, mixed or mismatched variants are invalid; there is no optional-field default. Reusing an expired reservation cannot start an Attempt. The envelope freezes the evaluated inputs but is not an enduring grant: the effect adapter checks current revocation, lease, target and qualification at dispatch. Changed bindings create a successor envelope while preserving the previous one as history.
 
 The referenced reservation must match the envelope's Attempt, Host and Runner and cover `Attempt.start_event` under the qualified clock/expiry policy. Released, mismatched or ambiguously identified reservations cannot satisfy admission. A single reservation may be shared only where the resource contract explicitly accounts for all consumers; no implicit reuse is allowed.
 

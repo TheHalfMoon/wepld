@@ -263,26 +263,11 @@ Negative oracles: `AF-N036`, `AF-N037`, `AF-N038`.
 
 ## F. S7/S9 — event and provenance lineage
 
-### OH-S7-010 — AttemptEvent envelope
+### OH-S7-010 — Runtime event lineage
 
 Reuse OpenHands event lineage semantics as a behavior oracle, while retaining WePLD's generation-based durable store.
 
-```text
-AttemptEvent
-  schema_version
-  event_id
-  attempt_id
-  mission_id
-  parent_event_id
-  event_kind
-  producer
-  exact_target_ref
-  authority_ref
-  evidence_refs[]
-  observed_at
-  payload_digest
-  payload
-```
+Use the canonical `RuntimeEventEnvelope` in `contracts/runtime-distributed-safety-addendum.md`, with typed Attempt/target/authority/evidence payload references. AttemptEvent is a historical source sketch, not a second event type, event store or transport. Preserve the canonical producer/incarnation, sequence, causation, dedupe and access fields rather than copying a reduced envelope.
 
 Acceptance:
 
@@ -407,3 +392,13 @@ TASK_MAP_READY = YES
 CURRENT_PRODUCT_IMPLEMENTATION_AUTHORITY = UNCHANGED
 CURRENT_SOURCE_ADMISSION = NONE
 ```
+
+## Requirement and acceptance lookup
+
+Every task in this file maps bidirectionally through `analyze.md` section Supporting-package bidirectional traceability to its requirements, canonical owner, acceptance family, evidence expectation and roadmap gate. Product refinements also consume `product-capability-tracks-plan.md` sections 14–17. The complete owning contract governs; local summaries never weaken it. Future task completion requires implementation qualification under then-current authority, not merely this planning text.
+
+## Canonical primitive convergence
+
+The source-inspired sketches above are projections/payloads, not competing durable contracts. RuntimeCapabilityAdvertisement is a typed CapabilityPresence Observation over RF/RD runtime identity. AttemptBackendBinding projects the exact ExecutionEnvelope/HarnessExecutionIdentity and current RouteQualification; it cannot omit their credential, reservation, ownership or authority fields. ToolCallProposal is untrusted provider-call data attached to the complete canonical EffectProposal, never an executable reduced proposal. AuthorizedEffect is an ALLOW NawatDecision/grant plus its exact EffectProposal/ExecutionEnvelope projection, not another grant. ArchitectureRule is versioned Assurance rule/configuration data with canonical trust/exception provenance. Capability interface names denote independently scoped existing capabilities, not separate authority engines. RuntimeEventEnvelope owns event identity/causality; Evidence Graph owns provenance relations.
+
+These mappings are mandatory implementation semantics. Acceptance rejects an implementation that copies a sketch into an independent event, grant, policy, runtime, project-memory or evidence store.

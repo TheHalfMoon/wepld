@@ -109,3 +109,15 @@ DIRTY_WORKSPACE_CANNOT_BE_CLAIMED_COVERED_BY_COMMIT_SHA_ALONE
 ## Completion relationship
 
 This hardening map is complete as planning when every task has an owning canonical slice and the contracts/specs make its semantics explicit. Actual completion requires future implementation, deterministic evidence, exact-head review, and the normal canonical acceptance path.
+
+## Final planning qualification gate
+
+Planning completion requires fresh live PR base/head/tree and full candidate-delta scope against current canonical main; fresh trusted-base deterministic checks; an independent, qualified, whole-scope exact-head correctness/engineering review with reviewer identity, independence, qualifications, included scope and exclusions; evidence-backed reconciliation; and zero unresolved material threads. Missing, unavailable, unqualified, stale or materially incomplete review is REVIEW_BLOCKED. Before any external sharing, apply canonical EXTERNAL_REVIEW_EGRESS_POLICY classification, exact-scope screening, required redaction/handling, provider/product eligibility and recorded authorization. Any head change requires freshness-dependent reruns. A provider status or this author's self-review does not qualify the package.
+
+## Cross-contract prerequisites
+
+Every credential/recovery hardening task consumes the complete mandatory CredentialCapability and ExecutionEnvelope contracts in `contracts/runtime-execution-fabric.md` and the full `contracts/runtime-distributed-safety-addendum.md`. Credential tests include account/resource/method/Attempt/operation/expiry/use/revocation constraints and HTTPS redirect hops. Recovery tests include authenticated host binding, enforcing epoch fences, causal dedupe/replay, capacity admission and version compatibility. These requirements are not postponed by a summary task's shorter wording.
+
+## Requirement and acceptance lookup
+
+Every task in this file maps bidirectionally through `analyze.md` section Supporting-package bidirectional traceability to its requirements, canonical owner, acceptance family, evidence expectation and roadmap gate. Product refinements also consume `product-capability-tracks-plan.md` sections 14–17. The complete owning contract governs; local summaries never weaken it. Future task completion requires implementation qualification under then-current authority, not merely this planning text.

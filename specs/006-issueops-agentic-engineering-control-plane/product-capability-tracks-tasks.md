@@ -15,7 +15,7 @@ These tasks describe future planning/qualification work only. They do not alter 
 - [x] **PCT-P003** Reject parallel Automation runtime/authority/evidence architecture.
 - [x] **PCT-P004** Define cross-slice tracks PX/WK/AU/IS without roadmap renumbering.
 - [x] **PCT-P005** Define minimum candidate primitive set and Ponytail rejections.
-- [ ] **PCT-P006** Obtain independent whole-scope exact-head review of every final Spec 006 delta file against current canonical main, with scope/exclusions/independence and findings declared; incremental reviews, old heads, sampled scans and the repair author's report do not satisfy this task.
+- [ ] **PCT-P006** Obtain independent qualified whole-scope exact-head review of every final Spec 006 delta file against current canonical main, with scope/exclusions/independence and findings declared; incremental reviews, old heads, sampled scans and the repair author's report do not satisfy this task.
 
 - [ ] **PCT-P007** Qualify the adversarial closure checks in planning acceptance section J: effect dispatch/reconciliation, enforcing fences, connection derivation, trigger transaction/schedules, WorkSession/Mission lifecycle and orthogonal browser mode semantics. Contract drafting is not qualification or implementation completion.
 
@@ -134,3 +134,11 @@ TASK_LISTED != TASK_AUTHORIZED
 TASK_AUTHORIZED != TASK_QUALIFIED
 TASK_QUALIFIED != EFFECT_AUTHORITY
 ```
+
+## Planning qualification evidence
+
+Planning completion requires fresh live PR base/head/tree and full candidate-delta scope against current canonical main; fresh trusted-base deterministic checks; an independent, qualified, whole-scope exact-head correctness/engineering review with reviewer identity, independence, qualifications, included scope and exclusions; evidence-backed reconciliation; and zero unresolved material threads. Missing, unavailable, unqualified, stale or materially incomplete review is REVIEW_BLOCKED. Before any external sharing, apply canonical EXTERNAL_REVIEW_EGRESS_POLICY classification, exact-scope screening, required redaction/handling, provider/product eligibility and recorded authorization. Any head change requires freshness-dependent reruns. A provider status or this author's self-review does not qualify the package.
+
+## Requirement and acceptance lookup
+
+`product-capability-tracks-plan.md` section 17 is the bidirectional requirement/task/acceptance map for every task in this file. Each family also consumes the shared failure/security/UX obligations in sections 15–16. `analyze.md` links the supporting parent/runtime/Assurance/Web tasks. Task descriptions implement and qualify the now-concrete owning contract; they do not reserve missing design for later.

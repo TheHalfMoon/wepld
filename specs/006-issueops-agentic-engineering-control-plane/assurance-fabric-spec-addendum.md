@@ -97,7 +97,7 @@ NOT_RUN
 UNSUPPORTED
 ```
 
-`RETRY_PASS_FLAKY`, `INFRA_FAILURE`, `NOT_RUN`, or `UNSUPPORTED` MUST NOT normalize to a clean pass.
+`CONSISTENT_FAIL`, `RETRY_PASS_FLAKY`, `RETRY_FAIL`, `TIMEOUT`, `INFRA_FAILURE`, `CANCELLED`, `NOT_RUN`, and `UNSUPPORTED` MUST NOT normalize to a clean pass. Only FIRST_PASS is a candidate clean test outcome, still subject to exact-target coverage and policy assessment.
 
 Known-flake/quarantine state MUST have owner/evidence/scope/expiry or review date and MUST NOT erase the underlying failure observation.
 

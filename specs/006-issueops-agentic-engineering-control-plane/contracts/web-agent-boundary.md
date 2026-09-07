@@ -113,6 +113,7 @@ Ambiguous target selection fails closed. A new popup/frame/tab is a new context 
 WebToolObservation {
   web_tool_observation_id
   browser_session_id
+  browser_context_id
   page_context_id
   origin_identity
   tool_name
@@ -138,9 +139,11 @@ A changed tool definition creates a new observation/generation. Acceptance-criti
 ```text
 WebToolInvocationProposal {
   proposal_id
+  effect_proposal_ref
   workflow_intent_ref
   web_tool_observation_ref
   exact_browser_session_id
+  browser_context_id
   exact_page_context_id
   exact_origin
   exact_tool_generation
@@ -151,6 +154,8 @@ WebToolInvocationProposal {
   idempotency_identity?
 }
 ```
+
+`effect_proposal_ref` must resolve to the complete canonical `EffectProposal` in `../data-model.md` section 19, with identical intent, exact target, input, effect class, operation, principal, Mission/Assignment/Attempt, route and proposed credential scope. An intent-only or mismatching web proposal is invalid. Both records' `browser_context_id` reference the canonical BrowserContextObservation, including the exact popup/frame when applicable; a page id cannot substitute for it. The enclosing session/page/origin/document/navigation/tool generation must agree at qualification and dispatch. A target change creates a successor observation/proposal and requalification.
 
 Website annotations MAY inform classification but cannot decide the final effect class.
 
@@ -232,15 +237,7 @@ Qualification does not grant execution.
 
 ## Authority boundary
 
-Nawat receives the complete exact-context snapshot and may return:
-
-```text
-ALLOW
-DENY
-REQUIRE_APPROVAL
-TRANSFORM
-REQUALIFY
-```
+Nawat receives the complete canonical EffectProposal and exact-context snapshot. Its response is the canonical `NawatDecision` in `../data-model.md` section 19, including the shared seven-value decision enum and ALLOW-only `grant_id`. Browser adapters must not introduce alternate decision spellings or treat approval/transform/requalification requests as grants.
 
 A valid allow/grant is scoped to the exact classified web/browser effect. It cannot be widened by Mission Runtime or the browser adapter.
 
@@ -379,3 +376,11 @@ DOWNLOAD_SUCCESS != TRUSTED_COMPLETION
 ```
 
 Trusted Completion remains owned by the existing WePLD completion boundary and must bind browser evidence to the exact accepted Case/change/browser context and current handling/access policy where material.
+
+## WebMCP declaration lifecycle and route equivalence
+
+Discovery produces a bounded untrusted observation of protocol/declaration version, tool namespace/name, schema/declaration digest, input/output limits and exact browser/session/context/origin/document/navigation generation. Namespace identity is the tuple of origin, context, document and declaration namespace; equal display names never collapse identities. A protocol/schema version unsupported by the adapter is refused. A disappeared, revoked or changed declaration invalidates its qualification and queued proposals; restoration creates a new observed generation.
+
+Schema parsing has finite bytes, nesting, property and reference-expansion limits, rejects unsupported recursive/external references and never follows a declaration URL without separately qualified egress. Descriptions, examples and outputs remain data, cannot alter instruction/policy precedence, and cannot request credentials or invoke another tool implicitly. Output is bounded, classified and rendered inertly before context/evidence use.
+
+Route comparison against native API, DOM/accessibility and protocol routes requires equivalent user intent, account, exact target, argument meaning, effect class, postcondition, idempotency/reconciliation and confidentiality bounds. Name similarity or schema validity is not equivalence evidence. Mirefa records the comparison, supported scope and limitations; absent proof, it refuses automatic substitution. Page authentication state is credential-bearing observation, never a grant. Invocation records complete EffectProposal, WebRouteQualification, canonical NawatDecision/grant, current declaration/auth/target identities, dispatch attempt and bounded result/postcondition evidence. Tool-reported success is a claim until independently observed or reconciled.

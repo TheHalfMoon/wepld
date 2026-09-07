@@ -120,7 +120,7 @@ RUNNER_RECONNECTED != EFFECT_RECONCILED
 
 ## FR-056 — Credential and runtime evidence privacy
 
-Durable evidence SHOULD record credential-capability identities, policy/target scope, broker/use receipts, environment policy identity, containment posture, and runtime lineage without persisting reusable secret values or raw ambient environment content.
+Durable evidence MUST record credential-capability identities, policy/target scope, broker/use receipts, environment policy identity, containment posture, and runtime lineage without persisting reusable secret values or raw ambient environment content.
 
 Security investigations requiring protected secret-derived identity evidence must use a separately qualified handling policy.
 

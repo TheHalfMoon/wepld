@@ -411,7 +411,7 @@ No action is implied by the drop itself.
 
 ### 8.1 Primary commands
 
-The command catalog describes intent surfaces, not a requirement to expose every command equally on day one. Initial UX should keep a small primary surface (`/askme`, `/issues`, `/rag`, `/build`, `/review`, `/btw`) and reveal specialist workflows through routing/progressive disclosure. `/delegate`, `/workers`, and `/handoff` may remain advanced surfaces until worker interoperability exists.
+The complete canonical command catalog is [contracts/command-surface.md](contracts/command-surface.md), including `/web`, `/security` and `/fulltest`. The list below is an initial scoped UX subset and MUST remain consistent with that catalog. The command catalog describes intent surfaces, not a requirement to expose every command equally on day one. Initial UX should keep a small primary surface (`/askme`, `/issues`, `/rag`, `/build`, `/review`, `/btw`) and reveal specialist workflows through routing/progressive disclosure. `/delegate`, `/workers`, and `/handoff` may remain advanced surfaces until worker interoperability exists.
 
 ```text
 /askme       workflow/capability router

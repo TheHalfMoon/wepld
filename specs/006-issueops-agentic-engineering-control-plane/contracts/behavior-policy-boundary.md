@@ -135,7 +135,7 @@ Any durable policy state that influences later decisions needs provenance, versi
 
 Repository content, agent-generated Python/JavaScript, downloaded modules, or user-provided arbitrary executable policy code MUST NOT auto-load as trusted policy.
 
-Loading executable policy code may itself require:
+Before loading or executing any executable policy code, the trusted loader MUST validate all of the following against fixed trusted admission/policy identities; labels such as TRUSTED_NATIVE_EXTENSION or QUALIFIED_SANDBOXED_PLUGIN are claims, not evidence:
 
 ```text
 source admission
@@ -147,6 +147,10 @@ secret/environment handling
 exact policy identity
 security review
 ```
+
+Executable candidates require valid `source_admission_ref`, `dependency_admission_ref` and nonempty `qualification_evidence_refs` resolving to trusted records for the exact source/artifact digest, transitive dependency set, configuration, runtime and intended scope. A dependency-free artifact still requires an explicit trusted admission determination for that empty set. Containment, process/network bounds, secret handling and applicable security review must be qualified before load, with current Nawat authority for any required effect. A changed artifact, scope, dependency, configuration, revocation or qualification invalidates the corresponding eligibility; a pathname, source-class label or module-supplied receipt cannot supply trust. Optional schema fields allow inert candidates and declarative records to be described; they never exempt executable loading from these requirements. Builtin declarative evaluation uses its separately admitted fixed evaluator and cannot smuggle executable content into the declarative path.
+
+Missing, stale, mismatched or untrusted admission/qualification/containment evidence leaves the candidate inert and visibly blocked: no module import, initialization, evaluation, credential exposure or fallback execution. Bounded inert inspection still follows the owning access and data-handling policy. Negative qualification must prove zero load/execution for absent admission, forged trusted identities, changed artifact/dependency digests and unavailable containment, in addition to the policy authority oracles below.
 
 Default product preference:
 

@@ -112,7 +112,7 @@ Receiving a valid trigger means only that a qualifying event was observed. It do
 
 ## 4. Trigger ingress rules
 
-Effectful or remote triggers require, where applicable:
+Before any trigger is accepted for intent compilation, ingress MUST enforce the RuntimeEventEnvelope authenticated-provenance contract. Remote sources require qualified source authentication; local/manual/schedule sources require authenticated principal or trusted scheduler evidence. An unverified observation may remain inert, but cannot enter the accepted-occurrence/intent transition. The source-specific contract requires:
 
 - source identity;
 - signature/authentication evidence;
@@ -122,7 +122,7 @@ Effectful or remote triggers require, where applicable:
 - bounded payload size/schema validation;
 - tenant/project binding;
 - ambiguity/conflict handling;
-- explicit failure when source authenticity cannot be established and the trigger contract requires it.
+- explicit rejection/quarantine with no accepted occurrence or intent when required source/principal/scheduler authenticity cannot be established.
 
 Duplicate trigger delivery must not silently create duplicate irreversible effects.
 

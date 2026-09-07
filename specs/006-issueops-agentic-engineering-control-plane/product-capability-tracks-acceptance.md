@@ -9,19 +9,19 @@ This acceptance contract determines whether the Projects / Work / Automations / 
 
 ## A. Product/ownership coherence
 
-- [x] Primary user-facing surfaces remain `Projects`, `Work`, and `Automations`; supporting capabilities do not become unnecessary top-level subsystems.
-- [x] Project Experience is explicitly Fehrest-backed and does not create a second truth/memory authority.
-- [x] Work is a durable session/evidence surface and does not duplicate Mission Runtime.
-- [x] Automations compile triggers/definitions into the existing Mission path and do not create a second orchestrator.
-- [x] Connections separate IntegrationDescriptor, ConnectionBinding, CredentialCapability, and effect authority.
-- [x] Browser and Computer share InteractiveSurface freshness/identity mechanics without sharing ambient authority.
-- [x] WebMCP remains an untrusted Browser route rather than an authority or core domain dependency.
+- [ ] Primary user-facing surfaces remain `Projects`, `Work`, and `Automations`; supporting capabilities do not become unnecessary top-level subsystems.
+- [ ] Project Experience is explicitly Fehrest-backed and does not create a second truth/memory authority.
+- [ ] Work is a durable session/evidence surface and does not duplicate Mission Runtime.
+- [ ] Automations compile triggers/definitions into the existing Mission path and do not create a second orchestrator.
+- [ ] Connections separate IntegrationDescriptor, ConnectionBinding, CredentialCapability, and effect authority.
+- [ ] Browser and Computer share InteractiveSurface freshness/identity mechanics without sharing ambient authority.
+- [ ] WebMCP remains an untrusted Browser route rather than an authority or core domain dependency.
 
 ## B. Parent-plan reconciliation
 
-- [x] The parent `Workflow Engine` wording is explicitly constrained to intent/planning/definition mechanics and cannot be interpreted as a second durable execution engine.
-- [x] No addendum conflicts with canonical V2.3 ownership: Fehrest informs, Edara plans topology, Mirefa qualifies, Nawat authorizes effects, Mission Runtime executes, Assurance evaluates, Trusted Completion decides completion.
-- [x] S2 remains unchanged in scope and no S3+ feature implementation is pulled backward.
+- [ ] The parent `Workflow Engine` wording is explicitly constrained to intent/planning/definition mechanics and cannot be interpreted as a second durable execution engine.
+- [ ] No addendum conflicts with canonical V2.3 ownership: Fehrest informs, Edara plans topology, Mirefa qualifies, Nawat authorizes effects, Mission Runtime executes, Assurance evaluates, Trusted Completion decides completion.
+- [ ] S2 remains unchanged in scope and no S3+ feature implementation is pulled backward.
 
 ## C. Primitive sufficiency
 
@@ -37,63 +37,63 @@ InteractiveSurface
 InputLease
 ```
 
-- [x] `RouteConstraint` remains a planning field unless later evidence proves independent identity/lifecycle is necessary.
-- [x] No `AutomationRuntime`, `BrowserAuthority`, `ComputerAuthority`, per-feature evidence store, or ProjectMemoryDatabase is introduced.
-- [x] Existing `EffectProposal / NawatDecision / EffectResult / EffectReconciliation` remains the shared effect model.
+- [ ] `RouteConstraint` remains a planning field unless later evidence proves independent identity/lifecycle is necessary.
+- [ ] No `AutomationRuntime`, `BrowserAuthority`, `ComputerAuthority`, per-feature evidence store, or ProjectMemoryDatabase is introduced.
+- [ ] Existing `EffectProposal / NawatDecision / EffectResult / EffectReconciliation` remains the shared effect model.
 
 ## D. Failure semantics
 
-- [x] Unknown effect outcome is distinct from known failure/no-effect.
-- [x] Transport retryability is not treated as effect retry safety.
-- [x] Reconciliation is required before unsafe retry of an unknown consequential effect.
-- [x] Duplicate trigger/event delivery cannot silently duplicate irreversible effects.
-- [x] Route migration is visible and requires reconciliation/requalification where semantics/state/capabilities differ.
-- [x] Stale interactive observations/targets fail closed before actuation.
-- [x] User intervention is treated as a causal event where it changes input/surface state.
-- [x] Local UI action acknowledgement is not treated as proof of business-effect completion.
+- [ ] Unknown effect outcome is distinct from known failure/no-effect.
+- [ ] Transport retryability is not treated as effect retry safety.
+- [ ] Reconciliation is required before unsafe retry of an unknown consequential effect.
+- [ ] Duplicate trigger/event delivery cannot silently duplicate irreversible effects.
+- [ ] Route migration is visible and requires reconciliation/requalification where semantics/state/capabilities differ.
+- [ ] Stale interactive observations/targets fail closed before actuation.
+- [ ] User intervention is treated as a causal event where it changes input/surface state.
+- [ ] Local UI action acknowledgement is not treated as proof of business-effect completion.
 
 ## E. Security/trust boundary
 
-- [x] Connection success/OAuth success never becomes a Nawat grant.
-- [x] Browser cookie/profile state is classified as credential-bearing state.
-- [x] ManagedBrowser, AttachedUserBrowser, and RemoteBrowser have distinct risk/state semantics.
-- [x] WebMCP tool declarations/descriptions/schemas/output remain untrusted page input.
-- [x] Computer Use is decomposed into scoped observation/input/clipboard/etc. capabilities instead of a global boolean.
-- [x] Raw input ownership uses an expiring/fenced InputLease where required.
-- [x] High-risk authentication/financial/admin/security surfaces require stronger qualification/authority treatment.
-- [x] File upload/download separates filesystem/read authority, network/browser effect authority, and parse/execute authority.
+- [ ] Connection success/OAuth success never becomes a Nawat grant.
+- [ ] Browser cookie/profile state is classified as credential-bearing state.
+- [ ] ManagedBrowser, AttachedUserBrowser, and RemoteBrowser have distinct risk/state semantics.
+- [ ] WebMCP tool declarations/descriptions/schemas/output remain untrusted page input.
+- [ ] Computer Use is decomposed into scoped observation/input/clipboard/etc. capabilities instead of a global boolean.
+- [ ] Raw input ownership uses an expiring/fenced InputLease where required.
+- [ ] High-risk authentication/financial/admin/security surfaces require stronger qualification/authority treatment.
+- [ ] File upload/download separates filesystem/read authority, network/browser effect authority, and parse/execute authority.
 
 ## F. Distributed/recovery semantics
 
-- [x] Same WorkSession is not assumed to mean same host/worker/attempt/route.
-- [x] CapabilityPresence is an observation, not qualification or authority.
-- [x] Cross-host route migration defines identity, freshness, capability refresh, and effect-time revalidation requirements.
-- [x] Remote input/browser ownership has fencing/split-brain requirements before durable autonomy.
-- [x] Long-lived Automations use durable Mission/S9 recovery semantics rather than in-memory callbacks as truth.
+- [ ] Same WorkSession is not assumed to mean same host/worker/attempt/route.
+- [ ] CapabilityPresence is an observation, not qualification or authority.
+- [ ] Cross-host route migration defines identity, freshness, capability refresh, and effect-time revalidation requirements.
+- [ ] Remote input/browser ownership has fencing/split-brain requirements before durable autonomy.
+- [ ] Long-lived Automations use durable Mission/S9 recovery semantics rather than in-memory callbacks as truth.
 
 ## G. Evidence/assurance
 
-- [x] No new per-feature canonical evidence store is introduced.
-- [x] Interactive action proposals bind to relevant SurfaceObservation identity/generation/preconditions.
-- [x] Browser/Computer/connector effects produce ordinary typed effect/evidence records.
-- [x] Future S7 evaluation includes connector supply chain, WebMCP/tool poisoning, browser prompt injection, stale-target races, Computer Use safety, and high-consequence unknown-outcome tests.
-- [x] Benchmark claims require exact benchmark version/revision, environment/route/model identity, measurement boundary, and reproducible evidence rather than product demos.
+- [ ] No new per-feature canonical evidence store is introduced.
+- [ ] Interactive action proposals bind to relevant SurfaceObservation identity/generation/preconditions.
+- [ ] Browser/Computer/connector effects produce ordinary typed effect/evidence records.
+- [ ] Future S7 evaluation includes connector supply chain, WebMCP/tool poisoning, browser prompt injection, stale-target races, Computer Use safety, and high-consequence unknown-outcome tests.
+- [ ] Benchmark claims require exact benchmark version/revision, environment/route/model identity, measurement boundary, and reproducible evidence rather than product demos.
 
 ## H. Source-acquisition boundary
 
-- [x] Activepieces, Zapier, n8n, Make, Nango, Trigger.dev, Temporal, Playwright, WebMCP, WebDriver BiDi/CDP, BrowserGym, OSWorld-V2, UI-TARS, accessibility APIs, commercial product UX references, and Lily remain classified only according to the source study.
-- [x] No source/dependency admission is inferred from public availability, permissive licensing, product similarity, or this planning merge.
-- [x] Restricted/non-permissive sources are not copied into WePLD merely because they are inspectable.
+- [ ] Activepieces, Zapier, n8n, Make, Nango, Trigger.dev, Temporal, Playwright, WebMCP, WebDriver BiDi/CDP, BrowserGym, OSWorld-V2, UI-TARS, accessibility APIs, commercial product UX references, and Lily remain classified only according to the source study.
+- [ ] No source/dependency admission is inferred from public availability, permissive licensing, product similarity, or this planning merge.
+- [ ] Restricted/non-permissive sources are not copied into WePLD merely because they are inspectable.
 
 ## I. Roadmap discipline
 
-- [x] S1/S2 receive no feature-scope expansion from this addendum.
-- [x] PX starts from S4 after S2 foundations.
-- [x] AU planning begins no earlier than the owning S5 planning mechanics; effectful execution waits for later authority.
-- [x] WK/IS interoperability waits for S6 owners.
-- [x] assurance precedes broad actuation/autonomy.
-- [x] S9 owns durable continuation/recovery lineage.
-- [x] Astra-like ambient multimodal presence and mobile Computer Use remain later research rather than initial requirements.
+- [ ] S1/S2 receive no feature-scope expansion from this addendum.
+- [ ] PX starts from S4 after S2 foundations.
+- [ ] AU planning begins no earlier than the owning S5 planning mechanics; effectful execution waits for later authority.
+- [ ] WK/IS interoperability waits for S6 owners.
+- [ ] assurance precedes broad actuation/autonomy.
+- [ ] S9 owns durable continuation/recovery lineage.
+- [ ] Astra-like ambient multimodal presence and mobile Computer Use remain later research rather than initial requirements.
 
 ## J. Planning-package merge gate
 
@@ -146,7 +146,7 @@ These are conjunctive design/fixture contracts. Planning verification checks tha
 
 ## Local design assessment for sections A–I — 2026-09-07
 
-The checked A–I boxes record author inspection of the proposed design against the following concrete evidence, not independent acceptance, runtime test execution or merge authority. Each numbered range refers to the criteria in that section in display order. No N/A exemption is used. Sections J/K and the final independent whole-package qualification remain open and must be assessed against the final immutable candidate.
+AUTHOR_ASSESSMENT = DESIGN_INSPECTED for A–I, supported by the table below. INDEPENDENT_QUALIFICATION = PENDING. All A–I checkboxes remain unchecked until qualified exact-head planning acceptance; the author assessment cannot check them or serve as runtime test execution or merge authority. Each numbered range refers to the criteria in that section in display order. No N/A exemption is used. Sections J/K and the final independent whole-package qualification remain open and must be assessed against the final immutable candidate.
 
 | Criteria | Draft evidence and reasoning | Implementable acceptance/task link |
 |---|---|---|

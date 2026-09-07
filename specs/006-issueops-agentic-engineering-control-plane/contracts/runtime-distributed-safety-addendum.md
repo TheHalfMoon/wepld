@@ -142,6 +142,20 @@ RuntimeEventEnvelope {
 }
 ```
 
+### Authenticated provenance by event kind
+
+The trusted, versioned event-kind contract determines whether an event is a non-authoritative observation or may mutate runtime/intent/control state or support an authority-adjacent claim. Producer labels cannot choose or downgrade this classification. Unknown kinds remain bounded opaque observations and cannot cause semantic state changes.
+
+| Consumer use | Required provenance and acceptance behavior |
+|---|---|
+| Inert external observation | Missing `authenticity_evidence_ref` is permitted only with explicit unverified provenance, bounded payload and current capture/access policy. It cannot become accepted trigger/intent, control transition, ownership, execution result, approval, qualification or completion evidence merely through transport, persistence or replay. |
+| Accepted trigger or Work/Mission control/transition | Nonempty authenticity evidence is mandatory. The consumer validates authenticated producer/principal and, where applicable, enrolled Host/Runner runtime incarnation against trusted current bindings, permitted event kind, namespace, scope, payload identity, replay window and revocation/ownership epoch before accepting a transition. Trigger sources use the qualified source-specific proof; local/manual/schedule events use authenticated principal or trusted scheduler provenance, not an exemption. |
+| Ownership, execution, result or authority-adjacent evidence | The same mandatory checks bind the exact producer runtime/Host/Runner/Attempt and payload as applicable. The relevant owner separately validates fences, access, qualification, effect authority and claim evidence. Authentication does not make worker assertions true or create a grant. |
+
+`authenticity_evidence_ref?` is optional only for the inert observation class. Evidence must be validated, not merely present, and must bind the event identity, producer/incarnation, kind, namespace, payload and material sequence/causation fields. An authenticated ingest receipt cannot substitute for missing required upstream source authenticity. Missing/invalid/stale proof or conflicting identity produces a visible rejected/quarantined event and no consequential transition. Read-only historical replay may retain previously verified provenance under current access rules; it cannot restore expired control authority or re-emit effects. Every consumer, including TriggerEnvelope, Case Bus and generic Work/Mission handling, follows this contract before interpreting an event as an actionable fact.
+
+Required negative oracles: forged or absent authenticity on a valid-looking control/trigger event causes zero state transition; revoked producer/incarnation or stale ownership cannot resume execution; editing payload/kind/scope invalidates its proof; inert observations and replayed approvals cannot promote themselves to authority. These extend 006-RT-S3-003/004 and the existing S6 admission/recovery tasks.
+
 Rules:
 
 ```text

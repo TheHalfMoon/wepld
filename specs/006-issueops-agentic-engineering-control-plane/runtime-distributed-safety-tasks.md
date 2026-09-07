@@ -11,8 +11,8 @@ IMPLEMENTATION_AUTHORITY = NONE
 
 - [ ] `006-RT-S3-001` Define authenticated Host enrollment semantics and revocation/rotation evidence.
 - [ ] `006-RT-S3-002` Define Host/Runner transport-security identity and replay-resistant connection binding without assuming the transport itself grants execution authority.
-- [ ] `006-RT-S3-003` Define `RuntimeEventEnvelope` identity, producer/runtime provenance, dedupe key, causal-parent semantics, and deterministic duplicate/out-of-order handling.
-- [ ] `006-RT-S3-004` Add negative fixtures for replayed events, duplicate delivery, out-of-order terminal events, and conflicting runtime histories.
+- [ ] `006-RT-S3-003` Define `RuntimeEventEnvelope` identity, producer/runtime provenance, event-kind-specific authenticated evidence and validation, dedupe key, causal-parent semantics, and deterministic duplicate/out-of-order handling. Inert observations cannot become accepted triggers, Work/Mission transitions or authority-adjacent facts without the required trusted proof.
+- [ ] `006-RT-S3-004` Add negative fixtures for replayed events, duplicate delivery, out-of-order terminal events, conflicting runtime histories, absent/forged/stale event authenticity, edited payload/kind/scope, revoked producer incarnations and attempted promotion of inert observations; invalid consequential events produce zero state transition.
 - [ ] `006-RT-S3-005` Define server/host/runner protocol-version compatibility negotiation and fail-closed behavior for unknown required effectful semantics.
 
 ## S6 — runner ownership and exact execution identity
@@ -35,7 +35,7 @@ IMPLEMENTATION_AUTHORITY = NONE
 - [ ] `006-POL-S5-001` Define behavior-policy precedence and monotonic narrowing with no executable policy loading.
 - [ ] `006-POL-S6-001` Implement mandatory pre-effect policy gate integration only after the owning policy/runtime authority exists; policy `NO_OBJECTION` never becomes a Nawat grant.
 - [ ] `006-POL-S6-002` Add agent/session policy proposal flow where activation follows user/controlling authority rather than agent self-activation.
-- [ ] `006-POL-S6-003` Qualify any executable/sandboxed policy-plugin mechanism separately for source/dependency/process/security risks.
+- [ ] `006-POL-S6-003` Qualify any executable/sandboxed policy-plugin mechanism separately for source/dependency/process/security risks. Prove the behavior-policy contract refuses load/initialization/execution for missing or forged admission, changed artifact/dependency/configuration identities, insufficient qualification and unavailable containment, using fixed trusted admission identities and zero-load/zero-effect negative fixtures.
 - [ ] `006-POL-S7-001` Record policy snapshot/evaluation evidence sufficient to explain why an effect was narrowed/blocked/required-decision without treating policy as completion authority.
 
 ## Negative oracles

@@ -229,11 +229,12 @@ explicit InputArtifact
 -> explicit upload proposal
 -> exact browser context/origin/control identity
 -> Nawat grant
+-> acquire and validate expiring, fenced InputLease at the enforcing input queue immediately before FILE_CHOOSER_SELECT_ARTIFACT, including the current ownership epoch and exact surface/control identity
 -> transfer
 -> postcondition evidence
 ```
 
-The browser adapter MUST NOT browse arbitrary filesystem paths or substitute another file when the authorized artifact becomes unavailable.
+The InputLease supplements Nawat and the artifact/access/transfer checks; it never replaces them. Expiry, stale ownership epoch, user takeover or changed target/control before dispatch refuses selection and requires fresh observation/qualification/authority as applicable. The browser adapter MUST NOT browse arbitrary filesystem paths or substitute another file when the authorized artifact becomes unavailable.
 
 ## Clipboard, file chooser, permission prompt, and native dialog effects
 

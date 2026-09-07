@@ -185,24 +185,18 @@ Useful mechanics:
 
 Do not copy OpenHands persistence as the WePLD evidence store. Reuse only the lineage/event semantics as design input for Mission/Attempt/Assurance provenance.
 
-Candidate WePLD-owned event envelope:
+The earlier `AttemptEvent` name is a historical upstream-behavior sketch, not a WePLD envelope or event store. The sole WePLD envelope is `RuntimeEventEnvelope` in [the distributed contract](../contracts/runtime-distributed-safety-addendum.md). The adaptation preserves all source semantics as follows:
 
-```text
-AttemptEvent
-  schema_version
-  event_id
-  attempt_id
-  mission_id
-  parent_event_id = value | root
-  event_kind
-  producer
-  exact_target_ref
-  authority_ref = optional
-  evidence_refs[]
-  observed_at
-  payload_digest
-  payload
-```
+| Historical/source concept | Canonical mapping and required completion |
+|---|---|
+| event ID, producer, Attempt, Mission | Preserve original source identity in the typed payload/provenance; canonical `runtime_event_id`, `producer_kind`, `producer_identity`, `producer_runtime_identity`, `attempt_id` and `tenant_and_work_namespace` bind the actual admitted producer/incarnation and work. Mission association is the existing typed payload reference, validated against the Attempt. Source IDs cannot impersonate canonical IDs. |
+| parent/branch lineage | `causal_parent_event_refs[]` records validated parent mappings; explicit root remains root. Preserve all branch and parent relations in the payload where richer than the transport relation. Missing parents, ambiguous mapping and cycles remain gaps/conflicts, never invented causality. |
+| sequence, deduplication, replay | Use the envelope's producer-incarnation-scoped `producer_sequence` and `idempotency_or_dedupe_key` contract. Missing source sequence remains explicitly missing and does not permit inferred order. Retain source ID/duplicate-rejection evidence; replay cannot create a second effect. |
+| schema, kind, exact target, authority and evidence | `event_kind` and versioned typed payload retain target, authority and evidence references. `payload_identity` binds the exact payload version/content; `policy_schema_version` retains the canonical envelope interpretation. No field is dropped or coerced into a success/authority claim. Unknown required semantics block semantic consumption. |
+| time, payload digest/content | Preserve source time as `observed_at_source` and record actual ingest `received_at`; `payload_identity` binds retained bounded content and source digest/provenance without substituting timestamps for order. |
+| authentication and access | Populate/validate `authenticity_evidence_ref` according to the canonical event class, including Host/Runner evidence where applicable. Current namespace/recipient/access and evidence-handling policy govern persistence and replay. Unverified source events remain inert observations; importing a log cannot mint trusted runtime transitions. |
+
+This is a lossless semantic mapping, not fabricated metadata: retain every admitted source field in its qualified typed payload or bounded opaque provenance, and explicitly record unavailable required canonical evidence. If a source event cannot satisfy the intended event class, refuse that use instead of filling invented identity, sequencing, authentication or access facts. Existing Mission Runtime persistence, Case Bus association and Evidence Graph provenance remain the owners.
 
 Required rules:
 

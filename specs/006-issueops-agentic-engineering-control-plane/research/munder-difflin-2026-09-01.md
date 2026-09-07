@@ -59,6 +59,8 @@ Case
   +-- CompletionEvidence
 ```
 
+`CaseEventLedger` here is only a Case-scoped materialized view of append-only `RuntimeEventEnvelope` history. The canonical runtime envelope supplies event identity, producer incarnation and causality; the view cannot create a second durable event log or independent authority.
+
 The implementation does not have to use literal directories or one JSON file per message. Those are upstream mechanisms, not WePLD requirements. The WePLD contract SHOULD preserve the properties that make the mechanism useful:
 
 ```text

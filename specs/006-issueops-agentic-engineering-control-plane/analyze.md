@@ -244,7 +244,7 @@ Runtime acceptance K additionally maps OM-S3-006 and the source-acquisition Omni
 
 ### Assurance traceability
 
-AF-FR identifiers are defined in `assurance-fabric-spec-addendum.md`. Tasks below are in `assurance-fabric-tasks.md` with prefix `006-AF-`. They use the single AF contract, Fehrest context, AMAN security, RF engine execution, RI review and S8 completion owners. Acceptance is parent section I plus AF-A, the contract's explicit negative oracles and the named AF-TB tracer bullet. Each task group has the same incoming S3 -> S4 -> S5 -> S6 -> S7 -> S8 -> S9 dependency order; pure planning is not execution authority.
+AF-FR identifiers are defined in `assurance-fabric-spec-addendum.md`. Every unprefixed task token in this Assurance table expands into the `006-AF-` namespace of `assurance-fabric-tasks.md`, never the parent `tasks.md` ledger. For example, `S7-A001..012` means `006-AF-S7-A001` through `006-AF-S7-A012`, and `S6-001..005/008` means `006-AF-S6-001` through `006-AF-S6-005` plus `006-AF-S6-008`. Explicit `HARD-` references retain the separate hardening namespace defined below. They use the single AF contract, Fehrest context, AMAN security, RF engine execution, RI review and S8 completion owners. Acceptance is parent section I plus AF-A, the contract's explicit negative oracles and the named AF-TB tracer bullet. Each task group has the same incoming S3 -> S4 -> S5 -> S6 -> S7 -> S8 -> S9 dependency order; pure planning is not execution authority.
 
 | Requirement set | Tasks | Contract/evidence and tracer |
 |---|---|---|

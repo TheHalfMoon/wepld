@@ -181,7 +181,7 @@ Reuse mode: **P0 behavior/security oracle; bounded implementation quarry later**
 
 ## Mechanism OM-06 — Secretless credential broker
 
-The strongest Omnigent security mechanism observed is a parent-side credential proxy where the real credential remains outside the sandbox. For HTTP(S), a trusted egress proxy can inject a credential for a bound host. Clients that require a local credential can receive a non-secret placeholder which is swapped only for its bound destination; misuse against another host is refused.
+Historical source observation: Omnigent uses a parent-side credential proxy where the real credential remains outside the sandbox. The upstream HTTP(S) proxy can inject a credential for a bound host; any cleartext credential-bearing behavior is rejected for WePLD. The WePLD candidate permits credential injection only into authenticated HTTPS on every hop. Clients that require a local credential can receive a non-secret placeholder which is swapped only for its bound destination; misuse against another host is refused.
 
 Editorial clarification, 2026-09-07: the HTTP(S) wording above records the upstream mechanism observed on the study date. WePLD requires **authenticated HTTPS egress for every credential-bearing HTTP hop, including redirects**, with transport and destination revalidation before credential attachment; HTTP or downgrade forwarding is refused. The following historical adaptation sketch is not the current schema. Its optional scope fields are superseded by the mandatory scope, activation, revocation and usage rules in [the canonical runtime contract](../contracts/runtime-execution-fabric.md), `CredentialCapability`; it confers no credential or network authority.
 

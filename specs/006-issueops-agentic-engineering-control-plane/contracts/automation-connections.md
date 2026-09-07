@@ -78,6 +78,8 @@ TriggerEnvelope {
   automation_definition_revision_ref
   tenant_and_project_scope
   source_identity
+  subscription_identity
+  logical_occurrence_identity
   source_event_identity?
   observed_at
   payload_identity
@@ -104,6 +106,10 @@ Receiving a valid trigger means only that a qualifying event was observed. It do
 
 `TriggerEnvelope` is a typed payload of `RuntimeEventEnvelope` from the distributed runtime contract, carried by Case Bus. Its stable identity is the containing event identity; it does not create another ingress transport, event store or execution owner. Provider delivery identity and logical occurrence identity remain separate. CapabilityPresence likewise uses an ordinary typed Observation with host/runtime identity, observed/expiry times and evidence; it is not qualification or authority.
 
+`subscription_identity` is a stable WePLD-owned value in the existing versioned trigger configuration, scoped to the verified source account/tenant and tenant/project/automation. Ingress resolves it from trusted configuration and verifies `source_identity` and any provider subscription identifier against that binding; producer-supplied identifiers cannot choose another subscription. Renewal or configuration revision retains the value. Replacement may retain it only with an explicit verified same-subscription mapping and retained dedupe history; otherwise a new identity is allocated and overlapping/ambiguous old occurrences are quarantined until reconciled. Separate subscriptions to the same provider never share this identity accidentally.
+
+`logical_occurrence_identity` is the stable business occurrence within that subscription. For provider events it is the qualified provider event key; schedules use the declared timezone/tzdb/instant/fold occurrence rule; polling uses the qualified source item/version occurrence; a manual run receives a fresh accepted user-invocation identity. `source_event_identity` is optional upstream provenance, not an optional substitute for the mandatory occurrence identity. The containing `runtime_event_id` identifies the ingested delivery/event record and survives its own transport replay; separate duplicate deliveries may have different runtime event IDs but must resolve to the same durable logical occurrence key. No separate event store is added.
+
 ## 4. Trigger ingress rules
 
 Effectful or remote triggers require, where applicable:
@@ -125,7 +131,7 @@ DUPLICATE_EVENT != DUPLICATE_INTENT
 DELIVERY_RETRY != EFFECT_RETRY
 ```
 
-Ingress must durably capture the accepted event and its scoped dedupe identity before acknowledging durable acceptance to the source. The durable occurrence key comprises tenant/project scope, stable automation_id, stable source/subscription identity and logical source occurrence identity. It excludes mutable automation/trigger revisions: the first accepted occurrence atomically pins both revisions and its payload digest. A duplicate after an edit resolves that original record; it cannot select the new revision or create another intent. Subscription replacement must retain upstream occurrence identity or explicitly quarantine ambiguous cross-subscription replay. An identical key with a different payload digest is a conflict, not a duplicate success. A contract without a stable event/occurrence identity must explicitly qualify a bounded alternative or refuse consequential automatic compilation.
+Ingress must durably capture the accepted event and its scoped dedupe identity before acknowledging durable acceptance to the source. The durable occurrence key comprises tenant/project scope, stable automation_id, `subscription_identity` and `logical_occurrence_identity`. It excludes mutable automation/trigger revisions: the first accepted occurrence atomically pins both revisions and its payload digest. A duplicate after an edit resolves that original record; it cannot select the new revision or create another intent. Subscription replacement must retain upstream occurrence identity or explicitly quarantine ambiguous cross-subscription replay. An identical key with a different payload digest is a conflict, not a duplicate success. A contract without a stable event/occurrence identity must explicitly qualify a bounded alternative or refuse consequential automatic compilation.
 
 The transition from accepted trigger to qualified WorkflowIntent and Mission association must be atomic in the existing runtime persistence boundary, or use its durable transactional outbox and idempotent consumer. Crash/replay between those stages cannot create a second intent. Dedupe retention must cover the source replay window; after expiry, old deliveries are quarantined/reconciled rather than assumed new. An intentional manual rerun receives a new controlling intent and operation identity. These are minimum prerequisites before effectful automation, not deferred optional S9 work.
 
@@ -368,7 +374,7 @@ Templates contain capability requirements and connection-slot references, never 
 
 ## 17. Authentication and connection lifecycle
 
-Connection states are DISCONNECTED, CONNECTING, CONNECTED, REFRESHING, EXPIRED, REVOKED, NEEDS_RECONNECT and UNSUPPORTED. OAuth qualification requires one-time state bound to the initiating principal/session/connection, exact registered redirect URI, PKCE where supported/required and bounded callback lifetime. A provider lacking required protections is UNSUPPORTED for that route; there is no silent downgrade. The broker verifies account/tenant identity from a qualified provider identity response before CONNECTED. UI displays that verified identity, granted scopes, project/workspace visibility and last verification.
+Connection states are DISCONNECTED, CONNECTING, CONNECTED, REFRESHING, EXPIRED, REVOKED, NEEDS_RECONNECT and UNSUPPORTED. OAuth qualification requires one-time state bound to the initiating principal/session/connection, exact registered redirect URI, PKCE for every public authorization-code client flow and bounded callback lifetime. Public clients require transaction-bound S256 PKCE and a provider that enforces the verifier; lack of that support is UNSUPPORTED, never a downgrade to plain/no PKCE. Confidential-client alternatives require explicit security qualification rather than inferring safety from provider support. The flow pins the authorization-server issuer and endpoint tuple and validates the response against it to prevent mix-up. Public-client refresh uses sender constraint or rotation with replay detection. These requirements follow [RFC 9700 §§2.1.1, 2.2.2 and 4.4](https://www.rfc-editor.org/rfc/rfc9700.html). A provider lacking required protections is UNSUPPORTED for that route; there is no silent downgrade. The broker verifies account/tenant identity from a qualified provider identity response before CONNECTED. UI displays that verified identity, granted scopes, project/workspace visibility and last verification.
 
 Multiple accounts are separate ConnectionBindings with explicit selection. No first-account fallback is allowed. Refresh uses generation-checked single ownership per binding across processes/hosts, preserving account and scopes; rotation publishes a successor generation atomically, then invalidates superseded capabilities. Revocation/reconnect fences queued dispatch. Reconnecting the same verified account advances generation; a different account requires a new binding and explicit run requalification. A late refresh cannot revive a revoked generation. Provider tokens remain in the broker, outside context, prompts and ordinary evidence.
 

@@ -39,7 +39,7 @@ Build learning candidate: cross-document review findings must be verified at eve
 | Retrieval projection identity (original line 248) | Direct-source versus derived-projection discriminator with conditional mandatory generation and exact-source evidence. |
 | WorkerRequirement (`plan.md`, original line 551) | Existing canonical definition in data-model section 12 remains controlling; no duplicate type introduced. |
 | EngineRun authority and policy precedence (assurance-fabric original lines 236/746) | Authority mandatory for effectful runs; explicit highest-to-lowest ordering plus field specialization and separate controlling-authority path. |
-| Credential transport (retrieval original line 235; historical Omnigent research line 184) | Validated HTTPS required before authenticated HTTP traffic, redirect revalidation before credential forwarding; current runtime/retrieval contracts govern. |
+| Credential transport (retrieval original line 235; historical Omnigent research line 184) | Authenticated HTTPS-only credential-bearing transport required on every hop, redirect revalidation before credential forwarding; current runtime/retrieval contracts govern. |
 | Historical Omnigent optional credential scopes (original line 200) | Historical research schema remains an earlier sketch. The current runtime contract requires deny-default account/target/resource/method/attempt/operation/use limits and activation evidence; omitted fields in old research confer no rights. |
 | Review independence (original lines 75/126) | Distinct reviewer worker/Attempt and no repair self-certification are mandatory; exception removed. |
 | RuntimeReservation (original line 407) | Envelope reference required for resource-bound routes, with exact Attempt/Host/Runner and start-validity checks. |
@@ -93,3 +93,26 @@ Build-learning candidate: optional schema fields plus mandatory prose permit inc
 ### Post-draft lifecycle consistency repairs
 
 Mission now declares control_revision/control_state in its canonical schema, with pause/cancel/handoff state independent of coarse runtime phase and EffectResult. Automation enable/pause is a revision-checked runtime-event projection; immutable definition revisions no longer contain mutable enabled_state/updated_at fields. The first accepted occurrence checks activation revision and keeps its original definition pin. Product acceptance A–I has criterion-range author evidence; this is design inspection, not independent acceptance. K and the merge gate remain open for the final review.
+
+## Completed cf229 review reconciliation — 2026-09-07
+
+CodeRabbit review [5132611076](https://github.com/TheHalfMoon/wepld/pull/241#pullrequestreview-5132611076), run `21697c34-0b5c-4b9b-bd15-315bf45d1f41`, completed against base `00acb57887af4a3073374c3bfa76c506deda6f92` and head `cf22921257435fbb79ea6c0171ee2aba21ddf9ca`, reporting 12 actionable comments, one duplicate group and 42 additional comments. The selected set was all 58 files, with file-specific positive assessments as well as findings. One additional credential finding explicitly said verification did not complete. This is useful independent repair input, not acceptance of its successor or proof that every requested context/qualification condition was satisfied.
+
+| Comment / issue | Author disposition submitted for fresh review |
+|---|---|
+| 3950260360 Reproduction authority | AF §15 adds effect_mode and conditional mandatory Nawat authority before process/provider/network/protected-resource execution; AF-S7-A006 owns missing-authority negative fixtures. |
+| 3950260367 trigger identity | AC §3 adds required subscription_identity/logical_occurrence_identity, trusted configuration binding, replacement/replay rules and separation from runtime delivery identity; §4 uses those exact key fields. |
+| 3950260381 public OAuth PKCE | AC §17 requires S256 PKCE for public authorization-code flows, no downgrade, issuer binding and public refresh protections; official RFC 9700 is linked. |
+| 3950260397 CaseMessage schema | Case Bus owns payload_schema_version distinct from envelope version; exact payload digest, compatibility negotiation and original-version replay refuse unknown semantics. RD references that payload boundary. |
+| 3950260409 CaseMessage trust | Case Bus derives/validates trust from authenticated provenance and trusted state; a producer label cannot promote worker/provider text. |
+| 3950260418 CaseMessage addressing/access | Case Bus resolves exact policy and typed recipient from trusted Case/Assignment/item/enrollment state and checks scope, eligibility and revocation before route/replay. |
+| 3950260428 context spelling | IS WebToolIdentity uses the canonical browser_context_id. WB names the precise observation/proposal fields and EffectProposal target binding. |
+| 3950260434 owner spelling | RF QUALIFICATION_OWNER is Mirefa. |
+| 3950260442 proposal variants | DM §19 makes execution bindings syntactically optional only under explicit DRAFT rules and conditionally mandatory for EXECUTABLE; typed WorkflowIntent/Assignment/Policy origin cases define exact reference equality/provenance. |
+| 3950260446 OH-M008 coverage | Existing OH-S7-007/008/009 and OH-TB3/4 own risk/confirmation semantics, negative cases and evidence. A source-to-task table reconciles all nine mechanisms without new task/store ownership. |
+| 3950260453 final review gate | No weakening or false closure. PCT acceptance J already requires qualified exact-final-base/head whole-scope evidence, exclusions, reconciliation and final race checks. PR remains Draft and REVIEW_BLOCKED until those conditions are actually met. This status finding needs final live evidence, not a self-approval prose edit. |
+| 3950260460 browser review freshness | Web acceptance resolves actual live PR/base/head/check/review targets and records immutable predecessors; it no longer relies on a hard-coded PR identifier to classify freshness. |
+
+Additional/duplicate concerns were also reconciled: typed DownloadObservation and local historical accounting annotations were prepared after the reviewed head; historical CURRENT_* identifiers now use REVIEWED_* while preserving original values. Credential transport wording is explicitly HTTPS-only with credential withholding on unsafe redirects in RF, Omnigent and hardening tasks; the older upstream observation remains labeled historical and rejected where unsafe. FR-051, runtime acceptance G and OM-WEB-002 now share the full browser/profile/context/frame/document/snapshot/tool/input/qualification/grant tuple. The reviewer must verify the complete final files, including these supplemental concerns, rather than count the 12 inline comments as exhaustive coverage.
+
+Learning candidate: parse completed review bodies as well as inline threads. Additional comments can contain unverified or material cross-file concerns, while a green provider status only signals run completion. Follow the named owner through schema, consumer validation, acceptance and task fixtures before recording closure. All repairs above remain author dispositions pending exact-head independent assessment.

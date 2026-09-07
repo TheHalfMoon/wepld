@@ -73,7 +73,7 @@ Unknown dialect data MUST remain opaque/unsupported rather than silently interpr
 
 ## FR-051 — Browser snapshot-bound action freshness
 
-Ref-based browser actions MUST bind the exact browser session, page/target and frame context, origin, navigation/document incarnation, snapshot identity/generation and element reference that produced the target. The owning `contracts/web-agent-boundary.md` and `contracts/interactive-surfaces.md` define the shared fields; this requirement does not introduce another browser identity schema. A missing/ambiguous binding refuses invocation.
+Ref-based browser actions MUST bind the exact browser session/profile, browser_context_id, page/target and frame context, origin, navigation/document incarnation, snapshot identity/generation, element reference, input/artifact identity, applicable tool-generation identity, current Mirefa qualification and exact Nawat decision/grant that produced and authorizes the target operation. A non-tool route requires explicit qualified not-applicable tool-generation evidence rather than an unexplained omission. The owning `contracts/web-agent-boundary.md` and `contracts/interactive-surfaces.md` define the shared fields; this requirement does not introduce another browser identity schema. A missing/ambiguous binding refuses invocation.
 
 Navigation, reload, context/frame/origin change, document replacement, or snapshot supersession MUST stale the action proposal when material.
 

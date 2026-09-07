@@ -6,7 +6,7 @@ REVIEWED_PR = 241
 REVIEWED_CONTENT_FRONTIER = a67ff5261bd0c9c9c5387ab2feb9ff8b714be8d1
 CANONICAL_MAIN_OBSERVED = 24791b11196106f0440ca01aa5344a5168e650f8
 CANONICAL_MAIN_MERGE = PR_274_GIT_TOPOLOGY_TRANCHE
-CURRENT_ACTIVE_SLICE = S2
+REVIEWED_ACTIVE_SLICE = S2
 INDEPENDENT_REVIEW_GATE_SATISFIED_BY_THIS_REVIEW = NO
 IMPLEMENTATION_AUTHORITY = NONE
 SOURCE_ADMISSION = NONE
@@ -17,7 +17,7 @@ MODEL_PROVIDER_EXECUTION = NONE
 
 ## Historical identity labels — editorial clarification 2026-09-07
 
-Every identity, state and qualification value in this dated review describes its reviewed frontier; none is live PR evidence. The preserved labels `CURRENT_ACTIVE_SLICE`, `CURRENT_CANONICAL_MAIN_OBSERVED`, and `CURRENT_HEAD_DETERMINISTIC_QUALIFICATION` mean `REVIEWED_ACTIVE_SLICE`, `REVIEWED_CANONICAL_MAIN_OBSERVED`, and `REVIEWED_HEAD_DETERMINISTIC_QUALIFICATION`, respectively. Their original values are retained for audit history. Current acceptance must use the exact live base/head/tree/check/review procedure in [PLANNING_INDEX.md](../PLANNING_INDEX.md); see [the repair disposition](adversarial-repair-disposition-2026-09-06.md) for the later reconciliation.
+Every identity, state and qualification value in this dated review describes its reviewed frontier; none is live PR evidence. The original labels `CURRENT_ACTIVE_SLICE`, `CURRENT_CANONICAL_MAIN_OBSERVED`, and `CURRENT_HEAD_DETERMINISTIC_QUALIFICATION` have been renamed to `REVIEWED_ACTIVE_SLICE`, `REVIEWED_CANONICAL_MAIN_OBSERVED`, and `REVIEWED_HEAD_DETERMINISTIC_QUALIFICATION`, respectively. Their original values are retained for audit history. Current acceptance must use the exact live base/head/tree/check/review procedure in [PLANNING_INDEX.md](../PLANNING_INDEX.md); see [the repair disposition](adversarial-repair-disposition-2026-09-06.md) for the later reconciliation.
 
 ## Objective
 
@@ -375,9 +375,9 @@ At the reviewed content frontier:
 BRANCH = plan/006-issueops-agentic-engineering-control-plane
 PR = 241
 PR_STATE = DRAFT
-CURRENT_CANONICAL_MAIN_OBSERVED = 24791b11196106f0440ca01aa5344a5168e650f8
+REVIEWED_CANONICAL_MAIN_OBSERVED = 24791b11196106f0440ca01aa5344a5168e650f8
 BRANCH_RELATION_TO_MAIN = DIVERGED_AND_MATERIALLY_BEHIND
-CURRENT_HEAD_DETERMINISTIC_QUALIFICATION = NOT_ESTABLISHED_AFTER_LATEST_REPAIRS
+REVIEWED_HEAD_DETERMINISTIC_QUALIFICATION = NOT_ESTABLISHED_AFTER_LATEST_REPAIRS
 INDEPENDENT_WHOLE_SCOPE_EXACT_HEAD_REVIEW = PENDING
 MERGE = NOT_AUTHORIZED
 ```

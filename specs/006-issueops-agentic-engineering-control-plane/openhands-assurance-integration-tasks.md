@@ -244,6 +244,10 @@ MODEL_RISK_LABEL != AMAN_FINDING
 
 Negative oracle: `AF-N035`.
 
+OH-M008 is owned by this task with OH-S7-007/009 and OH-TB3/4, after the S6 Nawat boundary and AMAN/Assurance evidence interface exist. Its reuse classification is SECURITY_ORACLE, refining FR-022/027/053 and AF-FR008/012 without a new policy engine. AMAN supplies typed risk evidence; the presentation projection may use LOW/MEDIUM/HIGH/CRITICAL with a separate UNKNOWN state that is never ordered as LOW. Unknown material risk blocks a required assessment; concrete risk alone neither grants nor denies an effect. Confirmation preference is distinct from risk assessment and Nawat policy. `NEVER_CONFIRM`, `CONFIRM_RISKY`, a model risk label or a UI acknowledgement cannot mint a grant or waive mandatory approval. Accepted confirmation evidence binds exact operation/target/account/input/policy/expiry and returns through Nawat.
+
+Acceptance/negative cases: UNKNOWN does not sort below LOW; LOW plus no grant produces zero dispatch; HIGH follows the controlling policy and does not invent a denial policy; NEVER_CONFIRM cannot skip mandatory approval; stale or different-target approval cannot authorize the current proposal. OH-TB3 exercises these cases alongside the missing-grant tool call; OH-TB4 preserves conflicting producer evidence. Required evidence is the typed risk observation, policy snapshot, confirmation record if applicable, Nawat decision and zero-dispatch or authorized-effect receipt. These assertions refine existing tasks, not new durable primitives.
+
 ### OH-S7-009 — non-erasing security aggregation
 
 Preserve all findings. Aggregate severity is a projection only.
@@ -380,6 +384,22 @@ NEW_OPENHANDS_RUNTIME_DEPENDENCY = NO_BY_DEFAULT
 ```
 
 Only consider direct source reuse when a future source-admission analysis proves that the exact source machinery is materially better than a small native implementation and its maintenance/security/dependency cost is justified.
+
+## Source-to-task reconciliation
+
+All nine mechanisms in the pinned OpenHands study map to existing tasks. Acceptance and negative oracles remain in those task sections, not implicit in this lookup.
+
+| Mechanism | Owning task / slice | Tracer coverage |
+|---|---|---|
+| OH-M001 architecture guard | OH-S7-001..003 / S7 | OH-TB1 |
+| OH-M002 proportional review | OH-S7-004..006/011/012 / S7 | OH-TB1/5 |
+| OH-M003 event lineage | OH-S7-010, OH-S9-001 / S7/S9 | all OH tracer evidence, causal/replay oracles in task |
+| OH-M004 workspace split | OH-S3-001 / S3 | OH-TB2/3 containment boundary |
+| OH-M005 capability presence | OH-S3-002, OH-S6-001 / S3/S6 | OH-TB2 |
+| OH-M006 backend registry | OH-S6-001/002 / S6 | OH-TB2 |
+| OH-M007 tool call versus effect | OH-S7-007/008 / S7 | OH-TB3 |
+| OH-M008 risk/confirmation | OH-S7-007/008/009 / S7 | OH-TB3/4 with explicit risk/approval cases above |
+| OH-M009 non-erasing aggregation | OH-S7-009 / S7 | OH-TB4 |
 
 ## J. Completion rule
 

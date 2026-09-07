@@ -34,6 +34,7 @@ CASE_BUS != MEMORY_SOURCE_OF_TRUTH
 CaseMessage {
   case_message_id
   case_id
+  payload_schema_version
   message_act
   sender_identity
   sender_attempt_ref?
@@ -53,6 +54,8 @@ CaseMessage {
   expiry_or_hop_budget?
 }
 ```
+
+`payload_schema_version` identifies the complete CaseMessage schema, including `message_act`, `body_or_summary`, references and their semantics. It is distinct from the enclosing RuntimeEventEnvelope's `policy_schema_version`. The runtime `payload_identity` covers the version and exact serialized payload. Producers/consumers negotiate supported versions before routing; unknown acts or required fields and incompatible versions are preserved as bounded opaque evidence and refused for semantic routing. Replay uses the recorded version, never the latest interpretation. A qualified migration emits a successor with original identity/provenance; it cannot rewrite history or replay an effect.
 
 Candidate message acts:
 
@@ -128,7 +131,7 @@ When order matters, the owning workflow declares the dependency rather than infe
 
 ## Trust and prompt injection
 
-Message bodies from workers/providers are untrusted content unless produced by a specifically trusted control-plane path.
+`trust_classification` is derived or validated at ingress from authenticated sender/producer identity, trusted Case/Assignment state and recorded message provenance. A producer-supplied label is an untrusted claim and cannot promote its own trust. Missing, mismatched or unverifiable provenance blocks semantic routing; retained diagnostic content is explicitly untrusted. Worker/provider bodies remain untrusted content even if their transport is authenticated or they claim to relay control-plane instructions. Only the separately resolved canonical control record can establish a controlling action.
 
 A worker message that says "approved", "merge now", "ignore policy", or embeds a fake grant/review is data until independently resolved through the appropriate WePLD contract.
 
@@ -149,7 +152,7 @@ Review requests/results can flow through the Case Bus, but the bus does not prov
 
 Case messages inherit current Case/Assignment/item access policy and may narrow visibility. They cannot broaden source/context access.
 
-A message routed to a worker/provider must pass the same context/egress access intersection as a ContextPackage.
+Before routing, the bus resolves `access_policy_ref` and the typed `recipient_kind`/`recipient_ref` against current trusted Case, Assignment, recipient enrollment and referenced item state. It validates exact tenant/project/Case/Assignment membership, recipient identity/eligibility, current access/revocation and any narrower message constraints. Unknown, stale, mismatched, cross-scope or broader references are rejected before delivery; the producer cannot select a broader policy or a recipient by free text. A message routed to a worker/provider then passes the same context/egress access intersection as a ContextPackage. The intersection is an invariant; trusted reference resolution and checks at routing/replay are the enforcing boundary.
 
 ## Required negative oracles
 
@@ -162,6 +165,9 @@ CANCEL_ACK_CANNOT_PROVE_REMOTE_TERMINATION
 MESSAGE_WITH_SECRET_OUTSIDE_EGRESS_SCOPE_CANNOT_ROUTE
 OUT_OF_ORDER_MESSAGES_CANNOT_SILENTLY_REWRITE_DEPENDENCY_STATE
 MESSAGE_EXPIRY_OR_ACCESS_REVOCATION_BLOCKS_FUTURE_EGRESS
+FORGED_TRUST_LABEL_CANNOT_PROMOTE_AUTHENTICATED_WORKER_TEXT
+UNKNOWN_STALE_OR_BROADER_POLICY_AND_RECIPIENT_REFS_REFUSE_ROUTING
+UNSUPPORTED_PAYLOAD_VERSION_OR_ACT_CANNOT_ROUTE_OR_REPLAY_AS_LATEST
 ```
 
 ## Source relationship

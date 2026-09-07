@@ -58,7 +58,7 @@ The planning candidate is not internally complete unless the execution-fabric ha
 
 ## G. Browser freshness
 
-- [ ] Browser action by element ref binds an exact snapshot/document identity.
+- [ ] Browser action binds the complete FR-051 tuple: session/profile, browser_context_id, page/frame/origin/document/snapshot/element, input/artifact, applicable tool generation, current Mirefa qualification and exact Nawat decision/grant; non-tool applicability is explicit.
 - [ ] Snapshot supersession/navigation/context/frame/origin change can stale the proposal.
 - [ ] A stale element ref cannot be silently re-resolved against the latest page.
 - [ ] Capability advertisement/schema presence is separate from browser execution authority.

@@ -182,13 +182,14 @@ Add `BrowserSnapshotObservation` and `BrowserElementRef` to the canonical web bo
 A ref-based click/type/submit must bind exact:
 
 ```text
-browser session
-browser context
-origin
-document/snapshot identity
-element ref
-input identity
-Nawat grant
+browser session and profile
+browser_context_id, page/target and frame
+origin and navigation/document incarnation
+snapshot identity/generation and element ref
+input/artifact identity
+tool-generation identity or qualified non-tool applicability
+current Mirefa route qualification
+exact Nawat decision/grant
 ```
 
 Navigation/snapshot supersession blocks stale action.

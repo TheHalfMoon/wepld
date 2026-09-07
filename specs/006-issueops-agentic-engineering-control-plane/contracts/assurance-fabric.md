@@ -574,6 +574,7 @@ Reproduction {
   exact_inputs
   environment_identity
   invocation_identity
+  effect_mode = EFFECT_FREE | EFFECTFUL
   authority_record?
   expected_observation
   actual_observation
@@ -582,6 +583,8 @@ Reproduction {
   evidence_refs[]
 }
 ```
+
+`effect_mode` is mandatory and independently classified from the actual reproduction operations. EFFECTFUL requires a current exact Nawat `authority_record` covering the target, inputs, process/provider/network/protected-resource operations, route and bounds before execution. EFFECT_FREE permits absent authority only for inert imported or already-authorized observation evidence with no new effect; a missing grant cannot select that variant. Missing/stale/mismatched authority refuses execution, produces blocked evidence and cannot satisfy a reproduction claim. A process launch is effectful even when its intended test target is read-only. The `006-AF-S7-A006` negative fixture submits each effectful operation without authority and proves zero dispatch; an inert imported counterexample is the permitted effect-free control.
 
 ## 16. `FixProposal`
 

@@ -177,7 +177,7 @@ A candidate WebMCP identity should bind enough state to detect page/tool drift:
 WebToolIdentity {
   web_tool_observation_ref
   origin
-  browsing_context_id
+  browser_context_id
   navigation_epoch
   document_identity
   tool_name

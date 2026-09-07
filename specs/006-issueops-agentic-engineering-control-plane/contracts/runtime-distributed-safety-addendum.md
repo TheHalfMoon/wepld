@@ -118,7 +118,7 @@ Silent self-update or vendor CLI replacement cannot remain invisible to route/ac
 
 ## Runtime event envelope
 
-Server/runner transports may duplicate, reorder, reconnect, or replay messages. Runtime facts therefore require stable event identity rather than arrival-order interpretation.
+Server/runner transports may duplicate, reorder, reconnect, or replay messages. Runtime facts therefore require stable event identity rather than arrival-order interpretation. Typed payload owners may declare their own version (for example CaseMessage.payload_schema_version); `payload_identity` binds that version and serialized content. Envelope `policy_schema_version` does not silently select a newer payload interpretation. Unsupported required payload semantics block semantic consumption and retain bounded opaque evidence under the original version.
 
 ```text
 RuntimeEventEnvelope {

@@ -4,7 +4,7 @@
 STATUS = FUTURE_PLANNING_CONTRACT
 PRIMARY_OWNERS = S3_PROCESS_FOUNDATION + S6_MISSION_RUNTIME_UWC
 EFFECT_AUTHORITY = NAWAT_ONLY
-QUALIFICATION_OWNER = MIrefa
+QUALIFICATION_OWNER = Mirefa
 TOPOLOGY_OWNER = EDARA
 SECURITY_EVIDENCE_OWNER = AMAN
 CURRENT_IMPLEMENTATION_AUTHORITY = NONE
@@ -367,7 +367,7 @@ EGRESS_ALLOWED != AUTHENTICATED_REQUEST_AUTHORIZED
 
 The broker must bind credential use to current target/route/attempt authority. Credential injection after Nawat grant expiry or route staleness is prohibited.
 
-All use constraints are mandatory and deny by default. A capability may authorize one use or a bounded operation set; replay beyond its explicit use limit is refused. Omitting host/resource/method/account/attempt scope never means wildcard access. Authenticated network credentials require a qualified confidential transport (HTTPS with current peer validation for HTTP APIs); plaintext HTTP must not receive them. Redirects require fresh destination/resource qualification before forwarding or reinjecting credentials. Broker bindings pin account and revocation generation, not merely a hostname. Refresh does not widen scope or reset usage limits.
+All use constraints are mandatory and deny by default. A capability may authorize one use or a bounded operation set; replay beyond its explicit use limit is refused. Omitting host/resource/method/account/attempt scope never means wildcard access. Authenticated network credentials require a qualified confidential transport (HTTPS with current peer validation for HTTP APIs); plaintext HTTP must not receive them. Every credential-bearing HTTP API hop, including every redirect, MUST use authenticated HTTPS with current peer validation. The broker withholds credentials on HTTP/downgrade or changed/out-of-scope destinations; fresh destination/resource/method/account qualification and current egress/Nawat authority are required before any forwarding or reinjection. Redirect handling cannot silently upgrade and send credentials without those checks. Broker bindings pin account and revocation generation, not merely a hostname. Refresh does not widen scope or reset usage limits.
 
 To avoid circular authorization, `capability_state` is `PROPOSED_SCOPE` or `ACTIVE`. A proposal may reference a broker-validated, non-secret scope record before Nawat decides; that record cannot obtain credentials or perform egress. After Nawat grants the exact scope, an immutable successor capability records the grant, originating scope reference and identical or narrower constraints. `ACTIVE` requires `nawat_grant_ref`; dispatch records the original proposal and its approved activation mapping in the execution envelope. A broader/different capability requires a new effect proposal. Absence of a grant never means active or ambient access.
 

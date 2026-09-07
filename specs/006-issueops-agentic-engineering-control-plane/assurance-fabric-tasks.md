@@ -111,7 +111,7 @@ Primary owning slice.
 - [ ] `006-AF-S7-A003` Implement `EngineDescriptor` / `EngineRun` normalized evidence.
 - [ ] `006-AF-S7-A004` Implement normalized `Finding` lifecycle.
 - [ ] `006-AF-S7-A005` Implement `CoverageClaim` as multi-dimensional evidence rather than one percentage.
-- [ ] `006-AF-S7-A006` Implement `Reproduction` and counterexample evidence.
+- [ ] `006-AF-S7-A006` Implement `Reproduction` and counterexample evidence, including the canonical effect_mode discriminator, pre-dispatch authority validation and missing-authority process/provider/network/protected-resource negative fixtures in AF §15; retain an inert effect-free control.
 - [ ] `006-AF-S7-A007` Implement `Reverification` linking old findings to new exact-target evidence.
 - [ ] `006-AF-S7-A008` Implement queryable `AssuranceBundle` without completion authority.
 - [ ] `006-AF-S7-A009` Implement exact-head/workspace-generation staleness propagation.

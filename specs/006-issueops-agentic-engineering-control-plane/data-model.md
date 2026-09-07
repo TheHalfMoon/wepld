@@ -524,22 +524,22 @@ Valid findings remain live until fixed, rebutted with evidence, accepted under e
 EffectProposal {
   effect_proposal_id
   logical_operation_id
-  proposal_state
-  workflow_intent_ref
-  mission_ref
+  proposal_state = DRAFT | EXECUTABLE
+  workflow_intent_ref?
+  mission_ref?
   effect_class
   exact_target
   proposed_input_identity
   complete_precondition_snapshot
-  controlling_origin_kind
+  controlling_origin_kind = WORKFLOW_INTENT | ASSIGNMENT | POLICY
   controlling_origin_ref
-  assignment_ref
-  attempt_ref
+  assignment_ref?
+  attempt_ref?
   proposing_principal_ref
-  route_qualification_ref
-  credential_capability_refs[]
-  risk_evidence_refs[]
-  execution_envelope_ref
+  route_qualification_ref?
+  credential_capability_refs[]?
+  risk_evidence_refs[]?
+  execution_envelope_ref?
   worker_or_work_origin
   created_at
 }
@@ -604,7 +604,17 @@ CONFIRMED_NOT_APPLIED
 STILL_UNKNOWN
 ```
 
-`proposal_state` is `DRAFT` or `EXECUTABLE`. Only an explicitly non-executable draft may leave execution bindings unresolved; missing bindings on an executable proposal cause refusal. Direct user work is normalized to Mission/Assignment/Attempt before execution, without requiring a Case. Empty credential/risk lists must carry a qualified not-required determination in the precondition snapshot; they cannot silently omit applicable checks. The snapshot binds exact account/tenant, target, argument digest, observations and their generations, applicable policy and authority scope. A changed material binding requires a new proposal and decision.
+The `?` fields above have conditional requiredness, not implicit execution defaults:
+
+| Discriminator | Required bindings / validation |
+|---|---|
+| DRAFT | Execution bindings (`mission_ref`, `assignment_ref`, `attempt_ref`, `route_qualification_ref`, `execution_envelope_ref`, credential/risk lists) may be absent while unresolved. Identity, proposing principal, typed controlling origin and proposed effect/target/input remain explicit. Drafts cannot dispatch or obtain active credentials. |
+| EXECUTABLE | Every execution binding listed above is required, nonempty where it is a reference, mutually consistent and current. Credential/risk lists must be present; empty lists require the qualified not-required evidence described below. Missing bindings are malformed executable proposals, never downgraded to drafts. |
+| WORKFLOW_INTENT origin | `controlling_origin_ref` resolves to WorkflowIntent; `workflow_intent_ref` is required and equals it in either proposal state. |
+| ASSIGNMENT origin | `controlling_origin_ref` resolves to Assignment; `assignment_ref` is required and equals it in either state. `workflow_intent_ref` may be absent; if supplied it must match that Assignment's originating intent. |
+| POLICY origin | `controlling_origin_ref` resolves to the exact trusted controlling policy/version. `workflow_intent_ref` may be absent; if supplied, the derived intent must trace to that same policy authority and remain within its scope. Execution still requires normalized Mission/Assignment/Attempt and all other EXECUTABLE bindings. |
+
+Origin conditions apply in addition to proposal-state conditions. Unknown discriminator values, wrong reference kinds and mismatched origin chains are rejected. Resolving a draft produces a successor proposal under the same logical operation only when intended operation/account/target/input are unchanged; changing them requires a new operation. No material binding change inherits a prior decision. Direct user work is normalized to Mission/Assignment/Attempt before execution, without requiring a Case. Empty credential/risk lists must carry a qualified not-required determination in the precondition snapshot; they cannot silently omit applicable checks. The snapshot binds exact account/tenant, target, argument digest, observations and their generations, applicable policy and authority scope. A changed material binding requires a new proposal and decision.
 
 `retry_safety_state` is one of `NOT_RETRYABLE`, `RECONCILIATION_REQUIRED`, `SAFE_WITH_PROVIDER_IDEMPOTENCY`, `SAFE_AFTER_CONFIRMED_NO_EFFECT`, or `NO_RETRY_NEEDED`. Safety is evidence bound to the same logical operation, arguments, account, target and provider key retention window; it is not permission to execute. `STILL_UNKNOWN` requires reconciliation or a proven provider dedupe contract, never an ordinary blind retry. Conflicting or incomplete reconciliation remains unknown. Provider not-found results require the declared visibility bound/watermark or equivalent proof before establishing no effect.
 

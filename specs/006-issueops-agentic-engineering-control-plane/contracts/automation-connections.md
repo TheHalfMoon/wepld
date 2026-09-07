@@ -42,9 +42,7 @@ AutomationDefinition {
   forbidden_routes[]
   approval_profile_ref?
   completion_expectation
-  enabled_state
   created_at
-  updated_at
 }
 ```
 
@@ -54,7 +52,7 @@ Properties:
 - contains no raw secret;
 - contains no worker identity requirement unless expressed through ordinary capability/topology constraints;
 - contains no implicit Nawat grant;
-- `enabled_state` permits trigger matching only; it never pre-authorizes downstream effects;
+- enable/pause state is a separate revision-checked activation projection over runtime events; it never mutates the immutable definition revision or pre-authorizes downstream effects;
 - revisions are durable so a run can identify the exact definition that produced its intent.
 
 ## 3. TriggerDefinition / TriggerEnvelope
@@ -358,7 +356,7 @@ Provider connectivity must not be presented as effect permission.
 
 ## 16. Definition revision, schedule and step semantics
 
-Automation revisions are immutable and content addressed. Mutable enable/pause state uses a separate revision-checked update on the stable automation identity. Accepted occurrences retain the exact definition, trigger, template, integration and input-schema revisions. An edit affects only new occurrences; explicit cancellation affects accepted runs through MissionRuntime. Changing or replacing a webhook subscription cannot silently replay past events as new work.
+Automation revisions are immutable and content addressed. Mutable enable/pause state uses a separate revision-checked activation projection on the stable automation identity, reconstructed from existing RuntimeEventEnvelope payloads containing `automation_id`, `activation_revision`, `selected_definition_revision_ref`, `enabled_state = ENABLED | PAUSED | DISABLED`, controlling principal and decision evidence. This is a view of existing runtime persistence, not an additional activation store. The ingress transaction compares the current activation revision before accepting a new occurrence; stale activation cannot admit new work. Accepted occurrences retain the exact definition, trigger, template, integration and input-schema revisions. An edit affects only new occurrences; explicit cancellation affects accepted runs through MissionRuntime. Changing or replacing a webhook subscription cannot silently replay past events as new work.
 
 Schedule identity includes timezone name, tzdb version, local rule, resolved UTC instant and repeated-time fold. The default repeated-time policy is FIRST_ONLY; BOTH is explicit and produces two distinct fold identities. Skipped local times default to SKIP; SHIFT_FORWARD is explicit and records the resulting instant. Misfire policy defaults to SKIP; CATCH_UP requires finite lookback, count and backlog limits; COALESCE creates one intent with an explicit bounded missed-occurrence range. Updating timezone rules creates a new trigger revision; already accepted instants do not move. Runtime uses an authoritative persisted occurrence ledger and monotonic lease timing; wall-clock rollback cannot recreate an accepted occurrence. Cross-host clock skew outside the admitted bound blocks scheduling until reconciled.
 

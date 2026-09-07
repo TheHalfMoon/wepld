@@ -422,6 +422,8 @@ Mission {
   work_session_ref
   controlling_intent_ref
   objective_revision
+  control_revision
+  control_state = ACTIVE | PAUSE_REQUESTED | PAUSED | CANCEL_REQUESTED | CANCEL_CONFIRMED | HANDOFF_PENDING | HANDOFF_COMPLETE
   acceptance_contract_ref
   assignment_refs[]
   runtime_state
@@ -725,8 +727,8 @@ WorkControlRequest {
 }
 ```
 
-Runtime persistence atomically deduplicates request_id within the tenant/Mission, compares the expected control revision, records the transition and increments that revision. Same key/different body conflicts; concurrent clients cannot both win incompatible transitions. PAUSE_REQUESTED stops new dispatch, then PAUSED requires evidence that admitted activity reached a safe quiescent point. Unsupported pause is visible and must not pretend to freeze an external operation. RESUME requires refreshed context, qualification, leases and authority. CANCEL_REQUESTED stops new work and requests cessation; CANCEL_CONFIRMED requires proven cessation/cleanup, while already-sent external effects retain their separate result/reconciliation state. Terminal execution and uncertain business outcome can coexist.
+Runtime persistence atomically deduplicates request_id within the tenant/Mission, compares the expected control revision, records the transition and increments that revision. Same key/different body conflicts; concurrent clients cannot both win incompatible transitions. Mission.control_state is orthogonal to its coarse runtime_state and references the control transition's RuntimeEvent evidence; neither can overwrite EffectResult. PAUSE_REQUESTED stops new dispatch, then PAUSED requires evidence that admitted activity reached a safe quiescent point. Unsupported pause is visible and must not pretend to freeze an external operation. RESUME requires refreshed context, qualification, leases and authority before returning to ACTIVE. CANCEL_REQUESTED stops new work and requests cessation; CANCEL_CONFIRMED requires proven cessation/cleanup, while already-sent external effects retain their separate result/reconciliation state. Terminal execution and uncertain business outcome can coexist.
 
-HANDOFF requires a qualified target route, ownership fencing and reconciliation of in-flight operations before the successor dispatches. Host/worker/controller loss uses the distributed runtime recovery contract. A disconnected client does not terminate the Mission; an expired controller lease fences its effects. Cursor replay is access checked, bounded and read only; missing/compacted history produces an explicit gap with a safe snapshot reference.
+HANDOFF requires a qualified target route, ownership fencing and reconciliation of in-flight operations before the successor dispatches. HANDOFF_PENDING blocks new dispatch on the relinquishing owner; HANDOFF_COMPLETE records successful ownership transfer, then a separately validated resume returns ACTIVE. Failure leaves the pending/blocked state with evidence rather than resurrecting the old owner. Host/worker/controller loss uses the distributed runtime recovery contract. A disconnected client does not terminate the Mission; an expired controller lease fences its effects. Cursor replay is access checked, bounded and read only; missing/compacted history produces an explicit gap with a safe snapshot reference.
 
 Human approvals use DecisionBoundary, bound to the exact proposal/input/target/account/route, requested authority scope, current policy and expiry. An approval is evidence for Nawat's decision, not a grant created by the UI. Changed inputs, objective, account or stale target invalidate affected approvals. Work shows Server, Host, Runner, Worker, Attempt and provider/account distinctly when useful, using friendly labels. Results are claims; review, AMAN evidence, controlled repair and Trusted Completion remain separate timeline events. A repair creates fresh target-specific qualification and review obligations.

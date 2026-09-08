@@ -522,6 +522,10 @@ request/response evidence policy
 secret/PII handling
 ```
 
+Before attaching credentials, the adapter MUST establish authenticated encrypted transport; HTTP APIs require HTTPS with current certificate-chain and hostname validation. A separately qualified non-HTTP transport must provide equivalent peer authentication and confidentiality. Plaintext, failed peer validation and protocol downgrade withhold credentials, including on every redirect hop. These rules consume the complete CredentialCapability contract in `contracts/runtime-execution-fabric.md`.
+
+Every redirect is a new boundary check before forwarding or reinjecting credentials: canonicalize and validate the redirected origin, host, port, protocol, resource and method; recheck explicit target authorization, allowed endpoints, current network/Nawat authority and the exact account/credential scope. Origin or authorization changes withhold credentials until that destination is separately qualified and explicitly authorized; cross-origin forwarding is never inherited from the original request. HTTP redirects cannot auto-upgrade and receive credentials without those checks. Expired/revoked authority, out-of-scope destinations, insecure hops or unresolved identity block the request and retain bounded non-secret failure evidence. Existing AF-S7-D001/002 and credential hardening tasks must prove zero credential forwarding on these negative cases.
+
 `LOCAL_PROJECT_OPEN` or `BROWSER_LOGGED_IN` never implies permission to attack/test a remote system.
 
 ## 10. Testing architecture
@@ -654,7 +658,7 @@ no network
 
 Local deterministic engines, local graph/context, local tests, local findings, and local evidence history should provide meaningful assurance.
 
-Hosted reviewers/models/security services are optional adapters behind explicit egress classification, screening, provider-handling decisions where required, exact-scope approval, and exact-target result binding.
+Hosted reviewers/models/security services are optional adapters. Before any repository content or evidence crosses the trusted local boundary, they MUST apply [canonical EXTERNAL_REVIEW_EGRESS_POLICY](../../docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md), including its classification, screening, provider-handling/eligibility and exact-scope approval requirements. Exact-target result binding remains mandatory. Adapter availability or configuration cannot waive any applicable canonical policy condition.
 
 ```text
 REMOTE_REVIEWER_AVAILABLE != EGRESS_AUTHORIZED

@@ -203,18 +203,25 @@ The product matrix and product acceptance families live in `product-capability-t
 
 Contract abbreviations: DM=data-model; CP=case-provider; RR=retrieval-rag; UC=untrusted-content; WD=worker-delegation; CS=command-surface; RF=runtime-execution-fabric; RD=runtime-distributed-safety-addendum; BP=behavior-policy-boundary; WB=web-agent-boundary; AF=assurance-fabric; RI=review-independence (all contracts except DM are under `contracts/`). Acceptance letters refer to `acceptance.md`; runtime letters refer to `runtime-execution-fabric-acceptance.md`. Exact contract sections are the headings named by each requirement; detailed negative oracles are in each owning contract and task's tracer bullet.
 
-| Requirements | Owner / contract | tasks.md tasks | Acceptance / evidence / prerequisite |
+| Requirements | Owner / contract | Tasks (explicit owning namespace) | Acceptance / evidence / prerequisite |
 |---|---|---|---|
 | FR-014..016 | trusted intake, Fehrest / DM InputArtifact, UC | 006-S3-I001..014; 006-S34-C001..005 | D/E; inert artifact -> cited generation with no implicit effect; S3 -> S4 |
 | FR-010..013, FR-025, FR-043 | Fehrest/Maemar / DM Knowledge*, RR, UC | 006-S4-R001..018 | C/E; exact/lexical/graph provenance, direct/projection variants, access/revocation/remote-ingestion and benchmark oracles; S4 |
 | FR-006, FR-017/018, FR-026 | Edara planning / DM WorkflowIntent/DecisionBoundary, CS, WD topology | 006-S5-W001..025 | F/G; no-effect command/skill/Assignment plans and dependency frontier; S5 before live workers |
 | FR-019..024, FR-025/026 | Mirefa/Nawat/MissionRuntime/UWC / DM and WD | 006-S6-D001..019 | G/H; exact capability/route/cost/containment/authority/cancel evidence and no fallback; S3–S5 before S6 |
 | FR-001..005, FR-008/009, FR-042 | Case provider adapters, Case Bus / DM Case/Provider*/relations, CP | 006-I001..025 | B/E/H; synthetic TB0 before live read TB1, authentic complete observations and labelled sweep false-positive/abstention corpus; S6/S7 |
-| FR-027, FR-037..041 | Assurance/AMAN / AF, RI | 006-S7-A001..010 | I/H; exact-target independent findings and non-erasing coverage/security evidence; S7 |
+| FR-027 | IssueOps Assurance/AMAN integration / AF, RI | 006-S7-A001..010 in tasks.md | I/H; exact-target independent findings and non-erasing coverage/security evidence; S7 |
+| FR-037 | Assurance claim assessment / AF ClaimAssessment and AssurancePolicySnapshot, RI | 006-HARD-S5-001..005, 006-HARD-S7-001/002; 006-AF-S7-A005/008/009/010/011/012 | I, AF-A; missing/stale evidence, required-check failure and conflicts cannot support claims; S5 policy before S7 assessment |
+| FR-038 | Assurance evidence handling / AF EvidenceHandlingPolicy, AMAN | 006-HARD-S7-006/007; 006-AF-S7-D002; 006-RT-S6-PRIV001, 006-RT-S9-PRIV001 | I, runtime E/L, AF-A; secret/private-content capture, storage, rendering and export negatives; minimum privacy before S6 effects, S7/S9 expansion |
+| FR-039 | Qualified engine execution / AF EngineDescriptor/EngineRun, RF | 006-HARD-S3-004/005/006; 006-AF-S3-001..009; 006-AF-S7-A003 | I, runtime D, AF-A; exact executable/configuration and resource/containment/cleanup evidence; S3 foundations before S6/S7 execution |
+| FR-040 | Assurance finding governance / AF Finding/FindingDisposition, RI | 006-HARD-S7-003/004/005; 006-AF-S7-A004/007/010/011 | I, AF-A; non-erasure, scoped authorized expiry and forged suppression/false-fix negatives; S7 |
+| FR-041 | Assurance performance assessment / AF PerformanceEvidence | 006-HARD-S7-010; 006-AF-S7-T014 | I, AF-A; pinned baseline/environment/fixture, warmup/repetitions/noise and inconclusive outcomes; S7 |
 | FR-007, FR-028..030 | Nawat/MissionRuntime/S8/Trusted Completion / DM §19/20, CP, WD, AF | 006-S8-X001..017 | H/K; bounded repair, canonical effect dispatch/reconciliation and exact accepted completion packet; S6+S7 before S8 |
 | FR-031, FR-044 | Evidence Graph/Quality Passport / DM events/completion, AF history | 006-S9-E001..006 | L/K; replay, migration, restore, redaction and historical decision reconstruction; minimum runtime safety before S9 expansion |
 | FR-003/008/024/031 | Fehrest/Byan recommendations, qualified providers / CP, WD | 006-S10-O001..007 | B/G/L; bounded cross-provider analytics and explicit optional schedule/federation gates; conditional later work under product plan §13, not revised canonical S10 |
 | PCT-FR-X, FR-007/016/018/024/027/031 | canonical governance and owning source/quality boundary | 006-P001..013 | A/M/N plus source-acquisition.md and plan tracer bullets; admission/benchmark/egress evidence before reuse or effect activation |
+
+The `006-S7-A` entries above belong only to the parent IssueOps task ledger. `006-HARD-` entries belong to `professional-plan-hardening-tasks.md`, `006-AF-` entries to `assurance-fabric-tasks.md`, and `006-RT-` entries to `runtime-distributed-safety-tasks.md`. The FR-037..041 rows refine those exact owners; acceptance letters are criteria, never task namespaces.
 
 ### Runtime and distributed traceability
 

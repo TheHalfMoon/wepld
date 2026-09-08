@@ -324,6 +324,8 @@ CredentialCapability {
   secret_owner_ref
   credential_class
   broker_identity
+  delivery_mode
+  direct_exposure_exception?
   target_host_set[]
   target_resource_or_path_scope[]
   method_or_protocol_scope[]
@@ -342,7 +344,7 @@ CredentialCapability {
 }
 ```
 
-Possible delivery modes:
+Required `delivery_mode` is exactly one of:
 
 ```text
 BROKER_INJECT_ON_AUTHORIZED_EGRESS
@@ -352,7 +354,24 @@ DIRECT_SECRET_EXPOSURE_LAST_RESORT
 NONE
 ```
 
-Direct secret exposure is a materially weaker route and requires separate qualification/authority evidence when a stronger broker route was required.
+Broker delivery is the default. Direct secret exposure is always a materially weaker last-resort route and requires separate qualification and explicit exception-authority evidence, regardless of whether a stronger route was previously requested. If current controlling policy requires broker delivery, direct exposure is blocked; an adapter, user preference or exception record cannot silently relax that requirement.
+
+For `DIRECT_SECRET_EXPOSURE_LAST_RESORT`, `direct_exposure_exception` is mandatory structured, non-secret evidence:
+
+```text
+direct_exposure_exception {
+  stronger_delivery_assessment_ref
+  route_qualification_ref
+  explicit_exception_authority_ref
+  exact_scope_identity
+  evidence_handling_policy_ref
+  expires_at
+}
+```
+
+The stronger-delivery assessment records why broker/placeholder/ephemeral delivery cannot meet this qualified operation and the residual exposure risks. The trusted explicit exception decision must permit this exact secret class/recipient, account, Assignment/Attempt/logical operation, environment/containment, delivery mode, handling policy and expiry under the current controlling policy. Missing, stale, forged or mismatched evidence refuses direct delivery; there is no inferred consent. A PROPOSED_SCOPE may retain this qualified exception decision without releasing secrets. ACTIVE still requires the exact current Nawat grant authorizing actual secret exposure and all normal effect/egress constraints; an exception approval alone is not that grant. Other delivery modes prohibit this exception object; NONE permits no credential release. All evidence excludes raw secret values.
+
+ExecutionEnvelope freezes one `credential_delivery_bindings[]` entry per referenced active capability: `{ credential_capability_ref, delivery_mode, direct_exposure_exception_identity? }`. The exception identity is the immutable content identity of the complete exception object and its pinned decision/evidence identities, never a mutable label. Mode and exception identity must exactly match that capability and its qualified route/approved activation; direct mode requires the identity, every other mode prohibits it. Empty bindings are allowed only with no credential capabilities. The enforcing delivery adapter revalidates mode, exception validity, qualification and Nawat authority immediately before exposure/injection. Changed delivery mode or exception scope requires a newly qualified/authorized successor capability and envelope, never fallback to direct exposure.
 
 Rules:
 
@@ -411,6 +430,7 @@ ExecutionEnvelope {
   runtime_ceiling_ref
   environment_exposure_policy_ref
   credential_capability_refs[]
+  credential_delivery_bindings[]
   route_qualification_ref
   nawat_grant_refs[]
   harness_execution_identity_ref

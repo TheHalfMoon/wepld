@@ -138,3 +138,19 @@ CodeRabbit full run `3619ffef-09c2-48ac-a9ad-a865dd5c4034` completed on 2026-09-
 The two older schema/WorkerRequirement threads received rate-limit responses rather than substantive independent verification. Their author repairs remain recorded above; an unavailable chat response is neither rejection nor acceptance. Current head, checks, scope, review and thread state must be obtained live from the PR, not inferred from this historical section.
 
 Build learning: a correct canonical owner does not excuse weaker consumer summaries, historical adaptation schemas or ambiguous checklist state. Review every projection/consumer against the owner's mandatory conditions, distinguish inert data from actionable facts, and make author assessment structurally distinct from qualified acceptance. Preserve these as planning refinements within existing task IDs and owners; no runtime implementation or source admission is authorized here.
+
+
+## Completed 033f5fb review and successor repairs — 2026-09-08
+
+CodeRabbit full run `70379774-3a8a-4c7b-9f0b-e0dfc530c680`, review `5136026172`, completed against head `033f5fb8b4f58f9134acc7cf654524f7f8862a7a` and base `00acb57887af4a3073374c3bfa76c506deda6f92`, selecting all 58 files and posting six findings. Its scope selection is not independently completed coverage proof. The successor repairs below require fresh checks and qualified assessment; this author record is not acceptance.
+
+| Comment | Verified repair |
+|---|---|
+| 3953277930 | Split FR-027 IssueOps tasks from FR-037..041 with individual exact HARD/AF/RT namespaces, canonical claim/handling/engine/disposition/performance owners, acceptance evidence and prerequisites. |
+| 3953277934 | Assurance plan dynamic scans now revalidate every redirect's exact destination, target/network/Nawat and credential authority before forwarding; changed boundaries withhold credentials until separately qualified and authorized. |
+| 3953277938 | Assurance plan requires authenticated encrypted transport before attachment, validated HTTPS for HTTP APIs on every hop, and no credential release on insecure/downgrade/invalid-peer paths. Existing dynamic tasks carry the negative fixtures. |
+| 3953277946 | Hosted Assurance adapters explicitly apply canonical EXTERNAL_REVIEW_EGRESS_POLICY before crossing the trusted boundary; conditional summary wording cannot waive applicable handling, screening or approval rules. |
+| 3953277953 | CredentialCapability owns an explicit closed delivery mode and structured direct-exposure exception evidence. ExecutionEnvelope freezes matching bindings. Direct delivery always requires qualification/explicit exception evidence plus actual Nawat release authority; broker-required policy blocks the weaker route. Existing credential tasks require negative fixtures. |
+| 3953277958 | RetrievalEvidence generation references now resolve to immutable exact parser and index/projection implementation/configuration provenance, with direct-read/no-index semantics, replacement generations and incomplete-provenance negatives. No second provenance store is added. |
+
+Build learning: statement-level consistency requires checking downstream plan summaries and task/acceptance joins, not only the canonical schema. Optional-looking or unrecorded delivery exceptions must be explicit, scoped evidence; exact source bytes alone do not identify the parser/index that produced a result. Reviewer command handling also matters: natural-language messages containing command words can be classified as commands, so an invocation/rate-limit notice is not a scope assessment or verification result.

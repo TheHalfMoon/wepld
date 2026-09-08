@@ -195,8 +195,8 @@ Primary owning slice.
 
 Requires separate S3/S6/S7 network/target/scanner authority. These tasks are not implied by static Assurance activation.
 
-- [ ] `006-AF-S7-D001` Define explicit authorized target/origin/host/port/protocol scope.
-- [ ] `006-AF-S7-D002` Define credential source, least privilege, redaction, and retention rules.
+- [ ] `006-AF-S7-D001` Define explicit authorized target/origin/host/port/protocol scope and revalidate every redirect against exact target, current network/Nawat authority and credential scope before forwarding; test changed/out-of-scope origins with zero credential forwarding.
+- [ ] `006-AF-S7-D002` Define credential source, least privilege, redaction, and retention rules; require authenticated encrypted transport before attachment (validated HTTPS for HTTP APIs) on every hop, and prove plaintext, invalid peer identity, downgrade and stale-authority redirects withhold credentials.
 - [ ] `006-AF-S7-D003` Define request/rate/concurrency/time budgets and stop conditions.
 - [ ] `006-AF-S7-D004` Qualify scanner/template/plugin identities and disable arbitrary template/code execution by default.
 - [ ] `006-AF-S7-D005` Add DAST/API scanner adapter only after target/network authority exists.

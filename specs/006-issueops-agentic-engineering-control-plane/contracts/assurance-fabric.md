@@ -283,7 +283,7 @@ RESOURCE_LIMIT
 CLEANUP_INCOMPLETE
 ```
 
-`ENGINE_ERROR`, `TIMEOUT`, `CANCELLED`, `UNSUPPORTED`, `INFRA_FAILURE`, `RESOURCE_LIMIT`, or material `CLEANUP_INCOMPLETE` MUST NOT normalize to clean/no-findings. Test normalization likewise preserves every non-FIRST_PASS outcome, including RETRY_FAIL and CONSISTENT_FAIL, as non-clean; RETRY_PASS_FLAKY cannot erase the original failure.
+`FAILED_CHECKS`, `NOT_AUTHORIZED`, `NOT_QUALIFIED`, `ENGINE_ERROR`, `TIMEOUT`, `CANCELLED`, `UNSUPPORTED`, `INFRA_FAILURE`, `RESOURCE_LIMIT`, or material `CLEANUP_INCOMPLETE` MUST NOT normalize to clean/no-findings. `COMPLETED` only means the engine completed; it does not itself prove clean findings or a supported claim. A required check lacking authority or qualification leaves the claim BLOCKED or INCONCLUSIVE. FAILED_CHECKS retains the failure evidence and cannot support the requested clean-check claim: definitive contradictory evidence yields NOT_SUPPORTED, while an unresolved evidentiary gap remains BLOCKED/INCONCLUSIVE under the policy. Adapters cannot substitute a clean status for any of these outcomes. Test normalization likewise preserves every non-FIRST_PASS outcome, including RETRY_FAIL and CONSISTENT_FAIL, as non-clean; RETRY_PASS_FLAKY cannot erase the original failure.
 
 ```text
 VERSION_STRING_MATCH != EXECUTABLE_IDENTITY_MATCH

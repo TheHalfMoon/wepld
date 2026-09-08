@@ -115,7 +115,7 @@ Acceptance-critical browser/web evidence may contribute to Trusted Completion on
 
 ## Review gate
 
-Resolve the live candidate PR, exact base/head/tree, checks and review targets before assessing freshness. A predecessor is an explicitly recorded immutable reviewed target, not a hard-coded PR number. A review becomes historical for acceptance when its target differs materially from the current candidate; a matching completed qualified review must not be discarded merely because it was submitted earlier. The fresh final review must target the current head, declare scope/exclusions, and inspect:
+Resolve the live candidate PR, exact base/head/tree, checks and review targets before assessing freshness. A predecessor is an explicitly recorded immutable reviewed target, not a hard-coded PR number. A review becomes historical for acceptance when its recorded repository/PR/base/head/tree or check/review target identity does not exactly match the live candidate; a matching completed qualified review must not be discarded merely because it was submitted earlier. The fresh final review must target the current head, declare scope/exclusions, and inspect:
 
 - `web-agent.md`;
 - `web-agent-tasks.md`;

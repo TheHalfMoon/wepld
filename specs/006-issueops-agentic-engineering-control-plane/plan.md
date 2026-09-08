@@ -102,7 +102,7 @@ Stable WePLD worker identity plus adapter/provider identity, capabilities, suppo
 
 ### 3.8 `Assignment` and `Attempt`
 
-Assignment is durable bounded work with acceptance criteria, dependency edges, context package, and authority envelope. Attempt records one execution by one qualified worker/session. Retries and reassignment create new attempts instead of rewriting history.
+Assignment is durable bounded work with acceptance criteria, dependency edges, context package, and a non-authorizing effect-constraint envelope. This envelope records restrictions and references to separately validated authority evidence; it cannot grant or widen Nawat authority. Attempt records one execution by one qualified worker/session. Retries and reassignment create new attempts instead of rewriting history.
 
 ### 3.9 `DecisionBoundary`
 

@@ -159,3 +159,21 @@ Build learning: statement-level consistency requires checking downstream plan su
 ### Consumer consistency follow-through before successor qualification
 
 Author inspection of remaining credential/privacy summaries found weaker wording in AC section 8, runtime FR-049, RF EnvironmentExposurePolicy evidence and WB authentication-state defaults. These now explicitly consume the full canonical delivery/exception/authority contract or mandate the already-required default confidentiality and pre-persistence environment/secret exclusion. This is consistency repair within existing requirements and task coverage, not a new credential mechanism or current executable policy. Fresh exact-head checks and independent assessment remain required after these edits.
+
+
+## Completed acc1ce2 assessment and successor repairs — 2026-09-08
+
+CodeRabbit run `7a4daf45-313f-4da9-a798-1cf20e298f51`, submission `5141037008`, completed at head `acc1ce24cefff26f0578c726725103396f364744` against base `00acb57887af4a3073374c3bfa76c506deda6f92`, selected all 58 files and posted five findings. This author disposition does not qualify the changed successor.
+
+| Comment | Verified repair and limits |
+|---|---|
+| 3957344292 | AF explicitly preserves FAILED_CHECKS, NOT_AUTHORIZED and NOT_QUALIFIED as non-clean and prevents COMPLETED from implying clean. Required authority/qualification gaps are BLOCKED/INCONCLUSIVE; a definitive failed check can instead support NOT_SUPPORTED, preserving the existing typed claim semantics rather than incorrectly labelling a proven failure as merely unavailable. AF-S7-A012 includes all-class negatives. |
+| 3957344305 | RD requires a trusted event-kind stable logical transition identity for every consequential event, with rejection/quarantine before transition/effect when unavailable. Per-delivery IDs and transport/incarnation dedupe cannot substitute for durable logical identity. Atomic dedupe, conflict, restart and retention rules use existing runtime persistence; RT-S3-004 covers all non-trigger classes. |
+| 3957344313 | PLANNING_INDEX section 12 explicitly delegates to acceptance N, including the live-state record, qualified complete coverage, REVIEW_BLOCKED and all conjunctive acceptance criteria. |
+| 3957344318 | Parent ContextPackage/Assignment summaries now name a non-authorizing effect-constraint envelope, retaining bounds/evidence references without granting or widening Nawat authority. |
+| 3957344320 | Web acceptance uses exact repository/PR/base/head/tree/check/review target matching; any mismatch is historical for acceptance, while age alone does not discard a matching qualified result. |
+
+Build learning: enumerate every declared non-clean outcome instead of relying on a partial list; separate transport identity from logical state-transition identity; and make navigation/product summaries explicitly subordinate to canonical acceptance and authority owners. A source-fact answer, provider status or selected-file count alone still cannot replace whole-final-scope qualified acceptance.
+
+
+Independent source-fact replies 3957362928 and 3957374308 verified the exact acc1ce2 ContextPackage and WorkerRequirement definitions and their consumers, and CodeRabbit closed both older threads. The separate completed-run metadata response 5584389897 explicitly states that the standard output does not establish assessment of all 58 selected files, every necessary canonical context file, or complete cross-document coherence. That coverage limitation remains real even though the five reported findings have author repairs; fresh explicit coverage evidence is required before acceptance.

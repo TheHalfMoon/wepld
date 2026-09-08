@@ -178,7 +178,7 @@ Paid, quota-consuming, or materially metered worker/browser/assurance execution 
 
 ### FR-025 — Bounded context packages
 
-Delegated work SHOULD receive the minimum sufficient canonical `ContextPackage`: relevant files/symbols, spec/task fragments, decisions, tests, known failures, RAG/browser evidence with provenance/trust/access labels, and an authority/effect envelope.
+Delegated work SHOULD receive the minimum sufficient canonical `ContextPackage`: relevant files/symbols, spec/task fragments, decisions, tests, known failures, RAG/browser evidence with provenance/trust/access labels, and an effect-constraint envelope. That envelope records bounds and references to separately validated authority evidence; it cannot grant or widen Nawat authority. ContextPackage remains non-authorizing.
 
 A source/access-policy change after package construction MUST stale affected future package use/egress.
 

@@ -235,6 +235,8 @@ mobile Computer Use in the initial scope
 
 ## 12. Acceptance sequence for this planning package
 
+This sequence delegates all planning merge/acceptance gates to [acceptance.md section N](acceptance.md#n-planning-review-gate), including the exact live PR/base/head/tree/checks/reviews record and REVIEW_BLOCKED whenever qualified independent coverage is unavailable or incomplete. The parent gate and all applicable acceptance criteria are conjunctive; this index is a navigation sequence, not a reduced alternative gate.
+
 Before any merge/acceptance claim for PR #241:
 
 1. reread current canonical `main` governance;

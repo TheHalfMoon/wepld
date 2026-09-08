@@ -117,7 +117,7 @@ Primary owning slice.
 - [ ] `006-AF-S7-A009` Implement exact-head/workspace-generation staleness propagation.
 - [ ] `006-AF-S7-A010` Preserve contradictory engine outputs instead of majority-voting them into one answer.
 - [ ] `006-AF-S7-A011` Prove one validated finding is not erased by multiple clean engines.
-- [ ] `006-AF-S7-A012` Normalize `ENGINE_ERROR`, `UNSUPPORTED`, `NOT_RUN`, `PARTIAL`, `INCONCLUSIVE`, `CLEAN`, and finding-producing outcomes separately.
+- [ ] `006-AF-S7-A012` Normalize `ENGINE_ERROR`, `UNSUPPORTED`, `NOT_RUN`, `PARTIAL`, `INCONCLUSIVE`, `CLEAN`, and finding-producing outcomes separately. Negatively qualify every non-clean EngineRun result class, explicitly including FAILED_CHECKS, NOT_AUTHORIZED and NOT_QUALIFIED; required authority/qualification failures remain BLOCKED/INCONCLUSIVE and definitive failed-check evidence remains non-supporting under the canonical ClaimAssessment rules.
 
 ## S7-R — Native `/review`
 

@@ -102,6 +102,14 @@ explicit user/workflow intent
 -> evidence
 ```
 
+### WEB-TB4
+
+Bounded upload/download proof is required before claiming artifact-transfer support, after the S3 intake, S6 surface/route, S7 security and S8 effect gates. Requirements FR-014..016/031/032 and PCT-FR-BR consume the existing WB artifact-transfer and IS InputLease contracts; tasks `006-WEB-S3-005`, `006-WEB-S8-003` and `006-WEB-S8-004` supply the implementation and negative fixtures.
+
+- Upload evidence binds the exact InputArtifact content/identity, current access/handling policy, browser/context/origin/document and file-chooser control, route qualification, Nawat grant and expiring fenced InputLease. The enforcing input queue revalidates current ownership, epoch/fence, expiry, target and grant immediately before `FILE_CHOOSER_SELECT_ARTIFACT`; artifact/access/target mismatch, expiry, takeover, stale epoch or fence loss proves zero selection and zero transfer.
+- Download evidence binds the authorized effect, exact source/browser context and bounded staging target to DownloadObservation and inert InputArtifact completeness/classification. Partial, failed, unclassified or hazardous bytes remain quarantined. Classification alone does not release bytes: any release, parser, execution, retrieval or worker-visible follow-on use needs separate current qualification, access/handling checks and Nawat authority where effectful.
+- Positive and negative receipts identify the exact operation, artifact, surface, applicable lease/grant, postcondition and refused transition. Sensitive values remain excluded. Interrupted or uncertain transfers require reconciliation; successful transport or classification does not establish Trusted Completion.
+
 ## Trusted Completion
 
 ```text
@@ -120,6 +128,8 @@ Resolve the live candidate PR, exact base/head/tree, checks and review targets b
 - `web-agent.md`;
 - `web-agent-tasks.md`;
 - `contracts/web-agent-boundary.md`;
+- `contracts/interactive-surfaces.md`, which owns exact surfaces and the enforced InputLease;
+- `web-agent-acceptance.md`, including WEB-TB4 artifact-transfer evidence and task joins;
 - WebMCP/browser changes in `spec.md`, `clarify.md`, `checklists/requirements.md`, and `source-acquisition.md`;
 - interaction with the untrusted-content, worker-delegation, RAG, IssueOps, Nawat, Assurance, and Trusted Completion boundaries.
 

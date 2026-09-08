@@ -181,3 +181,35 @@ Independent source-fact replies 3957362928 and 3957374308 verified the exact acc
 ### Entry-index roadmap consistency repair
 
 Baseline source assessment 5584486268 records complete examination of twelve trusted-base context files and PLANNING_INDEX at 17cdebe. Author comparison with canonical MASTER_PLAN_V2_3 section S10 nevertheless found that the index still promoted organization-scale federation/scheduling into the required S10 summary, contrary to the already-correct product plan section 13. The index now preserves canonical Fehrest/Byan placement and marks those extensions conditional. The provider's no-material-gap conclusion is not accepted for that mismatch; the successor index and complete final package still need independent assessment. Build learning: verify a review's conclusions against the cited canonical source, including short navigation summaries; a completion table does not itself prove correctness.
+
+
+## Explicit bounded assessment campaign at 4afec24 — 2026-09-08
+
+The ten source-grounded CodeRabbit responses below explicitly record complete semantic reads of every one of the 58 candidate files at head `4afec24f1db83a0062af753d1547e7e02540859e`, tree `fb52259fc09539792b63f8cb18b380b126abe03c`, with trusted-base context from response 5584486268 at unchanged base `00acb57887af4a3073374c3bfa76c506deda6f92`. Each assesses bounded cross-file coherence and names remaining cross-group dependencies; none alone accepts the package. The failed runtime response 5588433087 supplied no evidence; its retry completed as 5588507569.
+
+| Group | Completed response | Material findings |
+|---|---|---|
+| 1 parent_design | [5588452917](https://github.com/TheHalfMoon/wepld/pull/241#issuecomment-5588452917) | PD-001 |
+| 2 parent_acceptance | [5588433946](https://github.com/TheHalfMoon/wepld/pull/241#issuecomment-5588433946) | PARENT-ACC-001 |
+| 3 domain_contracts | [5588443832](https://github.com/TheHalfMoon/wepld/pull/241#issuecomment-5588443832) | None in bounded scope |
+| 4 runtime_contracts | [5588507569](https://github.com/TheHalfMoon/wepld/pull/241#issuecomment-5588507569) | None in bounded scope |
+| 5 assurance_design | [5588430514](https://github.com/TheHalfMoon/wepld/pull/241#issuecomment-5588430514) | AF-DYN-001 |
+| 6 assurance_tasks | [5588444276](https://github.com/TheHalfMoon/wepld/pull/241#issuecomment-5588444276) | None in bounded scope |
+| 7 product_tracks | [5588474800](https://github.com/TheHalfMoon/wepld/pull/241#issuecomment-5588474800) | PCT-SOURCE-001 |
+| 8 interactive | [5588440214](https://github.com/TheHalfMoon/wepld/pull/241#issuecomment-5588440214) | INT-001 |
+| 9 source_studies | [5588435212](https://github.com/TheHalfMoon/wepld/pull/241#issuecomment-5588435212) | None in bounded scope |
+| 10 historical_evidence | [5588433051](https://github.com/TheHalfMoon/wepld/pull/241#issuecomment-5588433051) | None in bounded scope |
+
+Five MEDIUM findings were validated and author-repaired in the successor:
+
+- PD-001: parent plan S10 now uses canonical Fehrest/Byan scope; task O001/O002/O004/O006/O007 and federation/scheduling/provider extensions are explicitly conditional on a separate canonical roadmap/slice decision. The mandatory frontier ends in Fehrest/Byan intelligence, not an implied automation grant.
+- PARENT-ACC-001: Ponytail's list is explicitly a user-visible flow, with mandatory S3/S4 retrieval, S5 planning and S6/S7 Case/provider integration prerequisites; it cannot be followed as contradictory implementation order.
+- AF-DYN-001: the canonical Assurance contract section 24 now owns mandatory encrypted transport and per-redirect destination/target/method/current network/Nawat/credential checks, withholding and non-secret failure evidence. Existing AF-S7-D001/002 own the negative fixtures; the plan is a consumer.
+- PCT-SOURCE-001: the Connections matrix distinguishes Zapier's specification/behavior/clean-room oracle-only default from Activepieces' separately gated bounded SDK adaptation. Nango remains a behavior oracle here; this repair grants no source/dependency admission.
+- INT-001: WEB-TB4 binds upload exact artifact/control/access/grant and immediate queue-enforced InputLease evidence; download proves bounded inert staging, completeness/classification, quarantine and separately authorized release/use. Existing WEB-S3-005/S8-003/S8-004 carry positives and negatives, with parent traceability and interactive-surface review context. No new runtime or task namespace is introduced.
+
+Two non-material navigation/wording observations were also repaired: the index mechanism list now includes the adversarial source recheck, and the hardening task introduction accurately names S3-S10 with conditional deferred scheduling.
+
+Separate source replies 3960082100, 3960083792, 3960084318, 3960089013 and 3960086280 independently verified all five earlier acc1ce2 findings absent at 4afec24. This does not verify the new five campaign repairs or qualify the successor. All acceptance-critical target bindings, current deterministic checks, complete final-scope coverage and whole-package synthesis remain required. Future implementation fixtures remain unrun.
+
+Build learning: whole-file bounded assessments expose missing contract-to-plan-to-task-to-acceptance joins that a general selected-file review can miss. Preserve source categories exactly across matrices, distinguish user flow from delivery order, and apply roadmap corrections to every consumer. Completed per-file tables and independent narrow repair answers remain inputs to a separate whole-package acceptance decision, not substitutes for it.

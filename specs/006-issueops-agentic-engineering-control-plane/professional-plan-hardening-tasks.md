@@ -9,7 +9,7 @@ IMPLEMENTATION_AUTHORITY = NONE
 SOURCE_ADMISSION = NONE
 ```
 
-This task map binds the material findings from the 2026-09-02 whole-plan professional review to the existing S3-S9 roadmap. It does not create a new roadmap or authority path.
+This task map binds the material findings from the 2026-09-02 whole-plan professional review to the existing S3-S10 roadmap, with S10 scheduling explicitly conditional and deferred. It does not create a new roadmap or authority path.
 
 ## Contract convergence — before any owning implementation tranche
 

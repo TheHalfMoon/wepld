@@ -76,7 +76,9 @@ COPY_ALL_DONOR_SOURCE = REJECT
 PULL_S3_PLUS_SCOPE_INTO_S2 = REJECT
 ```
 
-## Minimum useful vertical sequence
+## Minimum useful user-visible flow
+
+The list below describes the user's end-to-end flow after its prerequisites exist; it is not implementation order. `tasks.md` Mandatory dependency frontier and `plan.md` section 11 control delivery: S3 inert intake -> S3/S4 intake-to-cited-evidence checkpoint -> S4 provenance-first retrieval -> S5 routing/context planning -> S6/S7 qualified Case/provider and worker integration. Case representation and triage consume that retrieval foundation; they cannot create a temporary parallel context store or bypass the owning S6/S7 gates. GitHub access and all later effects require their separate route/authority gates.
 
 1. inert artifact intake;
 2. local Case import/representation;

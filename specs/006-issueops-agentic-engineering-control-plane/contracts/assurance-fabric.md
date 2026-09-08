@@ -797,6 +797,12 @@ stop conditions
 secret/private-data handling
 ```
 
+Before credential attachment, each dynamic engine MUST consume the full CredentialCapability and execution-envelope contract from `contracts/runtime-execution-fabric.md`. Every HTTP hop requires authenticated HTTPS with current certificate-chain and hostname validation; a separately qualified non-HTTP transport requires equivalent peer authentication and confidentiality. Plaintext, invalid peer identity or protocol downgrade MUST withhold credentials.
+
+Every redirect MUST be checked as a new destination boundary before forwarding or reinjecting credentials: canonicalize and validate origin, host, port, protocol, resource and method; revalidate the explicit target set, permitted endpoints, current network/Nawat authority and exact account/credential scope. A changed origin or authorization boundary MUST withhold credentials until separately qualified and explicitly authorized. Cross-origin forwarding never inherits the original request's credential authority. An HTTP redirect cannot auto-upgrade and receive credentials without those checks. Insecure, expired/revoked, unresolved or out-of-scope destinations MUST block the request and retain bounded non-secret failure evidence. No adapter's automatic redirect behavior may bypass these checks.
+
+`006-AF-S7-D001` and `006-AF-S7-D002` own the target/method/redirect, transport, revocation and zero-credential-forwarding negative fixtures. These requirements apply before the first dynamic scan; the plan's section 9.5 is a consumer of this contract, not an alternate owner.
+
 ## 25. IDE boundary
 
 IDE adapters may render plans, claim assessments, findings, evidence, test results, coverage, history, and stale state. IDE UI actions do not bypass the core contracts.

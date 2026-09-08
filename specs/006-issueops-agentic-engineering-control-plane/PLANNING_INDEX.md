@@ -100,6 +100,7 @@ Task-map presence does not activate implementation. The canonical owning slice/a
 
 ### Specific mechanism quarries
 
+- `research/adversarial-mechanism-recheck-2026-09-06.md`
 - `research/product-capability-source-study-2026-09-06.md`
 - `research/munder-difflin-2026-09-01.md`
 - `research/openhands-qualified-mechanism-extraction-2026-09-02.md`

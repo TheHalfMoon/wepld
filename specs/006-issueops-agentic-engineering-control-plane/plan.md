@@ -590,14 +590,13 @@ Before any consequential S8 dispatch, the S6 execution path must already provide
 - issue-to-change-to-test-to-review-to-closeout trace;
 - replay/recovery and audit export.
 
-### S10 — organization-scale Issue Intelligence
+### S10 — Fehrest expansion and Byan outcome intelligence
 
-- multi-repository backlog sweeps;
-- recurring root-cause analytics;
-- duplicate/regression intelligence;
-- cross-provider federation;
-- outcome/throughput/quality analytics;
-- optional advanced retrieval/reranking expansion.
+- dynamic graph evidence and cross-project architecture intelligence through Fehrest;
+- historical root-cause, duplicate/regression, outcome/throughput/quality and benchmark analytics through Byan;
+- qualified optional retrieval/reranking expansion within the canonical Fehrest scope.
+
+Byan learns from outcomes and never authorizes effects. Federation, recurring autonomous sweeps and multi-worker scheduling are conditional follow-on candidates requiring a separate canonical roadmap/slice decision, not required S10 deliverables. The corresponding task IDs retain planning traceability only; product plan section 13 and the canonical master plan control activation and prerequisites.
 
 ## 12. Delivery strategy
 

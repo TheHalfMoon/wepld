@@ -99,13 +99,15 @@ DOWNLOAD
   -> DownloadObservation
   -> inert InputArtifact
   -> classification/quarantine
-  -> separately qualified follow-on use
+  -> separately qualified and authorized release/follow-on use
 
 UPLOAD
   -> explicit authorized InputArtifact
   -> current access-policy check
   -> exact browser context/origin
   -> Nawat grant
+  -> acquire current exact-control InputLease
+  -> enforcing queue revalidates lease expiry/epoch/fence, ownership, target and grant immediately before file selection
   -> transfer
   -> postcondition evidence
 ```
@@ -385,7 +387,9 @@ explicit intent
 -> evidence
 ```
 
-A later artifact-transfer tracer bullet should separately prove download -> inert InputArtifact -> quarantine and upload from one exact authorized InputArtifact.
+### WEB-TB4 — bounded artifact transfer
+
+Before claiming upload/download support, the owning S8 tranche MUST satisfy `web-agent-acceptance.md` WEB-TB4 and `006-WEB-S3-005` / `006-WEB-S8-003` / `006-WEB-S8-004`, consuming `contracts/interactive-surfaces.md` and `contracts/web-agent-boundary.md`. Upload binds an exact authorized artifact, current access, browser/file-chooser control and expiring fenced InputLease at the enforcing queue immediately before selection; expiry, takeover, stale epoch/control or artifact mismatch proves zero selection/transfer. Download proves bounded inert staging, partial/failure classification, quarantine retention and a separately qualified/authorized release or use. Classification and transfer success cannot authorize parsing, execution, retrieval admission or Trusted Completion.
 
 ## 12. Qualification criteria
 

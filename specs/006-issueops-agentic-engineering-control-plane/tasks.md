@@ -205,7 +205,9 @@ Requires S8 authority and successful lower-ceiling qualification.
 - [ ] `006-S9-E005` Add Build Learning capture from successful and failed Cases.
 - [ ] `006-S9-E006` Bound evidence growth with content-addressed deduplication/projection/retention rules while preserving acceptance-critical provenance.
 
-## S10 — Organization-scale issue intelligence
+## S10 — Fehrest expansion / Byan analytics and conditional follow-on candidates
+
+Canonical S10 owns Fehrest dynamic graph/cross-project architecture evidence and Byan historical outcome/benchmark analytics, without effect authority. O003/O005 supply bounded analytical contributions. O001/O002/O004/O006/O007 are conditional follow-on candidates: their preserved IDs do not add federation, scheduling or new providers to canonical S10. They require a separate canonical roadmap/slice decision and all earlier identity, access, qualification, authority and durable-effect prerequisites before activation.
 
 - [ ] `006-S10-O001` Add multi-repository Case federation.
 - [ ] `006-S10-O002` Add cross-provider Case federation with explicit conflict preservation.
@@ -226,7 +228,7 @@ S3 InputArtifact
   -> S7 independent assurance
   -> S8 autonomous repair/landing + Trusted Completion
   -> S9 evidence/recovery
-  -> S10 organization-scale automation
+  -> S10 Fehrest expansion / Byan historical intelligence
 ```
 
 GitHub read-only Case import may be developed only when its source/network/auth route is independently authorized; GitHub write effects MUST NOT be used to shortcut the dependency frontier.

@@ -30,7 +30,7 @@ These tasks are planning dependencies only. They require activation through the 
 - [ ] `006-WEB-S3-002` Specify browser process/session containment capability report without creating browser execution authority.
 - [ ] `006-WEB-S3-003` Define browser effect envelopes for observe, navigate, interact, submit, upload, download, and target-connect classes.
 - [ ] `006-WEB-S3-004` Prove authenticated-session/cookie presence creates no authority or WorkflowIntent.
-- [ ] `006-WEB-S3-005` Add inert browser evidence intake for screenshot/page observation artifacts.
+- [ ] `006-WEB-S3-005` Add inert browser evidence intake for screenshot/page observation artifacts and synthetic download artifacts; preserve bounded staging identity, completeness/failure and classification evidence, quarantine partial/unclassified bytes, and prove no automatic parsing/execution/RAG admission. This is an intake seam, not browser execution authority; live transfer and release proofs belong to WEB-TB4 at S8.
 - [ ] `006-WEB-S3-006` Add Windows-first browser/WebView2 process identity and containment investigation when the owning S3 route permits it.
 
 ## S4 — browser evidence / Project Brain integration
@@ -79,8 +79,8 @@ These tasks are planning dependencies only. They require activation through the 
 
 - [ ] `006-WEB-S8-001` Implement WEB-TB3 on a controlled local test page: explicit intent -> complete EffectProposal -> exact tool/browser session/profile/context/origin/document/navigation/tool generation -> preview -> Mirefa WebRouteQualification -> exact Nawat grant -> dispatch revalidation -> invoke once -> verify postcondition -> evidence. A stale qualification or changed auth/profile/context blocks dispatch.
 - [ ] `006-WEB-S8-002` Implement duplicate/retry/idempotency protection for WebMCP actions.
-- [ ] `006-WEB-S8-003` Implement separate effect classes for navigation, interaction, submit, upload, and download.
-- [ ] `006-WEB-S8-004` Revalidate after material navigation, origin, authentication, profile, target, tool-set, definition, containment, or grant-expiry changes.
+- [ ] `006-WEB-S8-003` Implement separate effect classes for navigation, interaction, submit, upload, and download. After S3 inert intake, S6 qualified surface/route and S7 security prerequisites, implement WEB-TB4: exact authorized InputArtifact/current access/handling, exact file-chooser control, current Nawat grant, InputLease acquisition and immediate enforcing-queue expiry/epoch/fence/ownership validation before upload selection; download bounded inert staging and completeness/classification/quarantine evidence, with separately qualified/authorized release/use and no automatic parse/execute/RAG admission.
+- [ ] `006-WEB-S8-004` Revalidate after material navigation, origin, authentication, profile, target, tool-set, definition, containment, or grant-expiry changes. WEB-TB4 negatives MUST prove zero upload selection/transfer for lease expiry, fencing, user takeover, stale control/epoch, artifact substitution, access revocation or changed grant; partial, failed, unclassified, hazardous or unauthorized-release downloads remain inert in bounded quarantine. Record exact artifact/surface/lease/grant and refused-transition evidence without reusable secrets.
 - [ ] `006-WEB-S8-005` Fail closed when WebMCP becomes unavailable; do not silently downgrade to raw automation.
 - [ ] `006-WEB-S8-006` Integrate controlled browser reproduce/repair/verify loop into one IssueOps Case.
 - [ ] `006-WEB-S8-007` Prove browser success, WebMCP success, or page state cannot directly create Trusted Completion.

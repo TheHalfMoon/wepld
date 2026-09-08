@@ -288,7 +288,7 @@ These tables make supplemental tasks refinements of existing requirements, not n
 | WEB-P001..008 | PCT-FR-X, FR-032..036; WB/source gate | M, web-agent-acceptance.md; exact source/protocol/privacy/adversarial qualification |
 | WEB-S3-001..006, WEB-S4-001..005 | FR-033/034/051, PCT-FR-BR; WB/IS/RR | J/C, BR-A; identity, inert intake, provenance before execution |
 | WEB-S5-001..008, WEB-S6-001..011 | FR-032/035/036, PCT-FR-WM; WB/CS/WD | J, WM-A; WEB-TB0/1 bounded untrusted discovery/qualification/publisher read/proposal-only |
-| WEB-S7-001..006, WEB-S8-001..008 | FR-027/028/032..035, PCT-FR-BR/WM/AF; WB/AF/RI | J/K, BR-A/WM-A/AF-A; WEB-TB2/3 hostile input, fresh qualification, bounded actuation and independent repair |
+| WEB-S7-001..006, WEB-S8-001..008 | FR-014..016/027/028/031..035, PCT-FR-BR/WM/AF; WB/IS/AF/RI | D/E/J/K, BR-A/WM-A/AF-A; WEB-TB2/3 hostile input, fresh qualification, bounded actuation and independent repair; WEB-TB4 exact artifact/control/InputLease upload and inert quarantine-to-authorized-release download proofs, with WEB-S3-005 intake prerequisite |
 | WEB-S9-001..003, WEB-S10-001..003 | FR-031/044, PCT-FR-BR/WM; WB/RD/AF | J/L; exact historical context/privacy and qualified recovery; later policy/scale conditional under product plan §13 |
 | OH-S3-001/002, OH-S6-001/002 | FR-019/021/022/045/046/060; RF/WD/RD | G/runtime A/C/L; capability separation, observed presence, exact binding and removed-backend refusal |
 | OH-S7-001..006 | AF-FR009/010/011/030/049; AF/Fehrest/RI | I, AF-TB2/3; deterministic architecture rule, evidence-proportional review and independent coverage |

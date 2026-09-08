@@ -177,3 +177,7 @@ Build learning: enumerate every declared non-clean outcome instead of relying on
 
 
 Independent source-fact replies 3957362928 and 3957374308 verified the exact acc1ce2 ContextPackage and WorkerRequirement definitions and their consumers, and CodeRabbit closed both older threads. The separate completed-run metadata response 5584389897 explicitly states that the standard output does not establish assessment of all 58 selected files, every necessary canonical context file, or complete cross-document coherence. That coverage limitation remains real even though the five reported findings have author repairs; fresh explicit coverage evidence is required before acceptance.
+
+### Entry-index roadmap consistency repair
+
+Baseline source assessment 5584486268 records complete examination of twelve trusted-base context files and PLANNING_INDEX at 17cdebe. Author comparison with canonical MASTER_PLAN_V2_3 section S10 nevertheless found that the index still promoted organization-scale federation/scheduling into the required S10 summary, contrary to the already-correct product plan section 13. The index now preserves canonical Fehrest/Byan placement and marks those extensions conditional. The provider's no-material-gap conclusion is not accepted for that mismatch; the successor index and complete final package still need independent assessment. Build learning: verify a review's conclusions against the cited canonical source, including short navigation summaries; a completion table does not itself prove correctness.

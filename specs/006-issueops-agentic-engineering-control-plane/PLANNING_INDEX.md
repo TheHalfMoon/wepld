@@ -198,10 +198,10 @@ S6 = Mission Runtime/UWC/Edara/Mirefa/Nawat integration + WK/AU/IS interoperabil
 S7 = Native Assurance + connector/browser/WebMCP/Computer Use qualification
 S8 = controlled repair/effect dependency + bounded Automation/Browser/Computer actuation
 S9 = complete evidence/runtime/quality/recovery + long-lived Automation/Work continuation
-S10 = organization-scale analytics/federation/scheduling + route/outcome intelligence
+S10 = Fehrest expansion + Byan dynamic graph / cross-project and historical outcome intelligence
 ```
 
-No roadmap renumbering is implied.
+No roadmap renumbering is implied. Canonical `docs/canonical/MASTER_PLAN_V2_3_AGENT_CONTROL_PLANE.md` and `product-capability-tracks-plan.md` section 13 govern this placement. Federation, organization policy and scheduling extensions are conditional follow-on candidates, not additions to canonical S10's required scope. Their safety prerequisites cannot be postponed until analytics; Byan learns from outcomes and never authorizes effects.
 
 ## 10. Product capability maturity
 

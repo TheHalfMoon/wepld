@@ -72,7 +72,7 @@ BrowserSessionObservation {
 }
 ```
 
-Authentication state is an observation only. Credential material SHOULD remain inaccessible by default and MUST NOT be copied into agent context merely because the browser can use it.
+Authentication state is an observation only. Credential material MUST remain inaccessible by default and MUST NOT be copied into agent context merely because the browser can use it.
 
 ## BrowserContextObservation
 

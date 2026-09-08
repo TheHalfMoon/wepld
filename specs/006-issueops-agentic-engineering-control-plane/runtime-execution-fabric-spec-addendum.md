@@ -61,7 +61,7 @@ CREDENTIAL_CAPABILITY != EFFECT_AUTHORITY
 EGRESS_ALLOWLIST != CREDENTIAL_AUTHORITY
 ```
 
-Direct reusable-secret exposure MUST be explicit, separately qualified, and visible as a weaker security route.
+Direct reusable-secret exposure MUST be explicit, separately qualified, authorized and visible as a weaker security route. Every delivery mode and its ExecutionEnvelope binding consumes the full canonical CredentialCapability contract: direct mode requires structured exact-scope exception evidence and current Nawat authority before release; broker-required policy cannot be bypassed. Client compatibility or a visible warning alone never authorizes exposure.
 
 ## FR-050 — Generic harness protocol + explicit dialect extension
 

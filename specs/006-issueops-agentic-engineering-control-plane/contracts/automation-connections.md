@@ -227,7 +227,7 @@ CONNECTION_AVAILABLE != CONNECTION_QUALIFIED
 
 ## 8. Credential capability boundary
 
-A future credential broker should prefer references/capabilities over exposing raw secrets to workers. A credential capability must state enough scope to prevent ambient credential reuse, such as service/account, operation class, target scope, validity/expiry, and broker/runtime identity where applicable.
+The broker MUST consume the complete CredentialCapability and ExecutionEnvelope contracts in `runtime-execution-fabric.md`, including all required scope, activation, delivery-mode, exception, revocation, usage and transport fields. Broker-based delivery is the default; direct secret exposure follows the canonical explicit qualification/exception-authority and Nawat release requirements and cannot bypass a broker-required policy. This product boundary does not define a reduced capability schema or optional scope defaults.
 
 Separate decisions remain required for:
 

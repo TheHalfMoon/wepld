@@ -307,7 +307,7 @@ GENERIC_PROTOCOL_ADAPTER_GETS_NO_VENDOR_SECRET_FAMILY_BY_DEFAULT
 WORKER_REQUEST_FOR_ENV != ENV_AUTHORITY
 ```
 
-Environment evidence should record names/classes and policy identities, not raw secret values.
+Environment evidence MUST record only permitted names/classes and policy identities, excluding raw ambient environment values and reusable secrets before persistence, logging or egress. This is the mandatory FR-056/RT privacy boundary, not an optional later redaction step.
 
 ## `CredentialCapability`
 

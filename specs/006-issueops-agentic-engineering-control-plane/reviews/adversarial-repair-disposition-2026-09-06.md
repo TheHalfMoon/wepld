@@ -154,3 +154,8 @@ CodeRabbit full run `70379774-3a8a-4c7b-9f0b-e0dfc530c680`, review `5136026172`,
 | 3953277958 | RetrievalEvidence generation references now resolve to immutable exact parser and index/projection implementation/configuration provenance, with direct-read/no-index semantics, replacement generations and incomplete-provenance negatives. No second provenance store is added. |
 
 Build learning: statement-level consistency requires checking downstream plan summaries and task/acceptance joins, not only the canonical schema. Optional-looking or unrecorded delivery exceptions must be explicit, scoped evidence; exact source bytes alone do not identify the parser/index that produced a result. Reviewer command handling also matters: natural-language messages containing command words can be classified as commands, so an invocation/rate-limit notice is not a scope assessment or verification result.
+
+
+### Consumer consistency follow-through before successor qualification
+
+Author inspection of remaining credential/privacy summaries found weaker wording in AC section 8, runtime FR-049, RF EnvironmentExposurePolicy evidence and WB authentication-state defaults. These now explicitly consume the full canonical delivery/exception/authority contract or mandate the already-required default confidentiality and pre-persistence environment/secret exclusion. This is consistency repair within existing requirements and task coverage, not a new credential mechanism or current executable policy. Fresh exact-head checks and independent assessment remain required after these edits.

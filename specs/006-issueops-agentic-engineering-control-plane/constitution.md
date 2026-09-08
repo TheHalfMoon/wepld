@@ -2,7 +2,7 @@
 
 ```text
 STATUS = FUTURE_PLANNING_CANDIDATE
-CANONICAL_BASE = 573670eca575a5972e52b623b01b3143d036d281
+PLANNING_ORIGIN_BASE = 573670eca575a5972e52b623b01b3143d036d281
 CURRENT_ACTIVE_SLICE = S2
 ROADMAP = P0 + S1..S10
 ROADMAP_REMAP = NONE
@@ -21,7 +21,7 @@ This specification plans a future WePLD-native control plane for issue operation
 
 ## Inherited authority
 
-All canonical repository governance at the exact trusted base remains controlling, especially:
+`PLANNING_ORIGIN_BASE` records historical planning provenance only. Resolve the exact live PR base and current canonical governance before every review or activation decision; the origin value is never policy authority or freshness evidence. All canonical repository governance at that exact trusted base remains controlling, especially:
 
 - `AGENTS.md`
 - `docs/canonical/ARCHITECTURE_INVARIANTS.md`

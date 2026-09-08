@@ -118,7 +118,7 @@ IMPLEMENTATION_AUTHORITY = NONE
 - [ ] Browser diagnostics capture only the minimum authorized evidence and follow evidence handling policy.
 - [ ] WebMCP/tool poisoning/output injection/cross-origin/session-confusion/artifact/duplicate-invocation negative oracles are explicit.
 - [ ] WePLD publisher mode, if activated later, exposes intent/proposal surfaces rather than direct authority.
-- [ ] WEB-TB0/1/2/3 provide incremental protocol/browser qualification before production actuation.
+- [ ] WEB-TB0/1/2/3 provide incremental protocol/browser qualification before production actuation; WEB-TB4 additionally proves exact artifact/control/InputLease uploads and inert download quarantine-to-authorized-release semantics before claiming artifact-transfer support.
 - [ ] Chrome/Edge/WebView2 support claims are reverified at owning acquisition time rather than frozen from planning research.
 
 ## Recovery / completion / durable evidence

@@ -2,13 +2,15 @@
 
 ```text
 STATUS = FUTURE_PLANNING_CANDIDATE
-CANONICAL_BASE = 573670eca575a5972e52b623b01b3143d036d281
+PLANNING_ORIGIN_BASE = 573670eca575a5972e52b623b01b3143d036d281
 CURRENT_ACTIVE_SLICE = S2
 ROADMAP_REMAP = NONE
 IMPLEMENTATION_AUTHORITY = NONE
 ```
 
 ## 1. Objective
+
+`PLANNING_ORIGIN_BASE` is historical provenance, not the current review or activation base. Resolve the exact live PR base and current canonical governance before those decisions, following PLANNING_INDEX and the parent acceptance gate.
 
 Build WePLD into the governed operating environment where humans and agents can take an engineering issue from discovery to verified completion with the least necessary human intervention. The system must unify issue operations, arbitrary knowledge retrieval, artifact intake, workflow skills, worker delegation, assurance, and evidence without collapsing qualification, authorization, provider state, and completion into one concept.
 

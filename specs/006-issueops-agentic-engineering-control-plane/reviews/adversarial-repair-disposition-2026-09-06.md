@@ -213,3 +213,27 @@ Two non-material navigation/wording observations were also repaired: the index m
 Separate source replies 3960082100, 3960083792, 3960084318, 3960089013 and 3960086280 independently verified all five earlier acc1ce2 findings absent at 4afec24. This does not verify the new five campaign repairs or qualify the successor. All acceptance-critical target bindings, current deterministic checks, complete final-scope coverage and whole-package synthesis remain required. Future implementation fixtures remain unrun.
 
 Build learning: whole-file bounded assessments expose missing contract-to-plan-to-task-to-acceptance joins that a general selected-file review can miss. Preserve source categories exactly across matrices, distinguish user flow from delivery order, and apply roadmap corrections to every consumer. Completed per-file tables and independent narrow repair answers remain inputs to a separate whole-package acceptance decision, not substitutes for it.
+
+
+## Fresh complete-file campaign at ede8ae8 — 2026-09-08
+
+Response [5592021587](https://github.com/TheHalfMoon/wepld/pull/241#issuecomment-5592021587) independently verified the five 4afec24 campaign repairs at `ede8ae83e04a5b09bd4109f87f27d01a2d00028b`, but explicitly limited its scope to targeted repair verification. It did not establish complete successor coherence and was not accepted as the whole-package gate. A fresh ten-group campaign then read all 58 files completely at ede8ae8, tree `94113802d4b79892920031bdd7eb2026e927862d`, under unchanged base `00acb57887af4a3073374c3bfa76c506deda6f92`.
+
+| Group | Fresh complete-file response | Material findings |
+|---|---|---|
+| 1 parent_design | [5592055120](https://github.com/TheHalfMoon/wepld/pull/241#issuecomment-5592055120) | PD-BASE-001 |
+| 2 parent_acceptance | [5592065960](https://github.com/TheHalfMoon/wepld/pull/241#issuecomment-5592065960) | None in bounded scope |
+| 3 domain_contracts | [5592058482](https://github.com/TheHalfMoon/wepld/pull/241#issuecomment-5592058482) | None in bounded scope |
+| 4 runtime_contracts | [5592057908](https://github.com/TheHalfMoon/wepld/pull/241#issuecomment-5592057908) | None in bounded scope |
+| 5 assurance_design | [5592059836](https://github.com/TheHalfMoon/wepld/pull/241#issuecomment-5592059836) | None in bounded scope |
+| 6 assurance_tasks | [5592054747](https://github.com/TheHalfMoon/wepld/pull/241#issuecomment-5592054747) | None in bounded scope |
+| 7 product_tracks | [5592056221](https://github.com/TheHalfMoon/wepld/pull/241#issuecomment-5592056221) | None in bounded scope |
+| 8 interactive | [5592055593](https://github.com/TheHalfMoon/wepld/pull/241#issuecomment-5592055593) | None in bounded scope |
+| 9 source_studies | [5592060243](https://github.com/TheHalfMoon/wepld/pull/241#issuecomment-5592060243) | None in bounded scope |
+| 10 historical_evidence | [5592054526](https://github.com/TheHalfMoon/wepld/pull/241#issuecomment-5592054526) | None in bounded scope |
+
+The single MEDIUM finding, PD-BASE-001, identified two stale CANONICAL_BASE headers in constitution.md and plan.md. Both now preserve the original hash only as PLANNING_ORIGIN_BASE and explicitly require the exact live PR base/current canonical governance for review and activation. Other historical reviewed hashes remain historical; no current authority is inferred from them.
+
+Two non-material consumer details were clarified in the same successor: the parent checklist explicitly includes WEB-TB4 artifact-transfer evidence, and Assurance TB-B uses the canonical reachability enum instead of KNOWN/UNKNOWN shorthand. Historical research vocabulary retains its explicit normalization mapping. These refinements change no owner, task namespace, source admission or runtime authority.
+
+Build learning: immutable historical hashes need historical field names even when surrounding documents generally defer to live governance. Read complete documents, including short metadata headers and consumer summaries. Reviewer guidance for targeted repair verification must not silently reduce an explicitly requested fresh whole-file assessment. This successor still requires current deterministic checks, completed final-scope independent assessment, cross-group coherence and final live race verification; this author record is not acceptance.

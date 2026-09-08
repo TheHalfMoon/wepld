@@ -985,7 +985,7 @@ No network required.
 fixture repo with seeded secret + dependency vulnerability + unsafe workflow
 -> local deterministic adapters
 -> normalized findings/SBOM/security evidence
--> reachability = KNOWN / UNKNOWN, never fabricated
+-> canonical reachability = REACHABLE / UNREACHABLE_PROVEN / CONDITIONALLY_REACHABLE / UNKNOWN_DYNAMIC / UNKNOWN_UNSUPPORTED / NOT_APPLICABLE, never fabricated
 -> exact finding reproduction/locations
 ```
 

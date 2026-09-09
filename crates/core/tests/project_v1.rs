@@ -6,6 +6,11 @@ use wepld_contracts::{
     MachinePath, Observation, ObservationErrorClass, ProjectContractVersion, ProjectLocator,
     UnixMillis,
 };
+#[cfg(unix)]
+use wepld_core::identity::{
+    ProjectMatchFacts, ReservationRecovery, allocate_project_id, build_reservation,
+    recover_reservation,
+};
 use wepld_core::{
     DataRootInputs, DataRootSource, MAX_PATH_COMPONENT_OBSERVATIONS, PathEntryKind,
     ProjectObservationError, ProjectRootBasis, classify_path_io_error, lexical_absolute_path,
@@ -395,6 +400,76 @@ fn broken_symlink_target_is_reported_not_fabricated() {
         },
         "the dangling link entry itself is observed as a Symlink"
     );
+}
+
+/// S2-S001 / threat model T-002 (TOCTOU replacement).
+///
+/// The attacker reserves nothing directly; instead, between an opener's
+/// reservation and a later recovery of that same reservation, the attacker
+/// retargets a symlink that both observations name by the same input path.
+/// `ProjectMatchFacts::facts_digest` is documented to bind identity to the
+/// *resolved* path precisely so this race is detected rather than silently
+/// merged, so recovery over the retargeted link must report `Mismatch`.
+/// Complements `reservation_for_different_facts_is_not_adopted` in
+/// `identity_store_v1.rs`, which proves the same decision against two
+/// independently synthetic facts values and never touches a filesystem;
+/// this test proves the decision fires against a genuine same-input-path
+/// race, where the attacker changes what the *link* resolves to rather than
+/// what path is asked for.
+#[cfg(unix)]
+#[test]
+fn symlink_retargeted_between_reservation_and_recovery_is_a_toctou_mismatch() {
+    use std::os::unix::fs::symlink;
+
+    let dir = scratch_dir("toctou-symlink");
+    let real_original = dir.join("real-original");
+    let real_attacker = dir.join("real-attacker");
+    std::fs::create_dir_all(&real_original).expect("create original real directory");
+    std::fs::create_dir_all(&real_attacker).expect("create attacker real directory");
+
+    let link = dir.join("project-link");
+    symlink(&real_original, &link).expect("create initial symlink to the original directory");
+
+    let locator_at_reservation = observe_project_locator(&link, &dir, UnixMillis::new(21))
+        .expect("initial locator observation through the symlink must succeed");
+    let facts_at_reservation = ProjectMatchFacts::new(locator_at_reservation);
+    let project_id = allocate_project_id().expect("allocate a project id");
+    let reservation = build_reservation(
+        project_id.clone(),
+        &facts_at_reservation,
+        UnixMillis::new(21),
+    )
+    .expect("build the initial reservation");
+
+    // The attacker retargets the same link, still at the same input path, to
+    // a different real directory before recovery observes it again.
+    std::fs::remove_file(&link).expect("remove the original symlink");
+    symlink(&real_attacker, &link).expect("retarget the symlink to the attacker directory");
+
+    let locator_at_recovery = observe_project_locator(&link, &dir, UnixMillis::new(22))
+        .expect("post-retarget locator observation through the symlink must succeed");
+    let facts_at_recovery = ProjectMatchFacts::new(locator_at_recovery);
+
+    assert_eq!(
+        recover_reservation(&reservation, &facts_at_recovery)
+            .expect("recovery decision must not itself fail"),
+        ReservationRecovery::Mismatch,
+        "a retargeted link must never let recovery resume the reservation under a different real location"
+    );
+
+    // Sanity: recovering against the *original*, unretargeted facts still
+    // resumes normally, so the mismatch above is caused by the retarget and
+    // not by some unrelated defect in observation or digesting.
+    let recovered = recover_reservation(&reservation, &facts_at_reservation)
+        .expect("recovery decision must not itself fail");
+    match recovered {
+        ReservationRecovery::ResumeSameProject {
+            project_id: resumed,
+        } => {
+            assert_eq!(resumed, project_id);
+        }
+        other => panic!("expected ResumeSameProject for the unretargeted facts, got {other:?}"),
+    }
 }
 
 /// S2-S004: machine-path representation preserves the caller's exact case; it

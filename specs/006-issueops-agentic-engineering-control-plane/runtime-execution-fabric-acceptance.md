@@ -135,4 +135,4 @@ The planning candidate is not internally complete unless the execution-fabric ha
 - [ ] Canonical NawatDecision has one shared outcome enum and grant_id exactly for ALLOW; web/worker adapters cannot treat approval/transform as grants.
 - [ ] Runtime privacy excludes raw environment/reusable secrets before S6 persistence; S9 replay/export/restore fixtures preserve that exclusion.
 
-These criteria map respectively to FR-046/062 (OM-S5-002, OM-S6-005, 006-RT-S6-005), FR-022/053 (006-S6-D015..018, OM-S8-001 and WEB-S8-001), and FR-056 (006-RT-S6-PRIV001/006-RT-S9-PRIV001). `analyze.md` supplies the full bidirectional runtime map. Planning evidence is the named complete contract; future execution evidence remains required at the owning slice.
+These criteria map respectively to FR-046/062 (OM-S5-002, OM-S6-005, 006-RT-S6-005), FR-022/053 (006-S6-D015..018, OM-S8-001 and 006-WEB-S8-001), and FR-056 (006-RT-S6-PRIV001/006-RT-S9-PRIV001). `analyze.md` supplies the full bidirectional runtime map. Planning evidence is the named complete contract; future execution evidence remains required at the owning slice.

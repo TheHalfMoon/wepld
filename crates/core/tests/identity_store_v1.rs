@@ -21,6 +21,23 @@
 //! deletion authority, so temporary stores are left in the Cargo target
 //! temporary directory rather than being removed, which mirrors the store's own
 //! never-delete rule.
+//!
+//! `symlink_retargeted_between_reservation_and_recovery_is_a_toctou_mismatch`
+//! covers the reservation/recovery half of S2-S001 (threat model T-002,
+//! TOCTOU replacement): a real on-disk symlink is retargeted to a different
+//! real directory between reservation and recovery, and `recover_reservation`
+//! must report `Mismatch` rather than silently resuming the reservation under
+//! the new location. This complements, and does not duplicate,
+//! `reservation_for_different_facts_is_not_adopted` above: that test proves
+//! the mismatch *decision* against two independently synthetic facts values
+//! and never touches a filesystem, while this one proves the same decision
+//! fires against a genuine same-input-path race, where the attacker changes
+//! what the *link* resolves to rather than what path is asked for. `#[cfg(unix)]`
+//! because it exercises a real `std::os::unix::fs::symlink`; executed natively
+//! on ubuntu-latest + macos-latest (`secondary-platform`). The remaining
+//! S2-S001 scope (reserved/device-name and separator-injection fixtures at the
+//! project-locator layer, distinct from the already-covered
+//! `safe_path_segment` store-ID layer) is not claimed by this entry.
 
 use std::fmt;
 use std::fs;
@@ -45,6 +62,8 @@ use wepld_core::identity::{
     build_identity_record, build_reservation, compare_match_strength, complete_reservation,
     match_strength_rank, recover_reservation, resolve_identity,
 };
+#[cfg(unix)]
+use wepld_core::observe_project_locator;
 use wepld_core::{
     LOCK_ACQUIRE_DEADLINE_MS, MAX_MANIFEST_BYTES, MAX_RECORD_BYTES, PRODUCER_CONTRACT_VERSION,
     build_manifest, busy_error_code, content_digest, redacted_summary, safe_path_segment,
@@ -80,6 +99,7 @@ test_error_from!(
     wepld_contracts::ContractValueError,
     wepld_contracts::ProjectContractCodecError,
     wepld_core::identity::IdentityError,
+    wepld_core::ProjectObservationError,
     StoreError,
     StoreDefect,
     std::io::Error,
@@ -466,6 +486,64 @@ fn reservation_for_different_facts_is_not_adopted() -> TestResult {
         recover_reservation(&reservation, &other_facts)?,
         ReservationRecovery::Mismatch
     );
+    Ok(())
+}
+
+/// S2-S001 / threat model T-002 (TOCTOU replacement).
+///
+/// The attacker reserves nothing directly; instead, between an opener's
+/// reservation and a later recovery of that same reservation, the attacker
+/// retargets a symlink that both observations name by the same input path.
+/// `ProjectMatchFacts::facts_digest` is documented to bind identity to the
+/// *resolved* path precisely so this race is detected rather than silently
+/// merged, so recovery over the retargeted link must report `Mismatch`.
+#[cfg(unix)]
+#[test]
+fn symlink_retargeted_between_reservation_and_recovery_is_a_toctou_mismatch() -> TestResult {
+    let root = temp_root("toctou-symlink")?;
+    let real_original = root.join("real-original");
+    let real_attacker = root.join("real-attacker");
+    fs::create_dir_all(&real_original)?;
+    fs::create_dir_all(&real_attacker)?;
+
+    let link = root.join("project-link");
+    std::os::unix::fs::symlink(&real_original, &link)?;
+
+    let locator_at_reservation = observe_project_locator(&link, &root, UnixMillis::new(1))?;
+    let facts_at_reservation = ProjectMatchFacts::new(locator_at_reservation);
+    let project_id = allocate_project_id()?;
+    let reservation = build_reservation(
+        project_id.clone(),
+        &facts_at_reservation,
+        UnixMillis::new(1),
+    )?;
+
+    // The attacker retargets the same link, still at the same input path,
+    // to a different real directory before recovery observes it again.
+    fs::remove_file(&link)?;
+    std::os::unix::fs::symlink(&real_attacker, &link)?;
+
+    let locator_at_recovery = observe_project_locator(&link, &root, UnixMillis::new(2))?;
+    let facts_at_recovery = ProjectMatchFacts::new(locator_at_recovery);
+
+    assert_eq!(
+        recover_reservation(&reservation, &facts_at_recovery)?,
+        ReservationRecovery::Mismatch,
+        "a retargeted link must never let recovery resume the reservation \
+         under a different real location"
+    );
+
+    // Sanity: recovering against the *original*, unretargeted facts still
+    // resumes normally, so the mismatch above is caused by the retarget and
+    // not by some unrelated defect in observation or digesting.
+    let recovered = recover_reservation(&reservation, &facts_at_reservation)?;
+    let ReservationRecovery::ResumeSameProject {
+        project_id: resumed,
+    } = &recovered
+    else {
+        return Err(unexpected("resume same project", &recovered));
+    };
+    assert_eq!(resumed, &project_id);
     Ok(())
 }
 

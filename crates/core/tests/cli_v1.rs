@@ -441,6 +441,73 @@ mod orchestration {
         );
     }
 
+    /// S2-Q004: `wepld open` and `wepld doctor` on a genuinely large project
+    /// tree must not traverse or enumerate it. `run_doctor`'s descriptor scan
+    /// iterates a fixed compile-time allowlist and `symlink_metadata`s each
+    /// name once; `run_open` observes only path components. Two 8 MiB
+    /// non-allowlisted blobs are planted — one at the project root, one buried
+    /// deep in a nested subtree. A whole-tree walk, or even a naive root
+    /// `read_dir` that summed sizes, would read them and cross the Doctor's
+    /// 4 MiB aggregate-descriptor budget, surfacing
+    /// `D-WS-DESCRIPTOR-BUDGET-REJECTED`. A budget-clean run with only a real
+    /// `Cargo.toml` present proves the scan never entered those paths.
+    #[test]
+    fn baseline_open_and_doctor_do_not_traverse_a_large_project_tree() {
+        use std::time::{Duration, Instant};
+
+        let store = scratch("large-repo-store");
+        let project = scratch("large-repo-proj");
+
+        for i in 0..600u32 {
+            fs::write(project.join(format!("junk-{i}.txt")), b"x").unwrap();
+        }
+        let mut deep = project.clone();
+        for i in 0..40u32 {
+            deep = deep.join(format!("nested-{i}"));
+            fs::create_dir_all(&deep).unwrap();
+            fs::write(deep.join("leaf.txt"), b"y").unwrap();
+        }
+        let big = vec![0u8; 8 * 1024 * 1024];
+        fs::write(project.join("huge-blob-not-a-descriptor.bin"), &big).unwrap();
+        fs::write(deep.join("huge-buried.bin"), &big).unwrap();
+        // one legitimate allowlisted descriptor so Doctor has real work to do
+        fs::write(project.join("Cargo.toml"), b"[package]\nname = \"x\"\n").unwrap();
+
+        let started = Instant::now();
+        let opened = run_wepld(&["open", "."], &project, &store);
+        assert_eq!(
+            opened.code, 0,
+            "open on a large tree must succeed: {}",
+            opened.stderr
+        );
+        let doctored = run_wepld(&["doctor", "--json"], &project, &store);
+        assert!(
+            doctored.code == 0 || doctored.code == 5,
+            "doctor on a large tree must complete cleanly: code {} stderr {}",
+            doctored.code,
+            doctored.stderr
+        );
+        let elapsed = started.elapsed();
+
+        assert!(
+            !doctored.stdout.contains("D-WS-DESCRIPTOR-BUDGET-REJECTED"),
+            "doctor read files outside its fixed descriptor allowlist — the two \
+             8 MiB blobs tripped the aggregate budget: {}",
+            doctored.stdout
+        );
+        assert!(
+            elapsed < Duration::from_secs(30),
+            "open+doctor scaled with tree size ({elapsed:?}) — a bounded scan must not"
+        );
+
+        // no .wepld/ written into the project (bounded, non-mutating)
+        let snap = snapshot(&project);
+        assert!(
+            !snap.keys().any(|k| k.starts_with(".wepld/")),
+            "open/doctor must not write into the project tree"
+        );
+    }
+
     #[test]
     fn json_output_is_byte_deterministic_and_control_free() {
         let store = scratch("json-det-store");

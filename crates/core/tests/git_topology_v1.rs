@@ -469,6 +469,79 @@ fn observing_topology_never_writes_safe_directory() {
     );
 }
 
+/// S2-S006/S2-S007: a hostile repository plants an executable script under
+/// every hook name `git` recognizes that could plausibly relate to a
+/// checkout, commit, push, rewrite, or reference update, each of which
+/// creates a marker file if it ever runs. Read-only topology observation
+/// (`observe_git_topology`, which issues only `rev-parse` and `worktree list
+/// --porcelain -z`) must trigger none of them: Git's own design never routes
+/// a plumbing read command through any hook, and this fixture proves that
+/// rather than assuming it -- it would catch a future accidental widening of
+/// the adapter's argv toward a hook-triggering porcelain command. `#[cfg(unix)]`
+/// because it relies on the executable permission bit to make the hook
+/// scripts real, runnable programs; executed natively on ubuntu-latest +
+/// macos-latest (`secondary-platform`).
+#[cfg(unix)]
+#[test]
+fn topology_observation_never_triggers_a_repository_hook() {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let repo = init_committed_repo("hostile-hooks");
+    let evidence = temp_root("hostile-hooks-evidence");
+    let markers = temp_root("hostile-hooks-markers");
+
+    // Pin `core.hooksPath` to the standard `.git/hooks` location explicitly,
+    // repo-locally. Without this, an inherited global/system `core.hooksPath`
+    // pointing elsewhere would make Git consult a directory this fixture
+    // never populates, and the absence of marker files would prove nothing
+    // about hook isolation -- it would just mean the planted hooks were never
+    // in Git's search path to begin with.
+    git(
+        &repo,
+        &["config", "--local", "core.hooksPath", ".git/hooks"],
+    );
+
+    const HOOK_NAMES: &[&str] = &[
+        "pre-commit",
+        "post-commit",
+        "post-checkout",
+        "post-merge",
+        "pre-push",
+        "pre-rebase",
+        "post-rewrite",
+        "reference-transaction",
+        "pre-auto-gc",
+        "post-index-change",
+        "post-applypatch",
+        "fsmonitor-watchman",
+    ];
+
+    let hooks_dir = repo.join(".git").join("hooks");
+    for name in HOOK_NAMES {
+        let marker = markers.join(name);
+        let script = format!("#!/bin/sh\ntouch '{}'\nexit 0\n", marker.display());
+        let path = hooks_dir.join(name);
+        fs::write(&path, script).expect("write hostile hook script");
+        let mut permissions = fs::metadata(&path)
+            .expect("hostile hook metadata")
+            .permissions();
+        permissions.set_mode(0o755);
+        fs::set_permissions(&path, permissions).expect("hostile hook mode");
+    }
+
+    let git_exe = discover_system_git(&repo, &evidence).expect("system Git must qualify on CI");
+    let topology = observe_git_topology(&git_exe, &repo).expect("topology must still resolve");
+    assert_eq!(topology.vcs_kind, VcsKind::Git);
+
+    for name in HOOK_NAMES {
+        let marker = markers.join(name);
+        assert!(
+            !marker.exists(),
+            "hook `{name}` must never fire during read-only topology observation"
+        );
+    }
+}
+
 /// acceptance.md section C "bare repository is explicit": a real `git init
 /// --bare` repository is observed with `is_bare` available and true, checked
 /// against an independent `git rev-parse --is-bare-repository` oracle.

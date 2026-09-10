@@ -490,6 +490,17 @@ fn topology_observation_never_triggers_a_repository_hook() {
     let evidence = temp_root("hostile-hooks-evidence");
     let markers = temp_root("hostile-hooks-markers");
 
+    // Pin `core.hooksPath` to the standard `.git/hooks` location explicitly,
+    // repo-locally. Without this, an inherited global/system `core.hooksPath`
+    // pointing elsewhere would make Git consult a directory this fixture
+    // never populates, and the absence of marker files would prove nothing
+    // about hook isolation -- it would just mean the planted hooks were never
+    // in Git's search path to begin with.
+    git(
+        &repo,
+        &["config", "--local", "core.hooksPath", ".git/hooks"],
+    );
+
     const HOOK_NAMES: &[&str] = &[
         "pre-commit",
         "post-commit",

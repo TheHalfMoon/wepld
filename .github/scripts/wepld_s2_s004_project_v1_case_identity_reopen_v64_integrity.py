@@ -85,7 +85,7 @@ import wepld_integrity as base
 
 P = ".github/scripts/wepld_s2_s004_project_v1_case_identity_reopen_v64_integrity.py"
 T = ".github/scripts/wepld_s2_s004_project_v1_case_identity_reopen_v64_selftest.py"
-T_BLOB = "8f45103e0776245bee174456cddf1fb6e66f02f6"
+T_BLOB = "e34627a28d4bc36ed289263afbac647a8f6fa460"
 
 V63_P_BLOB = "6bba90376b012530f561fd4856f726991b009189"
 V63_T_BLOB = "a39e62208d8771c81a37a198c1dcf7384816df1a"
@@ -226,10 +226,10 @@ for _name in _INHERITED_AUTHORITY_NAMES:
 
 # The one new grant this successor makes. Scoped to exactly one file, exactly
 # once. It does not widen any runtime authority merely because the reopened
-# test drives `observe_project_locator` with `..` / traversal / invalid-path
-# inputs, proving the project-locator layer clamps parent-dir escapes at root,
-# preserves the raw spelling, and reports an unresolvable path as a bounded
-# typed `Observation::Unavailable` rather than panicking or fabricating one.
+# test drives `observe_project_locator` with two paths that differ only by
+# ASCII case, proving identity binds to the resolved path: one project and one
+# `facts_digest` on a case-insensitive filesystem, and a bounded `NotFound` in
+# `resolved_path` on a case-sensitive filesystem, never a fabricated resolution.
 S2_S004_PROJECT_V1_CASE_IDENTITY_REOPEN_AUTHORITY = (
     "SINGLE_USE_TEST_ONLY_REOPEN_OF_PROJECT_V1_RS_FOR_S2_S004_CASE_IDENTITY"
 )
@@ -241,10 +241,10 @@ S2_S004_PROJECT_V1_CASE_IDENTITY_REOPEN_CONTRACT = (
     "NO_SOURCE_CHANGE",
     "NO_MANIFEST_OR_LOCKFILE_CHANGE",
     "NO_NEW_RUNTIME_AUTHORITY",
-    "REAL_GIT_FIXTURE_REQUIRED_NOT_MOCKED",
+    "REAL_FILESYSTEM_FIXTURE_REQUIRED_NOT_MOCKED",
     "NO_NETWORK_EFFECT",
     "NO_PROCESS_AUTHORITY_GRANTED",
-    "REUSES_QUALIFIED_GIT_TOPOLOGY_ADAPTER_ONLY",
+    "REUSES_QUALIFIED_PROJECT_LOCATOR_SURFACE_ONLY",
 )
 
 for _path, _expected in ((q.P, V63_P_BLOB), (q.T, V63_T_BLOB), (T, T_BLOB)):

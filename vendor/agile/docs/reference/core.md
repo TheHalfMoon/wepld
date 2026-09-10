@@ -1,0 +1,97 @@
+# Core Commands
+
+The core `agile` commands handle project initialization, system checks, and version information.
+
+## Initialize a Project
+
+```bash
+agile init [<project_name>]
+```
+
+| Option                   | Description                                                              |
+| ------------------------ | ------------------------------------------------------------------------ |
+| `--integration <key>`    | AI coding agent integration to use (e.g. `copilot`, `claude`, `gemini`). See the [Integrations reference](integrations.md) for all available keys |
+| `--integration-options`  | Options for the integration (e.g. `--integration-options="--commands-dir .myagent/cmds"`) |
+| `--script sh\|ps\|py`    | Script type: `sh` (bash/zsh), `ps` (PowerShell), or `py` (Python)       |
+| `--here`                 | Initialize in the current directory instead of creating a new one        |
+| `--force`                | Force merge/overwrite when initializing in an existing directory         |
+| `--ignore-agent-tools`   | Skip checks for AI coding agent CLI tools                                |
+| `--preset <id>`          | Install a preset during initialization                                   |
+
+Creates a new Agile project with the necessary directory structure, templates, scripts, and AI coding agent integration files.
+
+> [!NOTE]
+> Git repository initialization and branching are managed by the **git extension**, which is not installed by default. Run `agile extension add git` after init to enable git workflows.
+
+Use `<project_name>` to create a new directory, or `--here` (or `.`) to initialize in the current directory. If the directory already has files, use `--force` to merge without confirmation.
+
+When `--integration` is omitted, interactive terminals prompt you to choose an integration. Non-interactive sessions, such as CI or piped runs, default to GitHub Copilot; pass `--integration <key>` to choose a different integration explicitly, or set `AGILE_INTEGRATION_DEFAULT` to change the fallback (see [Environment Variables](#environment-variables)).
+
+### Examples
+
+```bash
+# Create a new project with an integration
+agile init my-project --integration copilot
+
+# Initialize in the current directory
+agile init --here --integration copilot
+
+# Force merge into a non-empty directory
+agile init --here --force --integration copilot
+
+# Use PowerShell scripts (Windows/cross-platform)
+agile init my-project --integration copilot --script ps
+
+# Install a preset during initialization
+agile init my-project --integration copilot --preset compliance
+```
+
+### Environment Variables
+
+| Variable          | Description                                                              |
+| ----------------- | ------------------------------------------------------------------------ |
+| `AGILE_INTEGRATION_DEFAULT` | Override the fallback integration used by `agile init` when `--integration` is omitted (interactive prompt default and non-interactive fallback). Set it to any registered integration key (e.g. `gemini`, `claude`). An unrecognized value is ignored with a warning and the built-in default (`copilot`) is used. An explicit `--integration <key>` always takes precedence. |
+| `AGILE_INIT_DIR` | Target a member project from outside its directory (e.g. a monorepo root) without `cd`, for non-interactive / CI use. Set it to the **project root** — the directory *containing* `.agile/` (relative paths resolve against the current directory). The path must exist and contain `.agile/`, otherwise the command errors and does **not** fall back to the current directory. Resolved once in the core root helper (`get_repo_root` in Bash, `Get-RepoRoot` in PowerShell), so it is honored by the core feature scripts (`/agile.plan`, `/agile.tasks`, …) and the Git extension's feature-branch creation, which inherit it. The `agile` CLI applies the **same** validation rules to every project-scoped subcommand (`agile integration …`, `agile extension …`, `specify workflow …`, `agile preset …`, and the rest that operate on a `.agile/` project), so those can target a member project too. When unset, Bash/PowerShell helpers keep their existing upward search; the `agile` CLI keeps its project-scoped resolver cwd-only unless a command explicitly defines broader detection (for example, bundle commands). |
+| `AGILE_FEATURE_DIRECTORY` | Override the active feature directory *within* the resolved project (takes precedence over `.agile/feature.json`). Relative paths resolve under the project root. Combine with `AGILE_INIT_DIR` to pick both the project and the feature non-interactively. |
+| `AGILE_FEATURE` | Override feature detection for non-Git repositories. Set to the feature directory name (e.g., `001-photo-albums`) to work on a specific feature when not using Git branches. Must be set in the context of the agent prior to using `/agile.plan` or follow-up commands. |
+
+> **Two resolution axes.** `AGILE_INIT_DIR` selects the **project** (which directory contains `.agile/`); `AGILE_FEATURE_DIRECTORY` / `.agile/feature.json` select the **feature** within that project. They are independent — project first, then feature.
+
+> **Version control.** `agile init` scaffolds a managed `.agile/.gitignore` that excludes machine-local state — `feature.json` (the current-feature pointer, rewritten on every feature switch) and per-machine extension `extensions/*/local-config.yml` overrides — while leaving everything else under `.agile/` (constitution, templates, scripts, extension config) shareable so teams stay aligned. Like the rest of `.agile/`'s shared scripts and templates, the file is tracked in the shared-infrastructure manifest: your edits are preserved on re-init and `agile init --here --force` restores the managed content. It is intentionally left in place by `agile integration uninstall`, which only removes the uninstalled agent's own files.
+
+> **Symlinked project roots.** `AGILE_INIT_DIR` relocates *where* the project is, not *how* a command treats symlinks: each command keeps its existing cwd-path stance. Commands that traverse and write project files through broad input paths (`bundle`, `workflow run <file>`) refuse a symlinked `.agile/` to preserve write confinement. Other project-scoped commands keep their existing behavior when `AGILE_INIT_DIR` points at a project root, which may include following a symlinked `.agile/`.
+
+## Check Installed Tools
+
+```bash
+agile check
+```
+
+Checks that CLI-based AI coding agents are available on your system. IDE-based agents are skipped since they don't require a CLI tool.
+
+This command stays offline. If a command behaves like an older Agile version or an expected CLI feature is missing, run `agile self check` to check whether your local CLI is behind the latest release.
+
+## Version Information
+
+```bash
+agile version
+```
+
+Displays the Agile CLI version, Python version, platform, and architecture.
+
+To inspect local CLI capabilities without checking the network:
+
+```bash
+agile version --features
+agile version --features --json
+```
+
+The JSON form is intended for scripts and coding agents that need to choose a
+workflow based on the installed CLI's supported features.
+
+A quick version check is also available via:
+
+```bash
+specify --version
+specify -V
+```

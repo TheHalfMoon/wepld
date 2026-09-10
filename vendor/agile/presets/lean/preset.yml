@@ -1,0 +1,51 @@
+schema_version: "1.0"
+
+preset:
+  id: "lean"
+  name: "Lean Workflow"
+  version: "1.0.0"
+  description: "Minimal core workflow commands - just the prompt, just the artifact"
+  author: "github"
+  repository: "https://github.com/TheHalfMoon/wepld"
+  license: "MIT"
+
+requires:
+  agile_version: ">=0.6.0"
+
+provides:
+  templates:
+    - type: "command"
+      name: "agile.specify"
+      file: "commands/agile.specify.md"
+      description: "Lean specify - create spec.md from a feature description"
+      replaces: "agile.specify"
+
+    - type: "command"
+      name: "agile.plan"
+      file: "commands/agile.plan.md"
+      description: "Lean plan - create plan.md from the spec"
+      replaces: "agile.plan"
+
+    - type: "command"
+      name: "agile.tasks"
+      file: "commands/agile.tasks.md"
+      description: "Lean tasks - create tasks.md from plan and spec"
+      replaces: "agile.tasks"
+
+    - type: "command"
+      name: "agile.implement"
+      file: "commands/agile.implement.md"
+      description: "Lean implement - execute tasks from tasks.md"
+      replaces: "agile.implement"
+
+    - type: "command"
+      name: "agile.constitution"
+      file: "commands/agile.constitution.md"
+      description: "Lean constitution - create or update project constitution"
+      replaces: "agile.constitution"
+
+tags:
+  - "lean"
+  - "minimal"
+  - "workflow"
+  - "core"

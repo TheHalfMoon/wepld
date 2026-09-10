@@ -1,0 +1,40 @@
+schema_version: "1.0"
+
+extension:
+  id: assess
+  name: "Idea Assessment Pipeline"
+  version: "1.0.0"
+  description: "Assess an idea before Spec-Driven Development via intake, research, define, shape, and decide. A go verdict hands off to /agile.specify; a kill closes it. Lives under .agile/assessments/<slug>/"
+  category: "process"
+  effect: "read-write"
+  author: agile-core
+  repository: https://github.com/TheHalfMoon/wepld
+  license: MIT
+
+requires:
+  agile_version: ">=0.9.0"
+
+provides:
+  commands:
+    - name: agile.assess.intake
+      file: commands/agile.assess.intake.md
+      description: "Capture and normalize a raw idea (text, URL, ticket, or codebase pointer) into an intake note"
+    - name: agile.assess.research
+      file: commands/agile.assess.research.md
+      description: "Gather evidence — users, market, prior art, and data — to support or challenge the idea"
+    - name: agile.assess.define
+      file: commands/agile.assess.define.md
+      description: "Define the problem: who is affected, what hurts, goals, non-goals, and success metrics"
+    - name: agile.assess.shape
+      file: commands/agile.assess.shape.md
+      description: "Shape a concept: solution options, scope, appetite, and trade-offs (no implementation design)"
+    - name: agile.assess.decide
+      file: commands/agile.assess.decide.md
+      description: "Apply a go / needs-clarification / kill gate and hand survivors off to /agile.specify"
+
+tags:
+  - "assessment"
+  - "discovery"
+  - "triage"
+  - "product"
+  - "workflow"

@@ -542,6 +542,56 @@ fn topology_observation_never_triggers_a_repository_hook() {
     }
 }
 
+/// S2-S006: a hand-crafted malicious `.git` *gitfile* (the one-line
+/// `gitdir: <path>` pointer, not a real `.git` directory) whose target is
+/// bogus, malformed, empty, or a real non-Git directory. The adapter
+/// delegates repository resolution to the qualified system Git (`rev-parse
+/// -C <locator>`); a hostile pointer must yield a bounded, typed
+/// `GitTopologyError` from the closed failure-classification set — never an
+/// `Ok` topology, never an uncaught panic, and never any action on the
+/// pointer in the adapter's own logic. `#[cfg(unix)]` for the fixture's path
+/// handling; executed natively on ubuntu-latest + macos-latest.
+#[cfg(unix)]
+#[test]
+fn a_malicious_git_gitfile_pointer_yields_a_bounded_typed_error() {
+    let evidence = temp_root("malicious-gitfile-evidence");
+
+    for label in [
+        "nonexistent-target",
+        "real-non-git-target",
+        "garbage-not-a-gitfile",
+        "empty",
+    ] {
+        let dir = temp_root(&format!("malicious-gitfile-{label}"));
+        let gitfile_body = match label {
+            "nonexistent-target" => {
+                "gitdir: /wepld/definitely/not/a/real/git/directory\n".to_owned()
+            }
+            "real-non-git-target" => {
+                let decoy = dir.join("decoy-not-a-git-dir");
+                fs::create_dir_all(&decoy).expect("decoy directory must be creatable");
+                format!("gitdir: {}\n", decoy.display())
+            }
+            "garbage-not-a-gitfile" => "this is not a gitfile at all\n".to_owned(),
+            "empty" => String::new(),
+            other => unreachable!("unhandled case {other}"),
+        };
+        fs::write(dir.join(".git"), gitfile_body).expect("hostile .git gitfile must be writable");
+
+        let git_exe = discover_system_git(&dir, &evidence).expect("system Git must qualify on CI");
+        match observe_git_topology(&git_exe, &dir) {
+            Err(
+                GitTopologyError::NotGitRepository
+                | GitTopologyError::GitProcessFailed { .. }
+                | GitTopologyError::UntrustedRepositoryRefusedByGit,
+            ) => {}
+            other => panic!(
+                "malicious .git gitfile case `{label}` must yield a bounded typed error, got {other:?}"
+            ),
+        }
+    }
+}
+
 /// acceptance.md section C "bare repository is explicit": a real `git init
 /// --bare` repository is observed with `is_bare` available and true, checked
 /// against an independent `git rev-parse --is-bare-repository` oracle.

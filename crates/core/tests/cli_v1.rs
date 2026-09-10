@@ -441,6 +441,95 @@ mod orchestration {
         );
     }
 
+    /// S2-Q004: `wepld open` and `wepld doctor` on a genuinely large project
+    /// tree must neither read its contents nor enumerate its structure.
+    /// `run_doctor`'s descriptor scan iterates a fixed compile-time allowlist
+    /// and `symlink_metadata`s each name under the project root once;
+    /// `run_open` observes only path components. Two independent observable
+    /// signals distinguish that from any tree walk:
+    ///
+    /// 1. Two 8 MiB non-allowlisted blobs (one at the root, one buried deep).
+    ///    A walk that read file contents to size or classify them would cross
+    ///    the Doctor's 4 MiB aggregate-descriptor budget and surface
+    ///    `D-WS-DESCRIPTOR-BUDGET-REJECTED`.
+    /// 2. A pair of conflicting package-manager lockfiles buried 40 levels
+    ///    deep (`package-lock.json` + `yarn.lock`), plus a clean `Cargo.toml`
+    ///    at the root. A walk that fed descriptors from anywhere in the tree
+    ///    would surface `D-PM-AMBIGUOUS` / `D-LOCK-MULTIPLE-MARKERS`; a
+    ///    root-only allowlist scan sees only the single clean `Cargo.toml`.
+    ///
+    /// A run that is budget-clean AND ambiguity-free proves the scan never
+    /// descended past the project root.
+    #[test]
+    fn baseline_open_and_doctor_do_not_traverse_a_large_project_tree() {
+        use std::time::{Duration, Instant};
+
+        let store = scratch("large-repo-store");
+        let project = scratch("large-repo-proj");
+
+        for i in 0..600u32 {
+            fs::write(project.join(format!("junk-{i}.txt")), b"x").unwrap();
+        }
+        let mut deep = project.clone();
+        for i in 0..40u32 {
+            deep = deep.join(format!("nested-{i}"));
+            fs::create_dir_all(&deep).unwrap();
+            fs::write(deep.join("leaf.txt"), b"y").unwrap();
+        }
+        let big = vec![0u8; 8 * 1024 * 1024];
+        fs::write(project.join("huge-blob-not-a-descriptor.bin"), &big).unwrap();
+        fs::write(deep.join("huge-buried.bin"), &big).unwrap();
+        // Conflicting lockfiles buried deep — a tree walk that classified them
+        // would report package-manager ambiguity.
+        fs::write(deep.join("package-lock.json"), b"{}\n").unwrap();
+        fs::write(deep.join("yarn.lock"), b"# yarn\n").unwrap();
+        // The only descriptor at the root the allowlist scan can legitimately
+        // reach: a single, unambiguous Cargo.toml.
+        fs::write(project.join("Cargo.toml"), b"[package]\nname = \"x\"\n").unwrap();
+
+        let started = Instant::now();
+        let opened = run_wepld(&["open", "."], &project, &store);
+        assert_eq!(
+            opened.code, 0,
+            "open on a large tree must succeed: {}",
+            opened.stderr
+        );
+        let doctored = run_wepld(&["doctor", "--json"], &project, &store);
+        assert!(
+            doctored.code == 0 || doctored.code == 5,
+            "doctor on a large tree must complete cleanly: code {} stderr {}",
+            doctored.code,
+            doctored.stderr
+        );
+        let elapsed = started.elapsed();
+
+        assert!(
+            !doctored.stdout.contains("D-WS-DESCRIPTOR-BUDGET-REJECTED"),
+            "doctor read file contents outside its fixed descriptor allowlist — the \
+             two 8 MiB blobs tripped the aggregate budget: {}",
+            doctored.stdout
+        );
+        for buried in ["D-PM-AMBIGUOUS", "D-LOCK-MULTIPLE-MARKERS"] {
+            assert!(
+                !doctored.stdout.contains(buried),
+                "doctor enumerated the tree and classified the deep conflicting \
+                 lockfiles ({buried}) — a root-only allowlist scan cannot see them: {}",
+                doctored.stdout
+            );
+        }
+        assert!(
+            elapsed < Duration::from_secs(30),
+            "open+doctor scaled with tree size ({elapsed:?}) — a bounded scan must not"
+        );
+
+        // no .wepld/ written into the project (bounded, non-mutating)
+        let snap = snapshot(&project);
+        assert!(
+            !snap.keys().any(|k| k.starts_with(".wepld/")),
+            "open/doctor must not write into the project tree"
+        );
+    }
+
     #[test]
     fn json_output_is_byte_deterministic_and_control_free() {
         let store = scratch("json-det-store");

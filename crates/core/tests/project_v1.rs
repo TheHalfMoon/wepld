@@ -118,18 +118,18 @@ fn project_locator_clamps_parent_escape_and_types_invalid_paths_without_fabricat
     let lexical = lexical_absolute_path(escaping, &base)
         .expect("an over-deep parent escape must still normalize, not error");
     assert!(
-        lexical.is_absolute(),
-        "clamped escape is absolute: {lexical:?}"
-    );
-    assert!(
         !lexical
             .components()
             .any(|component| matches!(component, Component::ParentDir)),
         "the normalizer must fully collapse `..`, leaving none: {lexical:?}"
     );
-    assert!(
-        lexical.starts_with("/") && lexical.ends_with("etc/wepld-s2-s001-absent-target"),
-        "the escape is clamped at the root, not left dangling above it: {lexical:?}"
+    // Exact clamp: every `..` past the base collapses to the filesystem root,
+    // independent of workspace depth -- not merely absolute, not merely
+    // ending with the tail.
+    assert_eq!(
+        lexical,
+        Path::new("/etc/wepld-s2-s001-absent-target"),
+        "the escape must collapse to exactly the root-anchored target: {lexical:?}"
     );
 
     // (2) The locator records the raw traversal spelling unchanged and does

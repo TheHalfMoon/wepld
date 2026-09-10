@@ -598,3 +598,104 @@ fn machine_path_preserves_exact_case_and_never_lowercases() {
         "the lexical absolute layer must preserve the exact mixed-case spelling"
     );
 }
+
+/// S2-S004 (identity half): two paths that differ only by ASCII case are
+/// resolved through `observe_project_locator` and turned into identity facts.
+/// `ProjectMatchFacts::facts_digest` binds identity to the *resolved* path and
+/// excludes the caller spelling and lexical path, so the real filesystem's case
+/// semantics decide the outcome, and each CI leg exercises the arm that matches
+/// its own filesystem:
+///
+///   * case-INSENSITIVE filesystem (macOS APFS on the `secondary-platform`
+///     matrix): both spellings `canonicalize` to the one real directory, so
+///     `resolved_path` is identical, `facts_digest` is identical, and a
+///     reservation built under the mixed-case spelling is `ResumeSameProject`
+///     when recovered under the lowercase spelling -- one project identity,
+///     never a spurious second one;
+///   * case-SENSITIVE filesystem (Linux ext4): only the exact-case directory
+///     exists, so the lowercase spelling's `resolved_path` is a bounded
+///     `Unavailable { NotFound }` -- the observation reports the miss and never
+///     fabricates a resolution onto the directory that does exist.
+///
+/// The branch is chosen by a runtime probe of the real filesystem, not by
+/// `target_os`, so the assertion is correct on whatever host runs the suite.
+#[cfg(unix)]
+#[test]
+fn case_only_paths_collapse_to_one_identity_iff_the_filesystem_is_case_insensitive() {
+    let dir = scratch_dir("case-identity");
+    let mixed = dir.join("CaseProject");
+    std::fs::create_dir_all(&mixed).expect("create the mixed-case project directory");
+
+    // The same final component, all lowercase. Never created on disk.
+    let lower = dir.join("caseproject");
+
+    // Runtime probe: does the lowercase spelling resolve to the same real
+    // directory that the mixed-case spelling was created as?
+    let case_insensitive = match (std::fs::canonicalize(&mixed), std::fs::canonicalize(&lower)) {
+        (Ok(resolved_mixed), Ok(resolved_lower)) => resolved_mixed == resolved_lower,
+        _ => false,
+    };
+
+    let mixed_locator = observe_project_locator(&mixed, &dir, UnixMillis::new(31))
+        .expect("mixed-case locator observation succeeds");
+    let lower_locator = observe_project_locator(&lower, &dir, UnixMillis::new(32))
+        .expect("lowercase locator observation is still a bounded observation, not an error");
+
+    // The caller-spelling input layer always preserves exactly what was asked
+    // for, regardless of filesystem case behaviour.
+    assert_eq!(
+        lower_locator.input_path,
+        machine_path_from_path(&lower).unwrap(),
+        "the input layer preserves the exact lowercase spelling"
+    );
+
+    if case_insensitive {
+        assert_eq!(
+            mixed_locator.resolved_path, lower_locator.resolved_path,
+            "case-insensitive fs: both spellings resolve to the one real directory"
+        );
+
+        let mixed_facts = ProjectMatchFacts::new(mixed_locator);
+        let lower_facts = ProjectMatchFacts::new(lower_locator);
+        assert_eq!(
+            mixed_facts
+                .facts_digest()
+                .expect("mixed-case facts digest is computable"),
+            lower_facts
+                .facts_digest()
+                .expect("lowercase facts digest is computable"),
+            "identity is bound to the resolved path, so a case-only difference is one identity"
+        );
+
+        let project_id = allocate_project_id().expect("allocate a project id");
+        let reservation = build_reservation(project_id.clone(), &mixed_facts, UnixMillis::new(31))
+            .expect("build a reservation under the mixed-case spelling");
+        match recover_reservation(&reservation, &lower_facts)
+            .expect("recovery decision must not itself fail")
+        {
+            ReservationRecovery::ResumeSameProject {
+                project_id: resumed,
+            } => {
+                assert_eq!(
+                    resumed, project_id,
+                    "the lowercase spelling recovers the very same project"
+                );
+            }
+            other => panic!(
+                "a case-only path difference on a case-insensitive fs must resume the same project, got {other:?}"
+            ),
+        }
+    } else {
+        assert_eq!(
+            lower_locator.resolved_path,
+            Observation::Unavailable {
+                error: ObservationErrorClass::NotFound
+            },
+            "case-sensitive fs: the unspelled lowercase directory is NotFound, never fabricated"
+        );
+        assert_ne!(
+            mixed_locator.resolved_path, lower_locator.resolved_path,
+            "case-sensitive fs: distinct directories give distinct resolution outcomes"
+        );
+    }
+}

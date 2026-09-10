@@ -92,6 +92,83 @@ fn project_locator_records_canonicalization_failure_instead_of_fabricating_resol
     );
 }
 
+/// S2-S001 (project-locator layer): a `..` sequence that would climb past the
+/// lexical base, and a path carrying an interior NUL byte, are each handled as
+/// a bounded, deterministic observation. The parent-escape is fully collapsed
+/// (no `..` survives, the result is anchored at the filesystem root, never a
+/// path "above" root), the raw traversal spelling is preserved verbatim in
+/// `input_path` rather than silently rewritten, and neither input panics or is
+/// fabricated into an `Observation::Available` resolution. This is distinct
+/// from the `safe_path_segment` store-ID layer already covered by S2-S009 /
+/// S2-E003: here the attack is on `observe_project_locator` itself.
+#[cfg(unix)]
+#[test]
+fn project_locator_clamps_parent_escape_and_types_invalid_paths_without_fabrication() {
+    use std::ffi::OsStr;
+    use std::os::unix::ffi::OsStrExt;
+    use std::path::Component;
+
+    let base = manifest_dir();
+
+    // (1) Far more `..` than `base` is deep. Lexical normalization collapses
+    // every ParentDir, anchors the result at `/`, and leaves none behind.
+    let escaping = Path::new(
+        "../../../../../../../../../../../../../../../../../../../../etc/wepld-s2-s001-absent-target",
+    );
+    let lexical = lexical_absolute_path(escaping, &base)
+        .expect("an over-deep parent escape must still normalize, not error");
+    assert!(
+        !lexical
+            .components()
+            .any(|component| matches!(component, Component::ParentDir)),
+        "the normalizer must fully collapse `..`, leaving none: {lexical:?}"
+    );
+    // Exact clamp: every `..` past the base collapses to the filesystem root,
+    // independent of workspace depth -- not merely absolute, not merely
+    // ending with the tail.
+    assert_eq!(
+        lexical,
+        Path::new("/etc/wepld-s2-s001-absent-target"),
+        "the escape must collapse to exactly the root-anchored target: {lexical:?}"
+    );
+
+    // (2) The locator records the raw traversal spelling unchanged and does
+    // not fabricate a resolution for the (non-existent) escaped target.
+    let locator = observe_project_locator(escaping, &base, UnixMillis::new(11))
+        .expect("a parent-escape input is still a valid locator observation");
+    assert_eq!(
+        locator.input_path,
+        machine_path_from_path(escaping).unwrap(),
+        "the exact `..`-bearing spelling must be preserved, not normalized away"
+    );
+    assert_eq!(
+        locator.lexical_absolute_path,
+        machine_path_from_path(&lexical).unwrap()
+    );
+    assert_eq!(
+        locator.resolved_path,
+        Observation::Unavailable {
+            error: ObservationErrorClass::NotFound
+        }
+    );
+
+    // (3) A path with an interior NUL byte is a bounded, typed InvalidPath
+    // observation -- never a panic, never a fabricated resolve.
+    let injected = Path::new(OsStr::from_bytes(b"/tmp/wepld-s2-s001\0injected"));
+    let locator = observe_project_locator(injected, &base, UnixMillis::new(12))
+        .expect("an invalid-byte path is still a valid locator observation");
+    assert_eq!(
+        locator.input_path,
+        machine_path_from_path(injected).unwrap()
+    );
+    assert_eq!(
+        locator.resolved_path,
+        Observation::Unavailable {
+            error: ObservationErrorClass::InvalidPath
+        }
+    );
+}
+
 #[test]
 fn metadata_observation_is_bounded_to_path_components_and_does_not_walk_the_tree() {
     let base = manifest_dir();

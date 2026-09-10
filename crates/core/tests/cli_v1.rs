@@ -442,15 +442,24 @@ mod orchestration {
     }
 
     /// S2-Q004: `wepld open` and `wepld doctor` on a genuinely large project
-    /// tree must not traverse or enumerate it. `run_doctor`'s descriptor scan
-    /// iterates a fixed compile-time allowlist and `symlink_metadata`s each
-    /// name once; `run_open` observes only path components. Two 8 MiB
-    /// non-allowlisted blobs are planted — one at the project root, one buried
-    /// deep in a nested subtree. A whole-tree walk, or even a naive root
-    /// `read_dir` that summed sizes, would read them and cross the Doctor's
-    /// 4 MiB aggregate-descriptor budget, surfacing
-    /// `D-WS-DESCRIPTOR-BUDGET-REJECTED`. A budget-clean run with only a real
-    /// `Cargo.toml` present proves the scan never entered those paths.
+    /// tree must neither read its contents nor enumerate its structure.
+    /// `run_doctor`'s descriptor scan iterates a fixed compile-time allowlist
+    /// and `symlink_metadata`s each name under the project root once;
+    /// `run_open` observes only path components. Two independent observable
+    /// signals distinguish that from any tree walk:
+    ///
+    /// 1. Two 8 MiB non-allowlisted blobs (one at the root, one buried deep).
+    ///    A walk that read file contents to size or classify them would cross
+    ///    the Doctor's 4 MiB aggregate-descriptor budget and surface
+    ///    `D-WS-DESCRIPTOR-BUDGET-REJECTED`.
+    /// 2. A pair of conflicting package-manager lockfiles buried 40 levels
+    ///    deep (`package-lock.json` + `yarn.lock`), plus a clean `Cargo.toml`
+    ///    at the root. A walk that fed descriptors from anywhere in the tree
+    ///    would surface `D-PM-AMBIGUOUS` / `D-LOCK-MULTIPLE-MARKERS`; a
+    ///    root-only allowlist scan sees only the single clean `Cargo.toml`.
+    ///
+    /// A run that is budget-clean AND ambiguity-free proves the scan never
+    /// descended past the project root.
     #[test]
     fn baseline_open_and_doctor_do_not_traverse_a_large_project_tree() {
         use std::time::{Duration, Instant};
@@ -470,7 +479,12 @@ mod orchestration {
         let big = vec![0u8; 8 * 1024 * 1024];
         fs::write(project.join("huge-blob-not-a-descriptor.bin"), &big).unwrap();
         fs::write(deep.join("huge-buried.bin"), &big).unwrap();
-        // one legitimate allowlisted descriptor so Doctor has real work to do
+        // Conflicting lockfiles buried deep — a tree walk that classified them
+        // would report package-manager ambiguity.
+        fs::write(deep.join("package-lock.json"), b"{}\n").unwrap();
+        fs::write(deep.join("yarn.lock"), b"# yarn\n").unwrap();
+        // The only descriptor at the root the allowlist scan can legitimately
+        // reach: a single, unambiguous Cargo.toml.
         fs::write(project.join("Cargo.toml"), b"[package]\nname = \"x\"\n").unwrap();
 
         let started = Instant::now();
@@ -491,10 +505,18 @@ mod orchestration {
 
         assert!(
             !doctored.stdout.contains("D-WS-DESCRIPTOR-BUDGET-REJECTED"),
-            "doctor read files outside its fixed descriptor allowlist — the two \
-             8 MiB blobs tripped the aggregate budget: {}",
+            "doctor read file contents outside its fixed descriptor allowlist — the \
+             two 8 MiB blobs tripped the aggregate budget: {}",
             doctored.stdout
         );
+        for buried in ["D-PM-AMBIGUOUS", "D-LOCK-MULTIPLE-MARKERS"] {
+            assert!(
+                !doctored.stdout.contains(buried),
+                "doctor enumerated the tree and classified the deep conflicting \
+                 lockfiles ({buried}) — a root-only allowlist scan cannot see them: {}",
+                doctored.stdout
+            );
+        }
         assert!(
             elapsed < Duration::from_secs(30),
             "open+doctor scaled with tree size ({elapsed:?}) — a bounded scan must not"

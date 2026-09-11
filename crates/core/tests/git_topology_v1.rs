@@ -617,3 +617,67 @@ fn bare_repository_is_observed_as_explicitly_bare() {
         "independent oracle must agree the fixture repo is bare"
     );
 }
+
+/// S2-S006: a `.git` that IS a real directory (not a gitfile pointer) but is
+/// structurally broken. Each case is passed to the qualified system Git
+/// adapter via `discover_system_git` + `observe_git_topology`, which delegate
+/// repository resolution to `git rev-parse`; a malformed `.git` directory must
+/// yield a bounded, typed `GitTopologyError` from the closed
+/// failure-classification set -- never an `Ok` topology, never an uncaught
+/// panic. This complements the already-covered malicious-gitfile
+/// (`a_malicious_git_gitfile_pointer_yields_a_bounded_typed_error`), malformed
+/// machine-output (`malformed_worktree_machine_output_fails_closed`), and
+/// hook-execution (`topology_observation_never_triggers_a_repository_hook`)
+/// angles of S2-S006. `#[cfg(unix)]`; executed natively on ubuntu-latest +
+/// macos-latest.
+#[cfg(unix)]
+#[test]
+fn a_malformed_git_directory_yields_a_bounded_typed_error() {
+    let evidence = temp_root("malformed-gitdir-evidence");
+
+    for label in [
+        "empty-git-dir",
+        "head-only-garbage",
+        "missing-head",
+        "unparseable-config",
+    ] {
+        let dir = temp_root(&format!("malformed-gitdir-{label}"));
+        let git_dir = dir.join(".git");
+        fs::create_dir_all(&git_dir).expect("the .git directory must be creatable");
+
+        match label {
+            "empty-git-dir" => {}
+            "head-only-garbage" => {
+                fs::write(git_dir.join("HEAD"), "not a ref, not a sha, just noise\n")
+                    .expect("HEAD must be writable");
+            }
+            "missing-head" => {
+                fs::create_dir_all(git_dir.join("objects")).expect("objects/ creatable");
+                fs::create_dir_all(git_dir.join("refs")).expect("refs/ creatable");
+            }
+            "unparseable-config" => {
+                fs::write(git_dir.join("HEAD"), "ref: refs/heads/main\n").expect("HEAD writable");
+                fs::create_dir_all(git_dir.join("objects")).expect("objects/ creatable");
+                fs::create_dir_all(git_dir.join("refs")).expect("refs/ creatable");
+                fs::write(git_dir.join("config"), "[[[ this is not valid git config\n")
+                    .expect("config writable");
+            }
+            other => unreachable!("unhandled case {other}"),
+        }
+
+        let git_exe = discover_system_git(&dir, &evidence).expect("system Git must qualify on CI");
+        match observe_git_topology(&git_exe, &dir) {
+            Err(
+                GitTopologyError::NotGitRepository
+                | GitTopologyError::GitProcessFailed { .. }
+                | GitTopologyError::UntrustedRepositoryRefusedByGit,
+            ) => {}
+            Ok(topology) => panic!(
+                "malformed .git directory case `{label}` must not resolve to an Ok topology, got {topology:?}"
+            ),
+            Err(other) => panic!(
+                "malformed .git directory case `{label}` must yield a bounded typed error from the closed set, got {other:?}"
+            ),
+        }
+    }
+}

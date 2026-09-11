@@ -11,18 +11,25 @@ SECOND_REVIEWED_HEAD = 63270002470a32d8ffef34be9c75e0befc30e7a9
 PLANNING_STATE = MERGED_TO_CANONICAL_MAIN
 S2_IMPLEMENTATION_AUTHORITY = EXACT_DOCTOR_CLI_PROJECTION_TRANCHE_ONLY_AFTER_V49_ACTIVATION
 ACTIVE_IMPLEMENTATION_TASK = NONE
-NEXT_IMPLEMENTATION_TASK = NOT_AUTHORIZED_UNTIL_A_SUCCESSOR_GRANTS_ITS_EXACT_PATHS
-NEXT_AUTHORITY_GATE = S2-ACCEPTANCE
+NEXT_IMPLEMENTATION_TASK = NOT_AUTHORIZED_UNTIL_A_FUTURE_SLICE_GRANTS_ITS_EXACT_PATHS
+NEXT_AUTHORITY_GATE = S2-A009_BUILD_LEARNING_CAPTURE
+S2_ACCEPTANCE_STATUS = ACCEPTED_WITH_BOUNDED_LIMITATIONS (Founder ruling, S2-A006, PR #329 comment 5638475618); S2-A001..S2-A008 CLOSED via PR #329 (merge commit 4191277); S2-A009 still open — S2 is NOT YET CLOSED_CANONICAL (acceptance.md §J requires BUILD_LEARNING_CAPTURE)
 ```
 
-This update was made by the session that merged PR 280. It has direct live evidence for
-the three tranches recorded below (PR 274, PR 280, and the S2-AUTH-014/015 policy
-activations) and none beyond that. `S2-I006`/`S2-I007` are recorded partial rather than
-done because no dedicated adversarial fixture for either was found in the merged test
-suite; the underlying fields exist and are wired, but that is not the same evidence as a
-fixture proving the distinction. `S2-A001..S2-A009` (the acceptance gate) are left
-unchecked on purpose: `Builder != Acceptance Authority for acceptance-critical work`
-(`AGENTS.md`), and the S2 acceptance decision (`S2-A006`) has not been made.
+This state-marker block was last fully rewritten by the session that merged PR 280, when
+`S2-A001..S2-A009` were genuinely all unchecked and `S2-A006` had not been made; that
+historical paragraph is superseded below rather than edited in place, to keep this
+document's own change history legible. As of PR #329 (merge commit `4191277`):
+`S2-A001..S2-A008` are `[x]` on independently reviewed, live-verified evidence (this
+section's own detailed evidence blocks); `S2-A006`'s Founder ruling explicitly grants S2
+acceptance-program authority only, carrying eight `[~]` rows forward as explicit
+unresolved obligations (`ACCEPTED_LIMITATION != PROVEN_REQUIREMENT`); `S2-A009` (Build
+Learning capture) remains open pending its own required policy-successor reopening of
+`docs/learning/BUILD_LEARNING_LEDGER.md`'s frozen transition regime, so `S2` is not yet
+`CLOSED_CANONICAL`. `S2-I006`/`S2-I007` remain recorded partial for the reason originally
+stated: no dedicated adversarial fixture for either was found in the merged test suite;
+the underlying fields exist and are wired, but that is not the same evidence as a fixture
+proving the distinction.
 
 ```text
 LAST_MERGED_TRANCHE = S2-AUTH-015 Doctor + CLI projection tranche
@@ -397,10 +404,10 @@ BOUNDED LIMITATIONS — S2 acceptance does not discharge these, matching the S2-
 - [x] **S2-A002** Independent correctness/engineering review with reviewer qualification + exact base/head evidence. Reviewer: CodeRabbit; substance closed at round 14 (see "as of round 16" evidence below; exact round tally is not hand-maintained past round 16, see `S2_ROUND_COUNTER_POLICY`). Evidence below.
 - [x] **S2-A003** Codex Security when available/applicable; otherwise exact limitation accounting. Evidence below.
 - [x] **S2-A004** Reconcile all findings; no voting away valid defects. Every finding through round 16 fixed and independently re-verified; findings after round 14 were scoped to S2-A005 or to this ledger's own bookkeeping, not to S2-A002/S2-A004/S2-R015 themselves. Evidence below.
-- [ ] **S2-A005** Final race check and Ready-triggered trusted admission. The mechanism is validated (a genuine Ready-triggered admission run passed on a prior head, `18d1929`), but that evidence is stale for this PR's current head and does not satisfy the requirement for the actual merge candidate. Left unchecked; performed for real, on the exact head to be merged, as the terminal step immediately before `S2-A007`'s guarded merge — with no further ledger commit in between, to avoid re-creating this same staleness against a newly-created head. Recorded as closed in the post-merge reconciliation, not here.
+- [x] **S2-A005** Final race check and Ready-triggered trusted admission. Performed as the terminal pre-merge step on PR #329's actual final head `130e177` (now permanently merged, so no staleness risk in citing it): live race check, then a genuine `ready_for_review`-triggered `s1-admission-integrity` run (`34658494887`, SUCCESS) on that exact unchanged head, immediately followed by the guarded merge. Evidence below.
 - [x] **S2-A006** Guarded S2 acceptance decision with exact-head evidence. Founder ruling recorded below.
-- [ ] **S2-A007** Merge only under current canonical/founder authorization with expected-head protection.
-- [ ] **S2-A008** Post-merge canonical verification.
+- [x] **S2-A007** Merge only under current canonical/founder authorization with expected-head protection. PR #329 merged via `gh pr merge --merge --match-head-commit 130e177...`; merge commit `4191277`. Evidence below.
+- [x] **S2-A008** Post-merge canonical verification. `foundation-integrity` run `34658734521` SUCCESS on canonical merge head `4191277`. Evidence below.
 - [ ] **S2-A009** Build Learning capture including donor/reviewer positive and negative mechanisms. Separate follow-up: `docs/learning/BUILD_LEARNING_LEDGER.md` is governed by the frozen `PRE->FINAL` content-addressed transition regime (last opened by v38..v44) and needs its own reopening policy successor.
 
 ### S2-A001 evidence — exact-head full deterministic qualification
@@ -785,6 +792,34 @@ S2_A005_MECHANISM_VALIDATED = YES — the draft/ready-toggle method genuinely pr
 **Round 16 finding (chat-style, comment `5641522668`, head `df3aced`):** this commit itself (the one recording the above) created a new head, `df3aced...`, superseding `18d1929`; the evidence above genuinely satisfies `READY_TRIGGERED_ADMISSION` for `18d1929`, but not for the later merge candidate `df3aced...`, and the prior wording claimed the "current exact head" was satisfied when it was not. Confirmed valid — this is the same structural trap rounds 9-11 identified for `S2-A001`: a commit describing its own resulting head's state is stale the moment that head is superseded, and *any* commit that records "the Ready-triggered admission now passes on head X" necessarily creates head X+1, which then lacks that same evidence, without end.
 
 **Resolution:** `S2-A005` is deliberately left `[ ]` rather than chasing this regress with another commit. The mechanism above is proven correct and repeatable; the actual gating instance — bound to the true final merge candidate — is performed as the terminal action of the merge sequence itself: final race check, then draft/ready toggle, then confirm the resulting `ready_for_review`-triggered admission run SUCCESS, then `S2-A007`'s guarded merge, with no ledger commit in between (a ledger commit at that point would itself create a superseding head and repeat the same trap). The result is recorded as closed in the post-merge reconciliation that also records `S2-A007`/`S2-A008`, where citing a fixed, already-merged head carries no staleness risk.
+
+**Terminal instance, performed and now safe to record (this is that post-merge reconciliation):** PR #329's independent review reached a genuinely clean round (no material contradiction) at head `130e1771dab5d6c61442817f6f923fcb92da1b85` — CI green (`foundation-integrity` run `34657817836`, `s1-admission-integrity` run `34657815781`), CodeRabbit chat-style review reporting no additional material contradiction, zero unresolved review threads (all three round-6 threads independently verified fixed and resolved). Immediately before merge, with no intervening ledger commit:
+
+```text
+S2_A005_FINAL_RACE_CHECK = re-queried live: headRefOid=130e1771dab5d6c61442817f6f923fcb92da1b85, baseRefOid=71a87fe9a4e834fc9b80745a35c42df6dac58a70 (matched live origin/main via `git ls-remote`), mergeable=MERGEABLE, mergeStateStatus=CLEAN, state=OPEN
+S2_A005_FINAL_DRAFT_TOGGLE = `gh pr ready 329 --undo` then `gh pr ready 329`, same unchanged head `130e177...` throughout
+S2_A005_FINAL_READY_TRIGGERED_RUN = s1-admission-integrity run `34658494887`, event `pull_request_target` / trigger type `ready_for_review`, head_sha `130e1771dab5d6c61442817f6f923fcb92da1b85`, status completed, conclusion SUCCESS
+S2_A005_VERDICT = READY_TRIGGERED_ADMISSION genuinely satisfied on the actual merge candidate, immediately followed by S2-A007's guarded merge of this exact head — CLOSED
+```
+
+### S2-A007 evidence — guarded merge with expected-head protection
+
+```text
+S2_A007_METHOD = gh pr merge 329 --merge --match-head-commit 130e1771dab5d6c61442817f6f923fcb92da1b85 (merge commit, matching this repository's established convention for prior S2 merges e.g. 71a87fe; --match-head-commit refuses the merge if the PR head has moved since the caller last observed it, providing expected-head protection)
+S2_A007_AUTHORIZATION = Founder standing authorization for ordinary governed execution (guarded merges) per the active session's Founder directive; S2 acceptance-program authority granted by the S2-A006 Founder ruling (DECISION_SOURCE = PR #329 comment 5638475618)
+S2_A007_MERGE_COMMIT = 41912774dc5e86067ec06515d27f02c65e6b7571
+S2_A007_MERGED_HEAD = 130e1771dab5d6c61442817f6f923fcb92da1b85 (matches the exact head that passed S2-A005's terminal race check and Ready-triggered admission immediately prior — no race window)
+S2_A007_RESULT = MERGED at 2026-09-11T23:37:02Z, independently confirmed via `gh pr view 329 --json state,mergedAt,mergeCommit`
+```
+
+### S2-A008 evidence — post-merge canonical verification
+
+```text
+S2_A008_CANONICAL_MAIN = re-fetched live: `git ls-remote origin refs/heads/main` = 41912774dc5e86067ec06515d27f02c65e6b7571, matching S2-A007's merge commit exactly
+S2_A008_CONTENT_CHECK = `git show origin/main:specs/.../tasks.md` confirms the merged ledger content (S2-A001..A008 closure, S2-A006 Founder ruling, S2-AUTH reconciliation) is present on canonical main, not merely on the now-closed PR branch
+S2_A008_POST_MERGE_FOUNDATION = foundation-integrity run `34658734521`, event `push` to `main`, head_sha `41912774dc5e86067ec06515d27f02c65e6b7571`, status completed, conclusion SUCCESS
+S2_A008_VERDICT = canonical main genuinely contains the guarded merge result and post-merge Foundation succeeds on the exact canonical merge head — CLOSED
+```
 
 ## Explicit stop conditions
 

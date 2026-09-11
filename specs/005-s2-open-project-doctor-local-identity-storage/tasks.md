@@ -429,7 +429,7 @@ foundation-integrity run 34567333001 / #1200 / push / PASS
 
 `s1-contracts`/`s1-performance` are path-filtered to `crates/core/**`/`Cargo.*` and correctly did not trigger on the docs-only merge — no code changed between `7af08de` and `71a87fe`. `s1-admission-integrity` is `pull_request_target`-only and does not run on a push to `main`; the code-touching head's PR-time run above already covers it. This re-binds and supersedes the "re-binds on the final S2 head at S2-A001" notes carried on S2-Q002/S2-Q003/S2-Q004/S2-Q008/S2-Q009.
 
-This candidate PR (#329) is itself a docs-only ledger change (`crates/core` untouched throughout), so it draws exactly the same applicable-gate shape as PR #328 above (`foundation-integrity` + `pull_request_target`-scoped `s1-admission-integrity`; `s1-contracts`/`s1-performance` correctly do not trigger). Both applicable checks passed on every reviewed round of this PR, most recently on the current-head round: `foundation-integrity` run `34627911602` and `s1-admission-integrity` run `34627907979`, both PASS for `901bb55dde78671d0379b975175c74377c4d0ea7` (per CodeRabbit's own formal-review citation of these exact runs). This section records the identity of the current-round check; the qualification binding for the *actual merge head* is re-confirmed as part of the S2-A005 final race check immediately before guarded merge, and again post-merge for S2-A008 — this PR's own CI passing at successive intermediate heads is continuous confirmation, not the final merge-head binding.
+This candidate PR (#329) is itself a docs-only ledger change (`crates/core` untouched throughout), so it draws exactly the same applicable-gate shape as PR #328 above (`foundation-integrity` + `pull_request_target`-scoped `s1-admission-integrity`; `s1-contracts`/`s1-performance` correctly do not trigger). Both applicable checks have passed at every reviewed round of this PR; the exact run identity for each round's specific head is recorded in the "S2-A002 / S2-R015 / S2-A004" round-history section below rather than pinned to one SHA here, because — as round 10 itself demonstrated (a claim about a moving PR's "current head" written inside the commit that creates that head necessarily predates that head's own CI run) — a single hardcoded head/run citation in this paragraph goes stale on the very next push and repeatedly draws the same class of finding. This section records that the methodology (exact-head `foundation-integrity` + `s1-admission-integrity`, re-run and re-verified whenever a rerun is needed, per round) has held at every round so far; the qualification binding for the *actual merge head* is re-confirmed as part of the S2-A005 final race check immediately before guarded merge, and again post-merge for S2-A008 — this PR's own CI passing at successive intermediate heads is continuous confirmation, not the final merge-head binding.
 
 ### S2-A003 evidence — Codex Security when available/applicable; otherwise exact limitation accounting
 
@@ -488,7 +488,7 @@ This decision grants S2 acceptance-program authority only; it does not grant S3 
 
 Reviewer: CodeRabbit (`coderabbitai[bot]`), manually triggered per the egress preflight required by `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md` (preflight comments on this PR: `5638035187`, `5638065992`, `5638090993`, `5638146723`, `5638215693`). Chat-style incremental review (not a formal GitHub review object — same class as PR #287's and PR #303's merged-head re-reviews), explicitly requested to assess whether the current S2 planning + implementation state contains any remaining material contradiction against the two original planning review waves (`S2-R001..R009`, `S2-R010..R014`) and whether the `S2-A001`/`S2-A003`/`S2-A006`/`S2-AUTH-001..012/016` claims are accurately supported by their cited evidence.
 
-Nine completed rounds against successive exact heads on this PR (eight chat-style incremental replies — rounds 1-5, 7, 8, and 9 — plus one formal `PullRequestReview` object as round 6, discovered on the same head as round 5), each round finding real issues fixed before the next trigger except round 5 itself (which found none) — no material finding was voted away or left unaddressed. A tenth round, against this section's own fix of round 9's finding, is pending on this PR's current head:
+Ten completed rounds against successive exact heads on this PR (nine chat-style incremental replies — rounds 1-5, 7, 8, 9, and 10 — plus one formal `PullRequestReview` object as round 6, discovered on the same head as round 5), each round finding real issues fixed before the next trigger except round 5 itself (which found none) — no material finding was voted away or left unaddressed. An eleventh round, against this section's own fix of round 10's finding, is pending on this PR's current head:
 
 ```text
 ROUND 1 (head 09fa482, comment 5638048545): 1 finding — S2-AUTH-016 claimed no
@@ -594,18 +594,43 @@ ROUND 9 (head 7c14055, comment 5639746161, chat-style): confirmed the round-8
   runs the review cited had completed by query time) — current-head
   qualification for `S2-A001` is genuinely complete on `7c14055`, confirmed
   after, not assumed before, the checks finished.
+ROUND 10 (head 54a50b1, comment 5639810201, chat-style): confirmed the
+  round-9 head-naming/count fix as correct ("round-count correction is
+  accurate ... correctly records nine completed rounds and a pending round
+  10"), then found 1 item: this section's own "not yet closed" paragraph
+  claimed "this exact fix's own head now carries green ... checks" for head
+  `54a50b1`, but at review time that head's own applicable runs
+  (`foundation-integrity` `34640587189`, `s1-admission-integrity`
+  `34640583088`) were still `IN_PROGRESS` — the cited green runs
+  (`34640068359`/`34640066290`) belonged to the prior head `7c14055`, not
+  `54a50b1`. Root cause, stated plainly: a commit cannot truthfully assert
+  its own resulting head's CI status, because that head and its CI runs do
+  not exist yet at authoring/commit time — the round-9 fix's "not yet
+  closed" paragraph made exactly that structurally-impossible claim. FIXED
+  on this head: the paragraph no longer asserts the current fix's own head
+  is green; it names only the most recently *independently confirmed*
+  green head, and states this commit's own resulting head's qualification
+  as pending until confirmed in a later step (the next round's evidence, or
+  the S2-A005 final race check). The `S2-A001` evidence paragraph above was
+  also generalized to stop pinning one specific head/run pair — the same
+  structural trap recurs every round otherwise, as rounds 6/9/10 each show.
+  Independently re-queried after this review comment landed: `gh pr view
+  329 --json headRefOid,statusCheckRollup` shows head `54a50b1` with both
+  `foundation-integrity` and `s1-admission-integrity` as `SUCCESS` — noted
+  here as an independently-confirmed fact obtained after those runs
+  completed, not asserted inside the commit that created that head.
 ```
 
-Every finding across all nine rounds was reproduced/verified independently against the cited raw evidence (`gh run view <id> --log`/`--log-failed`, direct `grep`/source inspection of the frozen policy files, direct `gh api .../pulls/329/reviews` queries, direct `gh run view`/`gh pr view --json statusCheckRollup,headRefOid` re-queries) before being fixed or accepted, not merely accepted on the reviewer's assertion — consistent with `[[wepld-ledger-annotation-discipline]]`: state exactly what a check asserts, no stronger. Round 6 is itself evidence that polling only the chat-style issue-comment channel was an incomplete review-discovery method; the formal `pulls/329/reviews` endpoint is now checked directly on every subsequent round rather than inferred from issue comments alone.
+Every finding across all ten rounds was reproduced/verified independently against the cited raw evidence (`gh run view <id> --log`/`--log-failed`, direct `grep`/source inspection of the frozen policy files, direct `gh api .../pulls/329/reviews` queries, direct `gh run view`/`gh pr view --json statusCheckRollup,headRefOid` re-queries) before being fixed or accepted, not merely accepted on the reviewer's assertion — consistent with `[[wepld-ledger-annotation-discipline]]`: state exactly what a check asserts, no stronger. Round 6 is itself evidence that polling only the chat-style issue-comment channel was an incomplete review-discovery method; the formal `pulls/329/reviews` endpoint is now checked directly on every subsequent round rather than inferred from issue comments alone. Rounds 9 and 10 are evidence that a commit describing its *own* resulting head's live state (CI conclusion, or a round/count tally whose accuracy depends on events after the commit) is a structurally unreliable pattern on a PR under active iteration; going forward, this section states current-head qualification as pending at commit time and confirms it only in a later, independent step.
 
-`S2-A002`/`S2-A004`/`S2-R015` are **not yet closed**: round 9's finding is fixed on this section's text, and this exact fix's own head now carries green `foundation-integrity` + `s1-admission-integrity`, but per the same discipline that governed rounds 6-8, these three rows stay `[ ]` until a subsequent review round — on the head carrying this exact fix — reports no further material finding on both the chat-style channel and the formal-review channel. No internal/self-authored review substitutes for this gate (`AGENTS.md`); a green CI check is deterministic-gate re-qualification, not a substitute for that independent round.
+`S2-A002`/`S2-A004`/`S2-R015` are **not yet closed**: round 10's finding is fixed on this section's text. The most recently independently-confirmed green head is `54a50b1` (confirmed after this commit was pushed, per round 10's own entry above) — but per the same discipline that governed rounds 6-9, these three rows stay `[ ]` until a subsequent review round, on the head carrying this exact fix, reports no further material finding on both the chat-style channel and the formal-review channel. No internal/self-authored review substitutes for this gate (`AGENTS.md`); a green CI check is deterministic-gate re-qualification, not a substitute for that independent round.
 
 ```text
 S2_A002_REVIEWER = CodeRabbit (coderabbitai[bot]), manual trigger, both chat-style incremental replies and formal PullRequestReview objects
 S2_A002_BASE_SHA = 71a87fe9a4e834fc9b80745a35c42df6dac58a70
-S2_A002_ROUNDS_COMPLETED = 9 (8 chat-style + 1 formal review); round 5 found nothing, every other round found a real, fixed issue
-S2_A002_ROUND_PENDING = 10, against this section's own fix of round 9's finding, not yet triggered/reported
-S2_A002_FINDINGS_TOTAL_SO_FAR = 4 (CodeRabbit, chat-style, rounds 1-4) + 1 (self-audit, pre-round-5) + 3 (CodeRabbit, formal review, round 6) + 1 (CodeRabbit, chat-style, round 7) + 2 (CodeRabbit, chat-style, round 8) + 1 (CodeRabbit, chat-style, round 9) = 12
+S2_A002_ROUNDS_COMPLETED = 10 (9 chat-style + 1 formal review); round 5 found nothing, every other round found a real, fixed issue
+S2_A002_ROUND_PENDING = 11, against this section's own fix of round 10's finding, not yet triggered/reported
+S2_A002_FINDINGS_TOTAL_SO_FAR = 4 (CodeRabbit, chat-style, rounds 1-4) + 1 (self-audit, pre-round-5) + 3 (CodeRabbit, formal review, round 6) + 1 (CodeRabbit, chat-style, round 7) + 2 (CodeRabbit, chat-style, round 8) + 1 (CodeRabbit, chat-style, round 9) + 1 (CodeRabbit, chat-style, round 10) = 13
 S2_A004_UNRESOLVED_MATERIAL_FINDINGS = TBD_PENDING_NEXT_ROUND
 S2_R015_VERDICT = TBD_PENDING_NEXT_ROUND
 ```

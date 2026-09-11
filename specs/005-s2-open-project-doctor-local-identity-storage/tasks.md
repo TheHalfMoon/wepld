@@ -163,7 +163,7 @@ The successor strategy is now staged so the plan in the repository is directly e
 - [x] **S2-AUTH-013** Decide external Git route separately: `NONE` or exact bounded Git adapter. Decided `SELECT_NARROW_QUALIFIED_SYSTEM_GIT_ADAPTER`; evidence below.
 - [x] **S2-AUTH-014** If Git adapter is selected, qualify executable/environment/argv/timeout/output/trust/no-hook/no-network boundaries before code. Qualified `READ_ONLY_TOPOLOGY_OBSERVATION_ONLY` via v45; evidence below.
 - [x] **S2-AUTH-015** Authorize Doctor + CLI projections only after underlying observations/contracts exist. Authorized `DETERMINISTIC_LOCAL_PROJECTION_ORCHESTRATION_ONLY` via v49/v50; evidence below.
-- [ ] **S2-AUTH-016** Keep network/model/S3/S4 authority denied throughout S2. Verified NONE on every activation marker through v50 (see evidence blocks below); left unchecked because it is a standing invariant for the whole slice, not a one-time task, and S2 is not yet closed.
+- [x] **S2-AUTH-016** Keep network/model/S3/S4 authority denied throughout S2. Verified NONE on every activation marker through v50 (see evidence blocks below); re-verified across the full v21->v65 cascade at the exact final S2 code head as part of the S2-A006 acceptance reconciliation (see "S2-AUTH-001..S2-AUTH-012 / S2-AUTH-016 — narrow evidence-led reconciliation" below) — the standing invariant now closes with S2's own acceptance rather than remaining open past it.
 
 No S2 implementation task below becomes eligible until the canonical successor for that task explicitly grants its paths/effects.
 

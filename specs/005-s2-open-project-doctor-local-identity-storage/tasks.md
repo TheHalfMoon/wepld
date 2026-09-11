@@ -488,7 +488,7 @@ This decision grants S2 acceptance-program authority only; it does not grant S3 
 
 Reviewer: CodeRabbit (`coderabbitai[bot]`), manually triggered per the egress preflight required by `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md` (preflight comments on this PR: `5638035187`, `5638065992`, `5638090993`, `5638146723`, `5638215693`). Chat-style incremental review (not a formal GitHub review object — same class as PR #287's and PR #303's merged-head re-reviews), explicitly requested to assess whether the current S2 planning + implementation state contains any remaining material contradiction against the two original planning review waves (`S2-R001..R009`, `S2-R010..R014`) and whether the `S2-A001`/`S2-A003`/`S2-A006`/`S2-AUTH-001..012/016` claims are accurately supported by their cited evidence.
 
-Six rounds against successive exact heads on this PR (five chat-style incremental replies plus one formal `PullRequestReview` object discovered on the same head as round 5), each round finding real issues fixed before the next trigger — no material finding was voted away or left unaddressed:
+Eight rounds against successive exact heads on this PR (six chat-style incremental replies — rounds 1-5 and 7 — plus one formal `PullRequestReview` object as round 6, discovered on the same head as round 5, plus one further chat-style round 8 on this PR's current head), each round finding real issues fixed before the next trigger — no material finding was voted away or left unaddressed:
 
 ```text
 ROUND 1 (head 09fa482, comment 5638048545): 1 finding — S2-AUTH-016 claimed no
@@ -547,17 +547,44 @@ ROUND 7 (head 07f73b9, comment 5638516466, chat-style): confirms all three
   "immutable". FIXED on this head: reworded to "durable, versioned,
   GitHub-hosted, independently-checkable", with the editability caveat
   stated explicitly rather than overclaimed away.
+ROUND 8 (head dab7275, comment 5638549311, chat-style): confirmed the round-7
+  editability fix as correct, then found 2 items: (a) a round-count narrative
+  contradiction — the section said "six rounds (five chat-style + one formal)"
+  while separately listing seven numbered rounds (six chat-style: 1,2,3,4,5,7;
+  one formal: 6); (b) as of the review moment, `s1-admission-integrity` had
+  FAILED on `dab727517a1e5e6ca63d9e9b3f3b8318b31d22b4` (run `34629917039`),
+  so current-head qualification was not complete and `S2-A001`/`S2-A002`/
+  `S2-A004`/`S2-R015` had to stay unqualified until that check passed on the
+  reviewed head. Both confirmed and addressed: (a) this narrative and the
+  `S2_A002_ROUNDS_SO_FAR` line below now say eight rounds / six chat-style +
+  one formal + one further chat-style, matching the eight numbered entries
+  exactly; (b) independently re-diagnosed the failure before treating it as
+  resolved — the job log (`gh run view 34629917039 --log-failed`) shows a
+  transient `GitHub API request failed ... HTTP Error 403: Forbidden` inside
+  `wepld_s2_s006_gitdir_reopen_v65_integrity.py verify-remote`'s remote-commit
+  lookup, not a policy/content defect (this exact check had passed 8/8 times
+  in a row on this branch immediately before, `runs 34626545953` through
+  `34628322888`, consistent with transient GitHub API secondary rate-limiting
+  under this PR's burst of successive triggers, not a reproducible failure);
+  reran the identical job via `gh run rerun 34629917039 --failed` against the
+  same unchanged head `dab7275` — result: **SUCCESS** (job `verify`,
+  `s1-admission-integrity`, run `34629917039`, re-queried
+  `2026-09-11T19:37:5xZ`). `gh pr view 329 --json statusCheckRollup` now
+  shows both `foundation-integrity` and `s1-admission-integrity` as `SUCCESS`
+  for the current, unchanged head `dab7275`. Current-head qualification for
+  `S2-A001` is therefore genuinely complete on this exact head; not treated
+  as PASS from the stale failing attempt, only from the fresh rerun result.
 ```
 
-Every finding across all six rounds was reproduced/verified independently against the cited raw evidence (`gh run view <id> --log`, direct `grep`/source inspection of the frozen policy files, direct `gh api .../pulls/329/reviews` queries) before being fixed, not merely accepted on the reviewer's assertion — consistent with `[[wepld-ledger-annotation-discipline]]`: state exactly what a check asserts, no stronger. Round 6 is itself evidence that polling only the chat-style issue-comment channel was an incomplete review-discovery method; the formal `pulls/329/reviews` endpoint is now checked directly on every subsequent round rather than inferred from issue comments alone.
+Every finding across all eight rounds was reproduced/verified independently against the cited raw evidence (`gh run view <id> --log`/`--log-failed`, direct `grep`/source inspection of the frozen policy files, direct `gh api .../pulls/329/reviews` queries, direct `gh run view`/`gh pr view --json statusCheckRollup` re-queries) before being fixed or accepted, not merely accepted on the reviewer's assertion — consistent with `[[wepld-ledger-annotation-discipline]]`: state exactly what a check asserts, no stronger. Round 6 is itself evidence that polling only the chat-style issue-comment channel was an incomplete review-discovery method; the formal `pulls/329/reviews` endpoint is now checked directly on every subsequent round rather than inferred from issue comments alone.
 
-`S2-A002`/`S2-A004`/`S2-R015` are **not yet closed**: round 6's three findings are fixed on this head, but per round 6's own instruction ("leave `S2-A002`, `S2-A004`, and `S2-R015` unchecked" until reconciled and re-reviewed clean), these three rows stay `[ ]` until a subsequent round — on the head carrying this fix — reports no further material finding on both the chat-style channel and the formal-review channel. No internal/self-authored review substitutes for this gate (`AGENTS.md`).
+`S2-A002`/`S2-A004`/`S2-R015` are **not yet closed**: round 8's two findings are fixed on this section's text and the check-status finding is independently confirmed resolved by a fresh rerun at the unchanged reviewed head, but per the same discipline that governed rounds 6-7, these three rows stay `[ ]` until a subsequent review round — on the head carrying this exact fix — reports no further material finding on both the chat-style channel and the formal-review channel. No internal/self-authored review substitutes for this gate (`AGENTS.md`); the CI rerun is a deterministic-gate re-qualification, not a substitute for that independent round.
 
 ```text
 S2_A002_REVIEWER = CodeRabbit (coderabbitai[bot]), manual trigger, both chat-style incremental replies and formal PullRequestReview objects
 S2_A002_BASE_SHA = 71a87fe9a4e834fc9b80745a35c42df6dac58a70
-S2_A002_ROUNDS_SO_FAR = 6 (5 chat-style + 1 formal review, the formal review concurrent with round 5's head)
-S2_A002_FINDINGS_TOTAL_SO_FAR = 4 (CodeRabbit, chat-style) + 1 (self-audit) + 3 (CodeRabbit, formal review) = 8
+S2_A002_ROUNDS_SO_FAR = 8 (6 chat-style + 1 formal review + this section's own pending next round)
+S2_A002_FINDINGS_TOTAL_SO_FAR = 4 (CodeRabbit, chat-style, rounds 1-4) + 1 (self-audit) + 3 (CodeRabbit, formal review, round 6) + 2 (CodeRabbit, chat-style, round 8) = 10
 S2_A004_UNRESOLVED_MATERIAL_FINDINGS = TBD_PENDING_NEXT_ROUND
 S2_R015_VERDICT = TBD_PENDING_NEXT_ROUND
 ```

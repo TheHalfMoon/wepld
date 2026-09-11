@@ -137,7 +137,7 @@ The fresh CodeRabbit rereview of `632700...` created five additional material fi
 - [x] **S2-R012** Include required negative secret-safety task `S2-C009` in the first contracts-only authority tranche and its self-tests.
 - [x] **S2-R013** Label `4a9b356...` Foundation/egress evidence explicitly superseded/pre-repair rather than implying it qualifies a repaired head.
 - [x] **S2-R014** Define the evidence-store authenticity boundary: unkeyed schema/version/digest/manifest/reference checks detect corruption/coherence only and do not defend against writer-level tampering.
-- [ ] **S2-R015** Fresh independent rereview confirms the current repaired head resolves both review waves with no remaining material contradiction.
+- [x] **S2-R015** Fresh independent rereview confirms the current repaired head resolves both review waves with no remaining material contradiction. Round 14 (auto-review, diff `901bb55..5215e3b`, no actionable comments) plus round 6's formal review (fully reconciled) close this; see "S2-A002 / S2-R015" evidence below.
 
 ## Next authority transition — not yet authorized
 
@@ -163,7 +163,7 @@ The successor strategy is now staged so the plan in the repository is directly e
 - [x] **S2-AUTH-013** Decide external Git route separately: `NONE` or exact bounded Git adapter. Decided `SELECT_NARROW_QUALIFIED_SYSTEM_GIT_ADAPTER`; evidence below.
 - [x] **S2-AUTH-014** If Git adapter is selected, qualify executable/environment/argv/timeout/output/trust/no-hook/no-network boundaries before code. Qualified `READ_ONLY_TOPOLOGY_OBSERVATION_ONLY` via v45; evidence below.
 - [x] **S2-AUTH-015** Authorize Doctor + CLI projections only after underlying observations/contracts exist. Authorized `DETERMINISTIC_LOCAL_PROJECTION_ORCHESTRATION_ONLY` via v49/v50; evidence below.
-- [ ] **S2-AUTH-016** Keep network/model/S3/S4 authority denied throughout S2. Verified NONE on every activation marker through v50 (see evidence blocks below); left unchecked because it is a standing invariant for the whole slice, not a one-time task, and S2 is not yet closed.
+- [x] **S2-AUTH-016** Keep network/model/S3/S4 authority denied throughout S2. Verified NONE on every activation marker through v50 (see evidence blocks below); re-verified across the full v21->v65 cascade at the exact final S2 code head as part of the S2-A006 acceptance reconciliation (see "S2-AUTH-001..S2-AUTH-012 / S2-AUTH-016 — narrow evidence-led reconciliation" below) — the standing invariant now closes with S2's own acceptance rather than remaining open past it.
 
 No S2 implementation task below becomes eligible until the canonical successor for that task explicitly grants its paths/effects.
 
@@ -393,15 +393,398 @@ BOUNDED LIMITATIONS — S2 acceptance does not discharge these, matching the S2-
 
 ## Acceptance / learning tasks
 
-- [ ] **S2-A001** Exact-head full deterministic qualification.
-- [ ] **S2-A002** Independent correctness/engineering review with reviewer qualification + exact base/head evidence.
-- [ ] **S2-A003** Codex Security when available/applicable; otherwise exact limitation accounting.
-- [ ] **S2-A004** Reconcile all findings; no voting away valid defects.
-- [ ] **S2-A005** Final race check and Ready-triggered trusted admission.
-- [ ] **S2-A006** Guarded S2 acceptance decision with exact-head evidence.
+- [x] **S2-A001** Exact-head full deterministic qualification. Evidence below.
+- [x] **S2-A002** Independent correctness/engineering review with reviewer qualification + exact base/head evidence. Reviewer: CodeRabbit; substance closed at round 14 (see "as of round 16" evidence below; exact round tally is not hand-maintained past round 16, see `S2_ROUND_COUNTER_POLICY`). Evidence below.
+- [x] **S2-A003** Codex Security when available/applicable; otherwise exact limitation accounting. Evidence below.
+- [x] **S2-A004** Reconcile all findings; no voting away valid defects. Every finding through round 16 fixed and independently re-verified; findings after round 14 were scoped to S2-A005 or to this ledger's own bookkeeping, not to S2-A002/S2-A004/S2-R015 themselves. Evidence below.
+- [ ] **S2-A005** Final race check and Ready-triggered trusted admission. The mechanism is validated (a genuine Ready-triggered admission run passed on a prior head, `18d1929`), but that evidence is stale for this PR's current head and does not satisfy the requirement for the actual merge candidate. Left unchecked; performed for real, on the exact head to be merged, as the terminal step immediately before `S2-A007`'s guarded merge — with no further ledger commit in between, to avoid re-creating this same staleness against a newly-created head. Recorded as closed in the post-merge reconciliation, not here.
+- [x] **S2-A006** Guarded S2 acceptance decision with exact-head evidence. Founder ruling recorded below.
 - [ ] **S2-A007** Merge only under current canonical/founder authorization with expected-head protection.
 - [ ] **S2-A008** Post-merge canonical verification.
-- [ ] **S2-A009** Build Learning capture including donor/reviewer positive and negative mechanisms.
+- [ ] **S2-A009** Build Learning capture including donor/reviewer positive and negative mechanisms. Separate follow-up: `docs/learning/BUILD_LEARNING_LEDGER.md` is governed by the frozen `PRE->FINAL` content-addressed transition regime (last opened by v38..v44) and needs its own reopening policy successor.
+
+### S2-A001 evidence — exact-head full deterministic qualification
+
+Two-tier exact-head chain; `git diff --stat 7af08de 71a87fe` touches only this ledger file (one line), so no code drifted between the tiers.
+
+Last code-touching S2 merge, `7af08defe67218ea740056c8b0f12816340d6f14` (PR #327, S2-S006 malformed-`.git`-directory fixture):
+
+```text
+PR_HEAD_PRE_MERGE = ad3c6252adcdbe712664236b32dcd4c28b2bcf8e
+  foundation-integrity   run 34557232235 / #1197 / pull_request / PASS
+  s1-contracts           run 34557232286 / #301  / pull_request / PASS
+  s1-performance         run 34557232336 / #103  / pull_request / PASS
+  s1-admission-integrity run 34557230220 / #971  / pull_request_target / PASS
+POST_MERGE_PUSH = 7af08defe67218ea740056c8b0f12816340d6f14
+  foundation-integrity   run 34560177143 / #1198 / push / PASS
+  s1-contracts           run 34560177057 / #302  / push / PASS
+  s1-performance         run 34560177048 / #104  / push / PASS
+```
+
+Current canonical `main` head `71a87fe9a4e834fc9b80745a35c42df6dac58a70` (PR #328, docs-only ledger reconciliation, single-file diff):
+
+```text
+foundation-integrity run 34567333001 / #1200 / push / PASS
+```
+
+`s1-contracts`/`s1-performance` are path-filtered to `crates/core/**`/`Cargo.*` and correctly did not trigger on the docs-only merge — no code changed between `7af08de` and `71a87fe`. `s1-admission-integrity` is `pull_request_target`-only and does not run on a push to `main`; the code-touching head's PR-time run above already covers it. This re-binds and supersedes the "re-binds on the final S2 head at S2-A001" notes carried on S2-Q002/S2-Q003/S2-Q004/S2-Q008/S2-Q009.
+
+**What `S2-A001`'s checked status actually certifies, precisely stated:** the exact-head deterministic qualification of the S2 *code* state — the two-tier chain above (`7af08de` code-touching merge, `71a87fe` current canonical `main`) — which is fixed and already fully PASS at both tiers, and is not reopened or reduced by this docs-only ledger PR's own in-flight editing. It does **not** certify that this candidate PR's *own current head* has finished its own CI run at the moment this checkbox is read — that is a distinct, narrower fact (round 11, comment on head `d58deb4`, correctly observed that this PR's own applicable checks were still `IN_PROGRESS` for that exact head at review time). Conflating the two is the recurring defect class rounds 6, 9, 10, and 11 have each caught a variant of: a fast-iterating docs PR's own head changes every reconciliation commit, so any claim tying `S2-A001` to *this PR's* literal current-head CI status is stale within roughly a minute of being written.
+
+This candidate PR (#329) is itself a docs-only ledger change (`crates/core` untouched throughout), so it draws exactly the same applicable-gate shape as PR #328 above (`foundation-integrity` + `pull_request_target`-scoped `s1-admission-integrity`; `s1-contracts`/`s1-performance` correctly do not trigger). Every one of this PR's own rounds has reached green on both applicable checks before its next trigger (exact run identity per round recorded in the "S2-A002 / S2-R015 / S2-A004" round-history section below) — but that per-round green status is evidence for *this PR's own mergeability* (`S2-A005` final race check, `S2-A007` guarded merge, `S2-A008` post-merge verification), not a component of what `S2-A001` itself certifies. `S2-A001` stays correctly `[x]` throughout this PR's iteration on that basis; the *actual merge head's* own CI is independently re-verified one final time as part of `S2-A005`, immediately before the guarded merge in `S2-A007` — that is the binding check for "the head that actually gets merged is green," not this paragraph.
+
+### S2-A003 evidence — Codex Security when available/applicable; otherwise exact limitation accounting
+
+This acceptance-record candidate is itself documentation-only (`specs/005-.../tasks.md`), with no executable/runtime/trust-boundary effect; under `docs/canonical/SECURITY_REVIEW_POLICY.md` ("Documentation-only changes with no executable/security-boundary effect may be `NOT_APPLICABLE`") its own `SECURITY_REVIEW = NOT_APPLICABLE`.
+
+Rolling up the whole S2 slice: every recorded Codex Security attempt in this ledger is `NOT_RUN_NON_BLOCKING`, and a grep of this file for `CODEX_SECURITY` finds exactly three recorded instances, all `NOT_RUN_NON_BLOCKING` / `SECURITY_PASS = NOT_CLAIMED`, with zero occurrences of a Codex Security `PASS` anywhere in the ledger:
+
+```text
+S2-AUTH-013 (PR 254): NOT_RUN_NON_BLOCKING, provider usage-limit refusal, comment 5491014720
+S2-AUTH-014 (PR 273): NOT_RUN_NON_BLOCKING, no reachable surface
+S2-AUTH-015 (PR 278): NOT_RUN_NON_BLOCKING, no reachable surface
+S2_CODEX_SECURITY_STATUS = NOT_RUN_NON_BLOCKING
+S2_SECURITY_PASS = NO
+```
+
+This is an explicit, consistently disclosed non-blocking coverage limitation across the whole slice, never rewritten as `PASS` (`SECURITY_REVIEW_POLICY.md`: "`NOT_RUN_NON_BLOCKING` is never rewritten as `PASS`"), matching the S1 precedent exactly (`S1-014_CODEX_SECURITY_STATUS = NOT_RUN_NON_BLOCKING`, `S1-014_SECURITY_PASS = NO`, carried unconverted through `S1-016` acceptance). The gate this closes is "accounting complete", not "security passed" — identical to how S1-014 closed with the same non-PASS status.
+
+### S2-AUTH-001..S2-AUTH-012 / S2-AUTH-016 — narrow evidence-led reconciliation
+
+Founder ruling on `S2-A006` requires classifying each open `S2-AUTH-*` row as exactly one of `PROVEN_CANONICAL_EVIDENCE_AVAILABLE`, `PROCESS_DEVIATION_HISTORICAL`, `NOT_APPLICABLE_TO_CURRENT_ACCEPTANCE`, or `STILL_REQUIRED_BLOCKER` before `CLOSED_CANONICAL`, and to stop and satisfy any row discovered to be a genuine controlling prerequisite for §J rather than stale ledger debt. None of §J's `CLOSED_CANONICAL` checklist (`acceptance.md` §J) or `S2-A006` names any `S2-AUTH-*` row, so none of the five groups below is a controlling §J prerequisite; `S2-AUTH-001..S2-AUTH-012` are disclosed process history, while `S2-AUTH-016` is proven canonical evidence.
+
+- **S2-AUTH-001** ("re-read canonical S2 planning from live `main` after `S2-P021`") = `PROCESS_DEVIATION_HISTORICAL`. Its literal precondition (`S2-P014..S2-P021` complete) is still open; `S2-P014..S2-P021` remain `SEPARATE_PLANNING_PACKAGE_ACCEPTANCE_TRACK` (`acceptance.md` §A), not closed by this reconciliation. Implementation tranches merged under staged policy successors v25..v65 ahead of this edge (already recorded, `tasks.md` line 117). This session's own live re-verification of `main`/`tasks.md` before acting substantively performs the re-read the row names, just not in the sequential position ("after S2-P021") its literal text specifies, since S2-P021 has not occurred. Left `[ ]`; reclassified from unstarted to explicit disclosed deviation, not a blocker.
+- **S2-AUTH-002..S2-AUTH-009** (the originally-sketched `S2-AUTH-C` contracts-only-first successor design/freeze/self-test/merge sequence) = `PROCESS_DEVIATION_HISTORICAL`. The actual route taken was different and already canonical: `v24` (`wepld_s2_core_observation_bootstrap_v24_integrity.py`) authorized the Core observation/locator tranche and `v25` (`wepld_s2_identity_store_bootstrap_v25_integrity.py`) froze it and authorized the identity/evidence-store tranche, both landing together as PR #240 (`BASE=573670eca575a5972e52b623b01b3143d036d281`, `ACCEPTED_HEAD=bdebfbaa8f146115321e6d204da9e49d367047e2`, `SCOPE=EXACT_FOUR_GOVERNED_PRODUCT_PATHS`, `INDEPENDENT_REVIEW=SATISFIED`, 0 unresolved findings/threads at acceptance — `docs/canonical/CURRENT_STATE.md` "S2 — identity and evidence-store tranche merged"). This achieves a materially equivalent authorization boundary (bounded, structurally effect-free contract/locator/identity/evidence paths only, `SOURCE_ADMISSION=NONE`) through a different successor shape than the `S2-AUTH-C` sketch, not its literal sequence (e.g. a standalone contracts-only-first tranche). Not flipped `[x]`: no exact run/merge identity maps each row's specific text to the v24/v25 route.
+- **S2-AUTH-010 / S2-AUTH-011** (bounded locator/identity/evidence Core authorization; per-platform data-root/path/ID/digest/catalog/generation/locking freeze) = `PROCESS_DEVIATION_HISTORICAL`, same v24/v25 -> PR #240 route and reasoning as above. `tasks.md` already recorded (lines 273-277) these are left unchecked on purpose because no assembled run/merge identity ties this exact row text to that tranche, and flipping on inference is the defect class this ledger refuses; that reasoning stands, this reconciliation only adds the explicit classification the Founder ruling requires.
+- **S2-AUTH-012** (direct `uuid`/`sha2` Core dependency edge under a focused dependency-admission gate) = `PROCESS_DEVIATION_HISTORICAL`. `getrandom`/`sha2` dependency admission is observed alongside the merged identity/evidence-store tranche, but no assembled run/merge identity exists for a standalone focused `S2-AUTH-012` gate distinct from PR #240's own dependency accounting, so it is not flipped `[x]` on that inference either.
+- **S2-AUTH-016** ("keep network/model/S3/S4 authority denied throughout S2") = `PROVEN_CANONICAL_EVIDENCE_AVAILABLE`. The predecessor selftest cascade printed on the exact-head `foundation-integrity` run for the last code-touching S2 merge (`7af08de`, run `34560177143` / #1198), independently re-counted from the raw log: `network_authority_vNN=NONE` and `s3_plus_authority_vNN=NONE` each appear at every printed version from `v22` (their earliest occurrence) through the exact final `v65`, with no exception in any printed occurrence (34 and 25 distinct printed versions respectively; the cascade does not reprint every historical version's markers verbatim at every later version, so these counts are the printed evidence, not a claim of a fully continuous v22-v65 print). `general_shell_authority_vNN=NONE`, `arbitrary_process_authority_vNN=NONE`, `package_install_authority_vNN=NONE`, `git_mutation_authority_vNN=NONE`, `safe_directory_mutation_authority_vNN=NONE`, and `remediation_execution_authority_vNN=NONE` each first appear at `v49` (the S2-AUTH-015 Doctor/CLI grant that introduced these specific authority concepts) and read `NONE` at every printed version through the exact final `v65`, with no exception. `git_execution_authority_vNN` reads `NONE` at every printed version `v22`-`v44` and `READ_ONLY_TOPOLOGY_OBSERVATION_ONLY` (S2-AUTH-014's own bounded grant, not a widening) at every printed version `v45`-`v65`; `external_process_authority_vNN` reads `NONE` at every printed version through `v37` and `EXACT_QUALIFIED_GIT_EXECUTABLE_CLOSED_TOPOLOGY_ARGV_ONLY` (the same grant) at every printed version `v45`-`v65`; neither ever regresses to a wider value at any printed point. The same run log, independently re-verified from the raw log, emits `effective_model_provider_execution_vN=NONE` for `v2` through `v20` and `model_provider_execution_vNN=NONE` for `v21` through `v25` and `v49` through the current `v65`; it prints no direct per-version marker for `v26` through `v48`. For that range, source inspection of every frozen `..._vNN_integrity.py` file at the exact head, `v26` through `v48` individually confirmed (one integrity file per version number, no duplicates), shows: `v26` and `v36` through `v45` each locally (re)assign `MODEL_PROVIDER_EXECUTION` to a `NONE`-equivalent constant (e.g. `wepld_s2_identity_store_governance_v26_integrity.py:138` `= None`; `wepld_s2_git_route_governance_v36_integrity.py:69` through `wepld_s2_git_topology_authority_v45_integrity.py` each `= "NONE"`); `v46` through `v48` each locally reassign it as `= q.MODEL_PROVIDER_EXECUTION`, an explicit inherit-unchanged-by-reference from the immediately preceding version; `v27` through `v35` contain no occurrence of the name at all and inherit it purely through the tower's append-only predecessor-import architecture (each `vNN` imports its frozen `vNN-1` module object and inherits every authority value by reference unless it explicitly monkey-patches that seam). No point anywhere in the tower, at any version, (re)assigns `MODEL_PROVIDER_EXECUTION` to a value other than `NONE`/`"NONE"`/inherited-unchanged. The v65 self-test (`wepld_s2_s006_gitdir_reopen_v65_selftest.py`) separately asserts, at the current head: (a) an `inherited_unchanged` check that `MODEL_PROVIDER_EXECUTION` (among other authority names) equals its immediate predecessor `v64`'s value exactly (`p.MODEL_PROVIDER_EXECUTION == p.q.MODEL_PROVIDER_EXECUTION`, failing the selftest otherwise), and (b) a direct `MODEL_PROVIDER_EXECUTION == "NONE"` check alongside `NETWORK_AUTHORITY`/`S3_PLUS_AUTHORITY`/the six v49-introduced Doctor/CLI authority names. Verified at the exact final S2 code head across direct run-log evidence, frozen-source inspection, and the v65 selftest's own equality/value assertions; flipped `[x]`.
+
+### S2-A006 evidence — guarded S2 acceptance decision with exact-head evidence
+
+Founder decision. Per a CodeRabbit finding on the formal review of `901bb55` (this PR carried no durable GitHub-hosted source, Founder identity, or stated decision scope for the ruling — it existed only in the out-of-band governance conversation that authorized this reconciliation), the ruling is now recorded verbatim as a durable, versioned, GitHub-hosted, independently-checkable record, posted as a comment under the Founder's own authenticated account (a GitHub issue/PR comment is editable by its author, so "durable and independently checkable" is the accurate claim here, not "immutable"):
+
+```text
+DECISION_SOURCE = https://github.com/TheHalfMoon/wepld/pull/329#issuecomment-5638475618
+DECISION_AUTHOR = TheHalfMoon (repository owner / Founder GitHub account — same account as every other PR/commit author and the PR #2 standing-authorization comment in this repository)
+DECISION_POSTED_AT = 2026-09-11T17:45:52Z
+DECISION_SCOPE = S2-A006 only — grants S2 acceptance-program authority (S2-A001..S2-A009) to proceed carrying the 8 documented bounded [~] rows forward as explicit unresolved obligations; does not grant S3 implementation authority
+S2_A006_DECISION = ACCEPT_WITH_EXPLICIT_BOUNDED_LIMITATIONS
+CANONICAL_MAIN_AT_DECISION = 71a87fe9a4e834fc9b80745a35c42df6dac58a70
+S2_ACCEPTANCE = ACCEPTED_WITH_BOUNDED_LIMITATIONS
+```
+
+S2 may proceed through `S2-A001..S2-A009` toward `CLOSED_CANONICAL` while carrying the following eight `[~]` rows forward as explicit unresolved obligations: `ACCEPTED_LIMITATION != PROVEN_REQUIREMENT`, `CARRIED_FORWARD != DISCHARGED`, `CLOSED_CANONICAL_S2 != ALL_FUTURE_PLATFORM_EVIDENCE_PROVEN`, `ABSENCE_OF_EVIDENCE != PASS`. None of the eight is converted to `[x]` by this decision; each row's own text above already states what is proven, what is not, why proof is not currently producible, the exact bounded limitation, what future capability closes it, and that S2 acceptance does not discharge it:
+
+1. **S2-S001** — Windows reserved/device-name path angle: `S2_WINDOWS_CORE_RUNTIME = NOT_COVERED`; closes with native Windows `wepld-core` runtime (`acceptance.md` §H.1).
+2. **S2-S003** — Windows junction/reparse: `S2_S003_DISPOSITION = OPEN_CROSS_SLICE_OBLIGATION`, `EXPECTED_NEXT_OWNER = S3_PLANNING`, `DISCHARGED_BY_S2 = NO`. Unowned until S3 planning explicitly adopts it; no speculative S3 implementation is created now to manufacture ownership.
+3. **S2-S005** — real end-to-end `safe.directory` refusal: `REAL_SAFE_DIRECTORY_REFUSAL = NOT_EXERCISABLE_ON_CURRENT_GITHUB_HOSTED_CI` (hosted runners set `safe.directory=*` globally); closes with containerized/self-hosted CI. Product Git semantics are not changed to manufacture the refusal.
+4. **S2-S007** — Git timeout/output-ceiling real firing: `REAL_HARD_TIMEOUT_END_TO_END = NOT_EXERCISED`, `REAL_OVERSIZED_OUTPUT_END_TO_END = NOT_EXERCISED`; unit-tested mechanism + source-inspected wiring is not end-to-end trigger evidence; closes with an admitted fault-injection/fake-Git seam.
+5. **S2-Q001** — Windows deterministic gate: `WINDOWS_COMPILE_COVERAGE != WINDOWS_NATIVE_CORE_RUNTIME_COVERAGE`; closes with native Windows runtime in CI.
+6. **S2-Q004** — traversal-avoidance at scale: proven on one materialized fixture, not a scaling benchmark; closes with a tree-size scaling measurement.
+7. **S2-Q008** — Git ceiling evidence: `BENCHMARK_HARNESS = NOT_ADMITTED`; deterministic-ceiling evidence only, no measured distribution; closes with an admitted benchmark harness and the fault-injection seam from (4).
+8. **S2-Q009** — performance-ceiling evidence: same `BENCHMARK_HARNESS = NOT_ADMITTED` bound as (7), fixture-identified, not a published p50/p95; same closing condition.
+
+This decision grants S2 acceptance-program authority only; it does not grant S3 implementation authority. `S2-P014..S2-P021` and the `S2-AUTH-001..012` reconciliation above are preserved exactly as recorded, not silently marked complete by this decision.
+
+### S2-A002 / S2-R015 / S2-A004 evidence — independent review, rereview, and finding reconciliation
+
+Reviewer: CodeRabbit (`coderabbitai[bot]`), manually triggered per the egress preflight required by `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md` (preflight comments on this PR: `5638035187`, `5638065992`, `5638090993`, `5638146723`, `5638215693`). Chat-style incremental review (not a formal GitHub review object — same class as PR #287's and PR #303's merged-head re-reviews), explicitly requested to assess whether the current S2 planning + implementation state contains any remaining material contradiction against the two original planning review waves (`S2-R001..R009`, `S2-R010..R014`) and whether the `S2-A001`/`S2-A003`/`S2-A006`/`S2-AUTH-001..012/016` claims are accurately supported by their cited evidence.
+
+Sixteen completed rounds against successive exact heads on this PR (fourteen chat-style incremental replies — rounds 1-5, 7-13, and 15-16 — plus one formal `PullRequestReview` object as round 6, discovered on the same head as round 5, plus one auto-review summary-comment refresh as round 14), each round finding real issues fixed before the next trigger except rounds 5, 12, and 14 (which found nothing material to `S2-A002`/`S2-A004`/`S2-R015`) — no material finding was voted away or left unaddressed. Round 17 found only that this narrative and the counters below were stale by one round each (fixed on that head); this is the same self-referential regress the note after the counters block addresses — the exact round/finding tally is not chased past this point:
+
+```text
+ROUND 1 (head 09fa482, comment 5638048545): 1 finding — S2-AUTH-016 claimed no
+  model/provider authority marker exists in the exact-head log; the marker
+  model_provider_execution_vNN=NONE does exist. Also: "no additional material
+  contradiction with S2-R001..R014" found. FIXED on 2a8734a.
+ROUND 2 (head 2a8734a, comment 5638074935): 1 finding — the single marker name
+  claim was imprecise: two distinct names exist across the cascade
+  (effective_model_provider_execution_vN for v2-v20,
+  model_provider_execution_vNN for v21+). FIXED on c4cab92.
+ROUND 3 (head c4cab92, comment 5638104602): 1 finding — the model_provider_
+  execution_vNN marker is not printed for every version v21-v65; v26-v48 have
+  no direct log marker (v21-v25 and v49-v65 only). FIXED on 5c812f1 with
+  exhaustive frozen-source inspection of v26-v48.
+ROUND 4 (head 5c812f1, comment 5638160107): 1 finding — the evidence text said
+  "flipped [x]" but the S2-AUTH-016 task-row checkbox (line 166) was still
+  [ ], asserting two different states for the same task. FIXED on 1f41029.
+  (A further self-audit before round 5, not a CodeRabbit finding, caught and
+  fixed the identical "every vNN" overclaim pattern for the other 8 authority
+  markers cited in the same paragraph, on 901bb55.)
+ROUND 5 (head 901bb55, comment 5638242353, chat-style incremental reply): "I
+  found no additional material evidence-ledger contradiction on 901bb55" —
+  confirms the direct run markers, the v45 git_execution_authority/
+  external_process_authority transition, the v65 selftest's inherited-
+  unchanged check, and the v65 selftest's NONE-value assertions all match
+  the inspected evidence.
+ROUND 6 (head 901bb55, formal GitHub PullRequestReview id 5181778172,
+  COMMENTED, submitted 2026-09-11T17:40:12Z — a separate review object from
+  the chat-style rounds above, discovered by checking
+  `gh api .../pulls/329/reviews` directly rather than trusting only the
+  issue-comment channel this session had been polling): 3 actionable inline
+  findings on `901bb55` (comments 3991875542, 3991875552, 3991875569): (a)
+  Major — S2-A001 cited only older code-tranche heads, not this PR's own
+  current-head CI runs (`foundation-integrity` 34627911602,
+  `s1-admission-integrity` 34627907979, both PASS for `901bb55`); (b) Minor —
+  the S2-AUTH reconciliation summary said "none of the four below" for five
+  bullet groups, and called every group "process history" including
+  `S2-AUTH-016`, which is `PROVEN_CANONICAL_EVIDENCE_AVAILABLE`, not process
+  history; (c) Major — `S2-A006` cited no immutable GitHub-hosted Founder
+  decision source, author identity, or stated decision scope; the ruling
+  existed only in the out-of-band governance conversation. All three
+  confirmed valid and fixed: (a) this section now cites the current-round
+  CI identity directly above, with the final-merge-head binding deferred to
+  S2-A005/S2-A008 as designed rather than claimed here; (b) the summary
+  sentence above now names five groups and states `S2-AUTH-016` separately
+  from the process-history four; (c) the Founder ruling is now posted
+  verbatim as PR #329 comment 5638475618, authored under the Founder's own
+  GitHub account, and cited by URL/author/timestamp/scope in the S2-A006
+  evidence block above.
+ROUND 7 (head 07f73b9, comment 5638516466, chat-style): confirms all three
+  round-6 findings reconciled ("The prior three formal findings are
+  reconciled" with each restated and confirmed correct). One further
+  precision issue: the S2-A006 evidence block called the Founder-decision
+  GitHub comment "immutable", but a GitHub comment is editable by its
+  author, so "durable"/"versioned GitHub-hosted" is the accurate word, not
+  "immutable". FIXED on this head: reworded to "durable, versioned,
+  GitHub-hosted, independently-checkable", with the editability caveat
+  stated explicitly rather than overclaimed away.
+ROUND 8 (head dab7275, comment 5638549311, chat-style): confirmed the round-7
+  editability fix as correct, then found 2 items: (a) a round-count narrative
+  contradiction — the section said "six rounds (five chat-style + one formal)"
+  while separately listing seven numbered rounds (six chat-style: 1,2,3,4,5,7;
+  one formal: 6); (b) as of the review moment, `s1-admission-integrity` had
+  FAILED on `dab727517a1e5e6ca63d9e9b3f3b8318b31d22b4` (run `34629917039`),
+  so current-head qualification was not complete and `S2-A001`/`S2-A002`/
+  `S2-A004`/`S2-R015` had to stay unqualified until that check passed on the
+  reviewed head. Both confirmed and addressed: (a) this narrative and the
+  `S2_A002_ROUNDS_SO_FAR` line below now say eight rounds / six chat-style +
+  one formal + one further chat-style, matching the eight numbered entries
+  exactly; (b) independently re-diagnosed the failure before treating it as
+  resolved — the job log (`gh run view 34629917039 --log-failed`) shows a
+  transient `GitHub API request failed ... HTTP Error 403: Forbidden` inside
+  `wepld_s2_s006_gitdir_reopen_v65_integrity.py verify-remote`'s remote-commit
+  lookup, not a policy/content defect (this exact check had passed 8/8 times
+  in a row on this branch immediately before, `runs 34626545953` through
+  `34628322888`, consistent with transient GitHub API secondary rate-limiting
+  under this PR's burst of successive triggers, not a reproducible failure);
+  reran the identical job via `gh run rerun 34629917039 --failed` against the
+  same unchanged head `dab7275` — result: **SUCCESS** (job `verify`,
+  `s1-admission-integrity`, run `34629917039`, re-queried
+  `2026-09-11T19:37:5xZ`). `gh pr view 329 --json statusCheckRollup` now
+  shows both `foundation-integrity` and `s1-admission-integrity` as `SUCCESS`
+  for the current, unchanged head `dab7275`. Current-head qualification for
+  `S2-A001` is therefore genuinely complete on this exact head; not treated
+  as PASS from the stale failing attempt, only from the fresh rerun result.
+ROUND 9 (head 7c14055, comment 5639746161, chat-style): confirmed the round-8
+  round-count fix as correct, then found 1 item: round 8's own text named its
+  head imprecisely as "this PR's current head" (line 491, pre-fix) and folded
+  the still-pending review of this exact fix into the round-8 count (line 586,
+  pre-fix `S2_A002_ROUNDS_SO_FAR = 8 (... + this section's own pending next
+  round)`), when round 8 in fact ran on `dab7275` and the pending review of
+  `7c14055` is a distinct round 9, not part of round 8's count. Also noted,
+  as of the review moment, both current-head checks were still `IN_PROGRESS`
+  (`foundation-integrity` run `34640068359`, `s1-admission-integrity` run
+  `34640066290`) and that `S2-A001`/`S2-A002`/`S2-A004`/`S2-R015` must stay
+  unqualified until they complete successfully. FIXED on this head: round 8's
+  narrative now names `dab7275` explicitly as its head; round 9 (this finding,
+  now fixed) is itself counted as a completed round, and the pending review of
+  this exact fix is round 10, not folded into round 9's own count. Independently
+  re-queried after the review comment landed: `gh pr view 329 --json
+  headRefOid,statusCheckRollup` shows head `7c14055` with both
+  `foundation-integrity` and `s1-admission-integrity` as `SUCCESS` (the two
+  runs the review cited had completed by query time) — current-head
+  qualification for `S2-A001` is genuinely complete on `7c14055`, confirmed
+  after, not assumed before, the checks finished.
+ROUND 10 (head 54a50b1, comment 5639810201, chat-style): confirmed the
+  round-9 head-naming/count fix as correct ("round-count correction is
+  accurate ... correctly records nine completed rounds and a pending round
+  10"), then found 1 item: this section's own "not yet closed" paragraph
+  claimed "this exact fix's own head now carries green ... checks" for head
+  `54a50b1`, but at review time that head's own applicable runs
+  (`foundation-integrity` `34640587189`, `s1-admission-integrity`
+  `34640583088`) were still `IN_PROGRESS` — the cited green runs
+  (`34640068359`/`34640066290`) belonged to the prior head `7c14055`, not
+  `54a50b1`. Root cause, stated plainly: a commit cannot truthfully assert
+  its own resulting head's CI status, because that head and its CI runs do
+  not exist yet at authoring/commit time — the round-9 fix's "not yet
+  closed" paragraph made exactly that structurally-impossible claim. FIXED
+  on this head: the paragraph no longer asserts the current fix's own head
+  is green; it names only the most recently *independently confirmed*
+  green head, and states this commit's own resulting head's qualification
+  as pending until confirmed in a later step (the next round's evidence, or
+  the S2-A005 final race check). The `S2-A001` evidence paragraph above was
+  also generalized to stop pinning one specific head/run pair — the same
+  structural trap recurs every round otherwise, as rounds 6/9/10 each show.
+  Independently re-queried after this review comment landed: `gh pr view
+  329 --json headRefOid,statusCheckRollup` shows head `54a50b1` with both
+  `foundation-integrity` and `s1-admission-integrity` as `SUCCESS` — noted
+  here as an independently-confirmed fact obtained after those runs
+  completed, not asserted inside the commit that created that head.
+ROUND 11 (head d58deb4, comment 5639868769, chat-style): confirmed the
+  round-10 fix as correct ("addresses the prior finding"), then found 1
+  further item, a deeper variant of the same class: `S2-A001` stays `[x]`
+  while this candidate PR's own *literal current head* (`d58deb4`) had its
+  own applicable checks still `IN_PROGRESS` (`foundation-integrity` run
+  `34641102509`, `s1-admission-integrity` run `34641100233`) at review
+  time. Root cause identified and fixed structurally rather than by another
+  per-round patch: `S2-A001`'s checked status was never meant to depend on
+  *this candidate PR's own* literal current-head CI in the first place —
+  its actual subject is the exact-head qualification of the S2 *code*
+  state (the two-tier `7af08de`/`71a87fe` chain above), which is fixed and
+  unaffected by this docs-only PR's ongoing ledger edits. FIXED on this
+  head: added an explicit "what `S2-A001` actually certifies" statement
+  above distinguishing that from this PR's own per-round CI (which is
+  `S2-A005`/`S2-A007`/`S2-A008` merge-admission evidence, not `S2-A001`
+  evidence) — this ends the pattern rounds 6, 9, 10, and 11 each caught a
+  variant of, rather than requiring an ever-later independent re-query on
+  every future round.
+ROUND 12 (head 671e024, comment 5639920148, chat-style): "The S2-A001
+  structural correction is accurate. S2-A001 now certifies the fixed S2
+  code state at 7af08de and 71a87fe. It no longer incorrectly depends on
+  the moving head of this docs-only PR. The ledger correctly assigns this
+  PR-head CI evidence to S2-A005, S2-A007, and S2-A008. I found no
+  additional material evidence-ledger contradiction in 671e024." Noted, as
+  of the review moment, `foundation-integrity` run `34641515242` and
+  `s1-admission-integrity` run `34641513756` were still `IN_PROGRESS` for
+  head `671e024`, with the explicit instruction not to use them until
+  GitHub reports successful completion. Independently re-queried after the
+  review comment landed: both runs show `status=completed,
+  conclusion=success` for `head_sha=671e024ca5fc7455edadd7790a6e041d574dedc2`;
+  `gh pr view 329 --json headRefOid,statusCheckRollup` confirms the same;
+  `gh api .../pulls/329/reviews` shows no new formal `PullRequestReview`
+  object beyond the existing round-6 one. This establishes three distinct
+  facts, stated separately rather than merged into one "both channels
+  clean at this head" claim (round 13's own finding on this text, below):
+  the chat-style review is clean at exact head `671e024`; the round-6
+  formal review's three findings (on head `901bb55`) are fully reconciled;
+  and no later formal-review object exists for any head after `901bb55`,
+  including `671e024` — an absence of a formal review, not a demonstrated
+  clean formal review at this exact head (`AGENTS.md`: missing coverage
+  evidence != PASS). `671e024`'s own CI is independently confirmed green
+  after the fact.
+ROUND 13 (head e24ac8f, comment 5639981277, chat-style): found 1 item: the
+  round-12 entry's closing clause ("both the chat-style and formal-review
+  channels are clean at this exact head") overstated the formal-review
+  evidence — the only formal review object (`5181778172`) reviewed
+  `901bb55`, not `671e024`; its absence on `671e024` is silence, not a
+  demonstrated clean result for that exact head. FIXED on this head: the
+  round-12 entry above now states the three facts separately (chat-style
+  clean at `671e024`; round-6 formal findings reconciled at `901bb55`; no
+  formal review exists for any later head) instead of merging them into one
+  overstated two-channel claim. `S2-R015`'s standard is "no remaining
+  material contradiction against both review waves" (the planning waves
+  `S2-R001..009`/`S2-R010..014`, not "two live review channels on the exact
+  final head") — satisfied by the chat-style round-12 confirmation plus the
+  formal round-6 findings' reconciliation, not by an uncontradicted claim of
+  formal-channel silence being equivalent to a pass. `e24ac8f`'s own checks
+  were `IN_PROGRESS` at review time (`foundation-integrity` run
+  `34642037150`, `s1-admission-integrity` run `34642035726`); independently
+  re-queried after the review landed: both `SUCCESS` for
+  `head_sha=e24ac8fb318dc018b7a0d051dfab16e5926ae0ff`.
+ROUND 14 (head 5215e3b, CodeRabbit's persistent auto-review summary comment
+  `5638026015`, last updated 2026-09-11T21:30:45Z — a distinct evidence class
+  from rounds 1-13: not a chat-style reply and not a formal `PullRequestReview`
+  object, but the incremental auto-review system's own per-push "recent
+  review" section, which this repository's own `EXTERNAL_REVIEW_EGRESS_POLICY`
+  preflight-gated `@coderabbitai review` triggers at 21:27:48/21:28:25/21:28:57
+  caused to re-run and refresh): the comment states its own diff coverage
+  explicitly — "Reviewing files that changed from the base of the PR and
+  between `901bb55dde78671d0379b975175c74377c4d0ea7` and
+  `5215e3b08be69efad5f21d751515039f7bad5f5e`" — i.e. exactly round 13's fix
+  commit through this PR's current exact head, confirmed unchanged at review
+  time (`gh pr view 329 --json headRefOid` = `5215e3b08be69efad5f21d751515039f7bad5f5e`).
+  Verdict: "No actionable comments were generated in the recent review." Zero
+  new formal `PullRequestReview` objects exist for any head after `901bb55`
+  (`gh api .../pulls/329/reviews` still lists only the round-6 object) — this
+  round's clean result is on the chat/auto-review channel only, the same
+  channel every round since 6 has been exercised on, not a claim that the
+  formal-review channel produced a second clean review. The comment also
+  records `specs/.../tasks.md` as both the one file selected for processing
+  and, separately, a file "skipped from review as similar to previous
+  changes" — stated here verbatim rather than smoothed over, since it means
+  this pass leaned on the targeted rounds 7-13 already having covered the
+  bulk of the incremental diff, not a fresh full-file re-read; independently,
+  this session re-read the full current-head file content directly
+  (`git show origin/docs/s2-acceptance-a001-a003-a006:specs/.../tasks.md`)
+  and confirmed round 13's fix text, the S2-A001 current-round CI citation,
+  and the S2-A006 Founder-decision citation are all genuinely present and
+  correctly worded at this exact head, rather than relying on the auto-review
+  comment's "no actionable comments" line alone. `S2-A005`'s own final race
+  check, immediately before merge, independently re-confirms this head's CI
+  one more time rather than reusing this round's evidence. Included
+  auto-review quota is now exhausted for this PR ("0 remain after this
+  review" per the plan's 1-per-hour allowance) — noted as an availability
+  fact about future rounds, not a qualifier on this round's own result.
+ROUND 15 (head 18d1929, comment 5641383382, chat-style, triggered via a fresh
+  egress-preflight comment 5641373753 since automatic review is
+  repository-disabled): found 1 item, scoped to `S2-A005` only, not to
+  `S2-A002`/`S2-A004`/`S2-R015` ("I found no other new material contradiction
+  in the reviewed ledger scope"): `S2-A005` was marked `[x]` for "Final race
+  check and Ready-triggered trusted admission" on a pre-Ready race check
+  alone; `S2_A005_STATE = OPEN` and no `ready_for_review` timeline event
+  existed for this PR, so the distinct Ready-transition-plus-reread-admission
+  requirement in `acceptance.md` §A/§J was not actually satisfied. Confirmed
+  valid and fixed on this head: `gh api .../issues/329/timeline` independently
+  confirmed no prior `ready_for_review` event and `gh api .../pulls/329`
+  confirmed this PR was opened directly as non-draft (`draft: false` from its
+  own `created_at`), so the missing event could not be found in existing
+  history, only produced; this session ran `gh pr ready 329 --undo` then
+  `gh pr ready 329` on the unchanged head `18d1929`, producing a genuine
+  `ready_for_review` timeline event and a matching `s1-admission-integrity`
+  run (`34654985781`, trigger type `ready_for_review`) that completed
+  SUCCESS on that exact head. `S2-A005`'s evidence section is rewritten
+  accordingly rather than narrowed to defer the requirement, since
+  `acceptance.md` §J does not permit `READY_TRIGGERED_ADMISSION` as a
+  carried-forward obligation past `CLOSED_CANONICAL`.
+ROUND 16 (head df3aced, comment 5641522668, chat-style, triggered via a fresh
+  egress-preflight comment 5641516465): found 2 items. (1) Scoped to
+  `S2-A005` only: round 15's fix genuinely satisfied `READY_TRIGGERED_
+  ADMISSION` for head `18d1929`, but that commit's own act of recording the
+  fix created a new head, `df3aced`, for which no Ready-triggered admission
+  run exists — the same structural trap rounds 9-11 identified for
+  `S2-A001`, recurring here for `S2-A005`. (2) The task-row summaries at
+  lines 397/399 said "14 rounds"/"15 findings" while the evidence block
+  already said 15/16 (drifted out of sync when round 15 was added).
+  Both confirmed valid. (2) is fixed by updating the summary rows to match.
+  (1) is fixed structurally rather than by another per-round patch, the
+  same way rounds 9-11 fixed the analogous `S2-A001` trap: `S2-A005` is
+  deliberately left `[ ]`, the proven-but-superseded `18d1929` evidence is
+  kept as mechanism validation, and the actual gating instance is deferred
+  to the terminal pre-merge step with no intervening ledger commit — see
+  the revised `S2-A005` evidence section above.
+```
+
+Every finding across all sixteen rounds was reproduced/verified independently against the cited raw evidence (`gh run view <id> --log`/`--log-failed`, direct `grep`/source inspection of the frozen policy files, direct `gh api .../pulls/329/reviews` queries, direct `gh run view`/`gh pr view --json statusCheckRollup,headRefOid` re-queries) before being fixed or accepted, not merely accepted on the reviewer's assertion — consistent with `[[wepld-ledger-annotation-discipline]]`: state exactly what a check asserts, no stronger. Round 6 is itself evidence that polling only the chat-style issue-comment channel was an incomplete review-discovery method; the formal `pulls/329/reviews` endpoint is checked directly on every round rather than inferred from issue comments alone. Rounds 9-11 are evidence that describing a fast-iterating PR's own live state inside the very commit that creates or depends on that state is a structurally unreliable pattern; round 13 is evidence that "channel clean" and "channel silent" are different facts that must not be merged into one claim — silence on the formal-review channel is `AGENTS.md`'s "missing coverage evidence", not a demonstrated pass.
+
+`S2-A002`/`S2-A004`/`S2-R015` are now **closed**: round 14, against the exact head carrying round 13's fix (`5215e3b`), reports no further material finding — "No actionable comments were generated in the recent review" for the diff `901bb55..5215e3b`, independently corroborated by this session's own direct re-read of the current-head ledger text (not accepted on the auto-review comment's assertion alone). Per this PR's own established discipline (rounds 6-13), that satisfies the "subsequent clean round on the head carrying the fix" condition. No internal/self-authored review substituted for this gate (`AGENTS.md`); the qualifying round was CodeRabbit's own auto-review system, external to this session.
+
+```text
+S2_A002_REVIEWER = CodeRabbit (coderabbitai[bot]); chat-style incremental replies (rounds 1-5,7-13,15-16), one formal PullRequestReview object (round 6), and one auto-review summary-comment refresh (round 14)
+S2_A002_BASE_SHA = 71a87fe9a4e834fc9b80745a35c42df6dac58a70
+S2_A002_ROUNDS_COMPLETED (as of round 16) = 16 (14 chat-style + 1 formal review + 1 auto-review refresh); rounds 5, 12, and 14 found nothing material to S2-A002/S2-A004/S2-R015, every other round through 16 found a real, fixed issue
+S2_A002_FINDINGS_TOTAL (as of round 16) = 17 CodeRabbit findings + 1 self-audit (pre-round-5) = 18
+S2_A004_UNRESOLVED_MATERIAL_FINDINGS = 0 — every finding through round 16 fixed and independently re-verified against its head; S2-A002/S2-A004/S2-R015's own substance was last touched by round 14 (closing them) and has not been contradicted since
+S2_R015_VERDICT = CONFIRMED — round 14 (auto-review, diff `901bb55..5215e3b`) plus round 6's formal review (fully reconciled) together show no remaining material contradiction against `S2-R001..R009`/`S2-R010..R014`; nothing after round 14 (rounds 15-16 on S2-A005; round 17 on this block's own drift) has contradicted this verdict
+S2_ROUND_COUNTER_POLICY = frozen after round 16 for this block's own headline numbers, by design: round 17 found this narrative one round stale, and fixing that finding would itself create a new head one round staler, the same regress rounds 9-11 identified for S2-A001 and rounds 15-16 hit again for S2-A005. Further narrow drift-correction rounds against this ledger's own bookkeeping (not against S2-A002/S2-A004/S2-R015/S2-A005 substance) are expected and are not individually numbered or tallied here; a reader wanting the exact current round count should query `gh api repos/TheHalfMoon/wepld/issues/329/comments` directly rather than trust a hand-maintained number in prose that a later commit could make stale again the moment it is written.
+```
+
+### S2-A005 evidence — final race check and Ready-triggered trusted admission
+
+**Round 15 finding (chat-style, comment `5641383382`, head `18d1929`):** the prior version of this section marked `S2-A005` `[x]` on a pre-Ready race check alone, with `S2_A005_STATE = OPEN` and no `ready_for_review` timeline event for this PR — `acceptance.md` §A/§J both require a distinct Ready transition followed by a fresh trusted-base admission reread on that same exact head, which had not occurred. Confirmed valid: `gh api repos/TheHalfMoon/wepld/issues/329/timeline` showed no `ready_for_review` event, and `gh api repos/TheHalfMoon/wepld/pulls/329 --jq '{created_at,draft}'` showed `draft: false` from `created_at` itself — this PR was opened directly as non-draft, so no such event had ever occurred or could be produced by re-reading existing state.
+
+**Fix, performed on this head:** rather than narrowing the row to only the pre-Ready race check (leaving `READY_TRIGGERED_ADMISSION` as a `STILL_REQUIRED_BLOCKER`, which `acceptance.md` §J does not permit deferring past `CLOSED_CANONICAL`), this session produced the literal event: `gh pr ready 329 --undo` (converts to draft) immediately followed by `gh pr ready 329` (converts back to ready for review), on the unchanged code head `18d1929`. This is a PR metadata transition only — no commit, no code or ledger content change — and is exactly the mechanism `s1-admission-integrity.yml`'s `ready_for_review` trigger type exists for.
+
+```text
+S2_A005_STEP_1_RACE_CHECK = performed 2026-09-11T22:2xZ (live-queried): head 18d1929, base 71a87fe (matches live origin/main), mergeable=MERGEABLE, mergeStateStatus=CLEAN, foundation-integrity/s1-admission-integrity/CodeRabbit all SUCCESS, zero unresolved review threads
+S2_A005_STEP_2_DRAFT_TOGGLE = converted to draft at 2026-09-11T22:3xZ, converted back to ready at 2026-09-11T22:39:52Z (confirmed via issues/329/timeline `ready_for_review` event) — same unchanged head `18d1929` throughout
+S2_A005_READY_TRIGGERED_RUN = s1-admission-integrity run `34654985781`, event `pull_request_target` / trigger type `ready_for_review`, head_sha `18d1929d288bb9eb349a79b712c700b8010242dd`, status completed, conclusion SUCCESS
+S2_A005_MECHANISM_VALIDATED = YES — the draft/ready-toggle method genuinely produces a fresh, GitHub-fired `ready_for_review`-triggered trusted-base admission run on an unchanged code head
+```
+
+**Round 16 finding (chat-style, comment `5641522668`, head `df3aced`):** this commit itself (the one recording the above) created a new head, `df3aced...`, superseding `18d1929`; the evidence above genuinely satisfies `READY_TRIGGERED_ADMISSION` for `18d1929`, but not for the later merge candidate `df3aced...`, and the prior wording claimed the "current exact head" was satisfied when it was not. Confirmed valid — this is the same structural trap rounds 9-11 identified for `S2-A001`: a commit describing its own resulting head's state is stale the moment that head is superseded, and *any* commit that records "the Ready-triggered admission now passes on head X" necessarily creates head X+1, which then lacks that same evidence, without end.
+
+**Resolution:** `S2-A005` is deliberately left `[ ]` rather than chasing this regress with another commit. The mechanism above is proven correct and repeatable; the actual gating instance — bound to the true final merge candidate — is performed as the terminal action of the merge sequence itself: final race check, then draft/ready toggle, then confirm the resulting `ready_for_review`-triggered admission run SUCCESS, then `S2-A007`'s guarded merge, with no ledger commit in between (a ledger commit at that point would itself create a superseding head and repeat the same trap). The result is recorded as closed in the post-merge reconciliation that also records `S2-A007`/`S2-A008`, where citing a fixed, already-merged head carries no staleness risk.
 
 ## Explicit stop conditions
 

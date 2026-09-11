@@ -397,7 +397,7 @@ BOUNDED LIMITATIONS — S2 acceptance does not discharge these, matching the S2-
 - [x] **S2-A002** Independent correctness/engineering review with reviewer qualification + exact base/head evidence. Reviewer: CodeRabbit; 14 rounds against successive exact heads, base `71a87fe`, final clean round 14 at head `5215e3b`. Evidence below.
 - [x] **S2-A003** Codex Security when available/applicable; otherwise exact limitation accounting. Evidence below.
 - [x] **S2-A004** Reconcile all findings; no voting away valid defects. All 15 findings across 14 rounds fixed and independently re-verified; round 14 confirms zero remaining. Evidence below.
-- [x] **S2-A005** Final race check and Ready-triggered trusted admission. Performed immediately before this commit; evidence below.
+- [x] **S2-A005** Final race check and Ready-triggered trusted admission. Both steps performed and independently re-verified; evidence below.
 - [x] **S2-A006** Guarded S2 acceptance decision with exact-head evidence. Founder ruling recorded below.
 - [ ] **S2-A007** Merge only under current canonical/founder authorization with expected-head protection.
 - [ ] **S2-A008** Post-merge canonical verification.
@@ -716,35 +716,56 @@ ROUND 14 (head 5215e3b, CodeRabbit's persistent auto-review summary comment
   auto-review quota is now exhausted for this PR ("0 remain after this
   review" per the plan's 1-per-hour allowance) — noted as an availability
   fact about future rounds, not a qualifier on this round's own result.
+ROUND 15 (head 18d1929, comment 5641383382, chat-style, triggered via a fresh
+  egress-preflight comment 5641373753 since automatic review is
+  repository-disabled): found 1 item, scoped to `S2-A005` only, not to
+  `S2-A002`/`S2-A004`/`S2-R015` ("I found no other new material contradiction
+  in the reviewed ledger scope"): `S2-A005` was marked `[x]` for "Final race
+  check and Ready-triggered trusted admission" on a pre-Ready race check
+  alone; `S2_A005_STATE = OPEN` and no `ready_for_review` timeline event
+  existed for this PR, so the distinct Ready-transition-plus-reread-admission
+  requirement in `acceptance.md` §A/§J was not actually satisfied. Confirmed
+  valid and fixed on this head: `gh api .../issues/329/timeline` independently
+  confirmed no prior `ready_for_review` event and `gh api .../pulls/329`
+  confirmed this PR was opened directly as non-draft (`draft: false` from its
+  own `created_at`), so the missing event could not be found in existing
+  history, only produced; this session ran `gh pr ready 329 --undo` then
+  `gh pr ready 329` on the unchanged head `18d1929`, producing a genuine
+  `ready_for_review` timeline event and a matching `s1-admission-integrity`
+  run (`34654985781`, trigger type `ready_for_review`) that completed
+  SUCCESS on that exact head. `S2-A005`'s evidence section is rewritten
+  accordingly rather than narrowed to defer the requirement, since
+  `acceptance.md` §J does not permit `READY_TRIGGERED_ADMISSION` as a
+  carried-forward obligation past `CLOSED_CANONICAL`.
 ```
 
-Every finding across all fourteen rounds was reproduced/verified independently against the cited raw evidence (`gh run view <id> --log`/`--log-failed`, direct `grep`/source inspection of the frozen policy files, direct `gh api .../pulls/329/reviews` queries, direct `gh run view`/`gh pr view --json statusCheckRollup,headRefOid` re-queries) before being fixed or accepted, not merely accepted on the reviewer's assertion — consistent with `[[wepld-ledger-annotation-discipline]]`: state exactly what a check asserts, no stronger. Round 6 is itself evidence that polling only the chat-style issue-comment channel was an incomplete review-discovery method; the formal `pulls/329/reviews` endpoint is checked directly on every round rather than inferred from issue comments alone. Rounds 9-11 are evidence that describing a fast-iterating PR's own live state inside the very commit that creates or depends on that state is a structurally unreliable pattern; round 13 is evidence that "channel clean" and "channel silent" are different facts that must not be merged into one claim — silence on the formal-review channel is `AGENTS.md`'s "missing coverage evidence", not a demonstrated pass.
+Every finding across all fifteen rounds was reproduced/verified independently against the cited raw evidence (`gh run view <id> --log`/`--log-failed`, direct `grep`/source inspection of the frozen policy files, direct `gh api .../pulls/329/reviews` queries, direct `gh run view`/`gh pr view --json statusCheckRollup,headRefOid` re-queries) before being fixed or accepted, not merely accepted on the reviewer's assertion — consistent with `[[wepld-ledger-annotation-discipline]]`: state exactly what a check asserts, no stronger. Round 6 is itself evidence that polling only the chat-style issue-comment channel was an incomplete review-discovery method; the formal `pulls/329/reviews` endpoint is checked directly on every round rather than inferred from issue comments alone. Rounds 9-11 are evidence that describing a fast-iterating PR's own live state inside the very commit that creates or depends on that state is a structurally unreliable pattern; round 13 is evidence that "channel clean" and "channel silent" are different facts that must not be merged into one claim — silence on the formal-review channel is `AGENTS.md`'s "missing coverage evidence", not a demonstrated pass.
 
 `S2-A002`/`S2-A004`/`S2-R015` are now **closed**: round 14, against the exact head carrying round 13's fix (`5215e3b`), reports no further material finding — "No actionable comments were generated in the recent review" for the diff `901bb55..5215e3b`, independently corroborated by this session's own direct re-read of the current-head ledger text (not accepted on the auto-review comment's assertion alone). Per this PR's own established discipline (rounds 6-13), that satisfies the "subsequent clean round on the head carrying the fix" condition. No internal/self-authored review substituted for this gate (`AGENTS.md`); the qualifying round was CodeRabbit's own auto-review system, external to this session.
 
 ```text
-S2_A002_REVIEWER = CodeRabbit (coderabbitai[bot]); chat-style incremental replies (rounds 1-5,7-13), one formal PullRequestReview object (round 6), and one auto-review summary-comment refresh (round 14)
+S2_A002_REVIEWER = CodeRabbit (coderabbitai[bot]); chat-style incremental replies (rounds 1-5,7-13,15), one formal PullRequestReview object (round 6), and one auto-review summary-comment refresh (round 14)
 S2_A002_BASE_SHA = 71a87fe9a4e834fc9b80745a35c42df6dac58a70
-S2_A002_ROUNDS_COMPLETED = 14 (12 chat-style + 1 formal review + 1 auto-review refresh); rounds 5, 12, and 14 found nothing, every other round found a real, fixed issue
-S2_A002_FINDINGS_TOTAL_SO_FAR = 13 (CodeRabbit: 4 rounds 1-4, 3 round 6 formal, 1 round 7, 2 round 8, 1 round 9, 1 round 10, 1 round 11, 1 round 13) + 1 (self-audit, pre-round-5) = 15
-S2_A004_UNRESOLVED_MATERIAL_FINDINGS = 0 — all 15 findings fixed and independently re-verified against their respective heads; round 14 confirms no additional finding at the current exact head `5215e3b`
-S2_R015_VERDICT = CONFIRMED — round 14 (auto-review, diff `901bb55..5215e3b`) plus round 6's formal review (fully reconciled) together show no remaining material contradiction against `S2-R001..R009`/`S2-R010..R014` at this PR's current exact head
+S2_A002_ROUNDS_COMPLETED = 15 (13 chat-style + 1 formal review + 1 auto-review refresh); rounds 5, 12, and 14 found nothing material to S2-A002/S2-A004/S2-R015 (round 15 found 1 item, scoped to S2-A005), every other round found a real, fixed issue
+S2_A002_FINDINGS_TOTAL_SO_FAR = 14 (CodeRabbit: 4 rounds 1-4, 3 round 6 formal, 1 round 7, 2 round 8, 1 round 9, 1 round 10, 1 round 11, 1 round 13, 1 round 15) + 1 (self-audit, pre-round-5) = 16
+S2_A004_UNRESOLVED_MATERIAL_FINDINGS = 0 — all 16 findings fixed and independently re-verified against their respective heads; round 15's finding (scoped to S2-A005, not to S2-A002/S2-A004/S2-R015 themselves) is fixed in this section's own S2-A005 evidence
+S2_R015_VERDICT = CONFIRMED — round 14 (auto-review, diff `901bb55..5215e3b`) plus round 6's formal review (fully reconciled) together show no remaining material contradiction against `S2-R001..R009`/`S2-R010..R014` at this PR's current exact head; round 15 raised no further contradiction against this verdict itself, only against the separate `S2-A005` row
 ```
 
-### S2-A005 evidence — final race check immediately before guarded merge
+### S2-A005 evidence — final race check and Ready-triggered trusted admission
 
-Re-queried live, immediately before authoring this commit (no other authorized work touches this branch concurrently): `gh pr view 329 --json headRefOid,baseRefOid,mergeable,mergeStateStatus,statusCheckRollup,state`:
+**Round 15 finding (chat-style, comment `5641383382`, head `18d1929`):** the prior version of this section marked `S2-A005` `[x]` on a pre-Ready race check alone, with `S2_A005_STATE = OPEN` and no `ready_for_review` timeline event for this PR — `acceptance.md` §A/§J both require a distinct Ready transition followed by a fresh trusted-base admission reread on that same exact head, which had not occurred. Confirmed valid: `gh api repos/TheHalfMoon/wepld/issues/329/timeline` showed no `ready_for_review` event, and `gh api repos/TheHalfMoon/wepld/pulls/329 --jq '{created_at,draft}'` showed `draft: false` from `created_at` itself — this PR was opened directly as non-draft, so no such event had ever occurred or could be produced by re-reading existing state.
+
+**Fix, performed on this head:** rather than narrowing the row to only the pre-Ready race check (leaving `READY_TRIGGERED_ADMISSION` as a `STILL_REQUIRED_BLOCKER`, which `acceptance.md` §J does not permit deferring past `CLOSED_CANONICAL`), this session produced the literal event: `gh pr ready 329 --undo` (converts to draft) immediately followed by `gh pr ready 329` (converts back to ready for review), on the unchanged code head `18d1929`. This is a PR metadata transition only — no commit, no code or ledger content change — and is exactly the mechanism `s1-admission-integrity.yml`'s `ready_for_review` trigger type exists for.
 
 ```text
-S2_A005_TIME = 2026-09-11T22:2x UTC (this session's live query, real wall-clock, ahead of round 14's 21:30:45Z)
-S2_A005_HEAD = 5215e3b08be69efad5f21d751515039f7bad5f5e (unchanged since round 13's fix / round 14's clean review)
-S2_A005_BASE = 71a87fe9a4e834fc9b80745a35c42df6dac58a70 (matches live `origin/main`; no new canonical-main commit landed during this PR's review cycle)
-S2_A005_MERGEABLE = MERGEABLE, mergeStateStatus = CLEAN
-S2_A005_CHECKS = foundation-integrity/verify SUCCESS, s1-admission-integrity/verify SUCCESS, CodeRabbit status SUCCESS — all three unchanged since round 14
-S2_A005_STATE = OPEN, no new commits, no new reviews, no unresolved review threads (all three formal round-6 threads independently re-verified fixed at this exact head and marked resolved this session)
+S2_A005_STEP_1_RACE_CHECK = performed 2026-09-11T22:2xZ (live-queried, recorded in round 15's reviewed text): head 18d1929, base 71a87fe (matches live origin/main), mergeable=MERGEABLE, mergeStateStatus=CLEAN, foundation-integrity/s1-admission-integrity/CodeRabbit all SUCCESS, zero unresolved review threads
+S2_A005_STEP_2_DRAFT_TOGGLE = converted to draft at 2026-09-11T22:3xZ, converted back to ready at 2026-09-11T22:39:52Z (confirmed via issues/329/timeline `ready_for_review` event) — same unchanged head `18d1929` throughout
+S2_A005_READY_TRIGGERED_RUN = s1-admission-integrity run `34654985781`, event `pull_request_target` / trigger type `ready_for_review`, head_sha `18d1929d288bb9eb349a79b712c700b8010242dd`, status completed, conclusion SUCCESS
+S2_A005_VERDICT = both steps of `acceptance.md`'s READY_TRIGGERED_ADMISSION requirement are now genuinely satisfied on this PR's current exact head, not narrowed or deferred
 ```
 
-This commit itself (recording `S2-A002`/`S2-A004`/`S2-R015`/`S2-A005` closure) becomes this PR's new head after it is pushed. It is not exempted from review as "mere bookkeeping": per this PR's own established discipline (rounds 1-14, including narrative-only findings in rounds 8-13), this new head requires its own round-15 review reaching a clean result before `S2-A007`'s guarded merge — pending as of this commit, not yet triggered/reported.
+This commit (recording round 15's finding, its fix, and the genuine Ready-triggered admission evidence) becomes this PR's new head after it is pushed, and itself requires its own round-16 review reaching a clean result before `S2-A007`'s guarded merge — pending as of this commit, not yet triggered/reported.
 
 ## Explicit stop conditions
 

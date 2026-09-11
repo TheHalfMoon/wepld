@@ -130,6 +130,7 @@ def _check_reopen_contract() -> None:
         "REAL_GIT_FIXTURE_REQUIRED_NOT_MOCKED",
         "NO_NETWORK_EFFECT",
         "NO_PROCESS_AUTHORITY_GRANTED",
+        "REUSES_QUALIFIED_GIT_TOPOLOGY_ADAPTER_ONLY",
     ):
         if invariant not in p.S2_S006_GITDIR_REOPEN_CONTRACT:
             base.fail(f"v65 reopen contract lost invariant: {invariant}")

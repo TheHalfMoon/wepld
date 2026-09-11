@@ -84,7 +84,7 @@ import wepld_integrity as base
 
 P = ".github/scripts/wepld_s2_s006_gitdir_reopen_v65_integrity.py"
 T = ".github/scripts/wepld_s2_s006_gitdir_reopen_v65_selftest.py"
-T_BLOB = "9225a383e511b4ff46322acdb0234c190f6c07b8"
+T_BLOB = "9551feec8fd6e625facf3e3b160db66f6e25223c"
 
 V64_P_BLOB = "1027af12dc9f701352b217bebddeb3ad5a6ba13b"
 V64_T_BLOB = "e34627a28d4bc36ed289263afbac647a8f6fa460"

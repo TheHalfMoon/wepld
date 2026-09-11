@@ -459,7 +459,7 @@ Founder ruling on `S2-A006` requires classifying each open `S2-AUTH-*` row as ex
 
 ### S2-A006 evidence — guarded S2 acceptance decision with exact-head evidence
 
-Founder decision. Per a CodeRabbit finding on the formal review of `901bb55` (this PR carried no immutable GitHub-hosted source, Founder identity, or stated decision scope for the ruling — it existed only in the out-of-band governance conversation that authorized this reconciliation), the ruling is now recorded verbatim as an immutable, independently-checkable GitHub comment, posted under the Founder's own authenticated account:
+Founder decision. Per a CodeRabbit finding on the formal review of `901bb55` (this PR carried no durable GitHub-hosted source, Founder identity, or stated decision scope for the ruling — it existed only in the out-of-band governance conversation that authorized this reconciliation), the ruling is now recorded verbatim as a durable, versioned, GitHub-hosted, independently-checkable record, posted as a comment under the Founder's own authenticated account (a GitHub issue/PR comment is editable by its author, so "durable and independently checkable" is the accurate claim here, not "immutable"):
 
 ```text
 DECISION_SOURCE = https://github.com/TheHalfMoon/wepld/pull/329#issuecomment-5638475618
@@ -538,6 +538,15 @@ ROUND 6 (head 901bb55, formal GitHub PullRequestReview id 5181778172,
   verbatim as PR #329 comment 5638475618, authored under the Founder's own
   GitHub account, and cited by URL/author/timestamp/scope in the S2-A006
   evidence block above.
+ROUND 7 (head 07f73b9, comment 5638516466, chat-style): confirms all three
+  round-6 findings reconciled ("The prior three formal findings are
+  reconciled" with each restated and confirmed correct). One further
+  precision issue: the S2-A006 evidence block called the Founder-decision
+  GitHub comment "immutable", but a GitHub comment is editable by its
+  author, so "durable"/"versioned GitHub-hosted" is the accurate word, not
+  "immutable". FIXED on this head: reworded to "durable, versioned,
+  GitHub-hosted, independently-checkable", with the editability caveat
+  stated explicitly rather than overclaimed away.
 ```
 
 Every finding across all six rounds was reproduced/verified independently against the cited raw evidence (`gh run view <id> --log`, direct `grep`/source inspection of the frozen policy files, direct `gh api .../pulls/329/reviews` queries) before being fixed, not merely accepted on the reviewer's assertion — consistent with `[[wepld-ledger-annotation-discipline]]`: state exactly what a check asserts, no stronger. Round 6 is itself evidence that polling only the chat-style issue-comment channel was an incomplete review-discovery method; the formal `pulls/329/reviews` endpoint is now checked directly on every subsequent round rather than inferred from issue comments alone.

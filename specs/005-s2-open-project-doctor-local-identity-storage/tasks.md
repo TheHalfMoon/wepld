@@ -137,7 +137,7 @@ The fresh CodeRabbit rereview of `632700...` created five additional material fi
 - [x] **S2-R012** Include required negative secret-safety task `S2-C009` in the first contracts-only authority tranche and its self-tests.
 - [x] **S2-R013** Label `4a9b356...` Foundation/egress evidence explicitly superseded/pre-repair rather than implying it qualifies a repaired head.
 - [x] **S2-R014** Define the evidence-store authenticity boundary: unkeyed schema/version/digest/manifest/reference checks detect corruption/coherence only and do not defend against writer-level tampering.
-- [x] **S2-R015** Fresh independent rereview confirms the current repaired head resolves both review waves with no remaining material contradiction. Twelve-round CodeRabbit reconciliation (PR #329); round 12, against exact head `671e024`, found no additional material contradiction on both the chat-style and formal-review channels, with that head's own `foundation-integrity`/`s1-admission-integrity` independently confirmed `SUCCESS` after the review. Evidence below in "S2-A002 / S2-R015 / S2-A004".
+- [ ] **S2-R015** Fresh independent rereview confirms the current repaired head resolves both review waves with no remaining material contradiction. In progress; see "S2-A002 / S2-R015" below — round 12 was clean but round 13 found a precision overclaim in how that closure was worded ("both channels clean" overstated formal-review coverage); left unchecked per this PR's own established discipline until a subsequent clean round follows the fix.
 
 ## Next authority transition — not yet authorized
 
@@ -394,9 +394,9 @@ BOUNDED LIMITATIONS — S2 acceptance does not discharge these, matching the S2-
 ## Acceptance / learning tasks
 
 - [x] **S2-A001** Exact-head full deterministic qualification. Evidence below.
-- [x] **S2-A002** Independent correctness/engineering review with reviewer qualification + exact base/head evidence. CodeRabbit (`coderabbitai[bot]`), 12 rounds, exact base `71a87fe`, clean on round 12 at head `671e024`. Evidence below.
+- [ ] **S2-A002** Independent correctness/engineering review with reviewer qualification + exact base/head evidence. In progress; see "S2-A002 / S2-R015" below — round 12 clean, round 13 found a precision overclaim in the closure text; left unchecked until a subsequent clean round follows the fix.
 - [x] **S2-A003** Codex Security when available/applicable; otherwise exact limitation accounting. Evidence below.
-- [x] **S2-A004** Reconcile all findings; no voting away valid defects. All 14 findings (13 CodeRabbit across rounds 1-4/6-11, 1 self-audit) from the 12-round review fixed and independently re-verified against raw evidence before being accepted, none voted away; rounds 5 and 12 found nothing to reconcile. Evidence below.
+- [ ] **S2-A004** Reconcile all findings; no voting away valid defects. In progress; closes together with S2-A002. 14 findings fixed through round 12; round 13's finding is being reconciled on this head.
 - [ ] **S2-A005** Final race check and Ready-triggered trusted admission. Performed immediately before guarded merge.
 - [x] **S2-A006** Guarded S2 acceptance decision with exact-head evidence. Founder ruling recorded below.
 - [ ] **S2-A007** Merge only under current canonical/founder authorization with expected-head protection.
@@ -490,7 +490,7 @@ This decision grants S2 acceptance-program authority only; it does not grant S3 
 
 Reviewer: CodeRabbit (`coderabbitai[bot]`), manually triggered per the egress preflight required by `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md` (preflight comments on this PR: `5638035187`, `5638065992`, `5638090993`, `5638146723`, `5638215693`). Chat-style incremental review (not a formal GitHub review object — same class as PR #287's and PR #303's merged-head re-reviews), explicitly requested to assess whether the current S2 planning + implementation state contains any remaining material contradiction against the two original planning review waves (`S2-R001..R009`, `S2-R010..R014`) and whether the `S2-A001`/`S2-A003`/`S2-A006`/`S2-AUTH-001..012/016` claims are accurately supported by their cited evidence.
 
-Twelve completed rounds against successive exact heads on this PR (eleven chat-style incremental replies — rounds 1-5 and 7-12 — plus one formal `PullRequestReview` object as round 6, discovered on the same head as round 5), each round finding real issues fixed before the next trigger except rounds 5 and 12 (which found none) — no material finding was voted away or left unaddressed. Round 12 is the required clean round: no material finding on either the chat-style or formal-review channel, at exact head `671e024`, with that head's own applicable checks independently confirmed `SUCCESS` after the review:
+Thirteen completed rounds against successive exact heads on this PR (twelve chat-style incremental replies — rounds 1-5 and 7-13 — plus one formal `PullRequestReview` object as round 6, discovered on the same head as round 5), each round finding real issues fixed before the next trigger except rounds 5 and 12 (which found none) — no material finding was voted away or left unaddressed. A fourteenth round, against this section's own fix of round 13's finding, is pending on this PR's current head:
 
 ```text
 ROUND 1 (head 09fa482, comment 5638048545): 1 finding — S2-AUTH-016 claimed no
@@ -653,25 +653,49 @@ ROUND 12 (head 671e024, comment 5639920148, chat-style): "The S2-A001
   conclusion=success` for `head_sha=671e024ca5fc7455edadd7790a6e041d574dedc2`;
   `gh pr view 329 --json headRefOid,statusCheckRollup` confirms the same;
   `gh api .../pulls/329/reviews` shows no new formal `PullRequestReview`
-  object beyond the existing round-6 one (already fully reconciled) — both
-  the chat-style and formal-review channels are clean at this exact head,
-  with its own CI independently confirmed green after the fact. This
-  satisfies the condition rounds 6-11 each deferred on: `S2-A002`,
-  `S2-A004`, and `S2-R015` flip to `[x]` below.
+  object beyond the existing round-6 one. This establishes three distinct
+  facts, stated separately rather than merged into one "both channels
+  clean at this head" claim (round 13's own finding on this text, below):
+  the chat-style review is clean at exact head `671e024`; the round-6
+  formal review's three findings (on head `901bb55`) are fully reconciled;
+  and no later formal-review object exists for any head after `901bb55`,
+  including `671e024` — an absence of a formal review, not a demonstrated
+  clean formal review at this exact head (`AGENTS.md`: missing coverage
+  evidence != PASS). `671e024`'s own CI is independently confirmed green
+  after the fact.
+ROUND 13 (head e24ac8f, comment 5639981277, chat-style): found 1 item: the
+  round-12 entry's closing clause ("both the chat-style and formal-review
+  channels are clean at this exact head") overstated the formal-review
+  evidence — the only formal review object (`5181778172`) reviewed
+  `901bb55`, not `671e024`; its absence on `671e024` is silence, not a
+  demonstrated clean result for that exact head. FIXED on this head: the
+  round-12 entry above now states the three facts separately (chat-style
+  clean at `671e024`; round-6 formal findings reconciled at `901bb55`; no
+  formal review exists for any later head) instead of merging them into one
+  overstated two-channel claim. `S2-R015`'s standard is "no remaining
+  material contradiction against both review waves" (the planning waves
+  `S2-R001..009`/`S2-R010..014`, not "two live review channels on the exact
+  final head") — satisfied by the chat-style round-12 confirmation plus the
+  formal round-6 findings' reconciliation, not by an uncontradicted claim of
+  formal-channel silence being equivalent to a pass. `e24ac8f`'s own checks
+  were `IN_PROGRESS` at review time (`foundation-integrity` run
+  `34642037150`, `s1-admission-integrity` run `34642035726`); independently
+  re-queried after the review landed: both `SUCCESS` for
+  `head_sha=e24ac8fb318dc018b7a0d051dfab16e5926ae0ff`.
 ```
 
-Every finding across all twelve rounds was reproduced/verified independently against the cited raw evidence (`gh run view <id> --log`/`--log-failed`, direct `grep`/source inspection of the frozen policy files, direct `gh api .../pulls/329/reviews` queries, direct `gh run view`/`gh pr view --json statusCheckRollup,headRefOid` re-queries) before being fixed or accepted, not merely accepted on the reviewer's assertion — consistent with `[[wepld-ledger-annotation-discipline]]`: state exactly what a check asserts, no stronger. Round 6 is itself evidence that polling only the chat-style issue-comment channel was an incomplete review-discovery method; the formal `pulls/329/reviews` endpoint is checked directly on every round rather than inferred from issue comments alone. Rounds 9-11 are evidence that describing a fast-iterating PR's own live state (its current head's CI conclusion, or coupling `S2-A001` to that current-head status) inside the very commit that creates or depends on that state is a structurally unreliable pattern; round 11's structural fix addressed the root cause, and round 12 independently confirmed no further instance of it, or of any other material finding, remained.
+Every finding across all thirteen rounds was reproduced/verified independently against the cited raw evidence (`gh run view <id> --log`/`--log-failed`, direct `grep`/source inspection of the frozen policy files, direct `gh api .../pulls/329/reviews` queries, direct `gh run view`/`gh pr view --json statusCheckRollup,headRefOid` re-queries) before being fixed or accepted, not merely accepted on the reviewer's assertion — consistent with `[[wepld-ledger-annotation-discipline]]`: state exactly what a check asserts, no stronger. Round 6 is itself evidence that polling only the chat-style issue-comment channel was an incomplete review-discovery method; the formal `pulls/329/reviews` endpoint is checked directly on every round rather than inferred from issue comments alone. Rounds 9-11 are evidence that describing a fast-iterating PR's own live state inside the very commit that creates or depends on that state is a structurally unreliable pattern; round 13 is evidence that "channel clean" and "channel silent" are different facts that must not be merged into one claim — silence on the formal-review channel is `AGENTS.md`'s "missing coverage evidence", not a demonstrated pass.
 
-`S2-A002`/`S2-A004`/`S2-R015` are **now closed**: round 12, at exact head `671e024`, reported no further material finding on either the chat-style channel or the formal-review channel, and that head's own `foundation-integrity`/`s1-admission-integrity` are independently confirmed `SUCCESS` (verified after the review comment landed, not assumed before). No internal/self-authored review substituted for this gate (`AGENTS.md`) — every one of the 14 fixed findings across rounds 1-11 came from CodeRabbit (13) or a self-audit caught before the next CodeRabbit trigger and independently re-verified the same way (1); round 12 is CodeRabbit's own clean confirmation, not a self-certification.
+`S2-A002`/`S2-A004`/`S2-R015` are **not yet closed**: round 13's finding is fixed on this section's text, but per this PR's own established discipline (rounds 6-11), these three rows stay `[ ]` until a subsequent review round, on the head carrying this exact fix, reports no further material finding on the chat-style channel (the only channel actually exercised at each of this PR's own heads; the formal-review channel's only exercise was round 6, at `901bb55`, fully reconciled). No internal/self-authored review substitutes for this gate (`AGENTS.md`).
 
 ```text
 S2_A002_REVIEWER = CodeRabbit (coderabbitai[bot]), manual trigger, both chat-style incremental replies and formal PullRequestReview objects
 S2_A002_BASE_SHA = 71a87fe9a4e834fc9b80745a35c42df6dac58a70
-S2_A002_ROUNDS_COMPLETED = 12 (11 chat-style + 1 formal review); rounds 5 and 12 found nothing, every other round found a real, fixed issue
-S2_A002_FINAL_CLEAN_ROUND = 12, head 671e024, both channels clean, CI SUCCESS confirmed after review
-S2_A002_FINDINGS_TOTAL = 13 (CodeRabbit: 4 rounds 1-4, 3 round 6 formal, 1 round 7, 2 round 8, 1 round 9, 1 round 10, 1 round 11) + 1 (self-audit, pre-round-5) = 14, all fixed and independently re-verified, none voted away
-S2_A004_UNRESOLVED_MATERIAL_FINDINGS = 0
-S2_R015_VERDICT = CONFIRMED_CLEAN — round 12 at exact head 671e024 found no remaining material contradiction against either original planning review wave or this PR's own S2-A001/A003/A006/AUTH claims
+S2_A002_ROUNDS_COMPLETED = 13 (12 chat-style + 1 formal review); rounds 5 and 12 found nothing, every other round found a real, fixed issue
+S2_A002_ROUND_PENDING = 14, against this section's own fix of round 13's finding, not yet triggered/reported
+S2_A002_FINDINGS_TOTAL_SO_FAR = 13 (CodeRabbit: 4 rounds 1-4, 3 round 6 formal, 1 round 7, 2 round 8, 1 round 9, 1 round 10, 1 round 11, 1 round 13) + 1 (self-audit, pre-round-5) = 15
+S2_A004_UNRESOLVED_MATERIAL_FINDINGS = TBD_PENDING_NEXT_ROUND
+S2_R015_VERDICT = TBD_PENDING_NEXT_ROUND
 ```
 
 ## Explicit stop conditions

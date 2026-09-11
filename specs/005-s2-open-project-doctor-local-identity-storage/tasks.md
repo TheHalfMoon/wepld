@@ -137,7 +137,7 @@ The fresh CodeRabbit rereview of `632700...` created five additional material fi
 - [x] **S2-R012** Include required negative secret-safety task `S2-C009` in the first contracts-only authority tranche and its self-tests.
 - [x] **S2-R013** Label `4a9b356...` Foundation/egress evidence explicitly superseded/pre-repair rather than implying it qualifies a repaired head.
 - [x] **S2-R014** Define the evidence-store authenticity boundary: unkeyed schema/version/digest/manifest/reference checks detect corruption/coherence only and do not defend against writer-level tampering.
-- [ ] **S2-R015** Fresh independent rereview confirms the current repaired head resolves both review waves with no remaining material contradiction.
+- [x] **S2-R015** Fresh independent rereview confirms the current repaired head resolves both review waves with no remaining material contradiction. Evidence in "S2-A002 / S2-R015" below (PR #329).
 
 ## Next authority transition — not yet authorized
 
@@ -394,9 +394,9 @@ BOUNDED LIMITATIONS — S2 acceptance does not discharge these, matching the S2-
 ## Acceptance / learning tasks
 
 - [x] **S2-A001** Exact-head full deterministic qualification. Evidence below.
-- [ ] **S2-A002** Independent correctness/engineering review with reviewer qualification + exact base/head evidence. Pending this candidate's own independent review; see "S2-A002 / S2-R015" below.
+- [x] **S2-A002** Independent correctness/engineering review with reviewer qualification + exact base/head evidence. Evidence below.
 - [x] **S2-A003** Codex Security when available/applicable; otherwise exact limitation accounting. Evidence below.
-- [ ] **S2-A004** Reconcile all findings; no voting away valid defects. Closes together with S2-A002.
+- [x] **S2-A004** Reconcile all findings; no voting away valid defects. Evidence below.
 - [ ] **S2-A005** Final race check and Ready-triggered trusted admission. Performed immediately before guarded merge.
 - [x] **S2-A006** Guarded S2 acceptance decision with exact-head evidence. Founder ruling recorded below.
 - [ ] **S2-A007** Merge only under current canonical/founder authorization with expected-head protection.
@@ -478,9 +478,51 @@ S2 may proceed through `S2-A001..S2-A009` toward `CLOSED_CANONICAL` while carryi
 
 This decision grants S2 acceptance-program authority only; it does not grant S3 implementation authority. `S2-P014..S2-P021` and the `S2-AUTH-001..012` reconciliation above are preserved exactly as recorded, not silently marked complete by this decision.
 
-### S2-A002 / S2-R015 — pending this candidate's own independent review
+### S2-A002 / S2-R015 / S2-A004 evidence — independent review, rereview, and finding reconciliation
 
-`S2-R015` ("fresh independent rereview confirms the current repaired head resolves both review waves with no remaining material contradiction") and `S2-A002` are reconciled together once this exact candidate head receives its own independent exact-head review, following the egress preflight required by `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md`. `S2-A004` (finding reconciliation) and `S2-A005` (final race check) close immediately after, in the same candidate, before guarded merge. No internal/self-authored review satisfies this gate (`AGENTS.md`).
+Reviewer: CodeRabbit (`coderabbitai[bot]`), manually triggered per the egress preflight required by `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md` (preflight comments on this PR: `5638035187`, `5638065992`, `5638090993`, `5638146723`, `5638215693`). Chat-style incremental review (not a formal GitHub review object — same class as PR #287's and PR #303's merged-head re-reviews), explicitly requested to assess whether the current S2 planning + implementation state contains any remaining material contradiction against the two original planning review waves (`S2-R001..R009`, `S2-R010..R014`) and whether the `S2-A001`/`S2-A003`/`S2-A006`/`S2-AUTH-001..012/016` claims are accurately supported by their cited evidence.
+
+Five rounds against successive exact heads on this PR, each round finding real issues fixed before the next trigger — no material finding was voted away or left unaddressed:
+
+```text
+ROUND 1 (head 09fa482, comment 5638048545): 1 finding — S2-AUTH-016 claimed no
+  model/provider authority marker exists in the exact-head log; the marker
+  model_provider_execution_vNN=NONE does exist. Also: "no additional material
+  contradiction with S2-R001..R014" found. FIXED on 2a8734a.
+ROUND 2 (head 2a8734a, comment 5638074935): 1 finding — the single marker name
+  claim was imprecise: two distinct names exist across the cascade
+  (effective_model_provider_execution_vN for v2-v20,
+  model_provider_execution_vNN for v21+). FIXED on c4cab92.
+ROUND 3 (head c4cab92, comment 5638104602): 1 finding — the model_provider_
+  execution_vNN marker is not printed for every version v21-v65; v26-v48 have
+  no direct log marker (v21-v25 and v49-v65 only). FIXED on 5c812f1 with
+  exhaustive frozen-source inspection of v26-v48.
+ROUND 4 (head 5c812f1, comment 5638160107): 1 finding — the evidence text said
+  "flipped [x]" but the S2-AUTH-016 task-row checkbox (line 166) was still
+  [ ], asserting two different states for the same task. FIXED on 1f41029.
+  (A further self-audit before round 5, not a CodeRabbit finding, caught and
+  fixed the identical "every vNN" overclaim pattern for the other 8 authority
+  markers cited in the same paragraph, on 901bb55.)
+ROUND 5 (head 901bb55, comment 5638242353): "I found no additional material
+  evidence-ledger contradiction on 901bb55" — confirms the direct run
+  markers, the v45 git_execution_authority/external_process_authority
+  transition, the v65 selftest's inherited-unchanged check, and the v65
+  selftest's NONE-value assertions all match the inspected evidence.
+```
+
+Every finding across all five rounds was reproduced/verified independently against the cited raw evidence (`gh run view <id> --log`, direct `grep`/source inspection of the frozen policy files) before being fixed, not merely accepted on the reviewer's assertion — consistent with `[[wepld-ledger-annotation-discipline]]`: state exactly what a check asserts, no stronger.
+
+`S2-R015` is satisfied by round 1's explicit "no additional material contradiction with `S2-R001..R014`" finding, reaffirmed by round 5's "no additional material evidence-ledger contradiction" against the fully reconciled head — the current repaired S2 state resolves both original planning review waves with no remaining material contradiction identified. `S2-A002` is satisfied by the same five-round exact-head review, reviewer-qualified (CodeRabbit, the only working independent reviewer on this repo — Qodo billing-blocked, Cubic disabled, per `[[wepld-hosted-review-and-planning-merges]]`), bound to the exact base (`71a87fe`) and the exact final head (`901bb55`) below. `S2-A004` is satisfied: every one of the five findings was reconciled with a real content fix grounded in independently-reproduced evidence, zero were dismissed, and round 5 confirms zero remaining unresolved findings on the final head. No internal/self-authored review substituted for this gate (`AGENTS.md`).
+
+```text
+S2_A002_REVIEWER = CodeRabbit (coderabbitai[bot]), manual trigger, chat-style incremental review
+S2_A002_BASE_SHA = 71a87fe9a4e834fc9b80745a35c42df6dac58a70
+S2_A002_FINAL_HEAD_SHA = 901bb55
+S2_A002_ROUNDS = 5
+S2_A002_FINDINGS_TOTAL = 4 (CodeRabbit) + 1 (self-audit before round 5)
+S2_A004_UNRESOLVED_MATERIAL_FINDINGS = 0
+S2_R015_VERDICT = NO_REMAINING_MATERIAL_CONTRADICTION_WITH_S2_R001_R014
+```
 
 ## Explicit stop conditions
 

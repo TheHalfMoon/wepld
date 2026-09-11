@@ -137,7 +137,7 @@ The fresh CodeRabbit rereview of `632700...` created five additional material fi
 - [x] **S2-R012** Include required negative secret-safety task `S2-C009` in the first contracts-only authority tranche and its self-tests.
 - [x] **S2-R013** Label `4a9b356...` Foundation/egress evidence explicitly superseded/pre-repair rather than implying it qualifies a repaired head.
 - [x] **S2-R014** Define the evidence-store authenticity boundary: unkeyed schema/version/digest/manifest/reference checks detect corruption/coherence only and do not defend against writer-level tampering.
-- [x] **S2-R015** Fresh independent rereview confirms the current repaired head resolves both review waves with no remaining material contradiction. Evidence in "S2-A002 / S2-R015" below (PR #329).
+- [ ] **S2-R015** Fresh independent rereview confirms the current repaired head resolves both review waves with no remaining material contradiction. Evidence in progress in "S2-A002 / S2-R015" below (PR #329); a formal-review round (`901bb55`) found 3 further findings not yet re-reviewed clean, so this is left unchecked per that review's own instruction until a subsequent clean exact-head round confirms the fixes.
 
 ## Next authority transition — not yet authorized
 
@@ -394,9 +394,9 @@ BOUNDED LIMITATIONS — S2 acceptance does not discharge these, matching the S2-
 ## Acceptance / learning tasks
 
 - [x] **S2-A001** Exact-head full deterministic qualification. Evidence below.
-- [x] **S2-A002** Independent correctness/engineering review with reviewer qualification + exact base/head evidence. Evidence below.
+- [ ] **S2-A002** Independent correctness/engineering review with reviewer qualification + exact base/head evidence. In progress; see "S2-A002 / S2-R015" below — left unchecked until a clean exact-head round follows the formal-review findings on `901bb55`.
 - [x] **S2-A003** Codex Security when available/applicable; otherwise exact limitation accounting. Evidence below.
-- [x] **S2-A004** Reconcile all findings; no voting away valid defects. Evidence below.
+- [ ] **S2-A004** Reconcile all findings; no voting away valid defects. In progress; closes together with S2-A002.
 - [ ] **S2-A005** Final race check and Ready-triggered trusted admission. Performed immediately before guarded merge.
 - [x] **S2-A006** Guarded S2 acceptance decision with exact-head evidence. Founder ruling recorded below.
 - [ ] **S2-A007** Merge only under current canonical/founder authorization with expected-head protection.
@@ -429,6 +429,8 @@ foundation-integrity run 34567333001 / #1200 / push / PASS
 
 `s1-contracts`/`s1-performance` are path-filtered to `crates/core/**`/`Cargo.*` and correctly did not trigger on the docs-only merge — no code changed between `7af08de` and `71a87fe`. `s1-admission-integrity` is `pull_request_target`-only and does not run on a push to `main`; the code-touching head's PR-time run above already covers it. This re-binds and supersedes the "re-binds on the final S2 head at S2-A001" notes carried on S2-Q002/S2-Q003/S2-Q004/S2-Q008/S2-Q009.
 
+This candidate PR (#329) is itself a docs-only ledger change (`crates/core` untouched throughout), so it draws exactly the same applicable-gate shape as PR #328 above (`foundation-integrity` + `pull_request_target`-scoped `s1-admission-integrity`; `s1-contracts`/`s1-performance` correctly do not trigger). Both applicable checks passed on every reviewed round of this PR, most recently on the current-head round: `foundation-integrity` run `34627911602` and `s1-admission-integrity` run `34627907979`, both PASS for `901bb55dde78671d0379b975175c74377c4d0ea7` (per CodeRabbit's own formal-review citation of these exact runs). This section records the identity of the current-round check; the qualification binding for the *actual merge head* is re-confirmed as part of the S2-A005 final race check immediately before guarded merge, and again post-merge for S2-A008 — this PR's own CI passing at successive intermediate heads is continuous confirmation, not the final merge-head binding.
+
 ### S2-A003 evidence — Codex Security when available/applicable; otherwise exact limitation accounting
 
 This acceptance-record candidate is itself documentation-only (`specs/005-.../tasks.md`), with no executable/runtime/trust-boundary effect; under `docs/canonical/SECURITY_REVIEW_POLICY.md` ("Documentation-only changes with no executable/security-boundary effect may be `NOT_APPLICABLE`") its own `SECURITY_REVIEW = NOT_APPLICABLE`.
@@ -447,7 +449,7 @@ This is an explicit, consistently disclosed non-blocking coverage limitation acr
 
 ### S2-AUTH-001..S2-AUTH-012 / S2-AUTH-016 — narrow evidence-led reconciliation
 
-Founder ruling on `S2-A006` requires classifying each open `S2-AUTH-*` row as exactly one of `PROVEN_CANONICAL_EVIDENCE_AVAILABLE`, `PROCESS_DEVIATION_HISTORICAL`, `NOT_APPLICABLE_TO_CURRENT_ACCEPTANCE`, or `STILL_REQUIRED_BLOCKER` before `CLOSED_CANONICAL`, and to stop and satisfy any row discovered to be a genuine controlling prerequisite for §J rather than stale ledger debt. None of §J's `CLOSED_CANONICAL` checklist (`acceptance.md` §J) or `S2-A006` names any `S2-AUTH-*` row, so none of the four below is a controlling §J prerequisite; each is disclosed process history instead of manufactured retrospective authority.
+Founder ruling on `S2-A006` requires classifying each open `S2-AUTH-*` row as exactly one of `PROVEN_CANONICAL_EVIDENCE_AVAILABLE`, `PROCESS_DEVIATION_HISTORICAL`, `NOT_APPLICABLE_TO_CURRENT_ACCEPTANCE`, or `STILL_REQUIRED_BLOCKER` before `CLOSED_CANONICAL`, and to stop and satisfy any row discovered to be a genuine controlling prerequisite for §J rather than stale ledger debt. None of §J's `CLOSED_CANONICAL` checklist (`acceptance.md` §J) or `S2-A006` names any `S2-AUTH-*` row, so none of the five groups below is a controlling §J prerequisite; `S2-AUTH-001..S2-AUTH-012` are disclosed process history, while `S2-AUTH-016` is proven canonical evidence.
 
 - **S2-AUTH-001** ("re-read canonical S2 planning from live `main` after `S2-P021`") = `PROCESS_DEVIATION_HISTORICAL`. Its literal precondition (`S2-P014..S2-P021` complete) is still open; `S2-P014..S2-P021` remain `SEPARATE_PLANNING_PACKAGE_ACCEPTANCE_TRACK` (`acceptance.md` §A), not closed by this reconciliation. Implementation tranches merged under staged policy successors v25..v65 ahead of this edge (already recorded, `tasks.md` line 117). This session's own live re-verification of `main`/`tasks.md` before acting substantively performs the re-read the row names, just not in the sequential position ("after S2-P021") its literal text specifies, since S2-P021 has not occurred. Left `[ ]`; reclassified from unstarted to explicit disclosed deviation, not a blocker.
 - **S2-AUTH-002..S2-AUTH-009** (the originally-sketched `S2-AUTH-C` contracts-only-first successor design/freeze/self-test/merge sequence) = `PROCESS_DEVIATION_HISTORICAL`. The actual route taken was different and already canonical: `v24` (`wepld_s2_core_observation_bootstrap_v24_integrity.py`) authorized the Core observation/locator tranche and `v25` (`wepld_s2_identity_store_bootstrap_v25_integrity.py`) froze it and authorized the identity/evidence-store tranche, both landing together as PR #240 (`BASE=573670eca575a5972e52b623b01b3143d036d281`, `ACCEPTED_HEAD=bdebfbaa8f146115321e6d204da9e49d367047e2`, `SCOPE=EXACT_FOUR_GOVERNED_PRODUCT_PATHS`, `INDEPENDENT_REVIEW=SATISFIED`, 0 unresolved findings/threads at acceptance — `docs/canonical/CURRENT_STATE.md` "S2 — identity and evidence-store tranche merged"). This achieves a materially equivalent authorization boundary (bounded, structurally effect-free contract/locator/identity/evidence paths only, `SOURCE_ADMISSION=NONE`) through a different successor shape than the `S2-AUTH-C` sketch, not its literal sequence (e.g. a standalone contracts-only-first tranche). Not flipped `[x]`: no exact run/merge identity maps each row's specific text to the v24/v25 route.
@@ -457,9 +459,13 @@ Founder ruling on `S2-A006` requires classifying each open `S2-AUTH-*` row as ex
 
 ### S2-A006 evidence — guarded S2 acceptance decision with exact-head evidence
 
-Founder decision, ruled directly in the governance conversation that authorized this reconciliation, anchored to canonical `main` `71a87fe9a4e834fc9b80745a35c42df6dac58a70` at the time of the ruling:
+Founder decision. Per a CodeRabbit finding on the formal review of `901bb55` (this PR carried no immutable GitHub-hosted source, Founder identity, or stated decision scope for the ruling — it existed only in the out-of-band governance conversation that authorized this reconciliation), the ruling is now recorded verbatim as an immutable, independently-checkable GitHub comment, posted under the Founder's own authenticated account:
 
 ```text
+DECISION_SOURCE = https://github.com/TheHalfMoon/wepld/pull/329#issuecomment-5638475618
+DECISION_AUTHOR = TheHalfMoon (repository owner / Founder GitHub account — same account as every other PR/commit author and the PR #2 standing-authorization comment in this repository)
+DECISION_POSTED_AT = 2026-09-11T17:45:52Z
+DECISION_SCOPE = S2-A006 only — grants S2 acceptance-program authority (S2-A001..S2-A009) to proceed carrying the 8 documented bounded [~] rows forward as explicit unresolved obligations; does not grant S3 implementation authority
 S2_A006_DECISION = ACCEPT_WITH_EXPLICIT_BOUNDED_LIMITATIONS
 CANONICAL_MAIN_AT_DECISION = 71a87fe9a4e834fc9b80745a35c42df6dac58a70
 S2_ACCEPTANCE = ACCEPTED_WITH_BOUNDED_LIMITATIONS
@@ -482,7 +488,7 @@ This decision grants S2 acceptance-program authority only; it does not grant S3 
 
 Reviewer: CodeRabbit (`coderabbitai[bot]`), manually triggered per the egress preflight required by `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md` (preflight comments on this PR: `5638035187`, `5638065992`, `5638090993`, `5638146723`, `5638215693`). Chat-style incremental review (not a formal GitHub review object — same class as PR #287's and PR #303's merged-head re-reviews), explicitly requested to assess whether the current S2 planning + implementation state contains any remaining material contradiction against the two original planning review waves (`S2-R001..R009`, `S2-R010..R014`) and whether the `S2-A001`/`S2-A003`/`S2-A006`/`S2-AUTH-001..012/016` claims are accurately supported by their cited evidence.
 
-Five rounds against successive exact heads on this PR, each round finding real issues fixed before the next trigger — no material finding was voted away or left unaddressed:
+Six rounds against successive exact heads on this PR (five chat-style incremental replies plus one formal `PullRequestReview` object discovered on the same head as round 5), each round finding real issues fixed before the next trigger — no material finding was voted away or left unaddressed:
 
 ```text
 ROUND 1 (head 09fa482, comment 5638048545): 1 finding — S2-AUTH-016 claimed no
@@ -503,25 +509,48 @@ ROUND 4 (head 5c812f1, comment 5638160107): 1 finding — the evidence text said
   (A further self-audit before round 5, not a CodeRabbit finding, caught and
   fixed the identical "every vNN" overclaim pattern for the other 8 authority
   markers cited in the same paragraph, on 901bb55.)
-ROUND 5 (head 901bb55, comment 5638242353): "I found no additional material
-  evidence-ledger contradiction on 901bb55" — confirms the direct run
-  markers, the v45 git_execution_authority/external_process_authority
-  transition, the v65 selftest's inherited-unchanged check, and the v65
-  selftest's NONE-value assertions all match the inspected evidence.
+ROUND 5 (head 901bb55, comment 5638242353, chat-style incremental reply): "I
+  found no additional material evidence-ledger contradiction on 901bb55" —
+  confirms the direct run markers, the v45 git_execution_authority/
+  external_process_authority transition, the v65 selftest's inherited-
+  unchanged check, and the v65 selftest's NONE-value assertions all match
+  the inspected evidence.
+ROUND 6 (head 901bb55, formal GitHub PullRequestReview id 5181778172,
+  COMMENTED, submitted 2026-09-11T17:40:12Z — a separate review object from
+  the chat-style rounds above, discovered by checking
+  `gh api .../pulls/329/reviews` directly rather than trusting only the
+  issue-comment channel this session had been polling): 3 actionable inline
+  findings on `901bb55` (comments 3991875542, 3991875552, 3991875569): (a)
+  Major — S2-A001 cited only older code-tranche heads, not this PR's own
+  current-head CI runs (`foundation-integrity` 34627911602,
+  `s1-admission-integrity` 34627907979, both PASS for `901bb55`); (b) Minor —
+  the S2-AUTH reconciliation summary said "none of the four below" for five
+  bullet groups, and called every group "process history" including
+  `S2-AUTH-016`, which is `PROVEN_CANONICAL_EVIDENCE_AVAILABLE`, not process
+  history; (c) Major — `S2-A006` cited no immutable GitHub-hosted Founder
+  decision source, author identity, or stated decision scope; the ruling
+  existed only in the out-of-band governance conversation. All three
+  confirmed valid and fixed: (a) this section now cites the current-round
+  CI identity directly above, with the final-merge-head binding deferred to
+  S2-A005/S2-A008 as designed rather than claimed here; (b) the summary
+  sentence above now names five groups and states `S2-AUTH-016` separately
+  from the process-history four; (c) the Founder ruling is now posted
+  verbatim as PR #329 comment 5638475618, authored under the Founder's own
+  GitHub account, and cited by URL/author/timestamp/scope in the S2-A006
+  evidence block above.
 ```
 
-Every finding across all five rounds was reproduced/verified independently against the cited raw evidence (`gh run view <id> --log`, direct `grep`/source inspection of the frozen policy files) before being fixed, not merely accepted on the reviewer's assertion — consistent with `[[wepld-ledger-annotation-discipline]]`: state exactly what a check asserts, no stronger.
+Every finding across all six rounds was reproduced/verified independently against the cited raw evidence (`gh run view <id> --log`, direct `grep`/source inspection of the frozen policy files, direct `gh api .../pulls/329/reviews` queries) before being fixed, not merely accepted on the reviewer's assertion — consistent with `[[wepld-ledger-annotation-discipline]]`: state exactly what a check asserts, no stronger. Round 6 is itself evidence that polling only the chat-style issue-comment channel was an incomplete review-discovery method; the formal `pulls/329/reviews` endpoint is now checked directly on every subsequent round rather than inferred from issue comments alone.
 
-`S2-R015` is satisfied by round 1's explicit "no additional material contradiction with `S2-R001..R014`" finding, reaffirmed by round 5's "no additional material evidence-ledger contradiction" against the fully reconciled head — the current repaired S2 state resolves both original planning review waves with no remaining material contradiction identified. `S2-A002` is satisfied by the same five-round exact-head review, reviewer-qualified (CodeRabbit, the only working independent reviewer on this repo — Qodo billing-blocked, Cubic disabled, per `[[wepld-hosted-review-and-planning-merges]]`), bound to the exact base (`71a87fe`) and the exact final head (`901bb55`) below. `S2-A004` is satisfied: every one of the five findings was reconciled with a real content fix grounded in independently-reproduced evidence, zero were dismissed, and round 5 confirms zero remaining unresolved findings on the final head. No internal/self-authored review substituted for this gate (`AGENTS.md`).
+`S2-A002`/`S2-A004`/`S2-R015` are **not yet closed**: round 6's three findings are fixed on this head, but per round 6's own instruction ("leave `S2-A002`, `S2-A004`, and `S2-R015` unchecked" until reconciled and re-reviewed clean), these three rows stay `[ ]` until a subsequent round — on the head carrying this fix — reports no further material finding on both the chat-style channel and the formal-review channel. No internal/self-authored review substitutes for this gate (`AGENTS.md`).
 
 ```text
-S2_A002_REVIEWER = CodeRabbit (coderabbitai[bot]), manual trigger, chat-style incremental review
+S2_A002_REVIEWER = CodeRabbit (coderabbitai[bot]), manual trigger, both chat-style incremental replies and formal PullRequestReview objects
 S2_A002_BASE_SHA = 71a87fe9a4e834fc9b80745a35c42df6dac58a70
-S2_A002_FINAL_HEAD_SHA = 901bb55
-S2_A002_ROUNDS = 5
-S2_A002_FINDINGS_TOTAL = 4 (CodeRabbit) + 1 (self-audit before round 5)
-S2_A004_UNRESOLVED_MATERIAL_FINDINGS = 0
-S2_R015_VERDICT = NO_REMAINING_MATERIAL_CONTRADICTION_WITH_S2_R001_R014
+S2_A002_ROUNDS_SO_FAR = 6 (5 chat-style + 1 formal review, the formal review concurrent with round 5's head)
+S2_A002_FINDINGS_TOTAL_SO_FAR = 4 (CodeRabbit, chat-style) + 1 (self-audit) + 3 (CodeRabbit, formal review) = 8
+S2_A004_UNRESOLVED_MATERIAL_FINDINGS = TBD_PENDING_NEXT_ROUND
+S2_R015_VERDICT = TBD_PENDING_NEXT_ROUND
 ```
 
 ## Explicit stop conditions

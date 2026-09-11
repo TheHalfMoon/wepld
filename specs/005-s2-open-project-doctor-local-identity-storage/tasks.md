@@ -393,15 +393,94 @@ BOUNDED LIMITATIONS — S2 acceptance does not discharge these, matching the S2-
 
 ## Acceptance / learning tasks
 
-- [ ] **S2-A001** Exact-head full deterministic qualification.
-- [ ] **S2-A002** Independent correctness/engineering review with reviewer qualification + exact base/head evidence.
-- [ ] **S2-A003** Codex Security when available/applicable; otherwise exact limitation accounting.
-- [ ] **S2-A004** Reconcile all findings; no voting away valid defects.
-- [ ] **S2-A005** Final race check and Ready-triggered trusted admission.
-- [ ] **S2-A006** Guarded S2 acceptance decision with exact-head evidence.
+- [x] **S2-A001** Exact-head full deterministic qualification. Evidence below.
+- [ ] **S2-A002** Independent correctness/engineering review with reviewer qualification + exact base/head evidence. Pending this candidate's own independent review; see "S2-A002 / S2-R015" below.
+- [x] **S2-A003** Codex Security when available/applicable; otherwise exact limitation accounting. Evidence below.
+- [ ] **S2-A004** Reconcile all findings; no voting away valid defects. Closes together with S2-A002.
+- [ ] **S2-A005** Final race check and Ready-triggered trusted admission. Performed immediately before guarded merge.
+- [x] **S2-A006** Guarded S2 acceptance decision with exact-head evidence. Founder ruling recorded below.
 - [ ] **S2-A007** Merge only under current canonical/founder authorization with expected-head protection.
 - [ ] **S2-A008** Post-merge canonical verification.
-- [ ] **S2-A009** Build Learning capture including donor/reviewer positive and negative mechanisms.
+- [ ] **S2-A009** Build Learning capture including donor/reviewer positive and negative mechanisms. Separate follow-up: `docs/learning/BUILD_LEARNING_LEDGER.md` is governed by the frozen `PRE->FINAL` content-addressed transition regime (last opened by v38..v44) and needs its own reopening policy successor.
+
+### S2-A001 evidence — exact-head full deterministic qualification
+
+Two-tier exact-head chain; `git diff --stat 7af08de 71a87fe` touches only this ledger file (one line), so no code drifted between the tiers.
+
+Last code-touching S2 merge, `7af08defe67218ea740056c8b0f12816340d6f14` (PR #327, S2-S006 malformed-`.git`-directory fixture):
+
+```text
+PR_HEAD_PRE_MERGE = ad3c6252adcdbe712664236b32dcd4c28b2bcf8e
+  foundation-integrity   run 34557232235 / #1197 / pull_request / PASS
+  s1-contracts           run 34557232286 / #301  / pull_request / PASS
+  s1-performance         run 34557232336 / #103  / pull_request / PASS
+  s1-admission-integrity run 34557230220 / #971  / pull_request_target / PASS
+POST_MERGE_PUSH = 7af08defe67218ea740056c8b0f12816340d6f14
+  foundation-integrity   run 34560177143 / #1198 / push / PASS
+  s1-contracts           run 34560177057 / #302  / push / PASS
+  s1-performance         run 34560177048 / #104  / push / PASS
+```
+
+Current canonical `main` head `71a87fe9a4e834fc9b80745a35c42df6dac58a70` (PR #328, docs-only ledger reconciliation, single-file diff):
+
+```text
+foundation-integrity run 34567333001 / #1200 / push / PASS
+```
+
+`s1-contracts`/`s1-performance` are path-filtered to `crates/core/**`/`Cargo.*` and correctly did not trigger on the docs-only merge — no code changed between `7af08de` and `71a87fe`. `s1-admission-integrity` is `pull_request_target`-only and does not run on a push to `main`; the code-touching head's PR-time run above already covers it. This re-binds and supersedes the "re-binds on the final S2 head at S2-A001" notes carried on S2-Q002/S2-Q003/S2-Q004/S2-Q008/S2-Q009.
+
+### S2-A003 evidence — Codex Security when available/applicable; otherwise exact limitation accounting
+
+This acceptance-record candidate is itself documentation-only (`specs/005-.../tasks.md`), with no executable/runtime/trust-boundary effect; under `docs/canonical/SECURITY_REVIEW_POLICY.md` ("Documentation-only changes with no executable/security-boundary effect may be `NOT_APPLICABLE`") its own `SECURITY_REVIEW = NOT_APPLICABLE`.
+
+Rolling up the whole S2 slice: every recorded Codex Security attempt in this ledger is `NOT_RUN_NON_BLOCKING`, and a grep of this file for `CODEX_SECURITY` finds exactly three recorded instances, all `NOT_RUN_NON_BLOCKING` / `SECURITY_PASS = NOT_CLAIMED`, with zero occurrences of a Codex Security `PASS` anywhere in the ledger:
+
+```text
+S2-AUTH-013 (PR 254): NOT_RUN_NON_BLOCKING, provider usage-limit refusal, comment 5491014720
+S2-AUTH-014 (PR 273): NOT_RUN_NON_BLOCKING, no reachable surface
+S2-AUTH-015 (PR 278): NOT_RUN_NON_BLOCKING, no reachable surface
+S2_CODEX_SECURITY_STATUS = NOT_RUN_NON_BLOCKING
+S2_SECURITY_PASS = NO
+```
+
+This is an explicit, consistently disclosed non-blocking coverage limitation across the whole slice, never rewritten as `PASS` (`SECURITY_REVIEW_POLICY.md`: "`NOT_RUN_NON_BLOCKING` is never rewritten as `PASS`"), matching the S1 precedent exactly (`S1-014_CODEX_SECURITY_STATUS = NOT_RUN_NON_BLOCKING`, `S1-014_SECURITY_PASS = NO`, carried unconverted through `S1-016` acceptance). The gate this closes is "accounting complete", not "security passed" — identical to how S1-014 closed with the same non-PASS status.
+
+### S2-AUTH-001..S2-AUTH-012 / S2-AUTH-016 — narrow evidence-led reconciliation
+
+Founder ruling on `S2-A006` requires classifying each open `S2-AUTH-*` row as exactly one of `PROVEN_CANONICAL_EVIDENCE_AVAILABLE`, `PROCESS_DEVIATION_HISTORICAL`, `NOT_APPLICABLE_TO_CURRENT_ACCEPTANCE`, or `STILL_REQUIRED_BLOCKER` before `CLOSED_CANONICAL`, and to stop and satisfy any row discovered to be a genuine controlling prerequisite for §J rather than stale ledger debt. None of §J's `CLOSED_CANONICAL` checklist (`acceptance.md` §J) or `S2-A006` names any `S2-AUTH-*` row, so none of the four below is a controlling §J prerequisite; each is disclosed process history instead of manufactured retrospective authority.
+
+- **S2-AUTH-001** ("re-read canonical S2 planning from live `main` after `S2-P021`") = `PROCESS_DEVIATION_HISTORICAL`. Its literal precondition (`S2-P014..S2-P021` complete) is still open; `S2-P014..S2-P021` remain `SEPARATE_PLANNING_PACKAGE_ACCEPTANCE_TRACK` (`acceptance.md` §A), not closed by this reconciliation. Implementation tranches merged under staged policy successors v25..v65 ahead of this edge (already recorded, `tasks.md` line 117). This session's own live re-verification of `main`/`tasks.md` before acting substantively performs the re-read the row names, just not in the sequential position ("after S2-P021") its literal text specifies, since S2-P021 has not occurred. Left `[ ]`; reclassified from unstarted to explicit disclosed deviation, not a blocker.
+- **S2-AUTH-002..S2-AUTH-009** (the originally-sketched `S2-AUTH-C` contracts-only-first successor design/freeze/self-test/merge sequence) = `PROCESS_DEVIATION_HISTORICAL`. The actual route taken was different and already canonical: `v24` (`wepld_s2_core_observation_bootstrap_v24_integrity.py`) authorized the Core observation/locator tranche and `v25` (`wepld_s2_identity_store_bootstrap_v25_integrity.py`) froze it and authorized the identity/evidence-store tranche, both landing together as PR #240 (`BASE=573670eca575a5972e52b623b01b3143d036d281`, `ACCEPTED_HEAD=bdebfbaa8f146115321e6d204da9e49d367047e2`, `SCOPE=EXACT_FOUR_GOVERNED_PRODUCT_PATHS`, `INDEPENDENT_REVIEW=SATISFIED`, 0 unresolved findings/threads at acceptance — `docs/canonical/CURRENT_STATE.md` "S2 — identity and evidence-store tranche merged"). This achieves a materially equivalent authorization boundary (bounded, structurally effect-free contract/locator/identity/evidence paths only, `SOURCE_ADMISSION=NONE`) through a different successor shape than the `S2-AUTH-C` sketch, not its literal sequence (e.g. a standalone contracts-only-first tranche). Not flipped `[x]`: no exact run/merge identity maps each row's specific text to the v24/v25 route.
+- **S2-AUTH-010 / S2-AUTH-011** (bounded locator/identity/evidence Core authorization; per-platform data-root/path/ID/digest/catalog/generation/locking freeze) = `PROCESS_DEVIATION_HISTORICAL`, same v24/v25 -> PR #240 route and reasoning as above. `tasks.md` already recorded (lines 273-277) these are left unchecked on purpose because no assembled run/merge identity ties this exact row text to that tranche, and flipping on inference is the defect class this ledger refuses; that reasoning stands, this reconciliation only adds the explicit classification the Founder ruling requires.
+- **S2-AUTH-012** (direct `uuid`/`sha2` Core dependency edge under a focused dependency-admission gate) = `PROCESS_DEVIATION_HISTORICAL`. `getrandom`/`sha2` dependency admission is observed alongside the merged identity/evidence-store tranche, but no assembled run/merge identity exists for a standalone focused `S2-AUTH-012` gate distinct from PR #240's own dependency accounting, so it is not flipped `[x]` on that inference either.
+- **S2-AUTH-016** ("keep network/model/S3/S4 authority denied throughout S2") = `PROVEN_CANONICAL_EVIDENCE_AVAILABLE`. The full `v21`->`v65` predecessor selftest cascade printed on the exact-head `foundation-integrity` run for the last code-touching S2 merge (`7af08de`, run `34560177143` / #1198) emits, for every `vNN` through the current v65, `network_authority_vNN=NONE`, `s3_plus_authority_vNN=NONE`, `general_shell_authority_vNN=NONE`, `arbitrary_process_authority_vNN=NONE`, `package_install_authority_vNN=NONE`, `git_mutation_authority_vNN=NONE`, `safe_directory_mutation_authority_vNN=NONE`, `remediation_execution_authority_vNN=NONE`, with `git_execution_authority`/`external_process_authority` bounded to S2-AUTH-014's own grant (`READ_ONLY_TOPOLOGY_OBSERVATION_ONLY` / `EXACT_QUALIFIED_GIT_EXECUTABLE_CLOSED_TOPOLOGY_ARGV_ONLY`) throughout, never widened. No `model_authority`/`provider_authority` marker appears in that log at any point — model/provider execution authority was never introduced as a concept, consistent with standing `NONE`. Verified at the exact final S2 code head across the full cascade, not merely at isolated historical points; flipped `[x]`.
+
+### S2-A006 evidence — guarded S2 acceptance decision with exact-head evidence
+
+Founder decision, ruled directly in the governance conversation that authorized this reconciliation, anchored to canonical `main` `71a87fe9a4e834fc9b80745a35c42df6dac58a70` at the time of the ruling:
+
+```text
+S2_A006_DECISION = ACCEPT_WITH_EXPLICIT_BOUNDED_LIMITATIONS
+CANONICAL_MAIN_AT_DECISION = 71a87fe9a4e834fc9b80745a35c42df6dac58a70
+S2_ACCEPTANCE = ACCEPTED_WITH_BOUNDED_LIMITATIONS
+```
+
+S2 may proceed through `S2-A001..S2-A009` toward `CLOSED_CANONICAL` while carrying the following eight `[~]` rows forward as explicit unresolved obligations: `ACCEPTED_LIMITATION != PROVEN_REQUIREMENT`, `CARRIED_FORWARD != DISCHARGED`, `CLOSED_CANONICAL_S2 != ALL_FUTURE_PLATFORM_EVIDENCE_PROVEN`, `ABSENCE_OF_EVIDENCE != PASS`. None of the eight is converted to `[x]` by this decision; each row's own text above already states what is proven, what is not, why proof is not currently producible, the exact bounded limitation, what future capability closes it, and that S2 acceptance does not discharge it:
+
+1. **S2-S001** — Windows reserved/device-name path angle: `S2_WINDOWS_CORE_RUNTIME = NOT_COVERED`; closes with native Windows `wepld-core` runtime (`acceptance.md` §H.1).
+2. **S2-S003** — Windows junction/reparse: `S2_S003_DISPOSITION = OPEN_CROSS_SLICE_OBLIGATION`, `EXPECTED_NEXT_OWNER = S3_PLANNING`, `DISCHARGED_BY_S2 = NO`. Unowned until S3 planning explicitly adopts it; no speculative S3 implementation is created now to manufacture ownership.
+3. **S2-S005** — real end-to-end `safe.directory` refusal: `REAL_SAFE_DIRECTORY_REFUSAL = NOT_EXERCISABLE_ON_CURRENT_GITHUB_HOSTED_CI` (hosted runners set `safe.directory=*` globally); closes with containerized/self-hosted CI. Product Git semantics are not changed to manufacture the refusal.
+4. **S2-S007** — Git timeout/output-ceiling real firing: `REAL_HARD_TIMEOUT_END_TO_END = NOT_EXERCISED`, `REAL_OVERSIZED_OUTPUT_END_TO_END = NOT_EXERCISED`; unit-tested mechanism + source-inspected wiring is not end-to-end trigger evidence; closes with an admitted fault-injection/fake-Git seam.
+5. **S2-Q001** — Windows deterministic gate: `WINDOWS_COMPILE_COVERAGE != WINDOWS_NATIVE_CORE_RUNTIME_COVERAGE`; closes with native Windows runtime in CI.
+6. **S2-Q004** — traversal-avoidance at scale: proven on one materialized fixture, not a scaling benchmark; closes with a tree-size scaling measurement.
+7. **S2-Q008** — Git ceiling evidence: `BENCHMARK_HARNESS = NOT_ADMITTED`; deterministic-ceiling evidence only, no measured distribution; closes with an admitted benchmark harness and the fault-injection seam from (4).
+8. **S2-Q009** — performance-ceiling evidence: same `BENCHMARK_HARNESS = NOT_ADMITTED` bound as (7), fixture-identified, not a published p50/p95; same closing condition.
+
+This decision grants S2 acceptance-program authority only; it does not grant S3 implementation authority. `S2-P014..S2-P021` and the `S2-AUTH-001..012` reconciliation above are preserved exactly as recorded, not silently marked complete by this decision.
+
+### S2-A002 / S2-R015 — pending this candidate's own independent review
+
+`S2-R015` ("fresh independent rereview confirms the current repaired head resolves both review waves with no remaining material contradiction") and `S2-A002` are reconciled together once this exact candidate head receives its own independent exact-head review, following the egress preflight required by `docs/canonical/EXTERNAL_REVIEW_EGRESS_POLICY.md`. `S2-A004` (finding reconciliation) and `S2-A005` (final race check) close immediately after, in the same candidate, before guarded merge. No internal/self-authored review satisfies this gate (`AGENTS.md`).
 
 ## Explicit stop conditions
 

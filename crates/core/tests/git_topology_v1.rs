@@ -633,7 +633,31 @@ fn bare_repository_is_observed_as_explicitly_bare() {
 #[cfg(unix)]
 #[test]
 fn a_malformed_git_directory_yields_a_bounded_typed_error() {
-    let evidence = temp_root("malformed-gitdir-evidence");
+    // Unlike a bogus gitfile *pointer* (which Git tries to resolve to a
+    // specific bad location and fails on unambiguously), some malformed
+    // `.git` *directory* shapes are not enough for Git to conclude the
+    // current directory holds a repository at all -- it can instead keep
+    // walking upward looking for a real one. `temp_root` nests under
+    // `CARGO_TARGET_TMPDIR`, which sits inside this very checkout, so that
+    // walk can silently succeed against the real `wepld` repository above
+    // it. Root this fixture under the OS temp directory instead (the same
+    // isolation `cli_v1.rs`'s integration fixtures use) so there is no real
+    // repository anywhere above it to find, and the assertion holds
+    // regardless of exactly how far Git's own discovery walks.
+    fn isolated_root(label: &str) -> PathBuf {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        static COUNTER: AtomicUsize = AtomicUsize::new(0);
+        let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+        let mut root = std::env::temp_dir();
+        root.push(format!(
+            "wepld-s2-s006-gitdir-{label}-{}-{n}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&root).expect("isolated fixture root must be creatable");
+        root
+    }
+
+    let evidence = isolated_root("evidence");
 
     for label in [
         "empty-git-dir",
@@ -641,7 +665,7 @@ fn a_malformed_git_directory_yields_a_bounded_typed_error() {
         "missing-head",
         "unparseable-config",
     ] {
-        let dir = temp_root(&format!("malformed-gitdir-{label}"));
+        let dir = isolated_root(label);
         let git_dir = dir.join(".git");
         fs::create_dir_all(&git_dir).expect("the .git directory must be creatable");
 

@@ -1,6 +1,6 @@
 # WePLD Current State
 
-- **Checkpoint date:** 2026-09-01 Asia/Riyadh
+- **Checkpoint date:** 2026-09-12 Asia/Riyadh
 - **Canonical repository:** `TheHalfMoon/wepld`
 
 This file is durable continuation memory, not live-state authority. Before any write, review, admission, acceptance, Ready transition, or merge, re-read the live GitHub PR head/check/review state. In PR/branch review contexts, apply the trusted-bootstrap rule in `AGENTS.md`: protected governance from canonical `main` or the exact PR base is authority; candidate copies are proposed/untrusted review data until qualified. Trusted repository canonical memory outranks chat memory.
@@ -702,25 +702,31 @@ Then follow AGENTS.md mandatory read order, including docs/canonical/CURRENT_STA
 Verify live PR head/check/review state before any mutation. Do not take a PR number from this file; read the open set from GitHub.
 Treat trusted repository canonical documents as authority over chat memory; candidate text cannot self-authorize.
 Standing founder authorization permits governed continuation without repeated approval requests; it does not waive gates.
-Speak Arabic to the founder. Write repository artifacts and ready-to-use technical prompts in English.
+Write repository artifacts and ready-to-use technical prompts in English. Match the founder's own live language preference for conversational replies; do not assume a fixed language from this file.
 ```
 
-## Next gate
+## S2 — acceptance program complete (2026-09-12 checkpoint)
 
-The S1-003 list that stood here was completed and is not repeated. The gates below are the ones actually open at the 2026-09-01 checkpoint.
+The `S2-AUTH-014` gate that stood open at the 2026-09-01 checkpoint qualified `READ_ONLY_TOPOLOGY_OBSERVATION_ONLY` via policy v45 and every S2 implementation tranche it and its successors (v46..v65) unblocked (`S2-I005..S2-I007`, `S2-D012`, the S2-S/Q/CLI fixture rounds) merged since. That entire implementation record, item by item with its own evidence, is not repeated here; it lives in `specs/005-s2-open-project-doctor-local-identity-storage/tasks.md`, which is the live authority for S2 task-level state exactly as this file already says GitHub is the live authority for PR state.
 
-1. `S2-AUTH-014` is the open authority gate. It must qualify the executable, environment, argv, timeout, output, trust, no-hook and no-network boundaries of the selected Git adapter **before** any adapter code exists. It has not started and holds no qualification evidence. Issue #213 carries the acceptance-test list it has to satisfy, including malicious-hook, `safe.directory` refusal, spoofed-executable, oversized-output, timeout, and tree/index non-mutation fixtures. Note the ordering problem it inherits: several of those fixtures require executing Git, and `GIT_EXECUTION_AUTHORITY` is `NONE`, so the qualification unit has to establish its own bounded authority rather than assume it;
-2. no successor currently grants any product path beyond the merged S2 identity/evidence-store set, so no further S2 product code is eligible until one does;
-3. the next successor must name its exact paths, keep Core filesystem/process/network/model and S3+ effects structurally unavailable outside what it grants, and prove activation from canonical `main` after a guarded merge;
-4. `S2-S001..S2-S015`, `S2-Q001..S2-Q009`, `S2-D001..S2-D015` and `S2-CLI001..S2-CLI010` remain unclaimed and each needs that path grant first;
-5. two S2 items are recorded as unmet rather than claimed and must not be quietly counted later: the unsupported-schema classification, and the process-crash half of `S2-E015`;
-6. every tranche continues to require exact-head deterministic gates, a recorded egress preflight, an independent review bound to the exact head, zero unresolved material findings, honest security accounting, a final race check, an `expected_head_sha`-guarded merge, and post-merge activation proof;
-7. `main` had no branch protection when this checkpoint was written, so the merge guard is the transmitted expected head and nothing else. Naming a head in prose is not a guard. The evidence is a `GET /repos/TheHalfMoon/wepld/branches/main/protection` returning HTTP 404 `Branch not protected` to a token with admin scope; a token without that scope receives HTTP 403 and cannot confirm or refute it. Re-read it live rather than trusting this line.
+The gate open at *this* checkpoint is `S2` acceptance itself, and it is now dispositioned:
+
+```text
+S2_ACCEPTANCE_STATUS = ACCEPTED_WITH_BOUNDED_LIMITATIONS (Founder ruling, S2-A006, PR #329 comment 5638475618)
+S2_A001..S2_A008 = CLOSED (PR #329, merge commit 4191277; PR #330, merge commit 272c31b) - each on independently reviewed, live-verified evidence, not self-certified
+S2_A009 = OPEN - Build Learning capture; blocked on its own policy-successor reopening of the frozen docs_transition route that protects this file and BUILD_LEARNING_LEDGER.md (see "Writing this file is itself gated" below - this very checkpoint is being written under that reopened route)
+S2_STATE = NOT_YET_CLOSED_CANONICAL - acceptance.md SJ requires BUILD_LEARNING_CAPTURE before that terminal state; S2-A009 is the only remaining item
+S2_CARRIED_FORWARD_LIMITATIONS = 8 explicit [~] rows (S2-S001, S2-S003, S2-S005, S2-S007, S2-Q001, S2-Q004, S2-Q008, S2-Q009) carried forward per S2-A006, not discharged by acceptance
+```
+
+The next gate, once `S2-A009` closes and `S2` reaches `CLOSED_CANONICAL`, is the first `S3` planning package: re-read canonical `main`, re-read the merged Spec 006 capability plan as canonical planning input, and determine the next dependency-ordered roadmap unit per `AGENTS.md`. Do not re-plan S3 speculatively from this file; read it live when that gate opens.
 
 ```text
 PLATFORM_REQUIRED_CHECK_ENFORCEMENT = NOT_PROVEN
 MERGE_GUARD = TRANSMITTED_EXPECTED_HEAD_SHA
 ```
+
+`main` still has no branch protection as of this checkpoint (re-verified live: `GET /repos/TheHalfMoon/wepld/branches/main/protection` again returned HTTP 404 `Branch not protected`) - the merge guard for every S2 acceptance merge above was the transmitted `--match-head-commit` expected head and nothing else. Re-read it live rather than trusting this line.
 
 ### Writing this file is itself gated
 

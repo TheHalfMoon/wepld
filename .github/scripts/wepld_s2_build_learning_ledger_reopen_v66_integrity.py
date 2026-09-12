@@ -456,7 +456,16 @@ def eext(candidate: Any, policy_base: Any) -> None:
 
 
 def allowed(paths: Any, stage: str) -> None:
-    remaining = set(paths) - CONTROLLED_FILES - REOPEN_FILES
+    # Only this successor's own new policy files are excluded before
+    # delegating down. Unlike v65's reopened Rust test path, the reopened
+    # documentation pair (`docs/canonical/CURRENT_STATE.md` in particular)
+    # is a member of the base module's own `REQUIRED_PATHS`; stripping it
+    # here would make the predecessor's stage-allowlist check report it as
+    # missing from an otherwise-complete real tree. It is always allowed
+    # to exist regardless of this successor, so it needs no special
+    # handling at this layer - only `delta()`/`ext()`/`files()` need to
+    # treat its *content* specially.
+    remaining = set(paths) - CONTROLLED_FILES
     if remaining:
         q.allowed(remaining, stage)
 

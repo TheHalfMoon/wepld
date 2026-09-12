@@ -451,7 +451,7 @@ No S3 operation (qualification, proposal evaluation, cancellation) waits unbound
 2. A host with no completed containment qualification cannot produce a `ContainmentPosture` stronger than `UNKNOWN` on any dimension.
 3. On a Windows host without Job-Object support (or where support cannot be proven), `process_tree_strength = NONE/UNKNOWN`, not `PROCESS_TREE_ONLY`.
 4. A `ContainmentPosture` with `process_tree_strength = PROCESS_TREE_ONLY` and `filesystem_strength = NONE` is never consumed as satisfying a filesystem-isolation requirement.
-5. An `EffectProposal` with no corresponding `PEPDecision` never produces an `EXECUTED` `EffectResult`.
+5. An `EffectProposal` with no resolved `PEPDecision` produces no `EffectResult` at all (FR-010) — not merely a non-`EXECUTED` one.
 6. A `PEPDecision` computed against a stale/missing policy snapshot is `UNKNOWN_FAIL_CLOSED`, and the corresponding `EffectResult` is `REFUSED`.
 7. An OS PID reused by an unrelated process after the original process-tree exit is not matched to the original `ProcessTreeIdentity` (start-time/epoch check distinguishes them).
 8. A cancellation request against a live `EffectResult` resolves to `CANCELLED` or a bounded `UNKNOWN` within the documented deadline; it never hangs.

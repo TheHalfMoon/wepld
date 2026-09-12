@@ -95,7 +95,7 @@ Explicitly **not** part of the preferred first successors. Requires its own sepa
 - [ ] **S3-S001** PID-reuse simulation fixture: an unrelated process reusing a just-exited PID is not matched to the prior `ProcessTreeIdentity`.
 - [ ] **S3-S002** Stale-ownership-epoch race fixture: a proposal against a superseded epoch is refused.
 - [ ] **S3-S003** Job-Object-unavailable fixture (older Windows/restricted environment) yields `NONE`/`UNKNOWN`, never a default `PROCESS_TREE_ONLY` claim.
-- [ ] **S3-S003a** Breakaway-permitted child process escaping the job is not reported as contained; failed `AssignProcessToJobObject` yields `NONE`/`UNKNOWN`; `TerminateJobObject` is proven to reach a child-of-child process before whole-tree cancellation is claimed (`source-acquisition.md` §3).
+- [ ] **S3-S003a** A native Windows fixture proves last-handle closure; a breakaway-permitted child process escaping the job is not reported as contained; failed `AssignProcessToJobObject` yields `NONE`/`UNKNOWN`; `TerminateJobObject` is proven to reach a child-of-child process before whole-tree cancellation is claimed (`source-acquisition.md` §3).
 - [ ] **S3-S004** PEP missing/stale/malformed policy input yields `UNKNOWN_FAIL_CLOSED`.
 - [ ] **S3-S005** `RuntimeCeiling` empty-intersection fixture is refused, not silently narrowed.
 - [ ] **S3-S006** Environment-leak fixture: no ambient secret reaches a spawned process outside its allowlist (once `S3-AUTH-SPAWN` exists).

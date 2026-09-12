@@ -41,7 +41,8 @@ If the process that owned a process tree is restarted or replaced, further effec
 - a local ownership-epoch / stale-owner-refusal prerequisite (single host; not distributed fencing);
 - effect-dependency ordering for composite proposals (prerequisite/dependent, unknown-outcome blocking);
 - revalidation triggers that stale a frozen envelope/decision when a material input changes;
-- runtime/process evidence privacy (no raw environment values or unredacted process output in durable evidence).
+- runtime/process evidence privacy (no raw environment values or unredacted process output in durable evidence);
+- adopting `S2-S003` (native Windows junction/reparse coverage, `EXPECTED_NEXT_OWNER = S3_PLANNING` per `specs/005-.../acceptance.md` §H.1) as an explicit, tracked S3 obligation — see §10.
 
 ### Out of scope
 
@@ -468,3 +469,27 @@ SOURCE_IMPORT = NONE
 DEPENDENCY_ADMISSION = NONE
 NETWORK_AUTHORITY = NONE
 ```
+
+## 10. Adopted cross-slice obligation — `S2-S003`
+
+`specs/005-s2-open-project-doctor-local-identity-storage/tasks.md` records `S2-S003` (Windows junction/reparse/extended-length path tests) as `[~]` PARTIAL: extended-length verbatim-prefix normalization is proven on injected Linux/macOS inputs, but real Windows junction/reparse behavior under native Windows `wepld-core` runtime is not proven, because no S2 CI surface runs `wepld-core` natively on Windows (`acceptance.md` §H.1: `WINDOWS_NATIVE_CORE_RUNTIME_COVERAGE = ABSENT`). That acceptance section and `tasks.md`'s own disposition (`S2_S003_DISPOSITION = OPEN_CROSS_SLICE_OBLIGATION`, `EXPECTED_NEXT_OWNER = S3_PLANNING`) require the next slice's planning to explicitly adopt it rather than leave it unowned.
+
+This package adopts it as follows:
+
+```text
+S2_S003_ADOPTED_BY = S3_PLANNING (this package)
+S2_S003_DISCHARGE_MECHANISM = S3-AUTH-HOST's own Windows-native containment
+  investigation requires actual native Windows wepld-core runtime execution
+  in CI (to call Job Object APIs) — the same precondition S2-S003 was
+  blocked on. Once that CI surface exists, S2's own existing junction/reparse
+  fixtures (owned by S2's crate, not rewritten by this package) can be
+  executed for real on that same native Windows runner.
+S2_S003_NOT_DISCHARGED_BY = specifying this package's contracts alone; only
+  actual S3-AUTH-HOST-stage native Windows execution evidence can discharge it.
+S2_S003_STILL_OPEN_IF = S3-AUTH-HOST is not reached, or is reached without
+  actually enabling native Windows CI execution of wepld-core; in that case
+  S3's own acceptance must explicitly re-record S2-S003 as still open for
+  the next slice, exactly as S2 did for S3.
+```
+
+S3 does not rewrite or re-implement S2's junction/reparse test fixtures. It is responsible only for the native-Windows-runtime precondition and for explicit, honest bookkeeping — not silently discharging or silently dropping the obligation.

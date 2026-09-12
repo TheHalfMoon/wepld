@@ -33,6 +33,10 @@ S3 is future-facing foundation for later tracks, not a product feature. Per `spe
 
 `S3-D` (the non-primary deterministic-assurance-seed gate named in `docs/canonical/MASTER_PLAN_INDEX.md` and `MASTER_PLAN_V2_3_AGENT_CONTROL_PLANE.md`) is a distinct, separately gated unit. This package does not claim S3-D scope; a future package must open it explicitly if and when it is authorized.
 
+### Adopted cross-slice obligation: S2-S003
+
+`specs/005-s2-open-project-doctor-local-identity-storage/acceptance.md` §H.1 and `tasks.md` (`S2-S003`, `EXPECTED_NEXT_OWNER = S3_PLANNING`) require that S3's own planning explicitly adopt the still-open, previously-unowned obligation of proving real Windows junction/reparse behavior under native Windows `wepld-core` runtime — S2 could not discharge it because no native Windows runtime execution existed. This package adopts it (see `spec.md` §3, `clarify.md` Q19, `acceptance.md` §H). S3 does not implement S2's junction/reparse *tests*; it is the first slice whose own Windows-native containment investigation requires actual native Windows `wepld-core` execution, which is the precondition S2-S003 was waiting on. S3 must not close without either helping satisfy S2-S003 (by proving native Windows CI execution exists) or explicitly re-recording it as still open for the next slice.
+
 ## Constitutional invariants
 
 ```text

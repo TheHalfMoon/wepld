@@ -267,7 +267,8 @@ After this planning package becomes canonical, use staged authority rather than 
 Only after contracts are canonical and separately authorized (per `clarify.md` Q18):
 
 - Windows Job-Object-class investigation and `ContainmentCapabilityReport` production;
-- no `EffectProposal` execution path of any kind, including `OBSERVE_PROCESS_TREE`, until this stage's own evidence is qualified.
+- no `EffectProposal` execution path of any kind, including `OBSERVE_PROCESS_TREE`, until this stage's own evidence is qualified;
+- this is also the stage that, by requiring native Windows `wepld-core` CI execution for the first time, creates the precondition for closing the adopted `S2-S003` obligation (`clarify.md` Q19) — running S2's existing junction/reparse fixtures for real is not this stage's own deliverable, but this stage must not accidentally stand up native Windows execution without noting that S2-S003 can now be attempted.
 
 ### Stage S3-AUTH-OBSERVE — bounded observation only
 

@@ -14,6 +14,7 @@
 - [x] Harness/worker protocol adapters are excluded.
 - [x] Native desktop bridge capability is excluded.
 - [x] S3-D (deterministic assurance seed) is excluded as a separate gate.
+- [x] `S2-S003` (Windows junction/reparse native-runtime coverage, `EXPECTED_NEXT_OWNER = S3_PLANNING`) is explicitly adopted, not left unowned (`clarify.md` Q19).
 - [x] S4 Fehrest/semantic graph is excluded.
 - [x] S6 Mission Runtime/UWC/full Nawat policy engine is excluded.
 - [x] Agents/models/providers are excluded.
@@ -67,12 +68,12 @@
 - [x] Clarifications complete.
 - [x] Plan complete and contains a staged post-planning authority/delivery sequence.
 - [x] Checklist complete.
-- [ ] Analyze complete for the exact-head planning candidate.
+- [x] Analyze complete for the initial planning candidate (pending exact-head review).
 - [ ] Tasks ledger contains explicit implementation/review tasks for every material finding.
-- [ ] Ponytail FULL complete for the exact-head planning candidate.
-- [ ] Source Acquisition Check complete for the planning/no-import boundary.
-- [ ] Threat model covers host-opt-in bypass, containment-badge misrepresentation, PID reuse, stale-epoch effect injection, PEP fail-open regressions, and cancellation DoS.
-- [ ] Acceptance contract includes exact base/main, reviewer qualification, `REVIEW_BLOCKED`, race, Ready-triggered admission, guarded merge, and post-merge evidence.
+- [x] Ponytail FULL complete for the initial planning candidate.
+- [x] Source Acquisition Check complete for the planning/no-import boundary.
+- [x] Threat model covers host-opt-in bypass, containment-badge misrepresentation, PID reuse, stale-epoch effect injection, PEP fail-open regressions, and cancellation DoS.
+- [x] Acceptance contract includes exact base/main, reviewer qualification, `REVIEW_BLOCKED`, race, Ready-triggered admission, guarded merge, post-merge evidence, and the `S2-S003` disposition (§H.1).
 
 ## Live evidence — must remain unchecked until fresh immutable evidence exists
 

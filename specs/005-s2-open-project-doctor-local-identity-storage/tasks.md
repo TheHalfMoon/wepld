@@ -12,8 +12,9 @@ PLANNING_STATE = MERGED_TO_CANONICAL_MAIN
 S2_IMPLEMENTATION_AUTHORITY = EXACT_DOCTOR_CLI_PROJECTION_TRANCHE_ONLY_AFTER_V49_ACTIVATION
 ACTIVE_IMPLEMENTATION_TASK = NONE
 NEXT_IMPLEMENTATION_TASK = NOT_AUTHORIZED_UNTIL_A_FUTURE_SLICE_GRANTS_ITS_EXACT_PATHS
-NEXT_AUTHORITY_GATE = S2-A009_BUILD_LEARNING_CAPTURE
-S2_ACCEPTANCE_STATUS = ACCEPTED_WITH_BOUNDED_LIMITATIONS (Founder ruling, S2-A006, PR #329 comment 5638475618); S2-A001..S2-A008 CLOSED via PR #329 (merge commit 4191277); S2-A009 still open — S2 is NOT YET CLOSED_CANONICAL (acceptance.md §J requires BUILD_LEARNING_CAPTURE)
+NEXT_AUTHORITY_GATE = S3_PLANNING_PACKAGE
+S2_ACCEPTANCE_STATUS = ACCEPTED_WITH_BOUNDED_LIMITATIONS (Founder ruling, S2-A006, PR #329 comment 5638475618); S2-A001..S2-A008 CLOSED via PR #329 (merge commit 4191277) and PR #330 (merge commit 272c31b); S2-A009 CLOSED via PR #332 (merge commit 8fd1b9d231997b55308d2d852188c326a446b058), itself unblocked by the policy-successor chain PR #331/v66 (merge 5186d42), PR #333/v67 (merge c622cc9), PR #334/v68 (merge 53c96a3)
+S2_STATE = CLOSED_CANONICAL (acceptance.md §J fully satisfied; all nine S2-A00* rows [x]); the 8 carried-forward `[~]` limitation rows (S2-S001, S2-S003, S2-S005, S2-S007, S2-Q001, S2-Q004, S2-Q008, S2-Q009) remain unresolved per S2-A006 — ACCEPTED_LIMITATION != PROVEN_REQUIREMENT
 ```
 
 This state-marker block was last fully rewritten by the session that merged PR 280, when
@@ -30,6 +31,23 @@ Learning capture) remains open pending its own required policy-successor reopeni
 stated: no dedicated adversarial fixture for either was found in the merged test suite;
 the underlying fields exist and are wired, but that is not the same evidence as a fixture
 proving the distinction.
+
+That paragraph is itself superseded, not edited in place, for the same legibility reason.
+As of PR #332 (merge commit `8fd1b9d231997b55308d2d852188c326a446b058`): `S2-A009` is
+`[x]`. The required policy-successor reopening of `docs/learning/BUILD_LEARNING_LEDGER.md`'s
+(and, paired, `docs/canonical/CURRENT_STATE.md`'s) frozen `PRE->FINAL` transition regime
+was granted single-use by PR #331/v66 (merge `5186d42`); two corrective successors, PR
+#333/v67 (merge `c622cc9`) and PR #334/v68 (merge `53c96a3`), fixed real self-test/admission
+defects discovered in v66 before the actual content landed. The content itself — a new
+2026-09-12 checkpoint section in `CURRENT_STATE.md` and `BL-0021..BL-0024` in
+`BUILD_LEARNING_LEDGER.md` — merged as PR #332, verified live on canonical `main` at that
+same commit with `foundation-integrity` green. With `S2-A001..S2-A009` all `[x]` and
+`acceptance.md` §J's full checklist satisfied, `S2_STATE = CLOSED_CANONICAL`. The eight
+`[~]` limitation rows carried forward by `S2-A006` (`S2-S001`, `S2-S003`, `S2-S005`,
+`S2-S007`, `S2-Q001`, `S2-Q004`, `S2-Q008`, `S2-Q009`) are not discharged by this closure —
+`ACCEPTED_LIMITATION != PROVEN_REQUIREMENT` — and remain explicit unresolved obligations
+for whatever future slice's evidence can close them. `S2-I006`/`S2-I007` remain recorded
+partial for the reason stated above; that is unchanged by this closure.
 
 ```text
 LAST_MERGED_TRANCHE = S2-AUTH-015 Doctor + CLI projection tranche
@@ -408,7 +426,7 @@ BOUNDED LIMITATIONS — S2 acceptance does not discharge these, matching the S2-
 - [x] **S2-A006** Guarded S2 acceptance decision with exact-head evidence. Founder ruling recorded below.
 - [x] **S2-A007** Merge only under current canonical/founder authorization with expected-head protection. PR #329 merged via `gh pr merge --merge --match-head-commit 130e177...`; merge commit `4191277`. Evidence below.
 - [x] **S2-A008** Post-merge canonical verification. `foundation-integrity` run `34658734521` SUCCESS on canonical merge head `4191277`. Evidence below.
-- [ ] **S2-A009** Build Learning capture including donor/reviewer positive and negative mechanisms. Separate follow-up: `docs/learning/BUILD_LEARNING_LEDGER.md` is governed by the frozen `PRE->FINAL` content-addressed transition regime (last opened by v38..v44) and needs its own reopening policy successor.
+- [x] **S2-A009** Build Learning capture including donor/reviewer positive and negative mechanisms. CLOSED via PR #332 (merge commit `8fd1b9d231997b55308d2d852188c326a446b058`): `BL-0021..BL-0024` recorded in `docs/learning/BUILD_LEARNING_LEDGER.md` and a 2026-09-12 checkpoint section added to `docs/canonical/CURRENT_STATE.md`, both under the frozen `PRE->FINAL` transition regime's single-use reopening granted by policy successor PR #331/v66 (merge `5186d42`), with two corrective successors PR #333/v67 (merge `c622cc9`) and PR #334/v68 (merge `53c96a3`) repairing real self-test/admission defects discovered in v66 before this content landed. Independently reviewed; `foundation-integrity` green on the merge head. Evidence below.
 
 ### S2-A001 evidence — exact-head full deterministic qualification
 
@@ -819,6 +837,38 @@ S2_A008_CANONICAL_MAIN = re-fetched live: `git ls-remote origin refs/heads/main`
 S2_A008_CONTENT_CHECK = `git show origin/main:specs/.../tasks.md` confirms the merged ledger content (S2-A001..A008 closure, S2-A006 Founder ruling, S2-AUTH reconciliation) is present on canonical main, not merely on the now-closed PR branch
 S2_A008_POST_MERGE_FOUNDATION = foundation-integrity run `34658734521`, event `push` to `main`, head_sha `41912774dc5e86067ec06515d27f02c65e6b7571`, status completed, conclusion SUCCESS
 S2_A008_VERDICT = canonical main genuinely contains the guarded merge result and post-merge Foundation succeeds on the exact canonical merge head — CLOSED
+```
+
+### S2-A009 evidence — Build Learning capture and paired-freeze closure
+
+```text
+S2_A009_PRECONDITION = docs/canonical/CURRENT_STATE.md and docs/learning/BUILD_LEARNING_LEDGER.md are both in FROZEN_DURABLE_MEMORY_PATHS (not in BASE_CONTROLLED_PATHS — see docs/canonical/CURRENT_STATE.md "Writing this file is itself gated"); an ordinary candidate cannot write either without a one-shot policy-successor reopening of the frozen PRE->FINAL content-addressed transition regime
+S2_A009_POLICY_CHAIN = PR #331/v66 (merge 5186d42ea154803cee17e6824733b51254c127a0) granted the single-use paired reopen; PR #333/v67 (merge c622cc9b2225f00ff9fb987cca96c1de8c592be0) fixed an S1-016 ledger-content pin defect in v66 found via run_predecessor_selftests(); PR #334/v68 (merge 53c96a317d19f93e7feba1e8581d8c6bdaa6e0a8) fixed a paired local-state check defect reached via the files() hook — both reproduced and fixed with real evidence, not assumed, expected the correct successor-bootstrap-rejection signature on s1-admission-integrity per BL-0005/BL-0018 precedent
+S2_A009_CONTENT_PR = PR #332 (merge 8fd1b9d231997b55308d2d852188c326a446b058): a 2026-09-12 checkpoint section in CURRENT_STATE.md and BL-0021..BL-0024 in BUILD_LEARNING_LEDGER.md, documenting the CodeRabbit review-channel taxonomy, the self-referential "artifact describing its own moving target" staleness bug, the draft/ready toggle mechanism, and commit-status-vs-review-output lag
+S2_A009_LIVE_VERIFICATION = re-verified this session: `git log --oneline origin/main` shows 8fd1b9d as current canonical main head; `git show origin/main:docs/canonical/CURRENT_STATE.md` and `...BUILD_LEARNING_LEDGER.md` both confirmed to contain the claimed content; `gh api .../commits/8fd1b9d.../check-runs` and workflow run 34668931673 confirm foundation-integrity SUCCESS on this exact head
+S2_A009_VERDICT = Build Learning capture genuinely landed on canonical main under a correctly-scoped, independently-reviewed policy-successor chain — CLOSED
+```
+
+### S2 closure — acceptance.md §J final disposition
+
+```text
+S2_A001..S2_A009 = ALL [x], each on independently reviewed, live-verified evidence (this section)
+S2_J_EXACT_HEAD_DETERMINISTIC_GATES = SATISFIED (S2-A001)
+S2_J_TRUSTED_BASE_ADMISSION = SATISFIED (S2-A005, S2-A009 policy chain)
+S2_J_EXACT_HEAD_EGRESS_PREFLIGHT = SATISFIED (S2-A005)
+S2_J_INDEPENDENT_REVIEW = SATISFIED (S2-A002/S2-A003/S2-R015/S2-A004 on #329; per-PR CodeRabbit review on #330 and #332 as formal PullRequestReview objects, on #331/#333/#334 as auto-summary + invocation-reply comment-class review per BL-0021's taxonomy — re-verified live this session via `gh api .../pulls/<n>/reviews` and `.../issues/<n>/comments`)
+S2_J_REVIEW_BLOCKED = NOT_ENCOUNTERED
+S2_J_UNRESOLVED_MATERIAL_FINDINGS = 0
+S2_J_FINAL_RACE_CHECK = SATISFIED (S2-A005)
+S2_J_READY_TRIGGERED_ADMISSION = SATISFIED (S2-A005)
+S2_J_SECURITY_ACCOUNTING = SATISFIED (S2-A003)
+S2_J_FOUNDER_CANONICAL_AUTHORITY = SATISFIED for every GitHub mutation (S2-A006 ruling; Founder standing authorization for ordinary governed execution)
+S2_J_GUARDED_MERGE = SATISFIED (S2-A007, and --match-head-commit on every subsequent PR merge through #334)
+S2_J_POST_MERGE_CANONICAL_EVIDENCE = SATISFIED (S2-A008, and re-verified live this session on head 8fd1b9d)
+S2_J_BUILD_LEARNING_CAPTURE = SATISFIED (S2-A009)
+S2_STATE = CLOSED_CANONICAL
+S2_CARRIED_FORWARD_LIMITATIONS = S2-S001, S2-S003, S2-S005, S2-S007, S2-Q001, S2-Q004, S2-Q008, S2-Q009 (8 rows, [~], not discharged — ACCEPTED_LIMITATION != PROVEN_REQUIREMENT per S2-A006)
+NEXT_AUTHORITY_GATE = S3 planning package (re-read canonical main, re-read the merged Spec 006 capability plan as canonical planning input, determine the next dependency-ordered roadmap unit per AGENTS.md)
 ```
 
 ## Explicit stop conditions

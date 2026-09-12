@@ -54,7 +54,7 @@ A future Doctor-class or Mission-Runtime consumer of these contracts must not re
 
 **Attack:** Loading Desktop or opening a project (S1/S2 actions) is misread as consent to execute processes.
 
-**Mitigation:** `host_execution_opt_in_state` defaults false; only an explicit, distinct action sets it (FR-001); no S1/S2 code path is specified to set it.
+**Mitigation:** `host_execution_opt_in_state` defaults false; only an explicit, distinct action sets it (FR-001); no S1/S2 code path is specified to set it. This package does not yet define the authorized actor, the authorization check, or the denial path for that action — S3 has no remote/multi-tenant actor concept, so the only plausible actor at this gate is the interactively present local user of the WePLD Desktop process, but even that must be made an explicit, testable check rather than assumed. `S3-H002` (`tasks.md` §3) must specify this exactly: who may set the flag, how that is verified, and that a denied/unauthorized attempt fails closed and leaves `host_execution_opt_in_state` false. A negative test for an unauthorized opt-in attempt is required before `S3-AUTH-HOST` acceptance.
 
 ### T-002 — Containment badge inflation
 
@@ -173,7 +173,7 @@ At minimum, implementation qualification must include negative tests proving:
 3. a `PROCESS_TREE_ONLY` containment fixture is never consumed as satisfying a filesystem- or network-isolation requirement;
 4. a PID reused by an unrelated process after original-process exit is not matched to the original `ProcessTreeIdentity`;
 5. an `EffectProposal` bound to a superseded `ownership_epoch` is refused;
-6. an `EffectProposal` with no resolved `PEPDecision`, or with a `DENY`/`UNKNOWN_FAIL_CLOSED` decision, never produces `EXECUTED`;
+6. an `EffectProposal` with no resolved `PEPDecision` produces no `EffectResult` (FR-010); a resolved `DENY` or `UNKNOWN_FAIL_CLOSED` decision produces `REFUSED`; only `ALLOW` may produce `EXECUTED`;
 7. an `EffectProposal` whose constraints intersect to an empty `RuntimeCeiling` envelope is refused, not silently narrowed;
 8. a spawned-process fixture (once any spawn path exists) receives no ambient environment variable outside its `EnvironmentExposurePolicy` allowlist;
 9. a cancellation request against a live effect resolves to `CANCELLED` or bounded `UNKNOWN` within the documented deadline, and never hangs;

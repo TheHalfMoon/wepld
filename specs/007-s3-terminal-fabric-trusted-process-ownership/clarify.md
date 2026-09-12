@@ -77,7 +77,9 @@ IMPLEMENTATION_AUTHORITY = NOT_GRANTED
 
 ## Q18 — What is the preferred first implementation-authority tranche after this planning package is canonical?
 
-**Decision:** **Read-only host/containment qualification only** — a tranche that implements `HostDescriptor`/`ContainmentCapabilityReport`/`ContainmentPosture` production (the Windows Job-Object investigation and reporting) with no `EffectProposal` execution path at all. This mirrors S1's staged dependency-resolution precedent and S2's Q32 "contracts-only first" precedent: prove the observation/reporting layer is correct and safe before granting any authority to actually spawn or own a process tree. `SPAWN_PROCESS_TREE` admission is a later, separately justified tranche.
+**Decision:** **`S3-AUTH-C`, contracts-only** — a tranche that implements only the `crates/contracts` types in `plan.md` §2/§10 (`HostDescriptor`/`RunnerDescriptor`/`ProcessTreeIdentity`/`ContainmentCapabilityReport`/`ContainmentPosture`/`RuntimeCeiling`/`EnvironmentExposurePolicy`/`EffectProposal`/`PEPDecision`/`EffectResult`/`EffectDependency`) and their schema/round-trip tests, with no `crates/core` runtime behavior, no Windows API binding, and no `EffectProposal` execution path at all. This mirrors S1's staged dependency-resolution precedent and S2's Q32 "contracts-only first" precedent exactly.
+
+Only after `S3-AUTH-C` is canonical does **`S3-AUTH-HOST`** (read-only host/containment qualification — the Windows Job-Object investigation and `ContainmentCapabilityReport` production) become the next tranche, still with no `EffectProposal` execution path. `SPAWN_PROCESS_TREE` admission (`S3-AUTH-SPAWN`) remains a later, separately justified tranche after that. This is the same order `plan.md` §10, `ponytail.md` §17, and `analyze.md` §5 already specify; this answer previously stated a different first tranche and has been corrected to match.
 
 ## Q19 — Does S3 planning adopt S2-S003 (Windows junction/reparse native-runtime coverage)?
 

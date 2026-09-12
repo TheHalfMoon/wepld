@@ -212,11 +212,14 @@ Required test classes before S3 implementation acceptance:
 
 - Job-Object API unavailable (older Windows, restricted environment, sandboxed test runner) yields `NONE`/`UNKNOWN`, not a default `PROCESS_TREE_ONLY` claim;
 - qualification re-run after simulated OS-version change does not reuse a stale stronger report;
-- expired `ContainmentCapabilityReport` cannot back a new `EffectProposal`.
+- expired `ContainmentCapabilityReport` cannot back a new `EffectProposal`;
+- a breakaway-permitted child process escaping the job is not reported as contained (`source-acquisition.md` §3);
+- a failed `AssignProcessToJobObject` call yields `NONE`/`UNKNOWN`, never an assumed-successful assignment;
+- `TerminateJobObject` is proven to reach a child-of-child process, not only the directly-assigned process, before whole-tree cancellation (FR-013) is claimed.
 
 ### Ownership/identity concurrency
 
-- two proposals racing against the same `ProcessTreeIdentity` after an epoch bump: exactly one is honored under the old epoch's semantics (refused) and the fixture proves no double-effect;
+- epoch-race fixture: two `EffectProposal`s reference the same `ProcessTreeIdentity` under its pre-bump `ownership_epoch`; the epoch is bumped between their submission and evaluation. Both proposals are evaluated against the *current* epoch at evaluation time, so both are stale and both resolve to `REFUSED` per FR-014 — neither may execute. A second variant submits one proposal before the bump and evaluates it before the bump completes (a true admit-before-bump race): that proposal may proceed under the epoch that was current at its own evaluation time, and the fixture asserts the resulting effect happens at most once, with no second effect executing after the bump under the stale epoch;
 - OS PID reuse simulation: a new unrelated process reusing a just-exited PID is not matched to the prior `ProcessTreeIdentity`;
 - cancellation requested concurrently with natural process exit resolves deterministically to one terminal outcome, never both.
 

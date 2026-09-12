@@ -302,7 +302,7 @@ exit_status?
 evidence_refs[]
 ```
 
-`outcome` is a closed enum: `EXECUTED`, `REFUSED`, `CANCELLED`, `UNKNOWN`. An `EffectResult` can exist only when its `pep_decision_ref` resolves to a `PEPDecision` with `decision = ALLOW`; every other decision value produces `REFUSED` (or, for a proposal already in flight, `CANCELLED`/`UNKNOWN` per the cancellation/recovery rules below), never `EXECUTED`.
+`outcome` is a closed enum: `EXECUTED`, `REFUSED`, `CANCELLED`, `UNKNOWN`. Every `EffectResult` requires a resolved `pep_decision_ref`; a proposal with no resolved `PEPDecision` produces no `EffectResult` at all (FR-010). Once a decision is resolved: `DENY` and `UNKNOWN_FAIL_CLOSED` both produce `REFUSED`; only `ALLOW` may lead to `EXECUTED`, and even then the in-flight effect may still resolve to `CANCELLED`/`UNKNOWN` per the cancellation/recovery rules below. `EXECUTED` is never reachable from `DENY` or `UNKNOWN_FAIL_CLOSED`.
 
 ### 4.12 EffectDependency
 

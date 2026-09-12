@@ -12,7 +12,7 @@ NEXT_AUTHORITY_GATE = S3_PLANNING_ACCEPTANCE (acceptance.md §A)
 S2_S003_ADOPTED = YES (acceptance.md §H.1)
 ```
 
-This ledger lists the dependency-ordered planning-package tasks (§1, largely complete — this is the drafting session) and the future implementation/acceptance task map (§2–§7, entirely `[ ]` because `S3_IMPLEMENTATION_AUTHORITY = NOT_GRANTED`). Task-map presence does not activate implementation, exactly as `specs/006-.../PLANNING_INDEX.md` states for its own task maps.
+This ledger lists the dependency-ordered planning-package tasks (§1, largely complete — this is the drafting session) and the future implementation/acceptance task map (§2–§8, entirely `[ ]` because `S3_IMPLEMENTATION_AUTHORITY = NOT_GRANTED`, including the unchecked `S3-A001`–`S3-A010` acceptance-program tasks in §8). Task-map presence does not activate implementation, exactly as `specs/006-issueops-agentic-engineering-control-plane/PLANNING_INDEX.md` line 91 states for its own task maps.
 
 ## 1. Planning-package tasks
 
@@ -60,7 +60,7 @@ None of the following may begin before a separately governed `S3-AUTH-C` success
 Depends on §2 being canonical. None of the following may begin before a separately governed `S3-AUTH-HOST` successor grants exact paths.
 
 - [ ] **S3-H001** Research the exact Windows Job Object API surface and candidate binding crate (`source-acquisition.md` §3); this is the point at which a concrete crate/version is actually admitted, not assumed from planning.
-- [ ] **S3-H002** Implement the explicit host-execution opt-in flow (default off, distinct from S1/S2 actions).
+- [ ] **S3-H002** Implement the explicit host-execution opt-in flow (default off, distinct from S1/S2 actions), including the authorized-actor definition, its authorization check, and a fail-closed denial path that leaves `host_execution_opt_in_state` false; add a negative test for an unauthorized opt-in attempt (`threat-model.md` T-001).
 - [ ] **S3-H003** Implement Windows Job-Object-class containment investigation.
 - [ ] **S3-H004** Implement `ContainmentCapabilityReport`/`ContainmentPosture` production from that investigation, including explicit `NONE`/`UNKNOWN` on unqualified dimensions.
 - [ ] **S3-H005** Establish native Windows `wepld-core` CI execution for this investigation (this is the point at which the `S2-S003` precondition is first satisfiable).
@@ -95,6 +95,7 @@ Explicitly **not** part of the preferred first successors. Requires its own sepa
 - [ ] **S3-S001** PID-reuse simulation fixture: an unrelated process reusing a just-exited PID is not matched to the prior `ProcessTreeIdentity`.
 - [ ] **S3-S002** Stale-ownership-epoch race fixture: a proposal against a superseded epoch is refused.
 - [ ] **S3-S003** Job-Object-unavailable fixture (older Windows/restricted environment) yields `NONE`/`UNKNOWN`, never a default `PROCESS_TREE_ONLY` claim.
+- [ ] **S3-S003a** Breakaway-permitted child process escaping the job is not reported as contained; failed `AssignProcessToJobObject` yields `NONE`/`UNKNOWN`; `TerminateJobObject` is proven to reach a child-of-child process before whole-tree cancellation is claimed (`source-acquisition.md` §3).
 - [ ] **S3-S004** PEP missing/stale/malformed policy input yields `UNKNOWN_FAIL_CLOSED`.
 - [ ] **S3-S005** `RuntimeCeiling` empty-intersection fixture is refused, not silently narrowed.
 - [ ] **S3-S006** Environment-leak fixture: no ambient secret reaches a spawned process outside its allowlist (once `S3-AUTH-SPAWN` exists).

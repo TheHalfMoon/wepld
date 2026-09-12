@@ -90,10 +90,13 @@ Official references:
 Relevant qualified behavior:
 
 - a Job Object groups one or more processes so operations (limits, termination) apply to the whole group;
-- `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` ensures member processes are terminated when the job handle closes, which is directly relevant to the "no orphaned process on ownership loss" property this package's ownership-epoch model needs;
-- Job Objects natively bound process-tree membership and can terminate the whole tree via `TerminateJobObject`, which is the qualification target for FR-013 (bounded cancellation covering the entire process tree);
+- `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` terminates member processes when the *last* handle to the job closes — this guarantee applies only to processes that remain assigned to the job at that moment and only once every handle (not merely one) has closed; it is directly relevant to the "no orphaned process on ownership loss" property this package's ownership-epoch model needs, but only under those preconditions;
+- a process can escape job membership ("breakaway") if the job and process were created with breakaway permitted, and `AssignProcessToJobObject` itself can fail (e.g., the target process is already in a job that disallows nested assignment); both a breakaway process and a failed assignment fall **outside** the kill-on-close guarantee — `ContainmentCapabilityReport`/`ContainmentPosture` must not report whole-tree containment without a native test proving assignment succeeded and breakaway was not permitted, and must fail closed to `NONE`/`UNKNOWN` on assignment failure;
+- Job Objects natively bound process-tree membership (for processes that stay assigned) and can terminate the whole tree via `TerminateJobObject`, which is the qualification target for FR-013 (bounded cancellation covering the entire process tree) — but this too requires a native test proving termination reaches a child-of-child, not just the directly-assigned process;
 - Job Objects do **not** by themselves provide filesystem or network isolation — this directly supports `constitution.md` C4/`spec.md` FR-006's rule that `PROCESS_TREE_ONLY != HARD_FILESYSTEM_ISOLATION`/`!= NETWORK_ISOLATION`;
 - nested Job Objects and nested-job support vary by Windows version, which is exactly why `ContainmentCapabilityReport` must record `os_version_identity` and fail closed to `UNKNOWN` on an unrecognized version rather than assume nesting support.
+
+`S3-AUTH-HOST` must not claim whole-tree containment (for `ContainmentPosture.process_tree_strength` or for FR-013's cancellation guarantee) without native Windows tests covering: last-handle closure (not merely the first), a breakaway-permitted child escaping the job, an `AssignProcessToJobObject` failure, and child-of-child cancellation. Any of these untested is an explicit `UNKNOWN`, not an assumed pass.
 
 Acquisition decision:
 

@@ -285,19 +285,46 @@ def _new_contract_presence(view: Any) -> frozenset[str]:
 
 _STD_GROUP_BANNED_LEAF = re.compile(rb"\b(fs|net|process|os|env)\b")
 _WHITESPACE = re.compile(rb"\s+")
-_LINE_COMMENT = re.compile(rb"//[^\n]*")
+_RAW_STRING_START = re.compile(rb"b?r(#*)\"")
 
 
-def _strip_block_comments(data: bytes) -> bytes:
-    """Replace every `/* ... */` block comment with a single space, honoring
-    Rust's (unlike C) support for *nested* block comments via depth
-    counting, so `std/* outer /* inner */ still outer */::net` is fully
-    stripped rather than stopping at the first `*/`.
+def _strip_comments_lexically(data: bytes) -> bytes:
+    """Single-pass, literal-aware comment stripper: replaces real `//` and
+    (nested) `/* */` comments with a single space, while passing ordinary
+    string (`"..."`), char (`'.'`), byte-string/byte-char (`b"..."`/`b'.'`),
+    and raw-string (`r#*"..."#*`, `br#*"..."#*`) literal *contents* through
+    completely unchanged.
+
+    Without this, a comment-marker-looking byte sequence inside a literal
+    (e.g. `"http://x"`, or an adversarial `"/*"`) would be misread as
+    starting a real comment - and a naive stripper would then swallow
+    arbitrary following source, including a live capability call, as fake
+    "comment" and never present it to the pattern checks at all. That is a
+    strictly worse failure than any of the trivia-splicing bypasses this
+    scanner already closes: it can hide code, not just a single reference.
     """
-    result = bytearray()
-    i, n = 0, len(data)
+    n = len(data)
+    out = bytearray()
+    i = 0
     while i < n:
-        if data[i : i + 2] == b"/*":
+        raw_match = _RAW_STRING_START.match(data, i)
+        if raw_match:
+            close = b'"' + raw_match.group(1)
+            end = data.find(close, raw_match.end())
+            end = n if end == -1 else end + len(close)
+            out.extend(data[i:end])
+            i = end
+            continue
+
+        two = data[i : i + 2]
+        if two == b"//":
+            end = data.find(b"\n", i)
+            end = n if end == -1 else end
+            out.extend(b" ")
+            i = end
+            continue
+
+        if two == b"/*":
             depth = 1
             j = i + 2
             while j < n and depth > 0:
@@ -309,12 +336,28 @@ def _strip_block_comments(data: bytes) -> bytes:
                     j += 2
                 else:
                     j += 1
-            result.extend(b" ")
+            out.extend(b" ")
             i = j
-        else:
-            result.append(data[i])
-            i += 1
-    return bytes(result)
+            continue
+
+        one = data[i : i + 1]
+        if one in (b'"', b"'"):
+            j = i + 1
+            while j < n:
+                if data[j : j + 1] == b"\\":
+                    j += 2
+                    continue
+                if data[j : j + 1] == one:
+                    j += 1
+                    break
+                j += 1
+            out.extend(data[i:j])
+            i = j
+            continue
+
+        out.extend(one)
+        i += 1
+    return bytes(out)
 
 
 def _normalize_for_scan(data: bytes) -> bytes:
@@ -323,12 +366,12 @@ def _normalize_for_scan(data: bytes) -> bytes:
     Rust, none ever produced by rustfmt, none rejected by the parser) match
     the same as `std::fs` / `std::{fs}`. Comments are replaced with a space
     (not removed outright) so tokens either side stay separated until the
-    whitespace pass collapses them - both passes can only ever create *more*
-    adjacency, never less, so this can only close bypasses, never hide a
-    capability the unnormalized scan would have caught.
+    whitespace pass collapses them; literal contents pass through
+    unaltered. Both passes can only ever create *more* adjacency, never
+    less, so this can only close bypasses, never hide a capability the
+    unnormalized scan would have caught.
     """
-    data = _LINE_COMMENT.sub(b" ", data)
-    data = _strip_block_comments(data)
+    data = _strip_comments_lexically(data)
     return _WHITESPACE.sub(b"", data)
 
 
@@ -680,6 +723,14 @@ def selftest() -> None:
     )
     delta(mem(first), mem(active))
 
+    benign_literal_content = dict(first)
+    benign_literal_content[CONTRACT_MODULE] = clean_module.replace(
+        b"pub struct ServerDescriptor;\n",
+        b'pub const DOC_URL: &str = "https://example.com/docs"; // see docs\n'
+        b"pub struct ServerDescriptor;\n",
+    )
+    delta(mem(benign_literal_content), mem(active))
+
     for label, path, poison in (
         ("filesystem", CONTRACT_MODULE, b"\nfn read() { std::fs::read(\"x\").unwrap(); }\n"),
         ("network", CONTRACT_MODULE, b"\nfn conn() { std::net::TcpStream::connect(\"x\").unwrap(); }\n"),
@@ -694,6 +745,16 @@ def selftest() -> None:
         ("comment-spliced-qualified", CONTRACT_MODULE, b"\nfn f() { std/**/::net::TcpStream::connect(\"x\"); }\n"),
         ("comment-spliced-grouped", CONTRACT_TEST, b"\nuse std/**/::{fs};\n"),
         ("nested-comment-spliced", CONTRACT_MODULE, b"\nfn f() { std/* outer /* inner */ still outer */::process::Command::new(\"x\"); }\n"),
+        (
+            "string-hidden-comment-marker",
+            CONTRACT_TEST,
+            b'\nfn f() { let _ = "/*"; std::net::TcpStream::connect("x").unwrap(); }\n',
+        ),
+        (
+            "raw-string-hidden-comment-marker",
+            CONTRACT_MODULE,
+            b'\nfn f() { let _ = r#"contains "quotes" and /* not a comment */"#; std::fs::read("x").unwrap(); }\n',
+        ),
     ):
         poisoned = dict(first)
         poisoned[path] = poisoned[path] + poison

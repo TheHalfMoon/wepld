@@ -1,0 +1,3 @@
+# Pictorial modification record
+
+WePLD imported pinned `pbakaus/impeccable` revision `56f44523f76efdcec813e67b38ee550e49b16f48` on 2026-08-23. Deterministically rebranded Pictorial text files carry embedded Apache modification notices. The upstream visual identity in the extension icons, promotional tile, plugin icon, and SVG icon was replaced with WePLD-owned Pictorial artwork; PNG replacements carry embedded modification metadata and the SVG carries an embedded modification comment. The Apache-2.0 license and upstream NOTICE are preserved verbatim; the source map records every resulting object.

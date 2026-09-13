@@ -385,6 +385,33 @@ def _mask_comments_and_literals(data: bytes) -> bytes:
     return bytes(out)
 
 
+def _has_marker_at_crate_scope(active_code: bytes, marker: bytes) -> bool:
+    """True if `marker` occurs in `active_code` at brace-nesting depth 0.
+
+    `#![...]` is an *inner* attribute applying to its enclosing scope - at
+    depth 0 that enclosing scope is the crate root, but the identical bytes
+    written inside `mod decoy { #![forbid(unsafe_code)] }` only protect
+    `decoy`, not the crate `s3.rs` actually lands in. A plain substring
+    check can't tell those apart; `active_code` must already have
+    comments/literals masked out (via `_mask_comments_and_literals`) so a
+    brace inside a string or comment doesn't perturb the count.
+    """
+    depth = 0
+    n = len(active_code)
+    mlen = len(marker)
+    i = 0
+    while i < n:
+        if depth == 0 and active_code[i : i + mlen] == marker:
+            return True
+        one = active_code[i : i + 1]
+        if one == b"{":
+            depth += 1
+        elif one == b"}":
+            depth -= 1
+        i += 1
+    return False
+
+
 def _normalize_for_scan(data: bytes) -> bytes:
     """Strip comments and whitespace before scanning, so trivia-flexible
     forms like `std :: fs`, `std :: { fs }`, or `std/**/::net` (all legal
@@ -458,7 +485,7 @@ def _verify_contract_capabilities(view: Any) -> None:
     if CONTRACT_EXPORT in paths and CONTRACT_MODULE in paths:
         lib = view.read_bytes(CONTRACT_EXPORT, base.MAX_POLICY_FILE_BYTES)
         active_code = _WHITESPACE.sub(b"", _mask_comments_and_literals(lib))
-        if _FORBID_UNSAFE_MARKER not in active_code:
+        if not _has_marker_at_crate_scope(active_code, _FORBID_UNSAFE_MARKER):
             base.fail("v70 Contracts export must retain #![forbid(unsafe_code)]")
 
 
@@ -841,6 +868,21 @@ def selftest() -> None:
         "forbid(unsafe_code)",
         delta,
         mem(string_spoofed_forbid_first),
+        mem(no_forbid_active),
+    )
+
+    # An active attribute nested inside another module only protects that
+    # module, not the crate `s3.rs` actually lands in - must not satisfy
+    # the crate-scope retention guard.
+    module_scoped_forbid_first = dict(no_forbid_first)
+    module_scoped_forbid_first[CONTRACT_EXPORT] = (
+        b"mod decoy {\n    #![forbid(unsafe_code)]\n}\npub mod s3;\npub use s3::*;\n"
+    )
+    base.expect_failure_matching(
+        "v70 forbid(unsafe_code) module-scoped decoy rejected",
+        "forbid(unsafe_code)",
+        delta,
+        mem(module_scoped_forbid_first),
         mem(no_forbid_active),
     )
 

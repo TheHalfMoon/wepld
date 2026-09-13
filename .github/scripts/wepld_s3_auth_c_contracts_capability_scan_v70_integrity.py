@@ -285,17 +285,50 @@ def _new_contract_presence(view: Any) -> frozenset[str]:
 
 _STD_GROUP_BANNED_LEAF = re.compile(rb"\b(fs|net|process|os|env)\b")
 _WHITESPACE = re.compile(rb"\s+")
+_LINE_COMMENT = re.compile(rb"//[^\n]*")
+
+
+def _strip_block_comments(data: bytes) -> bytes:
+    """Replace every `/* ... */` block comment with a single space, honoring
+    Rust's (unlike C) support for *nested* block comments via depth
+    counting, so `std/* outer /* inner */ still outer */::net` is fully
+    stripped rather than stopping at the first `*/`.
+    """
+    result = bytearray()
+    i, n = 0, len(data)
+    while i < n:
+        if data[i : i + 2] == b"/*":
+            depth = 1
+            j = i + 2
+            while j < n and depth > 0:
+                if data[j : j + 2] == b"/*":
+                    depth += 1
+                    j += 2
+                elif data[j : j + 2] == b"*/":
+                    depth -= 1
+                    j += 2
+                else:
+                    j += 1
+            result.extend(b" ")
+            i = j
+        else:
+            result.append(data[i])
+            i += 1
+    return bytes(result)
 
 
 def _normalize_for_scan(data: bytes) -> bytes:
-    """Strip all whitespace before scanning, so a whitespace-flexible form
-    like `std :: fs` or `std :: { fs }` (legal Rust, never produced by
-    rustfmt, but not guaranteed absent) matches the same as `std::fs` /
-    `std::{fs}`. Whitespace removal can only ever create *more* adjacency,
-    never less, so it cannot hide a capability the unnormalized scan would
-    have caught - only close bypasses (never rejecting is the only unsafe
-    direction here).
+    """Strip comments and whitespace before scanning, so trivia-flexible
+    forms like `std :: fs`, `std :: { fs }`, or `std/**/::net` (all legal
+    Rust, none ever produced by rustfmt, none rejected by the parser) match
+    the same as `std::fs` / `std::{fs}`. Comments are replaced with a space
+    (not removed outright) so tokens either side stay separated until the
+    whitespace pass collapses them - both passes can only ever create *more*
+    adjacency, never less, so this can only close bypasses, never hide a
+    capability the unnormalized scan would have caught.
     """
+    data = _LINE_COMMENT.sub(b" ", data)
+    data = _strip_block_comments(data)
     return _WHITESPACE.sub(b"", data)
 
 
@@ -658,6 +691,9 @@ def selftest() -> None:
         ("nested-grouped-import", CONTRACT_TEST, b"\nuse std::{io::Read, fs::{File, read}};\n"),
         ("whitespace-grouped-import", CONTRACT_MODULE, b"\nuse std :: { fmt , fs } ;\n"),
         ("whitespace-qualified", CONTRACT_TEST, b"\nfn f() { std :: net :: TcpStream::connect(\"x\"); }\n"),
+        ("comment-spliced-qualified", CONTRACT_MODULE, b"\nfn f() { std/**/::net::TcpStream::connect(\"x\"); }\n"),
+        ("comment-spliced-grouped", CONTRACT_TEST, b"\nuse std/**/::{fs};\n"),
+        ("nested-comment-spliced", CONTRACT_MODULE, b"\nfn f() { std/* outer /* inner */ still outer */::process::Command::new(\"x\"); }\n"),
     ):
         poisoned = dict(first)
         poisoned[path] = poisoned[path] + poison

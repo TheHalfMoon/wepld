@@ -283,11 +283,51 @@ def _new_contract_presence(view: Any) -> frozenset[str]:
     return frozenset(path for path in CONTRACT_NEW_FILES if path in paths)
 
 
+_STD_GROUP_BANNED_LEAF = re.compile(rb"\b(fs|net|process|os|env)\b")
+
+
+def _std_group_bodies(data: bytes) -> list[bytes]:
+    """Find the body of every `std::{...}` grouped-import brace in `data`,
+    with balanced-brace matching so a nested group (`std::{fs::{File}, net}`)
+    still yields its full extent rather than stopping at the first `}`.
+    """
+    marker = b"std::"
+    bodies = []
+    idx = 0
+    while True:
+        pos = data.find(marker, idx)
+        if pos == -1:
+            break
+        j = pos + len(marker)
+        while j < len(data) and data[j : j + 1].isspace():
+            j += 1
+        if data[j : j + 1] != b"{":
+            idx = pos + len(marker)
+            continue
+        depth = 1
+        k = j + 1
+        while k < len(data) and depth > 0:
+            if data[k : k + 1] == b"{":
+                depth += 1
+            elif data[k : k + 1] == b"}":
+                depth -= 1
+            k += 1
+        bodies.append(data[j + 1 : k - 1])
+        idx = k
+    return bodies
+
+
 def _scan_prohibited_capabilities(path: str, data: bytes) -> None:
     for pattern in _PROHIBITED_CAPABILITY_PATTERNS:
         if pattern in data:
             base.fail(
                 f"v70 S3 contract file uses a prohibited runtime capability: {path}: {pattern.decode()}"
+            )
+    for body in _std_group_bodies(data):
+        if _STD_GROUP_BANNED_LEAF.search(body):
+            base.fail(
+                f"v70 S3 contract file uses a prohibited runtime capability: {path}: "
+                "grouped std::{...} import"
             )
 
 
@@ -601,6 +641,8 @@ def selftest() -> None:
         ("environment", CONTRACT_TEST, b"\nfn env() { std::env::var(\"X\").unwrap(); }\n"),
         ("platform", CONTRACT_MODULE, b"\nfn raw() { unsafe { libc::getpid(); } }\n"),
         ("unsafe", CONTRACT_MODULE, b"\nunsafe fn raw() {}\n"),
+        ("grouped-import", CONTRACT_MODULE, b"\nuse std::{fmt, fs, net};\n"),
+        ("nested-grouped-import", CONTRACT_TEST, b"\nuse std::{io::Read, fs::{File, read}};\n"),
     ):
         poisoned = dict(first)
         poisoned[path] = poisoned[path] + poison

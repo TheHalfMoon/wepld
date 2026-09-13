@@ -284,12 +284,26 @@ def _new_contract_presence(view: Any) -> frozenset[str]:
 
 
 _STD_GROUP_BANNED_LEAF = re.compile(rb"\b(fs|net|process|os|env)\b")
+_WHITESPACE = re.compile(rb"\s+")
+
+
+def _normalize_for_scan(data: bytes) -> bytes:
+    """Strip all whitespace before scanning, so a whitespace-flexible form
+    like `std :: fs` or `std :: { fs }` (legal Rust, never produced by
+    rustfmt, but not guaranteed absent) matches the same as `std::fs` /
+    `std::{fs}`. Whitespace removal can only ever create *more* adjacency,
+    never less, so it cannot hide a capability the unnormalized scan would
+    have caught - only close bypasses (never rejecting is the only unsafe
+    direction here).
+    """
+    return _WHITESPACE.sub(b"", data)
 
 
 def _std_group_bodies(data: bytes) -> list[bytes]:
     """Find the body of every `std::{...}` grouped-import brace in `data`,
     with balanced-brace matching so a nested group (`std::{fs::{File}, net}`)
     still yields its full extent rather than stopping at the first `}`.
+    `data` is expected to already be whitespace-normalized.
     """
     marker = b"std::"
     bodies = []
@@ -299,8 +313,6 @@ def _std_group_bodies(data: bytes) -> list[bytes]:
         if pos == -1:
             break
         j = pos + len(marker)
-        while j < len(data) and data[j : j + 1].isspace():
-            j += 1
         if data[j : j + 1] != b"{":
             idx = pos + len(marker)
             continue
@@ -318,12 +330,13 @@ def _std_group_bodies(data: bytes) -> list[bytes]:
 
 
 def _scan_prohibited_capabilities(path: str, data: bytes) -> None:
+    normalized = _normalize_for_scan(data)
     for pattern in _PROHIBITED_CAPABILITY_PATTERNS:
-        if pattern in data:
+        if pattern in normalized:
             base.fail(
                 f"v70 S3 contract file uses a prohibited runtime capability: {path}: {pattern.decode()}"
             )
-    for body in _std_group_bodies(data):
+    for body in _std_group_bodies(normalized):
         if _STD_GROUP_BANNED_LEAF.search(body):
             base.fail(
                 f"v70 S3 contract file uses a prohibited runtime capability: {path}: "
@@ -643,6 +656,8 @@ def selftest() -> None:
         ("unsafe", CONTRACT_MODULE, b"\nunsafe fn raw() {}\n"),
         ("grouped-import", CONTRACT_MODULE, b"\nuse std::{fmt, fs, net};\n"),
         ("nested-grouped-import", CONTRACT_TEST, b"\nuse std::{io::Read, fs::{File, read}};\n"),
+        ("whitespace-grouped-import", CONTRACT_MODULE, b"\nuse std :: { fmt , fs } ;\n"),
+        ("whitespace-qualified", CONTRACT_TEST, b"\nfn f() { std :: net :: TcpStream::connect(\"x\"); }\n"),
     ):
         poisoned = dict(first)
         poisoned[path] = poisoned[path] + poison

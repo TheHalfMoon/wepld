@@ -288,23 +288,16 @@ _WHITESPACE = re.compile(rb"\s+")
 _RAW_STRING_START = re.compile(rb"b?r(#*)\"")
 
 
-def _strip_comments_lexically(data: bytes) -> bytes:
-    """Single-pass, literal-aware comment stripper: replaces real `//` and
-    (nested) `/* */` comments with a single space, while passing ordinary
-    string (`"..."`), char (`'.'`), byte-string/byte-char (`b"..."`/`b'.'`),
-    and raw-string (`r#*"..."#*`, `br#*"..."#*`) literal *contents* through
-    completely unchanged.
-
-    Without this, a comment-marker-looking byte sequence inside a literal
-    (e.g. `"http://x"`, or an adversarial `"/*"`) would be misread as
-    starting a real comment - and a naive stripper would then swallow
-    arbitrary following source, including a live capability call, as fake
-    "comment" and never present it to the pattern checks at all. That is a
-    strictly worse failure than any of the trivia-splicing bypasses this
-    scanner already closes: it can hide code, not just a single reference.
+def _scan_lexical_spans(data: bytes):
+    """Classify `data` byte-for-byte into a sequence of `(kind, start, end)`
+    spans, `kind` one of `"code"`, `"comment"`, `"literal"` (string, char,
+    byte-string, byte-char, or raw-string), honoring backslash escapes,
+    raw-string `#`-delimited terminators, and Rust's (unlike C) *nested*
+    block comments. This is the single lexical pass every scan below
+    builds on, so "what counts as a comment vs. real code vs. literal
+    content" is defined exactly once.
     """
     n = len(data)
-    out = bytearray()
     i = 0
     while i < n:
         raw_match = _RAW_STRING_START.match(data, i)
@@ -312,7 +305,7 @@ def _strip_comments_lexically(data: bytes) -> bytes:
             close = b'"' + raw_match.group(1)
             end = data.find(close, raw_match.end())
             end = n if end == -1 else end + len(close)
-            out.extend(data[i:end])
+            yield ("literal", i, end)
             i = end
             continue
 
@@ -320,7 +313,7 @@ def _strip_comments_lexically(data: bytes) -> bytes:
         if two == b"//":
             end = data.find(b"\n", i)
             end = n if end == -1 else end
-            out.extend(b" ")
+            yield ("comment", i, end)
             i = end
             continue
 
@@ -336,7 +329,7 @@ def _strip_comments_lexically(data: bytes) -> bytes:
                     j += 2
                 else:
                     j += 1
-            out.extend(b" ")
+            yield ("comment", i, j)
             i = j
             continue
 
@@ -351,12 +344,44 @@ def _strip_comments_lexically(data: bytes) -> bytes:
                     j += 1
                     break
                 j += 1
-            out.extend(data[i:j])
+            yield ("literal", i, j)
             i = j
             continue
 
-        out.extend(one)
+        yield ("code", i, i + 1)
         i += 1
+
+
+def _strip_comments_lexically(data: bytes) -> bytes:
+    """Replace real `//` and (nested) `/* */` comments with a single space,
+    while passing string/char/byte-string/byte-char/raw-string literal
+    *contents* through completely unchanged.
+
+    Without this, a comment-marker-looking byte sequence inside a literal
+    (e.g. `"http://x"`, or an adversarial `"/*"`) would be misread as
+    starting a real comment - and a naive stripper would then swallow
+    arbitrary following source, including a live capability call, as fake
+    "comment" and never present it to the pattern checks at all. That is a
+    strictly worse failure than any of the trivia-splicing bypasses this
+    scanner already closes: it can hide code, not just a single reference.
+    """
+    out = bytearray()
+    for kind, start, end in _scan_lexical_spans(data):
+        out.extend(b" " if kind == "comment" else data[start:end])
+    return bytes(out)
+
+
+def _mask_comments_and_literals(data: bytes) -> bytes:
+    """Replace both comments *and* literal content with spaces, leaving
+    only real code tokens. Used where a marker must be an *active* piece
+    of syntax (an attribute, not prose) - unlike `_strip_comments_lexically`,
+    which deliberately preserves literal content for capability scanning,
+    a literal or a comment containing text that merely *looks like* the
+    marker must not satisfy this check.
+    """
+    out = bytearray()
+    for kind, start, end in _scan_lexical_spans(data):
+        out.extend(data[start:end] if kind == "code" else b" " * (end - start))
     return bytes(out)
 
 
@@ -432,7 +457,8 @@ def _verify_contract_capabilities(view: Any) -> None:
             base.fail(f"v70 S3 contract file uses a prohibited runtime capability: {path}: unsafe")
     if CONTRACT_EXPORT in paths and CONTRACT_MODULE in paths:
         lib = view.read_bytes(CONTRACT_EXPORT, base.MAX_POLICY_FILE_BYTES)
-        if _FORBID_UNSAFE_MARKER not in lib:
+        active_code = _WHITESPACE.sub(b"", _mask_comments_and_literals(lib))
+        if _FORBID_UNSAFE_MARKER not in active_code:
             base.fail("v70 Contracts export must retain #![forbid(unsafe_code)]")
 
 
@@ -791,6 +817,32 @@ def selftest() -> None:
     with_forbid_first = dict(no_forbid_first)
     with_forbid_first[CONTRACT_EXPORT] = b"#![forbid(unsafe_code)]\n\npub mod s3;\npub use s3::*;\n"
     delta(mem(with_forbid_first), mem(no_forbid_active))
+
+    # A comment or string containing the marker text must not satisfy the
+    # retention guard - only an active attribute counts.
+    comment_spoofed_forbid_first = dict(no_forbid_first)
+    comment_spoofed_forbid_first[CONTRACT_EXPORT] = (
+        b"// #![forbid(unsafe_code)]\npub mod s3;\npub use s3::*;\n"
+    )
+    base.expect_failure_matching(
+        "v70 forbid(unsafe_code) comment-spoof rejected",
+        "forbid(unsafe_code)",
+        delta,
+        mem(comment_spoofed_forbid_first),
+        mem(no_forbid_active),
+    )
+
+    string_spoofed_forbid_first = dict(no_forbid_first)
+    string_spoofed_forbid_first[CONTRACT_EXPORT] = (
+        b'pub const NOTE: &str = "#![forbid(unsafe_code)]";\npub mod s3;\npub use s3::*;\n'
+    )
+    base.expect_failure_matching(
+        "v70 forbid(unsafe_code) string-spoof rejected",
+        "forbid(unsafe_code)",
+        delta,
+        mem(string_spoofed_forbid_first),
+        mem(no_forbid_active),
+    )
 
     partial = dict(active)
     partial[CONTRACT_MODULE] = clean_module

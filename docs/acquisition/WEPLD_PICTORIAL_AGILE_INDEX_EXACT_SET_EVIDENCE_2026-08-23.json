@@ -1,0 +1,21 @@
+{
+  "dependencies_installed": false,
+  "dependency_admission": "NONE",
+  "donor_workflow_execution": "NONE",
+  "head_under_validation": "93dcde7fc3f0bdd4aed381965859d796d0bf9d9c",
+  "source_map_to_git_index": {
+    "agile": {
+      "index_exact_set": true,
+      "index_object_identity": true,
+      "mapped_vendor_paths": 544,
+      "source_map_records": 545
+    },
+    "pictorial": {
+      "index_exact_set": true,
+      "index_object_identity": true,
+      "mapped_vendor_paths": 3265,
+      "source_map_records": 3267
+    }
+  },
+  "status": "PASS"
+}

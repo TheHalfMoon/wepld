@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+<rect width="100%" height="100%" rx="16" fill="#f5f7f6"/>
+<rect x="32.0" y="36.0" width="68.0" height="128.0" rx="8" fill="#142232"/>
+<path d="M 44.0 134.0 L 64.0 108.0 L 86.0 72.0" stroke="#248b8b" stroke-width="4" fill="none"/>
+<circle cx="44.0" cy="134.0" r="4" fill="#f5f7f6"/><circle cx="64.0" cy="108.0" r="4" fill="#f5f7f6"/><circle cx="86.0" cy="72.0" r="4" fill="#54b48c"/>
+<text x="55%" y="46%" fill="#142232" font-family="DejaVu Sans" font-size="25" font-weight="700">Agile</text>
+<text x="55%" y="56%" fill="#49646a" font-family="DejaVu Sans" font-size="9"></text>
+</svg>

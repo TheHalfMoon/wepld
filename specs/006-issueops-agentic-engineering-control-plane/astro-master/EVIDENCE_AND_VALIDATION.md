@@ -1,6 +1,6 @@
 # Evidence, validation and handoff report
 
-STATUS = DRAFT_VALIDATION_IN_PROGRESS. This document records planning evidence and its limits; acceptance of the exact planning revision remains ASTRO-G01. No product code, dependency, runtime permission, protected governance file or source-admission decision is changed.
+STATUS = PLAN_VALIDATED_PENDING_CANONICAL_ACCEPTANCE. This document records planning evidence and its limits; acceptance of the exact planning revision remains ASTRO-G01. No product code, dependency, runtime permission, protected governance file or source-admission decision is changed.
 
 ## Live truth report
 
@@ -207,7 +207,36 @@ Each numbered section is assigned to an artifact/task gate below. This is requir
 
 ## Validation and review record
 
-Local validation and independent-review results are appended below after execution. Planned checks are not reported as passed. Candidate publication does not constitute acceptance; ASTRO-G01 still requires current exact-revision acceptance under trusted governance.
+The completed package is a planning proposal ready for ASTRO-G01, not a ratified implementation grant. The following local policy results bind initial package commit `6ac6eb42bee45fb0157f67a4126c2153782041b9`. The final evidence-record commit is separately checked/reviewed; its exact-head GitHub results belong to the PR/check record, not a self-referential promise inside this file.
+
+| Check | Result / scope |
+|---|---|
+| Documentation structure | PASS: 10 Markdown files, 111 local links, 2 heading anchors, 63 task cards/table rows, all task references resolved, acyclic dependencies |
+| Feature/source/master coverage | PASS: 57 ACF + 12 ORC + 22 EXT + 21 ALL + 12 TEAM = 124 feature rows with tasks; 402 unique baseline source IDs; all 142 numbered master sections traced |
+| Whitespace | PASS: git diff --cached --check after UTF-8/LF normalization |
+| Active v71 policy selftest | PASS on initial package commit; active canonical policy and inherited adversarial self-tests, not donor tests |
+| Active v71 exact-base candidate verifier | PASS against detached base 765f9d4ae0588ca06b0f65cd76de16eaa8a5c246; committed clean candidate required |
+| Scope | Only the ten new Markdown files in this folder; no product/dependency/workflow/protected-policy changes |
+| Secret/private-data screening | Bounded token-pattern check plus manual inspection of authored scope; public research/architecture only, no raw API dumps, credentials or private workspace contents included; not a universal secret-detection guarantee |
+| Independent engineering/architecture review | Separate read-only reviewer agent, trusted-base bootstrap, no writing role; three findings repaired and reread; no unresolved material findings at initial commit |
+| Codex Security product scan | NOT_APPLICABLE for this nonexecuting proposed-document package under current policy; no executable/security-boundary or active security-policy change, and no claim of runtime security certification |
+| Product/native/upstream tests and benchmarks | NOT_RUN: this change contains no product code or admitted dependency; native/producer/benchmark qualification remains future tasks |
+
+Reproduction: use the repository workflow's active `.github/scripts/wepld_s3_contracts_freeze_shortcut_v71_integrity.py selftest` and `verify-candidate-local --root <clean-candidate> --policy-base-root <detached-exact-base> --policy-base-sha 765f9d4ae0588ca06b0f65cd76de16eaa8a5c246`. A first attempt encountered an inherited malformed global Git safe.directory warning that polluted the policy parser; validation used process-local Git configuration with only the two verified workspace paths marked safe and an empty excludes file. Global configuration was not changed. An uncommitted attempt correctly refused a dirty/index-divergent candidate. Those failed attempts were environment/prerequisite failures, not suppressed policy failures.
+
+Independent-review findings and disposition:
+
+1. S3 observation incorrectly depended on full S6 Nawat. Fixed X02 to use the canonical S3 test-double PEP; full Nawat integration stays at F06/U02.
+2. A UI/producer manifest could unlock a benchmark without working implementation. Added W01/R03/Q03/S03 executable leaves and G02 installed-fixture qualification; U05 is executable integration, B02 depends on G02, and B03 requires accepted exact-build treatment variants.
+3. WorkSession durable writer was assigned to Work. Restored Mission Runtime identity/continuation ownership and retained Work/UI collaboration projection.
+
+Review limitations: same-provider agent review is independent of the writing role, not proven model-diverse evaluation; no runtime security certification, donor-code audit, benchmark execution or exhaustive sub-bullet fulfillment audit. The 142-section table is traceability. Final qualification/acceptance of the reviewer and exact revision remains with canonical/founder acceptance; the builder does not self-accept. No hosted external reviewer command or automatic-review setting was enabled.
+
+Ponytail FULL result: extend existing Spec006 ownership and P0/S1–S10 rather than inventing a parallel product/runtime. Keep existing types and adapters; local modules first; acquire platform/parsing/testing machinery; split behavior profiles from source admission; first measurable loop before breadth. This package is documentation-only preparation and grants no code/dependency/service/worker authority.
+
+Build Learning candidates (proposal-only, not automatically promoted into protected canonical memory): BL-ASTRO-01 source indexes/catalogues need explicit inspection-depth labels; BL-ASTRO-02 a manifest-to-experiment edge needs a real executable qualification gate; BL-ASTRO-03 ownership checks must resolve field-owning contracts rather than broad subsystem labels; BL-ASTRO-04 immutable policy checks require a clean committed candidate and isolated deterministic Git configuration. Evidence is the source inventory, repaired review findings and validation attempts above. ASTRO-G01 may promote qualified learning through the existing governed protocol.
+
+Candidate publication does not constitute acceptance. ASTRO-G01 still requires current exact-revision acceptance under trusted governance. No manual hosted-review trigger was issued; repository automatic-review configuration is unchanged. Provider-effective behavior must be checked after publication.
 
 ## Completion-report fields
 

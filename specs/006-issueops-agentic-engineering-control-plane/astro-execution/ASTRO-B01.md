@@ -137,9 +137,13 @@ BUDGET_ENVELOPE (section 6)
 HELD_OUT_STATUS (visible | held-out)
 ```
 
-The visible feasibility set and the held-out set are disjoint and both are
-frozen before the held-out run. A task statement that changes after the first
-attempt is a new task identity, not an edit to the old one.
+The visible feasibility set and the held-out set are disjoint, and both
+memberships are frozen **before the feasibility pilot starts** - not merely
+before the held-out run. Pilot outcomes cannot select, replace, reweight or drop
+a held-out task: the pilot exists to estimate dispersion, not to curate the
+held-out set. Any later change to either membership is a new preregistration
+with a new identity rather than an edit to this record. A task statement that
+changes after the first attempt is likewise a new task identity.
 
 ## 5. Route identity freeze and substitution control
 
@@ -207,6 +211,9 @@ Scoring rules:
 - a task abandoned by budget exhaustion scores as not accepted;
 - the rubric is frozen before the first run of the compared pair, and no
   participant may relax the outcome criteria after seeing results;
+- a held-out task whose result was observed before the run is rerun is excluded
+  from the primary measure and reported separately as a rerun; the primary
+  measure counts first-observation outcomes only, so no extra look can move it;
 - Byan may later propose optimizations, but it may not change scoring rules,
   thresholds or exclusions to improve an apparent score.
 
@@ -247,8 +254,9 @@ Preregistered controls:
   where it is available;
 - record plausible training-data exposure of the task family and treat it as an
   explicit limitation rather than assuming a clean split;
-- sequence the visible set before the held-out set and never re-run the held-out
-  set after observing aggregate results without recording the extra look;
+- sequence the visible set before the held-out set; a post-result rerun of any
+  held-out task is permitted only as a recorded sensitivity check, is excluded
+  from the primary analysis under section 7, and is reported separately;
 - record every discarded or aborted run, including runs discarded for harness
   or environment faults;
 - keep internal canaries and private workloads out of any published evidence;
@@ -411,17 +419,43 @@ CHANGED_FILES = 1 (this record)
 SOURCE_PINS = none acquired by this task
 COMPLETED_TESTS = trusted-base resolution, blob-identity resolution, arm/card
                   traceability check, delta-shape check
-PENDING_TESTS = foundation-integrity candidate verification and s1-admission
-                verification on this exact head; independent review of this head
-REVIEW_STATE = not yet requested at the time this record was written
+PENDING_TESTS = exact-head gates and independent review of the repaired head, then
+                the guarded merge and its post-merge verification
+REVIEW_STATE = reviewed at head 35adf295850155ec45154bc223ccb76105b01fab with three Major
+                findings, all accepted and repaired here; the repaired head is a new
+                exact-head review target and requires its own review
 UNKNOWN_EFFECTS = none identified; no effect was proposed
-OPEN_FINDINGS = none recorded
+OPEN_FINDINGS = none unresolved; the three Major findings are reconciled in the subsection above
 OPEN_ORACLE_CANDIDATES = B01-NEG-1 (noncomparable-comparison rejection),
                          owner recorded, not executed
-NEXT_SMALLEST_ACTION = resolve exact-head identities for this candidate, run the
-                      canonical candidate gate on the exact head, record the
-                      egress preflight, request the independent review, and
-                      proceed to acceptance only if that review is clean
+NEXT_SMALLEST_ACTION = resolve the repaired head identity, re-run the canonical
+                      candidate gate on it, request the fresh exact-head review,
+                      and proceed to acceptance only if that review raises no
+                      unresolved material finding
+```
+
+### Exact-head review findings reconciled after the first review
+
+```text
+REVIEW_PRODUCER = CodeRabbit (manual opt-in under the recorded egress preflight)
+REVIEWED_HEAD = 35adf295850155ec45154bc223ccb76105b01fab
+FINDINGS = 3, all Major
+F1 = held-out membership was frozen only before the held-out run, while the feasibility pilot
+     runs earlier, so pilot outcomes could have curated the held-out set
+F2 = the pull-request description stated the primary measure as accepted outcomes per unit of
+     total cost, while the benchmark plan's formal contract and this record define the primary
+     measure as the proportion of independently accepted tasks, with cost secondary
+F3 = a permitted post-result held-out rerun was not excluded from, or adjusted out of, the
+     primary measure
+F1_DISPOSITION = ACCURATE_ACCEPTED; both memberships are now frozen before the pilot starts,
+     pilot outcomes cannot curate the held-out set, and a membership change is a new
+     preregistration
+F2_DISPOSITION = ACCURATE_ACCEPTED; the pull-request description is corrected, and the record's
+     PRIMARY_MEASURE keeps the formal plan's definition unchanged
+F3_DISPOSITION = ACCURATE_ACCEPTED; rerun-derived held-out evidence is excluded from the primary
+     analysis and reported separately
+FINDINGS_GRANT_WRITE_AUTHORITY = NO; all three repairs are documentation corrections inside this
+     task's bounded output, and the repaired head becomes a new exact-head review target
 ```
 
 Resuming this task means re-reading live canonical `main`, re-resolving every

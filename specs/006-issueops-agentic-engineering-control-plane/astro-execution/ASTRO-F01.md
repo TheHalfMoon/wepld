@@ -227,8 +227,24 @@ PROBE_MESSAGE = "wepld integrity verification: FAIL: S1-006 prohibited effect
                  identifier(s) found in code: crates/contracts/src/lib.rs: Command, process"
 ```
 
-The planted capability was rejected, so the export path does enforce the
-host-API / spawn / network leg of this oracle.
+The planted capability was rejected. The executed leg and the unexecuted legs are
+now recorded separately, because one probe class is not the whole oracle:
+
+```text
+EXECUTED_ORACLE_LEG = a planted identifier-based process/spawn capability in
+                      crates/contracts/src/lib.rs (`std::process::Command`) was rejected
+                      by the inherited S1-006 identifier scan
+STATIC_POLICY_COVERAGE_ONLY = the network leg (NETWORK_AUTHORITY = NONE plus the same
+                      S1-006 identifier set, whose members include TcpStream, TcpListener,
+                      UdpSocket, UnixStream, UnixListener and NamedPipe) and the
+                      dependency-edit leg (the pinned crates/contracts/Cargo.toml and
+                      Cargo.lock identities that make a manifest or lock edit fail
+                      candidate verification) are enforced by policy and mechanism
+                      reading at this base; no separate negative probe was executed for
+                      either leg by this task
+EXECUTED_PROBE_CLASSES = 1 (host-API / spawn); the remaining oracle classes are static
+                      policy coverage only
+```
 
 ### Independent-review finding reconciled in this section
 
@@ -262,6 +278,24 @@ that either mechanism is complete on its own.
 This section records enforcement as exercised. It is not a runtime security
 result and not a substitute for running the policy verifier; the executed result
 for this exact candidate is recorded in §8.
+
+### Exact-head review findings reconciled after the correction
+
+```text
+REVIEW_PRODUCER = CodeRabbit (manual opt-in under the recorded egress preflight)
+REVIEWED_HEAD = 32e76810b78d1e98dffca64c5adaf63c8217e72c
+FINDINGS = 2, both Minor
+F1 = the oracle conclusion claimed more executed coverage than the probe exercised:
+     the network leg and the dependency-edit leg were static policy coverage only
+F2 = the bullet describing the executed probe was filed under the
+     "Not executed here, and therefore not claimed" heading
+F1_DISPOSITION = ACCURATE_ACCEPTED; the executed leg is now labelled explicitly and the
+     remaining legs are labelled static policy coverage in this section
+F2_DISPOSITION = ACCURATE_ACCEPTED; the bullet was moved to "Recorded checks" with its
+     local-only, never-pushed and not-part-of-this-candidate qualifiers intact
+FINDINGS_GRANT_WRITE_AUTHORITY = NO; both repairs are documentation corrections inside
+     this task's bounded output
+```
 
 ## 7. Preserved historical records
 
@@ -298,16 +332,18 @@ Recorded checks:
 - the candidate delta of this task is documentation-only: one new Markdown
   record, with no executable, workflow, configuration, dependency or protected
   governance change.
+- the export-path enforcement probe described in §6 was executed on a local-only
+  probe branch started from this same base and failed as required
+  (`S1-006 prohibited effect identifier(s) found in code:
+  crates/contracts/src/lib.rs: Command, process`); that probe branch was never
+  pushed and its sources are not part of this candidate. This is a recorded
+  check on the enforcement mechanism, distinct from the exact-head CI check for
+  this candidate, which has not been run by this record.
 
 Not executed here, and therefore not claimed:
 
 - the `foundation-integrity` candidate verification for this exact head is a CI
   result and is not asserted by this record before that run exists;
-- the planted-prohibited-capability negative-oracle candidate described in §6
-  **was** executed against this base on a local-only probe branch and failed as
-  required (`S1-006 prohibited effect identifier(s) found in code:
-  crates/contracts/src/lib.rs: Command, process`); that probe branch was never
-  pushed and its sources are not part of this candidate;
 - no native Windows qualification was performed; §3 and §4 record that absence
   as a first-class status rather than as a pass;
 - no source acquisition, dependency admission, donor execution or benchmark was
@@ -364,20 +400,22 @@ SCOPE_GRANT = documentation-only task record under
               specs/006-issueops-agentic-engineering-control-plane/astro-execution/
 CHANGED_FILES = 1 (this record)
 SOURCE_PINS = none acquired by this task
-COMPLETED_TESTS = trusted-base resolution, traceability checks, delta-shape check
-PENDING_TESTS = foundation-integrity candidate verification on this exact head
 COMPLETED_TESTS = trusted-base resolution, traceability checks, delta-shape check,
-                  and the executed export-path negative-oracle probe (section 6)
-REVIEW_STATE = independent review performed on the first head (one Major finding);
-               the finding's observation was confirmed and its conclusion refuted
-               by an executed negative oracle; the record was corrected and the
-               corrected head requires re-review
+                  and the executed export-path negative-oracle probe (section 6),
+                  plus the exact-head deterministic gates recorded on the pull request
+PENDING_TESTS = exact-head re-review of the repaired head, then the guarded merge and
+                its post-merge verification
+REVIEW_STATE = reviewed on the first head (one Major finding, conclusion refuted by the
+               executed oracle) and again on head 32e76810 (two Minor documentation
+               findings, both accepted and repaired in this record). The repaired head
+               is a new exact-head review target, so a fresh review of it is required
+               rather than reuse of either earlier review.
 UNKNOWN_EFFECTS = none identified; no effect was proposed
 OPEN_FINDINGS = none unresolved; one non-blocking improvement candidate recorded
                 in section 9
-NEXT_SMALLEST_ACTION = run the canonical candidate gate on this exact head, record
-                      exact-head deterministic evidence, request re-review, and
-                      proceed to acceptance only if that review is clean
+NEXT_SMALLEST_ACTION = record exact-head deterministic evidence for the repaired head,
+                      request the fresh exact-head review, and proceed to acceptance
+                      only if that review produces no unresolved material finding
 ```
 
 Resuming this task means re-reading live canonical `main`, re-resolving the

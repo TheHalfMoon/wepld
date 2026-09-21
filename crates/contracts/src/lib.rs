@@ -3,6 +3,7 @@
 pub mod frame;
 pub mod project;
 pub mod protocol;
+pub mod s3;
 
 pub use frame::{
     FrameError, LENGTH_PREFIX_BYTES, MAX_PAYLOAD_BYTES, MAX_WIRE_FRAME_BYTES, encode_frame,

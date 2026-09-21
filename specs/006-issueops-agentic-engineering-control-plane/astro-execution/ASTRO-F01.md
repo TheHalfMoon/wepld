@@ -179,17 +179,64 @@ ORACLE = pure-contract grant must not allow host APIs, spawn, network or depende
 
 Recorded disposition of that oracle against this base:
 
-| Oracle leg | Mechanism that enforces it | Result |
-|---|---|---|
-| Host APIs | `WINDOWS_API_AUTHORITY`/`JOB_OBJECT_AUTHORITY = NONE` plus the contract-file capability scan over `crates/contracts/src/s3.rs` and `crates/contracts/tests/s3_contracts_v1.rs` | ENFORCED_BY_POLICY |
-| Spawn | `PROCESS_SPAWN_AUTHORITY`/`S3_AUTH_SPAWN_AUTHORITY` not granted, plus the same capability scan | ENFORCED_BY_POLICY |
-| Network | `NETWORK_AUTHORITY = NONE` plus the same capability scan | ENFORCED_BY_POLICY |
-| Dependency edits | `crates/contracts/Cargo.toml` and `Cargo.lock` are pinned identities; changing them fails the candidate verification | ENFORCED_BY_POLICY |
-| Mixed non-contract delta | A delta mixing an S3 contract file with an unrelated change still delegates to the inherited frozen-S1-protocol check and fails | ENFORCED_BY_POLICY |
+| Oracle leg | Enforcing mechanism at this base | Paths it actually covers | Result |
+|---|---|---|---|
+| Host APIs | authority constants `WINDOWS_API_AUTHORITY`/`JOB_OBJECT_AUTHORITY`/`CONTAINMENT_ACTUATION_AUTHORITY = NONE`, plus the v70 capability scan (`std::fs`, `std::net`, `std::process`, `std::os::`, `std::env`, `windows::`, `winapi::`, `libc::`, grouped `std::{...}` imports, and `unsafe`) | `crates/contracts/src/s3.rs`, `crates/contracts/tests/s3_contracts_v1.rs` | PARTIAL_ENFORCEMENT |
+| Spawn | `PROCESS_SPAWN_AUTHORITY = NONE` and `S3_AUTH_SPAWN_AUTHORITY = NOT_GRANTED`, plus the same capability scan | same two paths | PARTIAL_ENFORCEMENT |
+| Network | `NETWORK_AUTHORITY = NONE`, plus the same capability scan | same two paths | PARTIAL_ENFORCEMENT |
+| Dependency edits | `crates/contracts/Cargo.toml` and `Cargo.lock` are pinned identities in the successor; changing either fails candidate verification | both pinned paths | ENFORCED_BY_POLICY |
+| Mixed non-contract delta | a contract file combined with an unrelated change still delegates to the inherited frozen-S1-protocol check and fails | whole delta | ENFORCED_BY_POLICY |
 
-This table records enforcement by the successor's own declared checks. It is not
-a runtime security result, and it is not a substitute for executing the policy
-verifier; the executed result for this exact candidate is recorded in §8.
+### Enforcement coverage gap on the export path
+
+`crates/contracts/src/lib.rs` is inside the authorized contract delta
+(`CONTRACT_FILES`) and the C001..C013 tranche must modify it to register the
+`s3` module, but it is not a member of `SCANNED_CONTRACT_PATHS`. At this base the
+export path receives only:
+
+- v69 file checks: mode, non-empty, no NUL, UTF-8, and exactly one `pub mod s3;`;
+- v70 export check: the crate-scope `#![forbid(unsafe_code)]` marker is retained.
+
+`#![forbid(unsafe_code)]` does not block safe `std::fs`, `std::net` or
+`std::process` usage. The host-API / spawn / network leg of the required oracle
+is therefore enforced on two of the three authorized contract paths and not on
+the export path.
+
+```text
+CONTRACT_CAPABILITY_SCAN_COVERAGE = 2_OF_3_AUTHORIZED_PATHS
+UNCOVERED_AUTHORIZED_PATH = crates/contracts/src/lib.rs
+ORACLE_STATUS = PARTIAL_ENFORCEMENT
+```
+
+Consequences recorded rather than hidden:
+
+- this record must not be used to claim that the pure-contract grant forbids
+  host, spawn or network capabilities across the whole authorized contract
+  surface;
+- extending the capability scan to the export path, and adding a negative
+  candidate test for a prohibited capability in the export file, is an
+  enforcement-policy change and not a documentation change. It belongs to a
+  separately granted policy successor and to the `S3-AUTH-C` implementation
+  tranche, because the active successor wrapper is frozen after activation and
+  a candidate that edits it fails verification;
+- until such a successor exists, a candidate that adds safe `std::fs`,
+  `std::net` or `std::process` usage to `crates/contracts/src/lib.rs` is not
+  rejected by the capability scan, and any review of such a candidate must treat
+  that path as unscanned.
+
+Finding origin and disposition: this gap was raised as a `🟠 Major` `CWE-693`
+finding by an independent review of the first head of this pull request. The
+finding is accepted as valid and is dispositioned here, not "fixed" by editing
+the enforcement policy, because that fix lies outside this task's bounded scope.
+The disposition rests on direct inspection of the active enforcement code
+(`SCANNED_CONTRACT_PATHS` membership, the v70 `_verify_contract_capabilities`
+export branch, and the v69 export checks). An executed negative-oracle candidate
+that plants a prohibited capability in the export file is **not** claimed here;
+it is recorded in §8 as not executed.
+
+This section records enforcement by the successor's declared checks. It is not a
+runtime security result and not a substitute for executing the policy verifier;
+the executed result for this exact candidate is recorded in §8.
 
 ## 7. Preserved historical records
 
@@ -231,6 +278,10 @@ Not executed here, and therefore not claimed:
 
 - the `foundation-integrity` candidate verification for this exact head is a CI
   result and is not asserted by this record before that run exists;
+- the planted-prohibited-capability negative-oracle candidate for
+  `crates/contracts/src/lib.rs` described in §6 was **not** executed by this
+  task; the export-path coverage gap is asserted from enforcement-code
+  inspection only, and the missing execution is an explicit coverage limit;
 - no native Windows qualification was performed; §3 and §4 record that absence
   as a first-class status rather than as a pass;
 - no source acquisition, dependency admission, donor execution or benchmark was
@@ -255,6 +306,19 @@ ASTRO-A08
 ASTRO-A09
 ```
 
+One obligation is carried forward with the unlock, because it is a precondition
+for trusting the `S3-AUTH-C` tranche that `ASTRO-C01` implements:
+
+```text
+CARRIED_OBLIGATION = extend the prohibited-capability scan to crates/contracts/src/lib.rs
+                     and add a negative candidate test for a prohibited capability
+                     in the export file, under a separately granted policy successor,
+                     before any candidate relies on the pure-contract grant to forbid
+                     host/spawn/network capability across the whole authorized
+                     contract surface
+OWNER = the S3-AUTH-C implementation tranche (ASTRO-C01) plus its policy successor
+```
+
 Correction recorded against the G01 acceptance text: PR #340's acceptance record
 also listed `ASTRO-P01` as unlocked by G01, but the P01 card in the same handoff
 declares dependencies `ASTRO-G01, ASTRO-A09`. The card's own dependency list is
@@ -274,12 +338,18 @@ SCOPE_GRANT = documentation-only task record under
 CHANGED_FILES = 1 (this record)
 SOURCE_PINS = none acquired by this task
 COMPLETED_TESTS = trusted-base resolution, traceability checks, delta-shape check
-PENDING_TESTS = foundation-integrity candidate verification on the exact head
-REVIEW_STATE = pending independent review
+PENDING_TESTS = foundation-integrity candidate verification on the exact head;
+                the planted-prohibited-capability export-file negative oracle (section 6)
+REVIEW_STATE = independent review performed on the first head (one Major finding);
+               finding accepted as valid and reconciled by a bounded documentation
+               repair; re-review of the repaired head required
 UNKNOWN_EFFECTS = none identified; no effect was proposed
-OPEN_FINDINGS = none recorded yet
-NEXT_SMALLEST_ACTION = run the canonical candidate gate on the exact head, then
-                      record exact-head deterministic evidence
+OPEN_FINDINGS = the export-path capability-scan coverage gap (section 6), carried
+                forward as an obligation for the S3-AUTH-C tranche and its policy
+                successor
+NEXT_SMALLEST_ACTION = run the canonical candidate gate on the repaired exact head,
+                      record exact-head deterministic evidence, then re-review the
+                      repaired head
 ```
 
 Resuming this task means re-reading live canonical `main`, re-resolving the

@@ -76,6 +76,36 @@ These are bounded inspections, not vulnerability reports about the donors. The s
 
 The 402-entry universe remains accounted, not freshly admitted. Post-V1 candidates do not change frozen counts. Duplicate Alibaba/Orca links in the request are one source each; Qodo organization is separate from PR-Agent's current repository. Source families sharing a repository are aliases only when identity is established. Vane's potential Perplexica history must not be silently assigned a registry identity without evidence.
 
+## Local intelligence source-family amendment
+
+The founder-requested OCR/document intelligence, retrieval/RAG, memory, typed decisions/PLD, tool/skill registry, browser/web, desktop and event-intelligence sources are reconciled in [WEPLD_LOCAL_INTELLIGENCE_CAPABILITY_AMENDMENT.md](WEPLD_LOCAL_INTELLIGENCE_CAPABILITY_AMENDMENT.md) with candidate identities and fresh pins in [INTELLIGENCE_SOURCE_INTAKE.md](INTELLIGENCE_SOURCE_INTAKE.md).
+
+This is a bounded source-family expansion, not bulk admission.
+
+```text
+NEW_ROADMAP = NO
+NEW_AUTHORITY_OWNER = NO
+SOURCE_ADMISSION = NONE
+DEPENDENCY_ADMISSION = NONE
+MODEL_EXECUTION_AUTHORITY = NONE
+```
+
+Near-term source routing:
+
+| Capability | Candidate sources | Existing gate |
+|---|---|---|
+| OCR / document intelligence | DeepSeek-OCR-2; Cohere Parse as behavior/benchmark reference; existing Docling/parser family | ASTRO-A09/A04 -> ASTRO-P03 |
+| Typed decisions / PLD | SemIf, Mapika Decider, Bespoke Nimble 9B, future TypeSafe/Jev adapter | ASTRO-A09/A05/B01 -> ASTRO-K03 |
+| Tool / skill / MCP discovery | Treg selected mechanisms | ASTRO-A09/F06 -> ASTRO-H01/H02 |
+| Runtime lifecycle | Google AX selected concepts; no Kubernetes/Redis default dependency | ASTRO-A09/A05 -> F05/U01/U02/O03 |
+| Browser / web acquisition | TinyFish AgentQL; BigSet workflow behavior | ASTRO-A09/F04/F06 -> K01/P05 |
+| Desktop / terminal interaction | Desktop Commander mechanisms behind UWC/Nawat | ASTRO-A09/U02/F06 -> P05/O02/O03 |
+| Event intelligence | Laya behavior/source-permission reference until exact source artifact is pinned | ASTRO-A09 -> P04 |
+| Memory / local privacy / context | founder-owned Morize/Kernux selected mechanisms plus existing registry candidates | ASTRO-A04/A09/F04 -> K02/B03 |
+| Assurance/sandbox evidence | founder-owned Ascout/MESC selected mechanisms where the owning task needs them | ASTRO-A07/A09 -> owning Assurance/runtime profile |
+
+Each actual import remains capability-triggered and path-level. Founder permission is recorded as rights evidence where applicable but never replaces exact source identity, selected paths, license/NOTICE/custom-grant scope, dependency/build-hook review, conformance, security and exit strategy.
+
 ## Build-from-scratch exceptions and exit costs
 
 WePLD must own Nawat effect semantics, exact-target evidence binding, completion, context provenance, package admission and recovery composition. These are differentiators, not reasons to reimplement browser engines, parsers, terminals or authentication protocols. Any native rewrite needs a comparison of embedding, wrapping, porting and original implementation, test corpus transfer, ongoing maintenance and a removal route. Expensive services enter only after a bounded alternative fails measured requirements.

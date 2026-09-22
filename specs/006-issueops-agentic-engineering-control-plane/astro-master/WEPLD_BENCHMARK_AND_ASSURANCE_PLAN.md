@@ -71,3 +71,59 @@ ASTRO-B01 freezes dataset hashes, exact routes, environments, seeds, budgets, sc
 Current architecture remains Windows-first; qualification of Linux/macOS/web/mobile is separately named. An unexecuted Windows test is NOT_RUN, not PASS from cross-compilation. First-loop gates precede breadth claims. Tenant isolation, package revocation and recovery failures block their corresponding release even when feature demos work.
 
 Benchmark artifacts record exact code/spec/target hashes, config, model/provider/harness identity, source package generations, hardware/OS, test data, logs, omissions, reviewer identities/qualification, findings and acceptance decision. Publish only approved/redacted evidence. Keep internal canaries and private workloads out of public leaderboards. Byan may propose optimizations after these experiments; it cannot change the scoring rules or authority to improve its apparent score.
+
+## Local intelligence capability promotion matrix
+
+The cross-cutting local intelligence amendment adds capability-specific measurements without creating a second benchmark authority. ASTRO-B01/B02/B03 remain the owners of comparative claims. Owning profile tasks may run bounded preregistered qualification experiments whose raw evidence later feeds B02/B03.
+
+| Capability | Baseline / treatment | Primary measures | Required failure / negative cases | Promotion rule |
+|---|---|---|---|---|
+| OCR/document intelligence | native deterministic extraction first; qualified local OCR/document model second; external product only as benchmark reference | text accuracy, reading order, table/form structure where claimed, page/span/bbox traceability, Arabic/English/mixed-direction quality, hallucination/omission rate, latency/page, RAM/VRAM | degraded scan, malformed/oversize PDF/image, hidden instruction text, parser/model cancellation, unsupported hardware | promote a local route only after exact source/model/runtime qualification and preregistered quality/resource thresholds; OCR output remains derived projection |
+| Retrieval/RAG | exact/lexical; structured/symbol/graph; + vector; + reranker | evidence recall, citation precision, no-answer abstention, stale/revoked exclusion, refresh-generation correctness, latency/index cost | poisoned source, access revocation, tombstone, stale index, conflicting exact fact, cross-scope collision | vector/rerank only if incremental value is material for named query classes over simpler qualified signals |
+| Scoped memory | source-backed facts/no durable memory; governed durable memory | retrieval usefulness, provenance completeness, conflict/correction handling, deletion propagation, scope isolation | poisoned instruction, cross-project/tenant retrieval, deleted record in cache, foreign verified flag, unknown schema | promote only with correction/retraction, access and rebuild/recovery evidence; memory never becomes policy |
+| Typed decisions / PLD | deterministic rule where available; general model baseline; each qualified decision route | accuracy, Brier/proper score, NLL when applicable, reliability/calibration, selective risk, abstention coverage, OOD confidence, latency/resources | malformed type, wrong model revision, route/quantization change, adversarial OOD high confidence | calibration is route-specific; no promotion without held-out reliability and abstention; result cannot grant |
+| Tool/skill routing | manual/direct tool choice; Mirefa qualified routing | accepted task success, wrong-tool selection, invocation latency, requested permission breadth, human intervention | malicious metadata, broader secret/effect request, revoked package, version expands permissions | promote only through H01 admission and F06 effect enforcement; catalog success never implies authority |
+| Browser/web acquisition | deterministic browser/API path; semantic AgentQL-style route where useful | extraction/task success, target identity, citation/source fidelity, latency, navigation/effect error rate | hidden prompt injection, redirect/DNS escape, stale DOM, credential forwarding, cancelled submit | semantic interaction must not weaken target/effect checks; network destination and action receipt remain explicit |
+| Desktop/terminal interaction | direct user/manual operation; qualified UWC route | target correctness, stale-state rejection, cancel behavior, process ownership, effect receipts | focus/window swap, stale screenshot, secure field, shell indirection, descendant process | no promotion until current observation binding and Nawat-enforced effects are demonstrated; worktree/PTY are not containment |
+| Event intelligence | raw event inbox/manual triage; normalized/triaged Action Cards | dedupe precision, stale-event detection, triage usefulness, action proposal correctness, latency | replay, connector revocation, conflicting provider revision, high-confidence wrong triage | ActionCard remains proposal; effect requires fresh authorization and idempotent/reconciled dispatch |
+| Hardware/model routing | fixed route baseline; Mirefa hardware-aware route | success, latency, memory/VRAM, energy/resource pressure where measurable, fallback/reassignment visibility | unavailable accelerator, insufficient VRAM, runtime mismatch, LOCAL_ONLY route failure | prefer deterministic/no-model route when better; no silent hosted fallback; unsupported state is valid |
+
+### Shared preregistration fields
+
+Every capability experiment that supports a release/promotion claim records before the measured run:
+
+```text
+question / claim
+task/corpus inclusion and exclusion
+frozen source/model/tool revisions
+hardware / OS / runtime
+route identity and quantization
+treatment arms
+primary measure
+secondary measures
+thresholds
+resource/time/token budget
+retry policy
+invalid-run policy
+abstention/unsupported accounting
+artifact digests
+adjudication method
+privacy/egress state
+```
+
+Post-result reruns are diagnostic evidence and must not silently replace the preregistered primary measurement.
+
+### Cross-capability whole-system comparison
+
+B02/B03 should eventually compare identical or comparable work under explicit treatment arms such as:
+
+```text
+A = raw worker / minimal tools
+B = + specification and plan
+C = + source-backed Project Brain / ContextPackage
+D = + calibrated decisions and qualified routing where applicable
+E = full governed WePLD outcome loop
+```
+
+Do not force a capability into an arm when it is irrelevant to the task. Report marginal contribution and resource/privacy cost separately so OCR, vector retrieval, PLD, extra workers or semantic browser machinery can be removed when they do not improve accepted outcomes.
+

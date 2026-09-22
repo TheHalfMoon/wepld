@@ -95,6 +95,37 @@ Critical first-loop chain (parallel branches converge at consumers): G01 → F01
 
 Verified topological order: ASTRO-G01, ASTRO-B01, ASTRO-F01, ASTRO-A01, ASTRO-A04, ASTRO-A05, ASTRO-A06, ASTRO-A07, ASTRO-A08, ASTRO-A09, ASTRO-C01, ASTRO-A02, ASTRO-A03, ASTRO-F02, ASTRO-P01, ASTRO-T01, ASTRO-F03, ASTRO-F05, ASTRO-K03, ASTRO-Q01, ASTRO-S01, ASTRO-X01, ASTRO-F04, ASTRO-F06, ASTRO-X02, ASTRO-H01, ASTRO-K01, ASTRO-K02, ASTRO-P03, ASTRO-P06, ASTRO-R01, ASTRO-T02, ASTRO-T03, ASTRO-U01, ASTRO-W01, ASTRO-X03, ASTRO-H02, ASTRO-O02, ASTRO-O03, ASTRO-P02, ASTRO-P04, ASTRO-P07, ASTRO-Q02, ASTRO-R02, ASTRO-S02, ASTRO-SK01, ASTRO-U02, ASTRO-P05, ASTRO-P08, ASTRO-Q03, ASTRO-R03, ASTRO-S03, ASTRO-SK02, ASTRO-U03, ASTRO-U04, ASTRO-F07, ASTRO-F08, ASTRO-O01, ASTRO-T04, ASTRO-U05, ASTRO-G02, ASTRO-B02, ASTRO-B03.
 
+## Cross-cutting local intelligence amendment
+
+The founder-requested local intelligence capability breadth is specified by:
+- [WEPLD_LOCAL_INTELLIGENCE_CAPABILITY_AMENDMENT.md](WEPLD_LOCAL_INTELLIGENCE_CAPABILITY_AMENDMENT.md);
+- [INTELLIGENCE_SOURCE_INTAKE.md](INTELLIGENCE_SOURCE_INTAKE.md).
+
+These records do **not** add tasks or change dependency edges. They map additional source candidates and capability requirements onto the existing cards.
+
+```text
+OCR / DOCUMENT INTELLIGENCE -> A09/A04/F03/F04/P03
+RAG / RETRIEVAL -> A04/F03/F04/B03
+SCOPED MEMORY -> F04/K02/T01
+PLD / JEV-COMPATIBLE TYPED DECISIONS -> A05/B01/K03
+TOOLS / SKILLS / MCP -> A09/F06/H01/H02
+BROWSER / WEB ACQUISITION -> F04/F06/K01/P05
+DESKTOP / TERMINAL INTERACTION -> X03/U02/F06/P05/O02/O03
+EVENT INTELLIGENCE / ACTION CARDS -> A09/F05/F06/P04
+HARDWARE / MODEL ROUTING -> A05/F05/K03
+```
+
+Execution rules:
+- ASTRO-A09 freezes candidate source/model records; it does not admit code, models or dependencies.
+- A capability profile never creates an authority grant.
+- User capability preference (`OFF/ASK/AUTO`) controls selection, not protected effects.
+- `LOCAL_ONLY` may never silently fall back to a hosted provider.
+- OCR/parser/model output is derived evidence, not source truth.
+- vector/semantic indexes are optional rebuildable projections, not the Project Brain.
+- `CalibratedDecision` remains distinct from `NawatDecision`.
+- donor runtimes remain behind WePLD contracts and must be removable.
+- exact source/model/path rights, remote-code/build-hook review, benchmarks, security, recovery and residual limitations are required by the owning card before promotion.
+
 ## Task cards
 
 ### ASTRO-G01 — Accept the exact plan revision
@@ -109,7 +140,7 @@ Verified topological order: ASTRO-G01, ASTRO-B01, ASTRO-F01, ASTRO-A01, ASTRO-A0
 
 **Required negative test / stop condition:** Candidate governance tries to expand its own authority; reject it.
 
-**Acceptance:** the bounded output plus every applicable common-contract obligation above. Record unexecuted/unsupported checks explicitly. **Next tasks unlocked after acceptance:** ASTRO-F01, ASTRO-B01, ASTRO-P01.
+**Acceptance:** the bounded output plus every applicable common-contract obligation above. Record unexecuted/unsupported checks explicitly. **Next tasks unlocked after acceptance:** ASTRO-F01, ASTRO-B01. **ASTRO-P01 remains blocked until ASTRO-A09 is accepted**, matching the dependency table.
 
 ### ASTRO-F01 — Freeze current frontier and limitation carry-forward
 

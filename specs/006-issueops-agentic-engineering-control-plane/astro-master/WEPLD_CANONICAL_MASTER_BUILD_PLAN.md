@@ -31,11 +31,12 @@ The earlier local September 14 drafts were unavailable when this session resumed
 
 1. This document — state, scope, roadmap and next gate.
 2. [Architecture](WEPLD_ARCHITECTURE_RECONCILIATION.md) — ownership, contracts and flows.
-3. [Decisions and gaps](WEPLD_DECISION_AND_GAP_LEDGER.md) — resolved conflicts and scoped blockers.
-4. [Acquisition](WEPLD_CAPABILITY_AND_SOURCE_ACQUISITION_PLAN.md) and [source inventory](SOURCE_INVENTORY.md) — baseline reconciliation, exact new pins, rights and mining tasks.
-5. [Feature parity and product flows](FEATURE_PARITY_AND_PRODUCT_FLOWS.md) — AutoClaw, Orca, all requested sources, Review/Test/Security, Teams and Hub.
-6. [Security](WEPLD_SECURITY_AND_TRUST_MODEL.md) and [benchmark](WEPLD_BENCHMARK_AND_ASSURANCE_PLAN.md) — threat-to-test and claim-to-evidence obligations.
-7. [Muse handoff](WEPLD_MUSE_EXECUTION_HANDOFF.md) — bounded tasks, dependencies, entry and exit gates.
+3. [Local intelligence capability amendment](WEPLD_LOCAL_INTELLIGENCE_CAPABILITY_AMENDMENT.md) and [intelligence source intake](INTELLIGENCE_SOURCE_INTAKE.md) — OCR/document intelligence, RAG, memory, typed decisions/PLD, tool/browser/desktop/event profiles mapped onto existing owners and the existing 63-task DAG; no new authority or admission.
+4. [Decisions and gaps](WEPLD_DECISION_AND_GAP_LEDGER.md) — resolved conflicts and scoped blockers.
+5. [Acquisition](WEPLD_CAPABILITY_AND_SOURCE_ACQUISITION_PLAN.md) and [source inventory](SOURCE_INVENTORY.md) — baseline reconciliation, exact new pins, rights and mining tasks.
+6. [Feature parity and product flows](FEATURE_PARITY_AND_PRODUCT_FLOWS.md) — AutoClaw, Orca, all requested sources, Review/Test/Security, Teams and Hub.
+7. [Security](WEPLD_SECURITY_AND_TRUST_MODEL.md) and [benchmark](WEPLD_BENCHMARK_AND_ASSURANCE_PLAN.md) — threat-to-test and claim-to-evidence obligations.
+8. [Muse handoff](WEPLD_MUSE_EXECUTION_HANDOFF.md) — bounded tasks, dependencies, entry and exit gates.
 
 Canonical prerequisites: [AGENTS](../../../AGENTS.md), [master index](../../../docs/canonical/MASTER_PLAN_INDEX.md), [V2.3](../../../docs/canonical/MASTER_PLAN_V2_3_AGENT_CONTROL_PLANE.md), [Spec 006 index](../PLANNING_INDEX.md), [S3 tasks](../../007-s3-terminal-fabric-trusted-process-ownership/tasks.md). This package proposes an index addition through a future governed transition; it does not silently edit the protected master index or create a competing authority root.
 
@@ -67,6 +68,8 @@ Every entry gate includes fresh trusted bootstrap, Spec Kit, Ponytail FULL, acqu
 | S10 | Accepted outcome corpus | Fehrest expansion and Byan measured learning; never self-admitted authority |
 
 AutoClaw/AnythingLLM/Orca product breadth, Teams deployment and Community Hub expand the owning slices as conditional follow-on profiles. They are not a second numbering system or newly mandatory S10 content. Each profile requires its own exact task manifest and release gate. UI-only shells may demonstrate designs but must display unavailable capabilities honestly.
+
+The founder-requested local intelligence breadth is reconciled the same way. OCR/document intelligence, retrieval/RAG, scoped memory, typed decisions/PLD, tool/skill discovery, browser/web acquisition, desktop interaction and event intelligence are cross-cutting capability profiles under existing owners and tasks, not an S11 or a new authority domain. See [the local intelligence capability amendment](WEPLD_LOCAL_INTELLIGENCE_CAPABILITY_AMENDMENT.md) and [source intake](INTELLIGENCE_SOURCE_INTAKE.md). Merging those planning records does not admit sources, models, dependencies or effects.
 
 ## Capability ownership and scope
 

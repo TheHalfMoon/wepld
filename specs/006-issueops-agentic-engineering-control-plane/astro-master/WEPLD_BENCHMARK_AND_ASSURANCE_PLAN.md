@@ -113,6 +113,24 @@ privacy/egress state
 
 Post-result reruns are diagnostic evidence and must not silently replace the preregistered primary measurement.
 
+### Donor-specific qualification obligations
+
+The 2026-09-23 source additions contribute reusable mechanisms and upstream measurements, not WePLD PASS evidence.
+
+| Donor | Upstream evidence to mine | WePLD qualification requirement |
+|---|---|---|
+| `mizorewww/laya-coreml@4619e0483f07adf39068532e85b42ec2347edb83` | Core ML/ANE latency and energy evidence, conversion fidelity, repeated-call stability, calibration-temperature clamp behavior | Re-run on WePLD-owned corpus and supported Apple hardware; verify raw-vs-clamped confidence, route identity, offline/cache behavior, token limits, memory/energy and OOD abstention. Upstream benchmark numbers remain historical evidence only |
+| `caio0452/jev_search@ea073f6db48f5bff73ae4b9f2240d2d302fb9dc1` | two-phase file prioritization, chunking, concurrent decision filtering, progressive results | Compare against lexical/structured baseline and the same scheduler with qualified local decisions; measure evidence recall, false exclusions, latency, files/chunks evaluated, cancellation and no-network LOCAL_ONLY route. OpenRouter is never the control-plane default |
+| `unreallabsai/unreal-agent@df8b0ba560da17fd705d941cbeb75eff86c74a1e` | input idempotency, session persistence/forks, pure tool translation, serializable operations, retry/cancellation tests | Fault-inject duplicate inputs, crash/restart, interrupted operation commit, cancellation, provider retry hints and stale session versions; prove WePLD Runtime/UWC/Nawat semantics remain authoritative |
+| `mrmps/classifier-dev@8f2bb2b84a0d51ad1c9ed3436b64155908354f75` | classification/packing, confidence, multi-label, escalation/fallback, eval corpus and CLI/SDK/MCP surfaces | Reuse/adapt evaluation harness against local and controlled-egress routes; report accuracy/F1, Brier/NLL/reliability, selective risk, fallback frequency, route changes, batch limits, latency/resource cost and privacy/egress. Hosted service results cannot certify a local route |
+
+```text
+UPSTREAM_BENCHMARK != WEPLD_BENCHMARK_PASS
+README_CLAIM != ACCEPTANCE_EVIDENCE
+DONOR_TEST_PASS != WEPLD_CONFORMANCE_PASS
+SAME_MODEL_DIFFERENT_RUNTIME != SAME_CALIBRATION_PROFILE
+```
+
 ### Cross-capability whole-system comparison
 
 B02/B03 should eventually compare identical or comparable work under explicit treatment arms such as:
@@ -126,4 +144,3 @@ E = full governed WePLD outcome loop
 ```
 
 Do not force a capability into an arm when it is irrelevant to the task. Report marginal contribution and resource/privacy cost separately so OCR, vector retrieval, PLD, extra workers or semantic browser machinery can be removed when they do not improve accepted outcomes.
-

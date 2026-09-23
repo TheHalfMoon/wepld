@@ -63,7 +63,7 @@ These are bounded inspections, not vulnerability reports about the donors. The s
 | Project Brain | lexical search + incremental syntax + precise semantic seam + provenance; optional vectors | ASTRO-A04/F03/F04; known stale/unknown facts and deletion respected |
 | Research | Vane orchestration + existing SearXNG/retrieval/docling families; independent citation checks | ASTRO-K01; licensed content, SSRF protection, evidence-backed report |
 | Knowledge memory | Existing Fehrest contracts + Memanto behavior + OKF interoperability | ASTRO-K02; deterministic scope/provenance and loss-aware export; no new memory authority |
-| Worker orchestration | DeepSeek/TrueForge/Orca mechanisms + existing UWC and durable Runtime | ASTRO-A05/F05; qualification and restart/cancel tests |
+| Worker orchestration | DeepSeek/TrueForge/Orca + Unreal Agent session/input/tool-translator/operation mechanisms + existing UWC and durable Runtime | ASTRO-A05/F05; qualification, idempotency, retry, restart/cancel and operation recovery tests |
 | Review | Alibaba structured coverage; PR-Agent provider edges; maintained alternative to Continue; Qodo components separately | ASTRO-A07/R01/R02; no reviewer outcome treated as completion |
 | Test | Playwright local runner first; TestSprite/Momentic optional adapters; collection as comparison only | ASTRO-Q01/Q02; deterministic oracle unchanged by locator repair |
 | Security | Existing Codex Security policy; Cloudflare coverage/validation mechanics; static/scanner registry | ASTRO-S01/S02; threat-led coverage and independent validation |
@@ -72,7 +72,7 @@ These are bounded inspections, not vulnerability reports about the donors. The s
 | Meetings/live | Local STT candidates + AnythingLLM UX + ADK streaming adapter patterns | ASTRO-P07/P08; explicit recording/media/retention and interruption tests |
 | Teams | Nawat/Work native semantics + TeamAI sharing + TrueForge tenant test ideas | ASTRO-T01..T04; isolation, revocation, concurrent edits and restore |
 | Community | Mirefa packages + DeepSeek/TrueForge/AnythingLLM catalogue patterns + skills | ASTRO-H01/H02; signed immutable packages, quarantine, rights and update/exit safety |
-| Typed decisions | TypeSafe optional provider adapter; schema-valid output and calibration harness | ASTRO-K03; held-out confidence calibration, abstention, no autonomous grant |
+| Typed decisions | TypeSafe-compatible contract + SemIf/Decider/Nimble candidates + Laya-CoreML local Apple-Silicon route + classifier.dev API/eval/SDK mechanisms | ASTRO-K03; held-out calibration, abstention, route-specific confidence, no autonomous grant; hosted fallback never substitutes for LOCAL_ONLY |
 
 The 402-entry universe remains accounted, not freshly admitted. Post-V1 candidates do not change frozen counts. Duplicate Alibaba/Orca links in the request are one source each; Qodo organization is separate from PR-Agent's current repository. Source families sharing a repository are aliases only when identity is established. Vane's potential Perplexica history must not be silently assigned a registry identity without evidence.
 
@@ -95,16 +95,20 @@ Near-term source routing:
 | Capability | Candidate sources | Existing gate |
 |---|---|---|
 | OCR / document intelligence | DeepSeek-OCR-2; Cohere Parse as behavior/benchmark reference; existing Docling/parser family | ASTRO-A09/A04 -> ASTRO-P03 |
-| Typed decisions / PLD | SemIf, Mapika Decider, Bespoke Nimble 9B, future TypeSafe/Jev adapter | ASTRO-A09/A05/B01 -> ASTRO-K03 |
+| Typed decisions / PLD | SemIf, Mapika Decider, Bespoke Nimble 9B, `mizorewww/laya-coreml@4619e0483f07adf39068532e85b42ec2347edb83`, `mrmps/classifier-dev@8f2bb2b84a0d51ad1c9ed3436b64155908354f75`, future TypeSafe/Jev adapter | ASTRO-A09/A05/B01 -> ASTRO-K03 |
+| Decision-filtered search / retrieval scheduling | `caio0452/jev_search@ea073f6db48f5bff73ae4b9f2240d2d302fb9dc1`; use scheduling/chunking/progressive filtering only, replace mandatory OpenRouter with Mirefa-selected qualified decision route | ASTRO-A09/A04/F04 -> ASTRO-K03/B03 |
+| Async harness / durable operations | `unreallabsai/unreal-agent@df8b0ba560da17fd705d941cbeb75eff86c74a1e`; mine stable input IDs, inbox dedupe, session forks, pure translators, serializable operations and recovery | ASTRO-A09/A05 -> F05/U01/U02/F06/O03 |
 | Tool / skill / MCP discovery | Treg selected mechanisms | ASTRO-A09/F06 -> ASTRO-H01/H02 |
 | Runtime lifecycle | Google AX selected concepts; no Kubernetes/Redis default dependency | ASTRO-A09/A05 -> F05/U01/U02/O03 |
 | Browser / web acquisition | TinyFish AgentQL; BigSet workflow behavior | ASTRO-A09/F04/F06 -> K01/P05 |
 | Desktop / terminal interaction | Desktop Commander mechanisms behind UWC/Nawat | ASTRO-A09/U02/F06 -> P05/O02/O03 |
-| Event intelligence | Laya behavior/source-permission reference until exact source artifact is pinned | ASTRO-A09 -> P04 |
+| Event intelligence | Laya desktop product behavior reference for local-first notification/action-card flows; `laya-coreml` is a separate typed-decision source candidate and must not be mistaken for the desktop app source tree | ASTRO-A09 -> P04 |
 | Memory / local privacy / context | founder-owned Morize/Kernux selected mechanisms plus existing registry candidates | ASTRO-A04/A09/F04 -> K02/B03 |
 | Assurance/sandbox evidence | founder-owned Ascout/MESC selected mechanisms where the owning task needs them | ASTRO-A07/A09 -> owning Assurance/runtime profile |
 
 Each actual import remains capability-triggered and path-level. Founder permission is recorded as rights evidence where applicable but never replaces exact source identity, selected paths, license/NOTICE/custom-grant scope, dependency/build-hook review, conformance, security and exit strategy.
+
+For the 2026-09-23 additions, public rights observed are Apache-2.0 for `laya-coreml`, MIT for `unreal-agent`, MIT for `classifier-dev`, and **no public license file observed** for `jev_search`. The founder explicitly asserts permission for all four; any `jev_search` code import must preserve that custom grant evidence because the repository itself does not provide public license terms at the inspected revision.
 
 ## Build-from-scratch exceptions and exit costs
 

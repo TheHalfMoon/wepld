@@ -133,14 +133,23 @@ SAME_MODEL_DIFFERENT_RUNTIME != SAME_CALIBRATION_PROFILE
 
 ### Cross-capability whole-system comparison
 
-B02/B03 should eventually compare identical or comparable work under explicit treatment arms such as:
+B02/B03 should eventually compare identical or comparable work using a **separately namespaced capability-ablation vocabulary**. These labels are not aliases for the primary experiment's canonical `A/B/C/D/D0` arms:
 
 ```text
-A = raw worker / minimal tools
-B = + specification and plan
-C = + source-backed Project Brain / ContextPackage
-D = + calibrated decisions and qualified routing where applicable
-E = full governed WePLD outcome loop
+CAP-BASE = raw worker / minimal tools
+CAP-SPEC = + specification and plan
+CAP-CONTEXT = + source-backed Project Brain / ContextPackage
+CAP-DECISION = + calibrated decisions and qualified routing where applicable
+CAP-FULL = full governed WePLD outcome loop
+```
+
+The primary experiment retains exactly:
+```text
+A = raw qualified worker
+B = A + AGILLE
+C = A + Fehrest
+D = A + AGILLE + Fehrest + governed Runtime + independent assurance
+D0 = deterministic tooling only where applicable
 ```
 
 Do not force a capability into an arm when it is irrelevant to the task. Report marginal contribution and resource/privacy cost separately so OCR, vector retrieval, PLD, extra workers or semantic browser machinery can be removed when they do not improve accepted outcomes.

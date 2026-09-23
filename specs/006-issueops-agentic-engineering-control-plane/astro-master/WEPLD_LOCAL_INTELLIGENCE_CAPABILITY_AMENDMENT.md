@@ -257,7 +257,7 @@ LOCAL_ROUTE_UNAVAILABLE
 
 must be returned. Silent substitution to a hosted provider is prohibited.
 
-A materially different provider/model/harness/quantization/host route creates a new route identity and, when used in an execution attempt, the appropriate new Attempt/evidence identity.
+A provider/model/harness/quantization/host change that is material to route qualification or effect binding creates a new route identity. Execution on that materially changed route requires a successor `EffectProposal` and successor `NawatDecision` bound to the new `RouteQualification`, plus the appropriate new Attempt/evidence identity. A route change that is not material to qualification or effect binding does not by itself require a successor authorization.
 
 ## 7. Hardware-aware routing
 

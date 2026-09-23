@@ -482,6 +482,24 @@ Before semantic/vector admission, benchmark the non-vector baseline on:
 
 Only promote vectors/reranking for query classes with preregistered, material quality benefit at acceptable latency/resource/privacy cost.
 
+### 9.4 Jev Search mechanism
+
+`caio0452/jev_search` is a bounded donor for search scheduling and decision filtering, not a production dependency. Mine:
+- file discovery/ignore behavior;
+- keyword-density and top-file prioritization;
+- bounded chunking;
+- high-priority then low-priority scheduling;
+- concurrent decision filtering;
+- progressive result emission.
+
+Its current OpenRouter Decisions dependency must not become a default WePLD route. The decision step is replaced by a qualified `CalibratedDecision` provider chosen by Mirefa, respecting `LOCAL_ONLY` and no-silent-fallback semantics.
+
+```text
+JEV_SEARCH_SCHEDULER != RETRIEVAL_TRUTH
+REMOTE_DECISION_API != REQUIRED_RETRIEVAL_DEPENDENCY
+SEARCH_SCORE != AUTHORITY
+```
+
 Primary owner/task mapping:
 - source profile acquisition: ASTRO-A04;
 - facts: ASTRO-F03;
@@ -538,6 +556,8 @@ Candidate engines:
 - SemIf;
 - Mapika Decider;
 - Bespoke Nimble 9B;
+- Laya-CoreML for qualified Apple-Silicon local routes;
+- classifier.dev mechanisms and eval harness behind WePLD-owned local/controlled-egress adapters;
 - a future TypeSafe/Jev adapter;
 - future qualified local decision models.
 
@@ -628,6 +648,22 @@ Required evaluation:
 
 Primary owner/task: ASTRO-K03 with ASTRO-A05 and ASTRO-B01.
 
+### 11.3 Laya-CoreML and classifier.dev acquisition profile
+
+Laya-CoreML is the strongest current candidate for a fast, local, probability-returning Apple-Silicon route. Mine its prompt/result/tokenizer boundary, artifact verification, offline-cache mode, conversion-fidelity fixtures, ANE/Core ML hardware profiles and calibration-safety behavior. Its route is platform-specific and must not be reported as a cross-platform default.
+
+classifier.dev contributes a different layer: typed zero-shot/multi-label API shape, batching, confidence/escalation/fallback accounting, CLI/SDK/MCP packaging and a reusable evaluation harness. WePLD should mine those mechanisms without making the hosted Cloudflare Worker or its provider fallback chain a required dependency.
+
+Required invariants:
+
+```text
+LayaCoreMLRoute != UniversalRoute
+ClassifierDevHostedAPI != CoreDependency
+HostedFallback != LOCAL_ONLYFallback
+EscalationModelChange = NewRouteIdentity
+CalibrationProfile = BoundToExactModelRuntimeQuantization
+```
+
 ## 12. Tool, skill and MCP capability fabric
 
 Treg is a high-value mechanism source for:
@@ -690,6 +726,29 @@ AX watch/suspend/resume -> Runtime lifecycle evidence and control
 Task workspace setup must not execute arbitrary package/build instructions without the normal source/effect authority.
 
 Primary owner/tasks: ASTRO-A05, F05, U01/U02, F06, O03 where remote compatibility is relevant.
+
+### 13.1 Unreal Agent harness patterns
+
+`unreallabsai/unreal-agent` is a second runtime-design donor, not a runtime authority. Mine:
+- stable caller-supplied Input IDs and session-scoped deduplication;
+- append-only persisted sessions and forks;
+- context-builder accounting for omitted/truncated/compacted material;
+- schema-bound Tool -> pure synchronous ToolTranslator -> serializable Operation separation;
+- operation state separate from model-facing tool-call status;
+- swappable durable operation manager;
+- cancellation, retry timing, resume and recovery tests.
+
+Map those mechanics onto existing owners:
+
+```text
+Unreal Session -> Mission Runtime session/attempt evidence
+Unreal ToolTranslator -> UWC validation/translation seam
+Unreal Operation -> WePLD EffectProposal / authorized operation record
+Unreal OperationManager -> enforcing Runtime/UWC adapter behind Nawat
+Unreal Inbox Dedup -> input/event idempotency mechanism
+```
+
+Do not import the donor's session store or operation manager as canonical authority. Nawat effect-time revalidation and Trusted Completion remain mandatory.
 
 ## 14. Browser and web acquisition
 
@@ -760,7 +819,7 @@ Primary tasks: ASTRO-P05, O02/O03, X03/U02/F06.
 
 ## 16. Event intelligence and Action Cards
 
-Laya is currently treated as a behavior/source-permission reference until an exact source artifact/revision is captured.
+The Laya desktop product remains a behavior reference for notification/event intelligence. Separately, `mizorewww/laya-coreml@4619e0483f07adf39068532e85b42ec2347edb83` is now an exact source candidate for typed local decisions; it does not replace the event-intelligence behavior reference or establish the desktop app's source identity.
 
 The useful pattern is:
 
@@ -798,6 +857,7 @@ The founder asserts permission to copy and use the requested sources and sources
 
 ```text
 FOUNDER_PERMISSION_ASSERTED = YES
+FOUNDER_PERMISSION_REAFFIRMED_2026_09_23 = laya-coreml + jev_search + unreal-agent + classifier-dev
 FOUNDER_PERMISSION_ASSERTION != SOURCE_ADMISSION
 FOUNDER_PERMISSION_ASSERTION != PATH_PROVENANCE
 PUBLIC_LICENSE != TECHNICAL_QUALIFICATION
@@ -967,7 +1027,9 @@ No new DAG nodes are introduced by this amendment.
 | Community/private distribution lifecycle | ASTRO-H02 |
 | Research/web acquisition | ASTRO-K01 |
 | Memory/interchange | ASTRO-K02 |
-| PLD/Jev-compatible typed decisions | ASTRO-K03 |
+| PLD/Jev-compatible typed decisions, Laya-CoreML/classifier routes | ASTRO-K03 |
+| Decision-filtered retrieval/search scheduling | ASTRO-A04/F04/K03 |
+| Async harness/session/operation mechanics | ASTRO-A05/F05/U01/U02/F06 |
 | OCR/vision/document intelligence product profile | ASTRO-P03 |
 | Laya-style schedules/connectors/events | ASTRO-P04 |
 | Browser/desktop/computer/text-assist | ASTRO-P05 |

@@ -208,9 +208,11 @@ Every imported/adapted mechanism must record:
 ```text
 capability/task
 repository/model/source identity
+package/release mapping
 exact commit/revision/tree/blob
 exact path/file set
 base model and weight identities when applicable
+code/test evidence
 tests/fixtures/failure corpus mined
 public license/NOTICE
 custom grant evidence when relied upon
@@ -219,13 +221,14 @@ build/install/import hooks
 network behavior
 remote-code/custom-loader behavior
 supported OS/toolchain/hardware
-maintenance/advisory observation
+advisory/maintenance observation date
 data/secret boundary
 authority boundary
 adaptation/porting decision
 conformance fixtures
 negative oracles
 benchmark evidence
+performance budget
 rollback/removal/replacement route
 residual limitations
 decision owner

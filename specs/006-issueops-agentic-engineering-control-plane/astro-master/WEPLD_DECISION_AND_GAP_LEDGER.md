@@ -1,6 +1,6 @@
 # Decisions, conflicts and remaining gates
 
-STATUS = PROPOSED_RECONCILIATION. These recommendations preserve the identifiers of the founder decision register. They are not claims of founder ratification. RAT-01 through RAT-06 remain inherited historical ratifications; this package neither repeats nor expands them. See the [master](WEPLD_CANONICAL_MASTER_BUILD_PLAN.md).
+STATUS = DEPENDENCY_OWNED_DECISION_AND_GAP_LEDGER. These recommendations preserve the identifiers of the founder decision register. RAT-01 through RAT-06 remain inherited historical ratifications; this package neither repeats nor expands them. Accepted Astro execution state is determined by canonical merge/acceptance evidence and the live task graph, not by this status line alone. See the [master](WEPLD_CANONICAL_MASTER_BUILD_PLAN.md).
 
 ## FD-WORK register
 
@@ -45,13 +45,24 @@ STATUS = PROPOSED_RECONCILIATION. These recommendations preserve the identifiers
 | Automatic learning, shared rules and Hub updates vs policy | Learning/update is a candidate; re-admission before any privilege expansion |
 | TypeSafe confidence vs authority | Calibration and abstention inform a consumer; sharp probability does not authorize an effect |
 
+## Planning completeness invariant
+
+```text
+NO_UNOWNED_PLANNING_GAPS = REQUIRED
+EVERY_GAP_HAS_CLASS_OWNER_TASK_EVIDENCE_STOP_CONDITION = YES
+FUTURE_GATE != CURRENT_BLOCKER
+RESEARCH_UNKNOWN != PERMISSION_TO_GUESS
+```
+
+A gap may remain open when it is intentionally downstream and has an explicit owner, closure task, evidence requirement and fail-closed stop condition. That is an implementation gate, not a missing plan. If a newly discovered uncertainty can change architecture, authority, security/privacy, source rights, acceptance semantics, rollback/recovery or user-visible support claims and has no owner/closure task, affected implementation stops until this ledger is extended.
+
 ## Gap register
 
-Gap classes: BLOCKER_CURRENT prevents the next bounded action; GATE_FUTURE prevents only its named release/import; LIMITATION_CARRIED is an explicit accepted historical limitation, not fixed by this plan; RESEARCH_UNKNOWN requires new evidence. All are open until their evidence-based closure is recorded.
+Gap classes: CLOSED_CANONICAL is satisfied by exact canonical evidence; BLOCKER_CURRENT prevents the next bounded action; GATE_FUTURE prevents only its named release/import; LIMITATION_CARRIED is an explicit accepted historical limitation, not fixed by this plan; RESEARCH_UNKNOWN requires new evidence. Open future gates are allowed only when they are owned and cannot be silently crossed.
 
 | Gap | Class / why it matters | Owner, closure task and evidence |
 |---|---|---|
-| GAP-01 independent acceptance of this exact plan | BLOCKER_CURRENT for declaring it accepted or using it as authority | Founder/qualified independent reviewer, ASTRO-G01; exact revision review and finding reconciliation |
+| GAP-01 independent acceptance of the Astro base plan | CLOSED_CANONICAL; ASTRO-G01 accepted the exact base-plan revision | PR #340 accepted/merged at `100d5c3c0049fd97e3a1e5d54c5cc9fcc6ca9bde`; post-merge foundation-integrity PASS. Later amendments still require their own exact-head review/acceptance but do not reopen G01 |
 | GAP-02 S3 host/observe/spawn authority absent | GATE_FUTURE; v71 permits pure contracts only | Runtime/governance, ASTRO-F01/A02; separate exact-path grants before host APIs or fixtures |
 | GAP-03 eight S2 limitations | LIMITATION_CARRIED; do not infer hostile-store/native safety | Runtime/AMAN, ASTRO-F01; enumerate S2-S001/S003/S005/S007/Q001/Q004/Q008/Q009 from canonical records with exact closure or retained restrictions |
 | GAP-04 Windows native qualification | GATE_FUTURE; Linux or pure Rust tests cannot prove Windows ownership/containment | Runtime, ASTRO-A01/A02/A03; native CI artifact and descendant/cancellation oracle |

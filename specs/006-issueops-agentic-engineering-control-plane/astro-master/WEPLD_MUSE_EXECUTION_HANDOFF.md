@@ -1,12 +1,36 @@
 # Muse execution handoff
 
-STATUS = PROPOSED_DEPENDENCY_ORDERED_HANDOFF. Implementation authorized by Astro: **NO**. First task: **ASTRO-G01**. Read the [master](WEPLD_CANONICAL_MASTER_BUILD_PLAN.md), trusted canonical governance and live GitHub state before using this file.
+STATUS = DEPENDENCY_ORDERED_EXECUTION_HANDOFF. Global implementation authority: **NO**. Task-specific implementation may proceed only where the graph prerequisites and the exact canonical path/effect grant are both satisfied. ASTRO-G01 and ASTRO-F01 are already complete; read the [master](WEPLD_CANONICAL_MASTER_BUILD_PLAN.md), trusted canonical governance and live GitHub state before using this file.
 
 ## How to execute without guessing
 
 The graph contains 63 bounded tasks. A task is not an authority grant. C01 points to the existing 13 canonical S3 contract tasks; it does not duplicate or expand their authority. HOST/OBSERVE/SPAWN and every later code path require separately accepted exact grants. All D tasks deliver one concrete specification/qualification manifest; they do not ask Muse to implement an entire product family. Future manifests split product breadth into one adapter, contract, migration or UI state machine per leaf before any product code. This is deliberate staged implementation, not a claim that all later dependencies have already been admitted.
 
-Default base is canonical main `765f9d4ae0588ca06b0f65cd76de16eaa8a5c246`, advanced only through accepted predecessors and a fresh trusted bootstrap. Never build future tasks from a stale planning SHA without reconciling intervening changes. Stop on an altered authority frontier, changed field owner or unresolved conflicting requirement.
+Default base is **live canonical `main` at the start of the task**, never a hard-coded historical planning SHA. Advance only through accepted predecessors and a fresh trusted bootstrap. Never build future tasks from a stale planning SHA without reconciling intervening changes. Stop on an altered authority frontier, changed field owner or unresolved conflicting requirement.
+
+## Current execution frontier — refreshed 2026-09-23
+
+This snapshot is navigation only; live GitHub truth overrides it.
+
+| Item | State | Evidence / consequence |
+|---|---|---|
+| ASTRO-G01 | COMPLETE_CANONICAL | PR #340, merge `100d5c3c0049fd97e3a1e5d54c5cc9fcc6ca9bde` |
+| ASTRO-F01 | COMPLETE_CANONICAL | PR #341, merge `9229c56bb48d1beb2fabf2caa9249486e384336a` |
+| S3 pure-contract enforcement | CANONICAL | PR #344 / v72, merge `666e62d7d9e040505baca277a474d734afcc07a0` |
+| ASTRO-B01 | OPEN_CANDIDATE | PR #342; independently reconcile against current main before acceptance |
+| ASTRO-C01 | OPEN_CANDIDATE | PR #343; exact C001..C013 contract-only scope; independently reconcile against current main before acceptance |
+| ASTRO-A01 | DEPENDENCY_READY | no predecessor beyond accepted F01; still needs its own bounded authority/acquisition record |
+| ASTRO-A04..A09 | DEPENDENCY_READY | each requires its own bounded task record and exact acquisition/authority evidence |
+| ASTRO-P01 | BLOCKED | requires accepted ASTRO-A09 in addition to G01 |
+
+```text
+DEPENDENCY_READY != AUTHORIZED_PATH
+OPEN_PR != QUALIFIED
+MERGEABLE != ACCEPTED
+PLAN_COMPLETE != SOURCE_ADMITTED
+```
+
+There are no intentionally unowned planning gaps. Any newly discovered ambiguity that can change architecture, authority, data handling, source rights, acceptance, rollback or recovery must be entered into the gap ledger with an owner and closure task before affected implementation continues.
 
 ## Common task contract (applies to every card)
 

@@ -1,13 +1,13 @@
 # WePLD Local Intelligence Capability Amendment
 
 ```text
-STATUS = PROPOSED_CROSS_CUTTING_PLAN_AMENDMENT
+STATUS = BOUNDED_CROSS_CUTTING_PLAN_AMENDMENT
 BASE_OBSERVED = 666e62d7d9e040505baca277a474d734afcc07a0
 ROADMAP_CHANGE = NONE
 TASK_DAG_CHANGE = NONE
 NEW_AUTHORITY_DOMAIN = NONE
 NEW_CANONICAL_DATABASE = NONE
-IMPLEMENTATION_AUTHORITY = NONE
+IMPLEMENTATION_AUTHORITY = INHERIT_EXISTING_TASK_GRANTS_ONLY
 SOURCE_ADMISSION = NONE
 DEPENDENCY_ADMISSION = NONE
 NETWORK_AUTHORITY = NONE
@@ -1110,7 +1110,7 @@ The plan is not complete for a capability until the owning task answers all appl
 
 This amendment does not:
 - create S11 or another roadmap;
-- authorize source copying;
+- bulk-admit or bulk-import source merely because copy/use permission exists;
 - install models/dependencies;
 - run DeepSeek-OCR-2 or any other donor;
 - admit a vector database;
@@ -1122,9 +1122,27 @@ This amendment does not:
 - edit protected `MASTER_PLAN_INDEX.md`;
 - claim WePLD is "best" before B01/B02/B03 evidence.
 
+## 25. Implementation-readiness state
+
+At the observed base, ASTRO-G01 and ASTRO-F01 are already canonical. The local-intelligence additions do not create a new prerequisite chain; they attach to existing owners. Therefore:
+
+```text
+PLAN_GAP_FOR_LOCAL_INTELLIGENCE = NONE_UNOWNED
+ASTRO-A04 = DEPENDENCY_READY
+ASTRO-A05 = DEPENDENCY_READY
+ASTRO-A06 = DEPENDENCY_READY
+ASTRO-A07 = DEPENDENCY_READY
+ASTRO-A08 = DEPENDENCY_READY
+ASTRO-A09 = DEPENDENCY_READY
+ASTRO-P01 = BLOCKED_ON_ASTRO-A09
+SOURCE_ADMISSION = NONE_UNTIL_OWNING_TASK_ACCEPTS
+```
+
+“Ready” here means the implementation/acquisition path, owner, negative oracles, recovery obligations and acceptance gate are specified. It does not mean a donor, model, dependency or effect has already passed qualification.
+
 ## 25. Next governed actions
 
-After this planning amendment is independently accepted, existing task order remains authoritative.
+Once this amendment's exact head is independently accepted and merged, the existing task order remains authoritative. It does not reopen accepted G01/F01 history or create a second execution gate.
 
 Near-term integration work should occur through:
 1. ASTRO-A09: capture/freeze source/model/donor records from `INTELLIGENCE_SOURCE_INTAKE.md`;

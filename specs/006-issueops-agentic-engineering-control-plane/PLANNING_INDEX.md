@@ -1,17 +1,22 @@
 # Spec 006 — Planning Index
 
 ```text
-STATUS = FUTURE_PLANNING_INDEX
+STATUS = ACTIVE_SPEC006_PLANNING_AND_EXECUTION_INDEX
 SPEC = 006_ISSUEOPS_AGENTIC_ENGINEERING_CONTROL_PLANE
-CURRENT_ACTIVE_SLICE = S2
-IMPLEMENTATION_AUTHORITY = NONE
-SOURCE_ADMISSION = NONE
-DEPENDENCY_ADMISSION = NONE
+CURRENT_ACTIVE_FRONTIER = ASTRO / S3 + cross-slice acquisition preparation
+IMPLEMENTATION_AUTHORITY = TASK_SPECIFIC_EXACT_GRANTS_ONLY
+SOURCE_ADMISSION = TASK_SPECIFIC_ONLY
+DEPENDENCY_ADMISSION = TASK_SPECIFIC_ONLY
 ```
 
-This index defines the recommended reading order and ownership map for the Spec 006 planning package. It exists because the package is intentionally cross-cutting and now contains multiple contracts/addenda/research records. It does not make Spec 006 canonical implementation authority.
+This index defines the recommended reading order and ownership map for the Spec 006 planning and dependency-ordered execution package. It does not create blanket implementation authority: current authority is derived from canonical task prerequisites plus exact accepted path/effect/source/dependency grants. Live GitHub state must be re-read before mutation.
 
 ## 1. Start here
+
+0. `astro-master/WEPLD_CANONICAL_MASTER_BUILD_PLAN.md` — accepted Astro roadmap refinement, current execution-frontier interpretation, capability ownership and no-unowned-gap rule.
+0. `astro-master/WEPLD_MUSE_EXECUTION_HANDOFF.md` — 63-task dependency graph and bounded task contracts.
+0. `astro-master/WEPLD_DECISION_AND_GAP_LEDGER.md` — all known gaps/limitations with owner and closure gate.
+0. `astro-master/WEPLD_LOCAL_INTELLIGENCE_CAPABILITY_AMENDMENT.md` + `astro-master/INTELLIGENCE_SOURCE_INTAKE.md` — OCR/RAG/memory/typed decisions/tools/browser/desktop/event intelligence and the 2026-09-23 donor/source additions.
 
 1. `spec.md` — parent product requirements.
 2. `plan.md` — parent product/roadmap/tracer-bullet architecture.
@@ -88,7 +93,7 @@ Read `reviews/adversarial-pre-change-review-2026-09-06.md` for the pre-repair fi
 - `runtime-distributed-safety-tasks.md`
 - `web-agent-tasks.md`
 
-Task-map presence does not activate implementation. The canonical owning slice/authority artifact remains controlling.
+Task-map presence does not activate implementation. The canonical owning slice/authority artifact remains controlling. As of the 2026-09-23 live snapshot, ASTRO-G01 and ASTRO-F01 are canonical; PR #342 is the ASTRO-B01 candidate, PR #343 is the ASTRO-C01 candidate, and ASTRO-A01/A04..A09 are dependency-ready but still require their own exact task/acquisition/authority gates.
 
 ## 5. Source-acquisition / mechanism research
 
@@ -234,22 +239,29 @@ Astra-like ambient multimodal presence in the initial scope
 mobile Computer Use in the initial scope
 ```
 
-## 12. Acceptance sequence for this planning package
+## 12. Acceptance and execution sequence
 
-This sequence delegates all planning merge/acceptance gates to [acceptance.md section N](acceptance.md#n-planning-review-gate), including the exact live PR/base/head/tree/checks/reviews record and REVIEW_BLOCKED whenever qualified independent coverage is unavailable or incomplete. The parent gate and all applicable acceptance criteria are conjunctive; this index is a navigation sequence, not a reduced alternative gate.
+The historical Spec 006 planning package has already progressed beyond PR #241. Do not use a hard-coded historical PR as the execution frontier.
 
-Before any merge/acceptance claim for PR #241:
+For every new Astro plan amendment or execution task:
 
-1. reread current canonical `main` governance;
-2. reconcile the planning branch non-destructively with current canonical main;
-3. verify the resulting whole diff is planning/spec/research-only and remains inside `specs/006-issueops-agentic-engineering-control-plane/`;
-4. run fresh exact-head deterministic qualification;
-5. obtain a genuinely independent exact-head whole-scope engineering/correctness review;
-6. reconcile every material finding;
-7. prove zero unresolved material review threads;
-8. verify finding counts/coverage declarations are internally consistent;
-9. rerun freshness-dependent gates after any exact-head change;
-10. run final base/head/tree/diff/check/review race verification;
-11. merge only if canonical governance then permits it.
+1. read trusted canonical governance from live `main`;
+2. re-read the current Astro master, handoff, gap ledger and relevant task records;
+3. verify every declared dependency is canonically accepted;
+4. verify exact current path/effect/source/dependency authority for the bounded task;
+5. run Spec Kit / Ponytail FULL / Source Acquisition Check as applicable;
+6. run exact-head deterministic gates;
+7. obtain qualified independent engineering review and applicable security review;
+8. reconcile every material finding and prove zero unresolved material threads;
+9. invalidate and rerun freshness-dependent evidence after any head change;
+10. accept and merge only with exact-head evidence and the guarded expected-head merge;
+11. verify post-merge canonical integrity before unlocking successors.
 
-Even after planning merge, each future implementation tranche remains separately gated by its owning canonical authority.
+Current accepted predecessor evidence is recorded in the Astro master/handoff. Open PRs, “mergeable” state, task-file presence, or a green status never substitute for this sequence.
+
+```text
+DEPENDENCY_READY != AUTHORIZED
+OPEN_PR != ACCEPTED
+GREEN_CI != COMPLETION
+MERGED_TASK != SUCCESSOR_AUTHORITY_UNLESS_GRAPH_AND_GRANT_BOTH_ALLOW
+```

@@ -899,7 +899,9 @@ FUTURE_GATES = OWNED_BY_EXISTING_ASTRO_TASKS
 
 ## 16. Definition of implementation-ready
 
-This amendment is ready to drive implementation when accepted into the planning package because every requested donor mechanism has:
+The planning content is complete enough to drive dependency-ordered implementation **only after** this exact planning head receives the independently qualified correctness/engineering review required by canonical governance and is accepted into the canonical planning package. Planning completeness does not self-accept the candidate.
+
+Every requested donor mechanism has:
 
 - exact source revision;
 - rights status and founder permission;
@@ -917,7 +919,10 @@ This amendment is ready to drive implementation when accepted into the planning 
 Implementation still cannot start on a leaf whose canonical predecessor or exact path/effect grant is absent.
 
 ```text
-PLAN_READY_FOR_DEPENDENCY_ORDERED_IMPLEMENTATION = YES
+PLANNING_CONTENT_COMPLETE = YES
+PLAN_READY_FOR_DEPENDENCY_ORDERED_IMPLEMENTATION = ONLY_AFTER_EXACT_HEAD_INDEPENDENT_REVIEW_AND_CANONICAL_ACCEPTANCE
+INDEPENDENT_EXACT_HEAD_REVIEW = REQUIRED
+REVIEW_UNAVAILABLE_OUTCOME = REVIEW_BLOCKED
 NO_UNOWNED_PLANNING_GAPS = YES
 SOURCE_ADMITTED = NO
 DEPENDENCY_ADMITTED = NO
@@ -925,4 +930,4 @@ RUNTIME_QUALIFIED = NO
 RELEASE_READY = NO
 ```
 
-Those final `NO` values are governance gates, not missing planning.
+Those final `NO` values are governance gates, not missing planning. `PLANNING_CONTENT_COMPLETE = YES` is a planning-content claim only; it is not acceptance, source admission, implementation authority, runtime qualification, or release readiness.

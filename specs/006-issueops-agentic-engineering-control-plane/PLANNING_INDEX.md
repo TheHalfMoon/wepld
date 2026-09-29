@@ -19,7 +19,7 @@ This index defines the recommended reading order and ownership map for the Spec 
 0. `astro-master/WEPLD_MUSE_EXECUTION_HANDOFF.md` — 63-task dependency graph and bounded task contracts.
 0. `astro-master/WEPLD_DECISION_AND_GAP_LEDGER.md` — all known gaps/limitations with owner and closure gate.
 0. `astro-master/WEPLD_LOCAL_INTELLIGENCE_CAPABILITY_AMENDMENT.md` + `astro-master/INTELLIGENCE_SOURCE_INTAKE.md` — OCR/RAG/memory/typed decisions/tools/browser/desktop/event intelligence and the founder-authorized donor/source additions.
-0. `astro-master/WEPLD_DATA_AGENT_ORCHESTRATION_IMPLEMENTATION_PLAN.md` — implementation-ready DB/data-workbench, agent/work orchestration, bounded DAG/local-routing contracts and exact DBX/Paperclip/Synaplan task mapping; no new task IDs or authority.
+0. `astro-master/WEPLD_DATA_AGENT_ORCHESTRATION_IMPLEMENTATION_PLAN.md` + `astro-master/WEPLD_DATA_AGENT_ORCHESTRATION_HARDENING_ADDENDUM.md` — implementation-ready DB/data-workbench, agent/work orchestration, bounded DAG/local-routing contracts, final SQL/session/fencing/budget/dataflow/crash-consistency hardening, and exact DBX/Paperclip/Synaplan task mapping; no new task IDs or authority.
 
 1. `spec.md` — parent product requirements.
 2. `plan.md` — parent product/roadmap/tracer-bullet architecture.

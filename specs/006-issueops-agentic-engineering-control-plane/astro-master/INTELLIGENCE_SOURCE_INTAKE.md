@@ -2,7 +2,7 @@
 
 ```text
 STATUS = CANDIDATE_SOURCE_INTAKE
-OBSERVATION_DATE = 2026-09-23
+OBSERVATION_DATE = 2026-09-29
 BASE_WEPLD_MAIN = 666e62d7d9e040505baca277a474d734afcc07a0
 SOURCE_ADMISSION = NONE
 DEPENDENCY_ADMISSION = NONE
@@ -10,13 +10,14 @@ MODEL_EXECUTION_AUTHORITY = NONE
 NETWORK_AUTHORITY = NONE
 ```
 
-This intake supports `WEPLD_LOCAL_INTELLIGENCE_CAPABILITY_AMENDMENT.md`. It records candidate identities and dispositions only. It does not alter the frozen 402-entry registry count or silently create a new canonical registry revision.
+This intake supports `WEPLD_LOCAL_INTELLIGENCE_CAPABILITY_AMENDMENT.md` and `WEPLD_DATA_AGENT_ORCHESTRATION_IMPLEMENTATION_PLAN.md`. It records candidate identities and dispositions only. It does not alter the frozen 402-entry registry count or silently create a new canonical registry revision.
 
 The founder states permission to copy/use the requested source code and sources available in the founder's GitHub repositories.
 
 ```text
 FOUNDER_PERMISSION_ASSERTED_2026_09_22 = YES
 FOUNDER_PERMISSION_REAFFIRMED_2026_09_23 = mizorewww/laya-coreml, caio0452/jev_search, unreallabsai/unreal-agent, mrmps/classifier-dev
+FOUNDER_PERMISSION_REAFFIRMED_2026_09_29 = t8y2/dbx, paperclipai/paperclip, metadist/synaplan
 FOUNDER_PERMISSION_ASSERTION != SOURCE_ADMISSION
 FOUNDER_PERMISSION_ASSERTION != PUBLIC_LICENSE_METADATA
 FOUNDER_PERMISSION_ASSERTION != PATH_LEVEL_PROVENANCE
@@ -36,6 +37,9 @@ Any actual import still needs selected paths, digests, rights evidence, dependen
 | `caio0452/jev_search` | `ea073f6db48f5bff73ae4b9f2240d2d302fb9dc1` | No public license file found at observed revision; founder explicitly asserts permission to copy/use | SALVAGE/REFERENCE two-stage directory search, keyword-density prioritization, chunk scheduling, parallel decision filtering and progressive result emission. Reject its OpenRouter requirement as a default dependency; adapt behind local/qualified CalibratedDecision routes | A09, A04, F04, K03 | NONE |
 | `unreallabsai/unreal-agent` | `df8b0ba560da17fd705d941cbeb75eff86c74a1e` | MIT; founder permission reaffirmed | SALVAGE/ADAPT async harness mechanics: stable input IDs, inbox deduplication, append-only/forkable sessions, versioned operations, pure synchronous tool translators, durable operation manager, cancellation/retry/recovery tests. Preserve WePLD Runtime/UWC/Nawat ownership | A09, A05, F05, U01/U02, F06, O03 | NONE |
 | `mrmps/classifier-dev` | `8f2bb2b84a0d51ad1c9ed3436b64155908354f75` | MIT; founder permission reaffirmed | SALVAGE/BENCHMARK zero-shot/multi-label classification contracts, Jev packing, confidence/escalation logic, CLI/SDK/MCP/skill surfaces and eval harness. Hosted Cloudflare/provider chain is optional behavior reference, not a mandatory dependency; prefer local route where qualified | A09, A05, K03, H01, B03 | NONE |
+| `t8y2/dbx` | `4269a61e2cf6c19afdcaba41fed1e57d6e5e3512` | Apache-2.0; founder permission reaffirmed | SALVAGE/ADAPT database MCP scoping, stateful query sessions, explicit transaction/batch semantics, strict plugin manifests, host-owned credential binding, lazy tool discovery and destructive-operation guard patterns. Do not import DBX as a second desktop/control plane | A09, A04, F03/F04, F06, H01/H02 | NONE |
+| `paperclipai/paperclip` | `24beb005755465f71a19ec92a85da0958d1b9740` | MIT; founder permission reaffirmed | SALVAGE/ADAPT atomic work checkout, blocker/ownership/execution separation, heartbeat/wakeup idempotency, durable recovery, scoped budgets, routines, delegation and plugin-governance mechanisms. Preserve Work/Edara/Mission Runtime/Nawat/Trusted Completion ownership | A09, A05, A08, F05/F08, U01/U03, W01, T02/T03, P04 | NONE |
+| `metadist/synaplan` | `e81eb3431deb3e242c3a114e8cbf08e2fbfd1e88` | Apache-2.0; founder permission reaffirmed | SALVAGE/ADAPT strict bounded plan-DAG validation, capability/model separation, owner/group/file-scoped RAG filters, local/offline routing and optional sidecar/plugin patterns. Do not import PHP/Vue/Docker stack or Qdrant/Redis/MariaDB as mandatory core dependencies | A09, A04, A05, F04/F05, W01, K02/K03, H01, P04, T03 | NONE |
 | `tinyfish-io/agentql` | `418ba8ad1c69dfac134a6833369a01dfba5a24a7` | MIT | ADAPT/REFERENCE semantic browser querying/extraction behind WePLD browser contracts | A09, K01, P05 | NONE |
 | `tinyfish-io/bigset-oss` | `73b5fd0289d17bf99f14e770eabc6b7ec7406bc5` | AGPL-3.0 | BEHAVIOR_REFERENCE first; study intent->schema->parallel acquisition->verification->dedupe->refresh workflow. Any code import needs explicit AGPL/custom-rights compatibility review | A09, K01 | NONE |
 | `wonderwhy-er/DesktopCommanderMCP` | `75048278f4866f0d8bde26f6f9aa3b8d39dca870` | MIT | ADAPT/REFERENCE local filesystem/terminal/process UX and MCP mechanisms; real-machine access is not a containment boundary | A09, P05, O02/O03, UWC/F06 | NONE |
@@ -148,7 +152,65 @@ FALLBACK_CHAIN != SILENT_SUBSTITUTION_PERMISSION
 PROVIDER_ESCALATION_REQUIRES_ROUTE_IDENTITY
 ```
 
-## 4. Treg rights and product-boundary note
+## 4. Data/agent/planning source notes — 2026-09-29 additions
+
+The complete integration and no-gap implementation contracts are in `WEPLD_DATA_AGENT_ORCHESTRATION_IMPLEMENTATION_PLAN.md`.
+
+### DBX
+
+Observed revision: `4269a61e2cf6c19afdcaba41fed1e57d6e5e3512`.
+
+High-value source targets:
+
+```text
+docs/content/docs/mcp.mdx
+docs/content/docs/plugin-development.mdx
+crates/dbx-plugin-runtime/src/plugins/manifest.rs
+plugins/manifest.schema.json (pin exact blob at A09 before import)
+focused tests for selected MCP/session/manifest behavior
+```
+
+Mine connection/tool/database scoping, stateful sessions, explicit transaction/batch failure semantics, strict manifest permissions, host-owned credentials, bounded network origins and lazy tool discovery. Do not import DBX as a second desktop, policy engine or canonical connection store.
+
+### Paperclip
+
+Observed revision: `24beb005755465f71a19ec92a85da0958d1b9740`.
+
+High-value source targets:
+
+```text
+doc/execution-semantics.md
+server/src/services/recovery/service.ts
+server/src/services/budgets.ts
+focused checkout/heartbeat/recovery/budget tests selected at A09
+```
+
+Mine atomic claim/checkout, structure-versus-dependency separation, durable wake/idempotency, pre-dispatch completeness, bounded recovery, scoped budgets and delegation/report boundaries. Do not import Paperclip as a second Work database, Mission Runtime, Edara authority or completion authority.
+
+### Synaplan
+
+Observed revision: `e81eb3431deb3e242c3a114e8cbf08e2fbfd1e88`.
+
+High-value source targets:
+
+```text
+backend/src/Service/Multitask/Plan/TaskPlanValidator.php
+backend/src/Service/Multitask/Plan/Capability.php
+backend/src/Service/RAG/VectorStorage/RagScopeFilter.php
+focused plan/RAG tests and adversarial fixtures selected at A09/A04/A05
+```
+
+Mine bounded DAG validation, capability/model separation, planner-hidden effectful capabilities and scope-equivalent RAG filters. Do not import Synaplan's PHP/Vue/Docker topology or Qdrant/Redis/MariaDB/Ollama/Tika as mandatory WePLD core dependencies.
+
+```text
+DBX != WEPLD_DATA_AUTHORITY
+PAPERCLIP != WEPLD_CONTROL_PLANE
+SYNAPLAN != WEPLD_PLAN_AUTHORITY
+DONOR_DONE != TRUSTED_COMPLETION
+DONOR_POLICY != NAWAT_AUTHORITY
+```
+
+## 5. Treg rights and product-boundary note
 
 The public Treg license observed at the pinned revision is not plain Apache-2.0. Its Additional Terms include a hosted/managed/embedded service restriction for third parties without explicit authorization.
 
@@ -163,7 +225,7 @@ CUSTOM_RIGHTS = FOUNDER_ASSERTED_PENDING_IMPORT_RECORD
 SOURCE_ADMISSION = NONE
 ```
 
-## 5. TinyFish family boundary
+## 6. TinyFish family boundary
 
 The founder requested the TinyFish source family. Do not bulk-admit an organization.
 
@@ -181,7 +243,7 @@ HOSTED_API_BEHAVIOR != PUBLIC_CORE_SOURCE
 
 Do not make TinyFish cloud, OpenRouter or any paid provider a mandatory WePLD core dependency.
 
-## 6. Founder-owned/source-family candidates
+## 7. Founder-owned/source-family candidates
 
 All relevant founder-owned public/private repositories are discovery candidates, not automatically imported source. Cross-project reuse must still pin the exact repository revision and selected paths so provenance remains reconstructable.
 
@@ -201,7 +263,7 @@ FOUNDER_OWNED_REPO != WEPLD_CANONICAL_OWNER
 CROSS_REPO_REUSE != SHARED_AUTHORITY
 ```
 
-## 7. Required per-import record
+## 8. Required per-import record
 
 Every imported/adapted mechanism must record:
 
@@ -234,7 +296,7 @@ residual limitations
 decision owner
 ```
 
-## 8. Source-to-task routing
+## 9. Source-to-task routing
 
 | Source family | First owning task | Later consumers |
 |---|---|---|
@@ -246,6 +308,9 @@ decision owner
 | Jev Search | A09/A04 | F04/K03; reuse search scheduling/filtering, not mandatory OpenRouter |
 | Unreal Agent | A09/A05 | F05/U01/U02/F06/O03 |
 | classifier.dev | A09/A05 | K03/H01/B03; local adapter/eval patterns preferred |
+| DBX | A09/A04 | F03/F04/F06/H01/H02; database/data-workbench profile through P01 leaf |
+| Paperclip | A09/A05/A08 | F05/F08/U01/U03/W01/T02/T03/P04/B03 |
+| Synaplan | A09/A04/A05 | F04/F05/W01/K02/K03/H01/P04/T03/B03 |
 | Bespoke Nimble 9B | A09 | K03 |
 | DeepSeek-OCR-2 | A09/A04 | P03, S01/S02, B03 |
 | TinyFish AgentQL | A09 | K01/P05 |
@@ -259,7 +324,7 @@ decision owner
 
 No row changes the existing 63-task dependency graph.
 
-## 9. Admission stop conditions
+## 10. Admission stop conditions
 
 Stop an import/admission when any of the following is unresolved for the selected mechanism:
 

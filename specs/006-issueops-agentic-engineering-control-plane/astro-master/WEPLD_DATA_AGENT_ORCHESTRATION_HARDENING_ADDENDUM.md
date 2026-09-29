@@ -104,6 +104,8 @@ The file target must still satisfy filesystem authority:
 - canonical path resolution;
 - symlink/reparse-point policy;
 - file identity/generation checks where available;
+- race-resistant open that binds authorization to the file object SQLite uses;
+- handle-based identity/generation revalidation before read or write, with fail-closed behavior when the authorized object cannot be established;
 - read/write distinction;
 - lock/busy timeout;
 - bounded database size/result size;
@@ -111,6 +113,8 @@ The file target must still satisfy filesystem authority:
 - `ATTACH`/cross-file behavior denied unless explicitly authorized;
 - WAL/journal side effects accounted for on write routes;
 - backup/replace is a separate effect, not implicit query authority.
+
+Path authorization is not complete until the opened SQLite file object is proven to be the authorized object. If the runtime cannot establish a race-resistant binding or revalidate the handle/object identity before access, the operation fails closed rather than falling back to path-only trust.
 
 ### First database tracer bullet
 

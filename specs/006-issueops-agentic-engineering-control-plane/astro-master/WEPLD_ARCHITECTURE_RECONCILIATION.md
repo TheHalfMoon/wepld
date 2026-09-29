@@ -89,7 +89,9 @@ Classes: AUTH = strongly consistent per authority scope; AGG = versioned aggrega
 | CompletionEvidence, decision, QualityPassport | Trusted Completion | Work/delivery; EVID; ASTRO-F07 |
 | ChangeUnit/Stack, delivery receipt, recovery checkpoint | Work + Runtime for execution | Completion/Brain; AGG/EVID; ASTRO-F08 |
 | AutomationDefinition, IntegrationDescriptor, ConnectionBinding | Work; existing automation-connections contract | Runtime/Nawat; AGG; ASTRO-P04 |
+| PerceptionProjection, page/region/block/table/cell/figure/span/bounding-box evidence | Fehrest projection over immutable source artifacts; qualified parser/model produces projection with source/projection generations, content identities, and producer/parser/model/index provenance; missing, mixed, unresolved, or stale provenance is excluded before ContextPackage assembly | Context assembly, Work/Assurance; INDEX/EVID; ASTRO-A04/F03/P03 |
 | InteractiveSurface, InputLease, browser observation | Existing interactive-surfaces contract | UWC/Nawat/Runtime; EPHEMERAL/EVID; ASTRO-P05 |
+| CapabilityProfile | Mirefa qualification descriptor spanning locality, hardware, route, acquisition, benchmark and residual limits; never a grant | Edara/Runtime/Work/Hub; AGG/EVID; ASTRO-A05/A09/H01 plus owning profile |
 | Skill, tool, MCP, plugin, CapabilityPackage, admission/revocation | Mirefa; Nawat grants invocation | Hub, Runtime/UWC; AGG/AUTH; ASTRO-H01 |
 | Hub publisher/listing/version/signature/review/install manifest | Mirefa distribution service | Workspace/package admin; AGG/EVID; ASTRO-H02 |
 | DesignArtifact, comment, selection, export manifest | Work authored artifact; UI projection | Human/worker/Assurance; DRAFT/AGG/EVID; ASTRO-P06 |

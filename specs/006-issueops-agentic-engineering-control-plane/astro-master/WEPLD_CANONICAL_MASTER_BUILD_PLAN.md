@@ -1,10 +1,12 @@
 # WePLD master build plan — Astro reconciliation
 
-PLAN_STATE = PROPOSED_RECONCILIATION_PENDING_INDEPENDENT_ACCEPTANCE
+PLAN_STATE = DEPENDENCY_ORDERED_EXECUTION_BASELINE
 
-Implementation authorized by Astro: NO. Source/dependency admission: NONE.
+PLAN_ACCEPTANCE = ASTRO-G01 accepted canonically by PR #340; later amendments require their own exact-head acceptance evidence.
+IMPLEMENTATION_AUTHORITY = TASK_SPECIFIC_ONLY
+SOURCE_DEPENDENCY_ADMISSION = TASK_SPECIFIC_ONLY
 
-This is the navigation point for the founder's master request and September 20 additions. It refines canonical V2.3 and Spec 006 within P0 + S1–S10. The requested filename does not make this proposal ratified. Existing field-owning contracts and protected governance remain controlling. No product code, runtime dependency, CI policy or protected canonical file changes belong to this package.
+This is the navigation point for the founder's master request and the accepted Astro refinement of canonical V2.3 / Spec 006 within P0 + S1–S10. Existing field-owning contracts and protected governance remain controlling. This plan does not create global implementation authority: each task executes only when its dependencies, exact path/effect grant, Source Acquisition Check and acceptance gates are satisfied. Planning amendments add requirements and candidate sources but do not silently widen an already accepted implementation grant.
 
 ## Verified starting point
 
@@ -23,6 +25,51 @@ This is the navigation point for the founder's master request and September 20 a
 
 Sources: [main](https://github.com/TheHalfMoon/wepld/commit/765f9d4ae0588ca06b0f65cd76de16eaa8a5c246), [v71](https://github.com/TheHalfMoon/wepld/pull/339), [S2 closure](https://github.com/TheHalfMoon/wepld/pull/335). Detailed observation and validation are in [evidence](EVIDENCE_AND_VALIDATION.md).
 
+### Current execution frontier — live snapshot refreshed 2026-09-23
+
+The September 20 table above is the historical planning starting point. Execution must use live canonical `main`, not that historical SHA.
+
+```text
+ASTRO-G01 = COMPLETE_CANONICAL
+  PR = #340
+  MERGE = 100d5c3c0049fd97e3a1e5d54c5cc9fcc6ca9bde
+
+ASTRO-F01 = COMPLETE_CANONICAL
+  PR = #341
+  MERGE = 9229c56bb48d1beb2fabf2caa9249486e384336a
+
+S3 PURE-CONTRACT ENFORCEMENT = CANONICAL
+  PR = #344 / v72
+  MERGE = 666e62d7d9e040505baca277a474d734afcc07a0
+
+ACTIVE CANDIDATES
+  ASTRO-B01 = PR #342 OPEN / DRAFT
+  ASTRO-C01 = PR #343 OPEN / DRAFT
+
+DEPENDENCY-READY AFTER F01
+  ASTRO-A01
+  ASTRO-A04
+  ASTRO-A05
+  ASTRO-A06
+  ASTRO-A07
+  ASTRO-A08
+  ASTRO-A09
+
+ASTRO-P01 = BLOCKED until ASTRO-A09 is accepted
+```
+
+Open PR state is observational and must be re-read from GitHub before mutation or acceptance. The graph, not this snapshot, determines dependency legality.
+
+### Planning-completeness rule
+
+```text
+NO_UNOWNED_PLANNING_GAP = REQUIRED
+UNKNOWN != MISSING_PLAN
+FUTURE_GATE != CURRENT_BLOCKER
+```
+
+Every known uncertainty must be represented as a named gap/limitation with an owner, closure task, required evidence and stop condition. A research unknown or future platform/source gate may remain unresolved without making the plan incomplete when it is explicitly owned and cannot be needed before its dependency frontier. An unowned ambiguity that changes architecture, authority, data handling, acceptance, rollback or source rights is a blocker and must be added to the gap ledger before implementation proceeds.
+
 Open draft PRs #1, #73, #81, #88, #136, #159, #162 and #164 are historical research/foundation/Pictorial–Agile work, not an active S3 code tranche. PR #241 is merged historical Spec 006 planning. This package neither reopens it nor treats its review as acceptance of new work. Frozen CURRENT_STATE and task status markers are historical where later merged policy supersedes them.
 
 The earlier local September 14 drafts were unavailable when this session resumed. This package is reconstructed from canonical main and fresh sources in a separate clone. The original checkout's deletions remain untouched. Conversation memory alone is not current repository evidence.
@@ -31,13 +78,14 @@ The earlier local September 14 drafts were unavailable when this session resumed
 
 1. This document — state, scope, roadmap and next gate.
 2. [Architecture](WEPLD_ARCHITECTURE_RECONCILIATION.md) — ownership, contracts and flows.
-3. [Decisions and gaps](WEPLD_DECISION_AND_GAP_LEDGER.md) — resolved conflicts and scoped blockers.
-4. [Acquisition](WEPLD_CAPABILITY_AND_SOURCE_ACQUISITION_PLAN.md) and [source inventory](SOURCE_INVENTORY.md) — baseline reconciliation, exact new pins, rights and mining tasks.
-5. [Feature parity and product flows](FEATURE_PARITY_AND_PRODUCT_FLOWS.md) — AutoClaw, Orca, all requested sources, Review/Test/Security, Teams and Hub.
-6. [Security](WEPLD_SECURITY_AND_TRUST_MODEL.md) and [benchmark](WEPLD_BENCHMARK_AND_ASSURANCE_PLAN.md) — threat-to-test and claim-to-evidence obligations.
-7. [Muse handoff](WEPLD_MUSE_EXECUTION_HANDOFF.md) — bounded tasks, dependencies, entry and exit gates.
+3. [Local intelligence capability amendment](WEPLD_LOCAL_INTELLIGENCE_CAPABILITY_AMENDMENT.md), [intelligence source intake](INTELLIGENCE_SOURCE_INTAKE.md), [data/agent orchestration implementation plan](WEPLD_DATA_AGENT_ORCHESTRATION_IMPLEMENTATION_PLAN.md), and [data/agent orchestration hardening addendum](WEPLD_DATA_AGENT_ORCHESTRATION_HARDENING_ADDENDUM.md) — OCR/document intelligence, RAG, memory, typed decisions/PLD, tool/browser/desktop/event profiles plus DB/data workbench, agent/work orchestration, bounded DAG/local-routing mechanisms, and mandatory SQL/session/fencing/budget/dataflow/crash-consistency hardening mapped onto existing owners and the existing 63-task DAG; no new authority or admission.
+4. [Decisions and gaps](WEPLD_DECISION_AND_GAP_LEDGER.md) — resolved conflicts and scoped blockers.
+5. [Acquisition](WEPLD_CAPABILITY_AND_SOURCE_ACQUISITION_PLAN.md) and [source inventory](SOURCE_INVENTORY.md) — baseline reconciliation, exact new pins, rights and mining tasks.
+6. [Feature parity and product flows](FEATURE_PARITY_AND_PRODUCT_FLOWS.md) — AutoClaw, Orca, all requested sources, Review/Test/Security, Teams and Hub.
+7. [Security](WEPLD_SECURITY_AND_TRUST_MODEL.md) and [benchmark](WEPLD_BENCHMARK_AND_ASSURANCE_PLAN.md) — threat-to-test and claim-to-evidence obligations.
+8. [Muse handoff](WEPLD_MUSE_EXECUTION_HANDOFF.md) — bounded tasks, dependencies, entry and exit gates.
 
-Canonical prerequisites: [AGENTS](../../../AGENTS.md), [master index](../../../docs/canonical/MASTER_PLAN_INDEX.md), [V2.3](../../../docs/canonical/MASTER_PLAN_V2_3_AGENT_CONTROL_PLANE.md), [Spec 006 index](../PLANNING_INDEX.md), [S3 tasks](../../007-s3-terminal-fabric-trusted-process-ownership/tasks.md). This package proposes an index addition through a future governed transition; it does not silently edit the protected master index or create a competing authority root.
+Canonical prerequisites: [AGENTS](../../../AGENTS.md), [master index](../../../docs/canonical/MASTER_PLAN_INDEX.md), [V2.3](../../../docs/canonical/MASTER_PLAN_V2_3_AGENT_CONTROL_PLANE.md), [Spec 006 index](../PLANNING_INDEX.md), [S3 tasks](../../007-s3-terminal-fabric-trusted-process-ownership/tasks.md). The protected master index remains the V2.3 roadmap root; this package is a bounded Spec 006 execution refinement under that roadmap and does not create a competing authority root or require roadmap renumbering.
 
 ## Product thesis and first outcome
 
@@ -68,6 +116,10 @@ Every entry gate includes fresh trusted bootstrap, Spec Kit, Ponytail FULL, acqu
 
 AutoClaw/AnythingLLM/Orca product breadth, Teams deployment and Community Hub expand the owning slices as conditional follow-on profiles. They are not a second numbering system or newly mandatory S10 content. Each profile requires its own exact task manifest and release gate. UI-only shells may demonstrate designs but must display unavailable capabilities honestly.
 
+The founder-requested local intelligence breadth is reconciled the same way. OCR/document intelligence, retrieval/RAG, scoped memory, typed decisions/PLD, tool/skill discovery, browser/web acquisition, desktop interaction and event intelligence are cross-cutting capability profiles under existing owners and tasks, not an S11 or a new authority domain. See [the local intelligence capability amendment](WEPLD_LOCAL_INTELLIGENCE_CAPABILITY_AMENDMENT.md) and [source intake](INTELLIGENCE_SOURCE_INTAKE.md). Merging those planning records does not admit sources, models, dependencies or effects.
+
+The September 29 data/agent-orchestration expansion is also reconciled inside the same roadmap. DBX contributes database/MCP/session/plugin safety mechanisms; Paperclip contributes Work/agent checkout, wakeup, budget, recovery and routine mechanisms; Synaplan contributes bounded DAG validation, capability/model separation and access-scoped RAG. See [the implementation plan](WEPLD_DATA_AGENT_ORCHESTRATION_IMPLEMENTATION_PLAN.md) and mandatory [hardening addendum](WEPLD_DATA_AGENT_ORCHESTRATION_HARDENING_ADDENDUM.md). These donors do not create a second task store, scheduler, policy authority, RAG truth store or mandatory service stack.
+
 ## Capability ownership and scope
 
 | Capability | Owner | First placement / expansion |
@@ -75,6 +127,7 @@ AutoClaw/AnythingLLM/Orca product breadth, Teams deployment and Community Hub ex
 | Desktop, accessibility, navigation, session UX | Presentation + Work | S1/S5/S9; alternate clients later |
 | Projects, repos, worktrees, Doctor | Work + Runtime | S2/S3; fleet/SSH later |
 | Work, issues, meetings, rooms | Work | S5/S6; enterprise collaboration profile |
+| Data/database workbench, schema facts and bounded query tools | Work + Fehrest + Mirefa/UWC + Nawat | S4/S6 packages; edition profile after A09/P01 |
 | Intent, specifications, debate, planning | AGILLE | S5 |
 | Durable execution, scheduling, cancellation | Mission Runtime | S3/S6; recurring work S8/S9 |
 | Worker/model/provider selection | Mirefa + UWC | S6; qualified route breadth later |
@@ -95,8 +148,10 @@ AutoClaw/AnythingLLM/Orca product breadth, Teams deployment and Community Hub ex
 
 Start with one local Rust authority core and modular logical owners. Keep current serialization/store until measurements require more. Graph facts do not require a graph server; semantic search does not require a vector service; team features do not require copying an entire harness. Prefer existing parsers, browser engines, PTYs, policy libraries and test runners behind narrow adapters.
 
+The same rule applies to the September 29 donors: DBX does not justify a second desktop/data-control plane; Paperclip does not justify a Node control plane beside Mission Runtime; Synaplan does not justify mandatory PHP/Vue/Docker/Qdrant/Redis/MariaDB infrastructure. Mine narrow mechanisms and fixtures behind WePLD-owned contracts. The hardening addendum makes backend least-privilege/read-only enforcement, stale-worker fencing, atomic budget reservation, typed DAG dataflow and crash-cut recovery mandatory wherever their owning task applies. Local-first remains the default and no hosted provider is introduced as a required core dependency.
+
 Reject blanket command execution, global computer-access switches, framework-owned completion, reviewer voting, automatic skill updates that expand privileges, model-written policy promotion, hidden egress, and claims of universal rollback. Defer multi-host services, full enterprise fleet, universal language support and binary archaeology without discarding their requirements.
 
 Proposed qualification strata: 1k/10k/100k files, 10k/100k/1m evidence events, one then ten simultaneous attempts, two then ten then fifty collaborators, explicit Windows x64 first. These are experiment inputs, not promised capacity. Set p95 latency, memory, cancellation and cost ceilings before the relevant release based on measured hardware and a preregistered budget.
 
-Next action is task ASTRO-G01: reconcile and independently accept the exact planning revision. Muse may then follow the dependency graph under existing or separately granted authority. Plan completeness does not imply all future donor packages are admitted or all enterprise product decisions are finalized.
+The accepted plan gate ASTRO-G01 and frontier-freeze ASTRO-F01 are complete. Continue only from live dependency-valid work: reconcile the already-open ASTRO-B01 and ASTRO-C01 candidates against current main, and independently start ASTRO-A01 / ASTRO-A04..A09 only under their bounded task contracts and exact current authority. ASTRO-P01 remains blocked until ASTRO-A09 is accepted. Plan completeness does not imply donor admission, runtime qualification or release readiness; those are explicit downstream gates, not missing planning.

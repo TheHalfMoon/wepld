@@ -20,6 +20,7 @@ This index defines the recommended reading order and ownership map for the Spec 
 0. `astro-master/WEPLD_DECISION_AND_GAP_LEDGER.md` — all known gaps/limitations with owner and closure gate.
 0. `astro-master/WEPLD_LOCAL_INTELLIGENCE_CAPABILITY_AMENDMENT.md` + `astro-master/INTELLIGENCE_SOURCE_INTAKE.md` — OCR/RAG/memory/typed decisions/tools/browser/desktop/event intelligence and the founder-authorized donor/source additions.
 0. `astro-master/WEPLD_DATA_AGENT_ORCHESTRATION_IMPLEMENTATION_PLAN.md` + `astro-master/WEPLD_DATA_AGENT_ORCHESTRATION_HARDENING_ADDENDUM.md` — implementation-ready DB/data-workbench, agent/work orchestration, bounded DAG/local-routing contracts, final SQL/session/fencing/budget/dataflow/crash-consistency hardening, and exact DBX/Paperclip/Synaplan task mapping; no new task IDs or authority.
+0. `astro-master/WEPLD_SOURCE_EXPANSION_IMPLEMENTATION_PLAN_2026_09_30.md` — founder-authorized Firstmate/no-mistakes/Doop/classifier.dev/Jev Search/Unreal Agent source expansion, selective import posture, Assurance/Mission Runtime/decision/design-surface mappings, security oracles, tracer bullets and benchmark obligations; no new task IDs or authority.
 
 1. `spec.md` — parent product requirements.
 2. `plan.md` — parent product/roadmap/tracer-bullet architecture.

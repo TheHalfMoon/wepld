@@ -20,6 +20,7 @@ This index defines the recommended reading order and ownership map for the Spec 
 0. `astro-master/WEPLD_DECISION_AND_GAP_LEDGER.md` — all known gaps/limitations with owner and closure gate.
 0. `astro-master/WEPLD_LOCAL_INTELLIGENCE_CAPABILITY_AMENDMENT.md` + `astro-master/INTELLIGENCE_SOURCE_INTAKE.md` — OCR/RAG/memory/typed decisions/tools/browser/desktop/event intelligence and the founder-authorized donor/source additions.
 0. `astro-master/WEPLD_DATA_AGENT_ORCHESTRATION_IMPLEMENTATION_PLAN.md` + `astro-master/WEPLD_DATA_AGENT_ORCHESTRATION_HARDENING_ADDENDUM.md` — implementation-ready DB/data-workbench, agent/work orchestration, bounded DAG/local-routing contracts, final SQL/session/fencing/budget/dataflow/crash-consistency hardening, and exact DBX/Paperclip/Synaplan task mapping; no new task IDs or authority.
+0. `astro-master/WEPLD_SOURCE_EXPANSION_IMPLEMENTATION_PLAN_2026_09_30.md` + `astro-master/WEPLD_SOURCE_EXPANSION_HARDENING_ADDENDUM_2026_09_30.md` — founder-authorized Firstmate/no-mistakes/Doop/classifier.dev/Jev Search/Unreal Agent expansion plus mandatory pin reconciliation, Windows-first portability, no-history-rewrite adaptation, user capability controls, persisted-state/migration rules, security/fault oracles, resource budgets, receipts, rollout/rollback/removal and dependency-ordered leaf readiness; no new task IDs or authority.
 
 1. `spec.md` — parent product requirements.
 2. `plan.md` — parent product/roadmap/tracer-bullet architecture.
@@ -77,6 +78,7 @@ These extend the parent `spec.md` / `plan.md` / `acceptance.md` without changing
 - `omnigent-plan-hardening-addendum.md`
 - `web-agent.md`
 - `web-agent-acceptance.md`
+- `astro-master/WEPLD_SOURCE_EXPANSION_HARDENING_ADDENDUM_2026_09_30.md`
 
 If an addendum and parent document appear to conflict, treat the planning package as **not internally coherent** until reconciled; do not silently choose one.
 

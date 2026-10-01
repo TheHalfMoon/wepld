@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<rect width="100%" height="100%" rx="60" fill="#f5f7f6"/>
+<rect x="204.8" y="129.6" width="435.2" height="460.8" rx="30" fill="#142232"/>
+<path d="M 281.6 482.4 L 409.6 388.8 L 550.4 259.2" stroke="#248b8b" stroke-width="16" fill="none"/>
+<circle cx="281.6" cy="482.4" r="14" fill="#f5f7f6"/><circle cx="409.6" cy="388.8" r="14" fill="#f5f7f6"/><circle cx="550.4" cy="259.2" r="16" fill="#54b48c"/>
+<text x="55%" y="46%" fill="#142232" font-family="DejaVu Sans" font-size="90" font-weight="700">Agile</text>
+<text x="55%" y="56%" fill="#49646a" font-family="DejaVu Sans" font-size="27">Specification &amp; delivery method · WePLD source snapshot</text>
+</svg>

@@ -1,0 +1,5 @@
+# Modified by WePLD on 2026-08-23: deterministic Pictorial rebrand/path integration from the pinned upstream source.
+interface:
+  display_name: Pictorial
+  short_description: Use when the user wants to design, redesign, shape, critique, audit, polish, clarify,...
+  default_prompt: Use Pictorial to redesign, critique, audit, or polish this frontend.

@@ -1,0 +1,33 @@
+# One-time Usage (uvx)
+
+If you want to try Agile without installing it permanently, use `uvx` to run it directly. This downloads the tool into a temporary environment that is discarded after the command finishes.
+
+> [!NOTE]
+> The commands below require **[uv](https://docs.astral.sh/uv/)**. If you see `command not found: uvx`, [install uv first](uv.md).
+
+## Run Agile CLI
+
+```bash
+# Create a new project (latest from main)
+uvx --from git+https://github.com/TheHalfMoon/wepld.git agile init <PROJECT_NAME>
+
+# Or target a specific release (replace vX.Y.Z with a tag from Releases;
+# keep the leading v, e.g. v0.12.11 not 0.12.11)
+uvx --from git+https://github.com/TheHalfMoon/wepld.git@vX.Y.Z agile init <PROJECT_NAME>
+
+# Initialize in the current directory
+uvx --from git+https://github.com/TheHalfMoon/wepld.git agile init . --integration copilot
+
+# Or use the --here flag
+uvx --from git+https://github.com/TheHalfMoon/wepld.git agile init --here --integration copilot
+```
+
+## When to use persistent installation instead
+
+If you plan to use Agile regularly, a persistent installation is recommended:
+
+- Tool stays installed and available in PATH
+- No re-download on every invocation
+- Better tool management with `uv tool list`, `uv tool upgrade`, `uv tool uninstall`
+
+See the main [Installation Guide](../installation.md) for persistent installation instructions.

@@ -1,0 +1,24 @@
+{
+  "dependencies_installed": false,
+  "dependency_admission": "NONE",
+  "donor_code_execution": "NONE",
+  "head_before_restore": "93dcde7fc3f0bdd4aed381965859d796d0bf9d9c",
+  "missing_committed_outputs_detected": 2,
+  "restored_outputs": [
+    {
+      "component": "Agile",
+      "reconstructed_wepld_object_sha": "4467447afcf1cc88de012edc898fa6b32d665ea8",
+      "upstream_object_sha": "0921f18ee6470825dc10a108986e20bcfbd5f181",
+      "upstream_path": ".specify/memory/constitution.md",
+      "wepld_path": "vendor/agile/.agile/memory/constitution.md"
+    },
+    {
+      "component": "Agile",
+      "reconstructed_wepld_object_sha": "3e254abcdbc60930722fa0006e7588669c576fb2",
+      "upstream_object_sha": "3e254abcdbc60930722fa0006e7588669c576fb2",
+      "upstream_path": "tests/hooks/.specify/extensions.yml",
+      "wepld_path": "vendor/agile/tests/hooks/.agile/extensions.yml"
+    }
+  ],
+  "status": "PASS"
+}

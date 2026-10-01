@@ -1,0 +1,31 @@
+schema_version: "1.0"
+
+extension:
+  id: bug
+  name: "Bug Triage Workflow"
+  version: "1.0.0"
+  description: "Assess, fix, and validate bug reports against the codebase with per-bug reports stored under .agile/bugs/<slug>/"
+  author: agile-core
+  repository: https://github.com/TheHalfMoon/wepld
+  license: MIT
+
+requires:
+  agile_version: ">=0.9.0"
+
+provides:
+  commands:
+    - name: agile.bug.assess
+      file: commands/agile.bug.assess.md
+      description: "Assess a bug report (pasted text or URL) against the codebase and produce an assessment with possible remediation"
+    - name: agile.bug.fix
+      file: commands/agile.bug.fix.md
+      description: "Apply the remediation from a bug assessment and record what was changed"
+    - name: agile.bug.test
+      file: commands/agile.bug.test.md
+      description: "Validate that a previously fixed bug is resolved and record the verification report"
+
+tags:
+  - "bug"
+  - "triage"
+  - "workflow"
+  - "qa"

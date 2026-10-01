@@ -116,3 +116,15 @@ LEGACY_DIRECTORY_COPY = NO
 DISCUSSION_LANGUAGE = Arabic
 READY_TO_USE_TECHNICAL_PROMPTS = English
 ```
+
+<!-- graft:start -->
+## Graft — repository context layer
+
+Use Graft (https://github.com/trailhq/Graft, `@nanonets/graft`) as local developer/agent context and navigation tooling. Graft context is non-authoritative and must never bypass WePLD's trusted-bootstrap rule, canonical read order, egress policy, deterministic gates, or acceptance authority.
+
+If Graft is unavailable or the local `graft/` graph is absent/stale, run `graft init`, select the active agent(s), then run `graft build`. Before broad source exploration prefer `graft check`, `graft map`, `graft ask "<question>" --source`, `graft skeleton <file>`, `graft callers <symbol>`, and `graft grep "<literal>"`. After material code changes, run `graft build` again.
+
+Treat `graft/` as a local regenerable cache and do not commit it. Keep usage zero-cost: do not introduce paid model/API usage; any model-backed enrichment must comply with the existing provider/egress policy and use an already-authorized local or free provider.
+
+Continue all repository-required deterministic checks, independent review, Jev where applicable, Alibaba Open Code Review, CI, security, provenance, and egress controls. Never fabricate Graft output, tool execution, CI, reviews, or evidence.
+<!-- graft:end -->
